@@ -52,7 +52,6 @@ protected:
 	HFONT font_;
 	int fontSize_;
 	int margin_;
-	int spacing_;
 };
 
 }
