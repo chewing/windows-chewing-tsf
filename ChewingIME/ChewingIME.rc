@@ -1,0 +1,433 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winresrc.h"
+#ifndef IDC_STATIC
+#define IDC_STATIC -1
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (Taiwan) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHT)
+#ifdef _WIN32
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
+#pragma code_page(950)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,3,4,5
+ PRODUCTVERSION 0,3,4,5
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0xbL
+#else
+ FILEFLAGS 0xaL
+#endif
+ FILEOS 0x10004L
+ FILETYPE 0x3L
+ FILESUBTYPE 0xbL
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040404b0"
+        BEGIN
+            VALUE "FileDescription", "新酷音輸入法"
+            VALUE "FileVersion", "0, 3, 4, 5"
+            VALUE "InternalName", "ChewingIME"
+            VALUE "LegalCopyright", "Copyright (C) 2007"
+            VALUE "OriginalFilename", "ChewingIME.dll"
+            VALUE "ProductName", "Win32 Chewing 中文輸入法"
+            VALUE "ProductVersion", "0, 3, 4, 5"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x404, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_ICON                ICON                    "mainicon.ico"
+IDI_CONFIG              ICON                    "config.ico"
+IDI_CHI                 ICON                    "chi.ico"
+IDI_ENG                 ICON                    "eng.ico"
+IDI_FULL                ICON                    "full.ico"
+IDI_HALF                ICON                    "half.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+// FIXME: Automatically update these fields.
+IDD_ABOUT DIALOGEX 0, 0, 275, 236
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_POPUP | 
+    WS_CAPTION | WS_SYSMENU
+CAPTION "關於新酷音輸入法"
+FONT 9, "新細明體", 400, 0, 0x0
+BEGIN
+    GROUPBOX        "",IDC_STATIC,7,119,261,90
+    LTEXT           "新酷音原是 Linux 系統下知名的輸入法，由 gugod, jserv, kanru\n\n等前輩，改良原本由龔律全與陳康本開發的酷音輸入法而來，\n\n有多種分支，目前已經能夠支援包括 Mac 在內的多種平台。\n\n這個 Windows 版本是由 PCMan, seamxr, andyhorng 等人，\n\n使用上述前輩們製作的 libchewing 核心，移植出 Windows 版本",
+                    IDC_STATIC,25,129,224,75
+    LTEXT           "新酷音 － 智慧型注音輸入法\n\n版本： 0.4-dev\n\n發行日期：2008.11.22\n\n授權方式： GNU General Public License\n\n軟體開發者：洪任諭 (PCMan), seamxr, andyhorng, sky008888\n\n以多位前輩們發展的的 libchewing 為基礎",
+                    IDC_STATIC,98,7,170,109
+    CONTROL         IDI_FULL,IDC_STATIC,"Static",SS_BITMAP,7,7,80,87
+    LTEXT           "題字：翁政銓",IDC_STATIC,21,97,49,8
+    PUSHBUTTON      "確定 (&O)",IDOK,112,215,50,14
+END
+
+IDD_UI DIALOGEX 0, 0, 237, 130
+STYLE DS_SETFONT | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "介面外觀"
+FONT 9, "新細明體", 0, 0, 0x0
+BEGIN
+    CONTROL         "固定組字視窗位置",IDC_FIX_COMPWND,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,6,80,10
+    CONTROL         "隱藏狀態工具列",IDC_HIDE_STATUSWND,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,20,72,10
+    CONTROL         "塊狀游標",IDC_BLOCK_CURSOR,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,9,34,48,10
+    CONTROL         "使用底線標示詞",IDC_PHRASE_MARK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,48,72,10
+    CONTROL         "預設以英文模式啟動",IDC_DEFAULT_ENG,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,62,88,10
+    CONTROL         "預設以全形模式啟動",IDC_DEFAULT_FS,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,76,88,10
+    LTEXT           "文字大小",IDC_STATIC,9,107,33,11
+    EDITTEXT        IDC_FONT_SIZE,46,105,40,14,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_FONT_SIZE_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,84,105,11,
+                    14
+    LTEXT           "每列顯示候選字個數",IDC_STATIC,100,6,73,9
+    EDITTEXT        IDC_CAND_PER_ROW,177,3,51,14,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_CAND_PER_ROW_SPIN,"msctls_updown32",
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_ARROWKEYS,209,5,13,14
+    LTEXT           "每頁顯示候選字個數",IDC_STATIC,100,20,73,9
+    EDITTEXT        IDC_CAND_PER_PAGE,177,17,51,14,ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    CONTROL         "",IDC_CAND_PER_PAGE_SPIN,"msctls_updown32",
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_ARROWKEYS,209,23,13,14
+    CONTROL         "用不同顏色顯示選字鍵和候選字",IDC_COLOR_CANDIDATE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,34,128,10
+    PUSHBUTTON      "選字鍵色彩",IDC_SELKEY_COLOR,100,48,61,14,NOT 
+                    WS_VISIBLE
+    PUSHBUTTON      "候選字色彩",IDC_CAND_COLOR2,100,62,61,14,NOT WS_VISIBLE
+END
+
+IDD_TYPING DIALOGEX 0, 0, 232, 189
+STYLE DS_SETFONT | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "打字行為"
+FONT 9, "新細明體", 0, 0, 0x0
+BEGIN
+    CONTROL         "使用 Shift 快速切換中英文模式",IDC_ENABLE_SHIFT,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,6,123,10
+    CONTROL         "Ctrl + 數字加入游標前方的詞",IDC_ADD_PHRASE_FORWARD,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,20,116,10
+    CONTROL         "中文模式下按住 Shift 打大寫",IDC_SHIFT_CAPITAL,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,34,115,10
+    CONTROL         "使用 CapsLock 切換中英文",IDC_ENABLE_CAPSLOCK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,48,107,10
+    CONTROL         "使用 Esc 清空編輯區字串",IDC_ESC_CLEAN_ALL_BUF,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,62,103,10
+    CONTROL         "使用 Shift 輸入全形符號",IDC_SHIFT_FULLSHAPE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,76,99,10
+    CONTROL         "使用方向鍵移動游標選字",IDC_CURSOR_CANDLIST,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,90,104,10
+    CONTROL         "打字時按空白鍵叫出選字視窗",IDC_SPACESEL,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,106,120,10
+    CONTROL         "選字完畢自動跳到下一個字",IDC_ADV_AFTER_SEL,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,120,112,10
+    LTEXT           "選字鍵",IDC_STATIC,9,165,26,9
+    COMBOBOX        IDC_SELKEYS,42,162,102,76,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    GROUPBOX        "鍵盤對應",IDC_STATIC,147,3,79,142
+    CONTROL         "預設",IDC_KB1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,
+                    155,16,35,12
+    CONTROL         "許氏鍵盤",IDC_KB2,"Button",BS_AUTORADIOBUTTON,155,30,54,
+                    12
+    CONTROL         "IBM",IDC_KB3,"Button",BS_AUTORADIOBUTTON,155,44,35,12
+    CONTROL         "精業",IDC_KB4,"Button",BS_AUTORADIOBUTTON,155,58,35,12
+    CONTROL         "倚天",IDC_KB5,"Button",BS_AUTORADIOBUTTON,155,72,35,12
+    CONTROL         "倚天 26 鍵",IDC_KB6,"Button",BS_AUTORADIOBUTTON,155,86,
+                    67,12
+    CONTROL         "DVORAK",IDC_KB7,"Button",BS_AUTORADIOBUTTON,155,100,65,
+                    12
+    CONTROL         "DVORAK 許氏",IDC_KB8,"Button",BS_AUTORADIOBUTTON,155,
+                    114,66,10
+    CONTROL         "漢語拼音",IDC_KB9,"Button",BS_AUTORADIOBUTTON,155,126,
+                    65,12
+    CONTROL         "Shift ",IDC_SHIFT_SYMBOL,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,9,134,33,10
+    CONTROL         "Ctrl",IDC_CTRL_SYMBOL,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,47,134,28,10
+    LTEXT           "輸出簡易符號",IDC_STATIC,81,135,56,10
+    CONTROL         "輸出簡體字 (NT以上限定)",IDC_ENABLE_Simp,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,9,147,98,10
+END
+
+IDD_UPDATE DIALOGEX 0, 0, 237, 113
+STYLE DS_SETFONT | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "線上更新"
+FONT 9, "新細明體", 0, 0, 0x0
+BEGIN
+    CONTROL         "自動線上檢查有無新版本，有新版時通知我",
+                    IDC_CHECK_NEW_VERSION,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,7,63,168,10
+    LTEXT           "說明：\n新酷音輸入法提供定期自動連線到網路，檢查官方網站有無新版本的功能。 若本功能開啟，可能會觸動某些網路防火牆軟體，發出警告：""C:\\Windows\\System32\\IME\\Chewing\\Update.exe"" 正在存取網路，這是因為新酷音正在檢查新版，此為正常現象，請設定允許通過防火牆，本功能才能正常運作。",
+                    IDC_STATIC,7,7,224,54
+END
+
+IDD_SYMBOLS DIALOGEX 0, 0, 237, 159
+STYLE DS_SETFONT | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "標點符號輸入"
+FONT 9, "新細明體", 0, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_EDIT,"RichEdit20A",ES_MULTILINE | ES_AUTOVSCROLL | 
+                    ES_AUTOHSCROLL | ES_WANTRETURN | ES_NUMBER | WS_BORDER | 
+                    WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,4,3,229,118
+    LTEXT           "新酷音輸入法提供符號表，裡面的符號可以自訂。\n以上是符號表的設定檔，語法相當簡單：\n每一行的內容都是： 「分類名稱」=「此分類下的所有符號」\n您也可以一行只放一個符號，則該符號會被放在最上層選單。",
+                    IDC_STATIC,8,125,222,33
+END
+
+IDD_KEYBOARD DIALOGEX 0, 0, 266, 90
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_VISIBLE | WS_BORDER
+EXSTYLE WS_EX_TOPMOST | WS_EX_TOOLWINDOW
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "~",IDC_BUTTON1,7,7,18,16
+    PUSHBUTTON      "1",IDC_BUTTON2,30,7,18,16
+    PUSHBUTTON      "2",IDC_BUTTON3,52,7,18,16
+    PUSHBUTTON      "3",IDC_BUTTON4,75,7,18,16
+    PUSHBUTTON      "4",IDC_BUTTON5,98,7,18,16
+    PUSHBUTTON      "5",IDC_BUTTON6,120,7,18,16
+    PUSHBUTTON      "6",IDC_BUTTON7,143,7,18,16
+    PUSHBUTTON      "7",IDC_BUTTON8,165,7,18,16
+    PUSHBUTTON      "8",IDC_BUTTON9,187,7,18,16
+    PUSHBUTTON      "。",IDC_BUTTON10,231,67,18,16
+    PUSHBUTTON      "0",IDC_BUTTON11,233,7,18,16
+    PUSHBUTTON      "Tab",IDC_BUTTON12,7,27,26,16
+    PUSHBUTTON      "Caps",IDC_BUTTON13,7,47,31,16
+    PUSHBUTTON      "Shift",IDC_BUTTON14,7,67,36,16
+    PUSHBUTTON      "Q",IDC_BUTTON15,38,27,18,16
+    PUSHBUTTON      "W",IDC_BUTTON16,60,27,18,16
+    PUSHBUTTON      "E",IDC_BUTTON17,83,27,18,16
+    PUSHBUTTON      "R",IDC_BUTTON18,106,27,18,16
+    PUSHBUTTON      "T",IDC_BUTTON19,128,27,18,16
+    PUSHBUTTON      "Y",IDC_BUTTON20,151,27,18,16
+    PUSHBUTTON      "U",IDC_BUTTON21,173,27,18,16
+    PUSHBUTTON      "I",IDC_BUTTON22,195,27,18,16
+    PUSHBUTTON      "O",IDC_BUTTON23,218,27,18,16
+    PUSHBUTTON      "P",IDC_BUTTON24,241,27,18,16
+    PUSHBUTTON      "A",IDC_BUTTON25,43,47,18,16
+    PUSHBUTTON      "S",IDC_BUTTON26,65,47,18,16
+    PUSHBUTTON      "D",IDC_BUTTON27,89,47,18,16
+    PUSHBUTTON      "F",IDC_BUTTON28,111,47,18,16
+    PUSHBUTTON      "G",IDC_BUTTON29,133,47,18,16
+    PUSHBUTTON      "H",IDC_BUTTON30,157,47,18,16
+    PUSHBUTTON      "J",IDC_BUTTON31,179,47,18,16
+    PUSHBUTTON      "K",IDC_BUTTON32,201,47,18,16
+    PUSHBUTTON      "L",IDC_BUTTON33,223,47,18,16
+    PUSHBUTTON      "Z",IDC_BUTTON35,49,67,18,16
+    PUSHBUTTON      "X",IDC_BUTTON36,71,67,18,16
+    PUSHBUTTON      "C",IDC_BUTTON37,95,67,18,16
+    PUSHBUTTON      "V",IDC_BUTTON38,117,67,18,16
+    PUSHBUTTON      "B",IDC_BUTTON39,139,67,18,16
+    PUSHBUTTON      "N",IDC_BUTTON40,163,67,18,16
+    PUSHBUTTON      "M",IDC_BUTTON41,185,67,18,16
+    PUSHBUTTON      "，",IDC_BUTTON42,208,67,18,16
+    PUSHBUTTON      "9",IDC_BUTTON43,210,7,18,16
+END
+
+IDD_EZ_SYMBOLS DIALOGEX 0, 0, 237, 177
+STYLE DS_SETFONT | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "簡易符號輸入"
+FONT 9, "新細明體", 0, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_EZEDIT,"RichEdit20A",ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | 
+                    ES_NUMBER | WS_BORDER | WS_VSCROLL | WS_HSCROLL | 
+                    WS_TABSTOP,4,3,229,118
+    LTEXT           "這是簡易符號輸入的設定介面。這個介面裡的一行表示一個鍵所對應的字串，例如「m 新酷音」或是「L orz」等。\n每一行的格式必須符合：「Ta Tb」。其中 Ta 與 Tb 間必須有一個半形空白字元；Ta 可以是 a-z 等字母；Tb 可以是長度 1 到 10 的任意中英文字串。",
+                    IDC_STATIC,8,127,222,49,SS_NOPREFIX
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_ABOUT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 268
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 229
+    END
+
+    IDD_UI, DIALOG
+    BEGIN
+        RIGHTMARGIN, 236
+        BOTTOMMARGIN, 113
+    END
+
+    IDD_TYPING, DIALOG
+    BEGIN
+        RIGHTMARGIN, 226
+        BOTTOMMARGIN, 174
+    END
+
+    IDD_SYMBOLS, DIALOG
+    BEGIN
+        RIGHTMARGIN, 236
+        BOTTOMMARGIN, 158
+    END
+
+    IDD_KEYBOARD, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 259
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 83
+    END
+
+    IDD_EZ_SYMBOLS, DIALOG
+    BEGIN
+        RIGHTMARGIN, 236
+        BOTTOMMARGIN, 176
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_COOL                BITMAP                  "icon.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_POPUP MENU 
+BEGIN
+    POPUP "POPUP"
+    BEGIN
+        MENUITEM "關於新酷音輸入法(&A)",        ID_ABOUT
+        MENUITEM "線上檢查新版本 (&V)",         ID_CHECK_NEW_VER
+        MENUITEM "參觀新酷音官方網站(&W)",      ID_WEBSITE
+		MENUITEM "新酷音線上討論區(&G)",        ID_GROUP
+        MENUITEM SEPARATOR
+        MENUITEM "軟體本身的建議及錯誤回報(&B)", ID_BUGREPORT
+        MENUITEM "注音及選字選詞錯誤回報 (&P)", ID_DICT_BUGREPORT
+        MENUITEM SEPARATOR
+        POPUP "教育部網路辭典 (&D)"
+        BEGIN
+            MENUITEM "教育部國語辭典",              ID_DICT
+            MENUITEM "教育部國語辭典簡編本",        ID_SIMPDICT
+            MENUITEM "教育部國語小字典",            ID_LITTLEDICT
+            MENUITEM "教育部成語典",                ID_PROVERBDICT
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "新酷音使用說明 (&H)",         ID_CHEWING_HELP
+        MENUITEM "編輯使用者詞庫 (&E)",         ID_HASHED
+        MENUITEM "設定新酷音輸入法(&C)",        ID_CONFIG
+    END
+    POPUP "EDIT"
+    BEGIN
+        MENUITEM "復原 (&U)",                   ID_EDIT_UNDO
+        MENUITEM SEPARATOR
+        MENUITEM "剪下 (&T)",                   ID_EDIT_CUT
+        MENUITEM "複製 (&C)",                   ID_EDIT_COPY
+        MENUITEM "貼上 (&P)",                   ID_EDIT_PASTE
+        MENUITEM "刪除 (&D)",                   ID_EDIT_DELETE
+        MENUITEM SEPARATOR
+        MENUITEM "全選 (&A)",                   ID_EDIT_SELALL
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE 
+BEGIN
+    ID_CHI_ENG              "中文/英數 模式切換 ( Shift )"
+    ID_FULL_HALF            "全半形切換 ( Shift + Space )"
+    IDS_CONFIGTIELE         "新酷音輸入法設定"
+    ID_MENU                 "新酷音輸入法設定"
+END
+
+#endif    // Chinese (Taiwan) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

@@ -27,3 +27,5 @@ add_subdirectory(chewingwrapper)
 add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingTextService)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingPreferences)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingIme)
