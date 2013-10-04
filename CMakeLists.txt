@@ -27,3 +27,7 @@ add_subdirectory(chewingwrapper)
 add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingTextService)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingPreferences)
+
+get_property(CHEWING_LIBRARY TARGET chewing_static PROPERTY LOCATION)
+set(CHEWING_INCLUDE_DIR ${PROJECT_LIBCHEWING}/include)
+add_subdirectory(${PROJECT_SOURCE_DIR}/chewing-editor)
