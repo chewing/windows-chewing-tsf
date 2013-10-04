@@ -23,7 +23,7 @@
 #include "LangBarButton.h"
 #include "DisplayAttributeInfoEnum.h"
 #include "ImeModule.h"
-#include "ImmSupport.h"
+#include "imm32/ImmSupport.h"
 
 #include <assert.h>
 #include <string>
@@ -184,7 +184,7 @@ void TextService::removePreservedKey(const GUID& guid) {
 
 bool TextService::isComposing() {
 	if(immSupport_) { // legacy IMM32 support
-		immSupport_->isComposing();
+		return immSupport_->isComposing();
 	}
 	// TSF
 	return (composition_ != NULL);
@@ -708,6 +708,9 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 
 	onActivate();
 
+	if(immSupport_) // legacy IMM32 support
+		immSupport_->activate();
+
 	return S_OK;
 }
 
@@ -722,6 +725,9 @@ STDMETHODIMP TextService::Deactivate() {
 	}
 
 	onDeactivate();
+
+	if(immSupport_) // legacy IMM32 support
+		immSupport_->deactivate();
 
 	// uninitialize language bar
 	if(!langBarButtons_.empty()) {

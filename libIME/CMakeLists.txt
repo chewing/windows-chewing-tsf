@@ -8,6 +8,15 @@ add_definitions(
     /DUNICODE=1
 )
 
+set(IMM_SOURCES # legacy Imm32 support
+    ${PROJECT_SOURCE_DIR}/imm32/ImmSupport.cpp
+    ${PROJECT_SOURCE_DIR}/imm32/ImmSupport.h
+    ${PROJECT_SOURCE_DIR}/imm32/ImcLock.cpp
+    ${PROJECT_SOURCE_DIR}/imm32/ImcLock.h
+    ${PROJECT_SOURCE_DIR}/imm32/CompStr.cpp
+    ${PROJECT_SOURCE_DIR}/imm32/CompStr.h
+)
+
 add_library(libIME_static STATIC
     # Core TSF part
     ${PROJECT_SOURCE_DIR}/ImeModule.cpp
@@ -34,8 +43,8 @@ add_library(libIME_static STATIC
     ${PROJECT_SOURCE_DIR}/Utils.h
     ${PROJECT_SOURCE_DIR}/ComPtr.h
     ${PROJECT_SOURCE_DIR}/WindowsVersion.h
-    ${PROJECT_SOURCE_DIR}/ImmSupport.cpp
-    ${PROJECT_SOURCE_DIR}/ImmSupport.h
+	# Legacy imm32 support
+	${IMM_SOURCES}
     # GUI-related code
     ${PROJECT_SOURCE_DIR}/DrawUtils.h
     ${PROJECT_SOURCE_DIR}/DrawUtils.cpp

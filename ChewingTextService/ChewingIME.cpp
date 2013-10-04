@@ -1,7 +1,7 @@
 #include <assert.h>
 #define NOIME // prevent windows.h from including imm.h
 #include <Windows.h>
-#include "imm.h" // include our imm.h from DDK
+#include <LibIME/imm32/imm.h> // include our imm.h from DDK
 #include <winreg.h>
 #include <shlobj.h>
 #include <windowsx.h>
@@ -18,7 +18,6 @@ extern Chewing::ImeModule* g_imeModule;
 static wchar_t g_chewingIMEClass[] = L"ChewingIme";
 static ITfThreadMgr* g_threadMgr = NULL;
 static TfClientId g_clientId = 0;
-static ITfDocumentMgr* g_documentMgr = NULL;
 static Chewing::TextService* g_textService = NULL;
 
 LRESULT CALLBACK imeUiWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -149,14 +148,9 @@ BOOL WINAPI ImeProcessKey(HIMC hIMC, UINT uVirKey, LPARAM lParam, CONST BYTE *lp
 }
 
 BOOL WINAPI ImeSelect(HIMC hIMC, BOOL fSelect) {
-	::OutputDebugStringW(L"ImeSelect\n");
 	if(fSelect) {
 		if(CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, (void**)&g_threadMgr) == S_OK) {
 			g_threadMgr->Activate(&g_clientId);
-			g_threadMgr->CreateDocumentMgr(&g_documentMgr);
-			if(g_documentMgr) {
-			}
-
 			if(!g_textService) {
 				g_textService = new Chewing::TextService(g_imeModule, hIMC);
 				g_textService->Activate(g_threadMgr, g_clientId);
@@ -165,10 +159,6 @@ BOOL WINAPI ImeSelect(HIMC hIMC, BOOL fSelect) {
 	}
 	else {
 		if(g_textService) {
-			if(g_documentMgr) {
-				g_documentMgr->Release();
-				g_documentMgr = NULL;
-			}
 			g_textService->Deactivate();
 			g_textService->Release();
 			g_textService = NULL;
@@ -180,77 +170,6 @@ BOOL WINAPI ImeSelect(HIMC hIMC, BOOL fSelect) {
 			g_threadMgr = NULL;
 		}
 	}
-#if 0
-	IMCLock imc(hIMC);
-	INPUTCONTEXT* ic = imc.getIC();
-	if(!ic)
-		return FALSE;
-
-	if(fSelect) {
-		ic->fOpen = TRUE;
-
-		ImmReSizeIMCC(imc.getIC()->hCompStr, sizeof(CompStr));
-		CompStr* cs = imc.getCompStr();
-		if(!cs)
-			return FALSE;
-		cs = new (cs) CompStr;	// placement new
-
-		ImmReSizeIMCC(imc.getIC()->hCandInfo, sizeof(CandList));
-		CandList* cl = imc.getCandList();
-		if(!cl)
-			return FALSE;
-		cl = new (cl) CandList;	// placement new
-
-		if(!(ic->fdwInit & INIT_CONVERSION))		// Initialize
-		{
-			ic->fdwConversion = g_defaultEnglish ? IME_CMODE_CHARCODE : IME_CMODE_CHINESE;
-
-			if(g_defaultFullSpace)
-				ic->fdwConversion |=  IME_CMODE_FULLSHAPE;
-			else
-				ic->fdwConversion &=  ~IME_CMODE_FULLSHAPE;
-			ic->fdwInit |= INIT_CONVERSION;
-		}
-		if(!(ic->fdwInit & INIT_STATUSWNDPOS))
-		{
-			RECT rc;
-			IMEUI::getWorkingArea(&rc, ic->hWnd);
-			ic->ptStatusWndPos.x = rc.right - (9+20*3+4) - 150;
-			ic->ptStatusWndPos.y = rc.bottom - 26;
-			ic->fdwInit |= INIT_STATUSWNDPOS;
-		}
-		if(!(ic->fdwInit & INIT_LOGFONT))
-		{
-			// TODO: initialize font here
-			ic->lfFont;
-		}
-
-		// Set Chinese or English mode
-		if(imc.isChinese())	//	Chinese mode
-		{
-			if(g_chewing) {
-				if(g_chewing->ChineseMode())
-				{
-					if( LOBYTE(GetKeyState(VK_CAPITAL)) && g_enableCapsLock) 
-							g_chewing->Capslock();
-				}
-				else if(! LOBYTE(GetKeyState(VK_CAPITAL)) && g_enableCapsLock)
-						g_chewing->Capslock();
-			}
-		}
-		else
-		{
-			ic->fdwConversion &= ~IME_CMODE_CHINESE;
-		}
-	}
-	else
-	{
-		CompStr* cs = imc.getCompStr();
-		cs->~CompStr();	// delete cs;
-		CandList* cl = imc.getCandList();
-		cl->~CandList();	// delete cl;
-	}
-#endif
 	return TRUE;
 }
 
@@ -265,51 +184,6 @@ UINT WINAPI ImeToAsciiEx(UINT uVirtKey, UINT uScaCode, CONST LPBYTE lpbKeyState,
 	::OutputDebugStringW(L"ImeToAsciiEx\n");
 	return FALSE;
 }
-
-#if 0
-BOOL CommitBuffer(IMCLock& imc) {
-	CompStr* cs = imc.getCompStr();
-	if(!cs)
-		return FALSE;
-
-	if(*cs->getCompStr()) {
-		// FIX #15284.
-        //  If candidate wnd is open, send ESC key to lib, 
-        //  then submit composition string, close cand wnd
-    	if(g_chewing->Candidate() > 0)
-        {
-            g_chewing->Esc();
-            g_chewing->Enter();
-            GenerateIMEMessage(imc.getHIMC(), WM_IME_NOTIFY, IMN_CLOSECANDIDATE, 1);
-            CandList* candList = (CandList*)ImmLockIMCC(imc.getIC()->hCandInfo);
-            candList->setTotalCount(0);
-        }
-
-        if(g_chewing)
-		{
-			g_chewing->Enter();	// Commit
-			char* cstr = NULL;
-			if(g_chewing->CommitReady() && 
-				(cstr = g_chewing->CommitStr())) {
-				free(cstr);
-			}
-		}
-		cs->setResultStr(cs->getCompStr());
-		cs->setZuin(L"");
-		cs->setCompStr(L"");
-		cs->setCursorPos(0);
-		cs->beforeGenerateMsg();
-
-		GenerateIMEMessage(imc.getHIMC(), WM_IME_COMPOSITION, 
-			0,
-			(GCS_RESULTSTR|GCS_COMPSTR|GCS_COMPATTR|GCS_COMPREADSTR|
-			GCS_COMPREADATTR|GCS_CURSORPOS|GCS_DELTASTART));
-
-		GenerateIMEMessage(imc.getHIMC(), WM_IME_ENDCOMPOSITION);
-	}
-	return TRUE;
-}
-#endif
 
 BOOL WINAPI NotifyIME(HIMC hIMC, DWORD dwAction, DWORD dwIndex, DWORD dwValue) {
 	if(!hIMC)

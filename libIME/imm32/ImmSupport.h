@@ -11,6 +11,9 @@ public:
 	ImmSupport(HIMC hImc);
 	virtual ~ImmSupport(void);
 
+	void activate();
+	void deactivate();
+
 	bool isComposing() const;
 	void startComposition();
 	void endComposition();
