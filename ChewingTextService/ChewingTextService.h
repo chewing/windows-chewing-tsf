@@ -33,7 +33,7 @@ namespace Chewing {
 
 class TextService: public Ime::TextService {
 public:
-	TextService(ImeModule* module);
+	TextService(ImeModule* module, HIMC imm32Imc = NULL);
 	virtual ~TextService(void);
 
 	virtual void onActivate();

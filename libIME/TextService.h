@@ -41,6 +41,8 @@ class ImeModule;
 class CandidateWindow;
 class LangBarButton;
 
+class ImmSupport;
+
 class TextService:
 	// TSF interfaces
 	public ITfTextInputProcessor,
@@ -60,7 +62,8 @@ public:
 		COMMAND_MENU
 	};
 
-	TextService(ImeModule* module);
+	// imm32Imc is for legacy IMM32 support only. Pass NULL for pure TSF-based IMEs.
+	TextService(ImeModule* module, HIMC imm32Imc = NULL);
 	virtual ~TextService(void);
 
 	// public methods
@@ -78,6 +81,15 @@ public:
 
 	DWORD activateFlags() const {
 		return activateFlags_;
+	}
+
+	// running with legacy IMM32 support
+	bool isImm32Mode() const {
+		return (immSupport_ != NULL);
+	}
+
+	ImmSupport* immSupport() {
+		return immSupport_;
 	}
 
 	// running in Windows 8 app mode
@@ -297,6 +309,8 @@ private:
 	std::vector<LangBarButton*> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
 	std::vector<CompartmentMonitor> compartmentMonitors_;
+
+	ImmSupport* immSupport_; // legacy Imm32 support
 
 	long refCount_; // reference counting
 };

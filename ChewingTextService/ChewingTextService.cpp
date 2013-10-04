@@ -56,8 +56,8 @@ static const GUID g_configChangedGuid =
 static const GUID _GUID_LBI_INPUTMODE =
 { 0x2C77A81E, 0x41CC, 0x4178, { 0xA3, 0xA7, 0x5F, 0x8A, 0x98, 0x75, 0x68, 0xE6 } };
 
-TextService::TextService(ImeModule* module):
-	Ime::TextService(module),
+TextService::TextService(ImeModule* module, HIMC imm32Imc):
+	Ime::TextService(module, imm32Imc),
 	showingCandidates_(false),
 	langMode_(-1),
 	shapeMode_(-1),

@@ -33,7 +33,9 @@ add_library(libIME_static STATIC
     ${PROJECT_SOURCE_DIR}/Utils.cpp
     ${PROJECT_SOURCE_DIR}/Utils.h
     ${PROJECT_SOURCE_DIR}/ComPtr.h
-	${PROJECT_SOURCE_DIR}/WindowsVersion.h
+    ${PROJECT_SOURCE_DIR}/WindowsVersion.h
+    ${PROJECT_SOURCE_DIR}/ImmSupport.cpp
+    ${PROJECT_SOURCE_DIR}/ImmSupport.h
     # GUI-related code
     ${PROJECT_SOURCE_DIR}/DrawUtils.h
     ${PROJECT_SOURCE_DIR}/DrawUtils.cpp
@@ -55,4 +57,5 @@ add_library(libIME_static STATIC
 
 target_link_libraries(libIME_static
     shlwapi.lib
+    Imm32.lib
 )

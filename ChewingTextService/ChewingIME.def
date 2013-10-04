@@ -1,4 +1,4 @@
-LIBRARY	CHEWING
+LIBRARY	ChewingIME.ime
 
 EXPORTS
 ImeConversionList

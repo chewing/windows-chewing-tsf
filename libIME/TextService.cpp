@@ -23,6 +23,7 @@
 #include "LangBarButton.h"
 #include "DisplayAttributeInfoEnum.h"
 #include "ImeModule.h"
+#include "ImmSupport.h"
 
 #include <assert.h>
 #include <string>
@@ -32,7 +33,7 @@ using namespace std;
 
 namespace Ime {
 
-TextService::TextService(ImeModule* module):
+TextService::TextService(ImeModule* module, HIMC imm32Imc):
 	module_(module),
 	threadMgr_(NULL),
 	clientId_(TF_CLIENTID_NULL),
@@ -46,9 +47,13 @@ TextService::TextService(ImeModule* module):
 	langBarSinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
 	candidateWindow_(NULL),
+	immSupport_(NULL),
 	refCount_(1) {
 
 	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
+
+	if(imm32Imc)
+		immSupport_ = new ImmSupport(imm32Imc);
 }
 
 TextService::~TextService(void) {
@@ -77,7 +82,9 @@ TextService::~TextService(void) {
 	if(langBarMgr_) {
 		langBarMgr_->UnadviseEventSink(langBarSinkCookie_);
 	}
-	langBarMgr_ = NULL;
+
+	if(immSupport_)
+		delete immSupport_;
 }
 
 // public methods
@@ -176,6 +183,10 @@ void TextService::removePreservedKey(const GUID& guid) {
 // text composition
 
 bool TextService::isComposing() {
+	if(immSupport_) { // legacy IMM32 support
+		immSupport_->isComposing();
+	}
+	// TSF
 	return (composition_ != NULL);
 }
 
@@ -226,22 +237,38 @@ bool TextService::isInsertionAllowed(EditSession* session) {
 }
 
 void TextService::startComposition(ITfContext* context) {
-	assert(context);
-	HRESULT sessionResult;
-	StartCompositionEditSession* session = new StartCompositionEditSession(this, context);
-	context->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
-	session->Release();
+	if(immSupport_) // legacy IMM32
+		immSupport_->startComposition();
+	else { // TSF support
+		assert(context);
+		HRESULT sessionResult;
+		StartCompositionEditSession* session = new StartCompositionEditSession(this, context);
+		context->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
+		session->Release();
+	}
 }
 
 void TextService::endComposition(ITfContext* context) {
-	assert(context);
-	HRESULT sessionResult;
-	EndCompositionEditSession* session = new EndCompositionEditSession(this, context);
-	context->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
-	session->Release();
+	if(immSupport_) { // legacy IMM32
+		immSupport_->endComposition();
+		onCompositionTerminated(false);
+	}
+	else { // TSF
+		assert(context);
+		HRESULT sessionResult;
+		EndCompositionEditSession* session = new EndCompositionEditSession(this, context);
+		context->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
+		session->Release();
+	}
 }
 
 void TextService::setCompositionString(EditSession* session, const wchar_t* str, int len) {
+	if(immSupport_) { // legacy IMM32
+		immSupport_->setCompositionString(str, len);
+		return;
+	}
+
+	// TSF code
 	ITfContext* context = session->context();
 	if(context) {
 		TfEditCookie editCookie = session->editCookie();
@@ -279,6 +306,11 @@ void TextService::setCompositionString(EditSession* session, const wchar_t* str,
 // set cursor position in the composition area
 // 0 means the start pos of composition string
 void TextService::setCompositionCursor(EditSession* session, int pos) {
+	if(immSupport_) { // legacy IMM32 support
+		immSupport_->setCompositionCursor(pos);
+		return;
+	}
+
 	TF_SELECTION selection;
 	ULONG selectionNum;
 	// get current selection
@@ -1078,13 +1110,17 @@ ITfContext* TextService::currentContext() {
 bool TextService::compositionRect(EditSession* session, RECT* rect) {
 	bool ret = false;
 	if(isComposing()) {
-		ComPtr<ITfContextView> view;
-		if(session->context()->GetActiveView(&view) == S_OK) {
-			BOOL clipped;
-			ComPtr<ITfRange> range;
-			if(composition_->GetRange(&range) == S_OK) {
-				if(view->GetTextExt(session->editCookie(), range, rect, &clipped) == S_OK)
-					ret = true;
+		if(immSupport_) // legacy IMM32
+			ret = immSupport_->selectionRect(rect);
+		else { // TSF
+			ComPtr<ITfContextView> view;
+			if(session->context()->GetActiveView(&view) == S_OK) {
+				BOOL clipped;
+				ComPtr<ITfRange> range;
+				if(composition_->GetRange(&range) == S_OK) {
+					if(view->GetTextExt(session->editCookie(), range, rect, &clipped) == S_OK)
+						ret = true;
+				}
 			}
 		}
 	}
@@ -1094,15 +1130,19 @@ bool TextService::compositionRect(EditSession* session, RECT* rect) {
 bool TextService::selectionRect(EditSession* session, RECT* rect) {
 	bool ret = false;
 	if(isComposing()) {
-		ComPtr<ITfContextView> view;
-		if(session->context()->GetActiveView(&view) == S_OK) {
-			BOOL clipped;
-			TF_SELECTION selection;
-			ULONG selectionNum;
-			if(session->context()->GetSelection(session->editCookie(), TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK ) {
-				if(view->GetTextExt(session->editCookie(), selection.range, rect, &clipped) == S_OK)
-					ret = true;
-				selection.range->Release();
+		if(immSupport_) // legacy IMM32
+			ret = immSupport_->selectionRect(rect);
+		else { // TSF
+			ComPtr<ITfContextView> view;
+			if(session->context()->GetActiveView(&view) == S_OK) {
+				BOOL clipped;
+				TF_SELECTION selection;
+				ULONG selectionNum;
+				if(session->context()->GetSelection(session->editCookie(), TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK ) {
+					if(view->GetTextExt(session->editCookie(), selection.range, rect, &clipped) == S_OK)
+						ret = true;
+					selection.range->Release();
+				}
 			}
 		}
 	}
@@ -1111,11 +1151,15 @@ bool TextService::selectionRect(EditSession* session, RECT* rect) {
 
 HWND TextService::compositionWindow(EditSession* session) {
 	HWND hwnd = NULL;
-	ComPtr<ITfContextView> view;
-	if(session->context()->GetActiveView(&view) == S_OK) {
-		// get current composition window
-		if(view->GetWnd(&hwnd) != S_OK) {
-			hwnd = ::GetFocus();
+	if(immSupport_) // legacy IMM32
+		immSupport_->compositionWindow();
+	else { // TSF
+		ComPtr<ITfContextView> view;
+		if(session->context()->GetActiveView(&view) == S_OK) {
+			// get current composition window
+			if(view->GetWnd(&hwnd) != S_OK) {
+				hwnd = ::GetFocus();
+			}
 		}
 	}
 	return hwnd;

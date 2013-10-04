@@ -92,9 +92,9 @@ ImeModule::ImeModule(HMODULE module):
 ImeModule::~ImeModule(void) {
 }
 
-// virtual
+// virtual, called by TSF only
 Ime::TextService* ImeModule::createTextService() {
-	TextService* service = new Chewing::TextService(this);
+	TextService* service = new Chewing::TextService(this, NULL);
 	return service;
 }
 

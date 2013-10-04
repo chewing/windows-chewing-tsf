@@ -10,11 +10,19 @@ static const GUID g_profileGuid = {
 	0xce45f71d, 0xce79, 0x41d1, { 0x96, 0x7d, 0x64, 0xb, 0x65, 0xa3, 0x80, 0xe3 }
 };
 
+#ifdef USE_IMM32
+// declared in ChewingIME.cpp
+BOOL registerUIClass();
+#endif
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
 	switch (ul_reason_for_call) {
 	case DLL_PROCESS_ATTACH:
 		::DisableThreadLibraryCalls(hModule); // disable DllMain calls due to new thread creation
 		g_imeModule = new Chewing::ImeModule(hModule);
+#ifdef USE_IMM32
+		registerUIClass();
+#endif
 		break;
 	case DLL_PROCESS_DETACH:
 		if(g_imeModule) {
@@ -25,6 +33,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 	}
 	return TRUE;
 }
+
+#ifndef USE_IMM32
+// The following code is TSF-only
 
 STDAPI DllCanUnloadNow(void) {
 	return g_imeModule->canUnloadNow();
@@ -59,3 +70,5 @@ STDAPI ChewingSetup() {
 	}
 	return S_OK;
 }
+
+#endif // #ifndef USE_IMM32

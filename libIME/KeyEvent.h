@@ -27,6 +27,7 @@ namespace Ime {
 class KeyEvent {
 public:
 	KeyEvent(UINT type, WPARAM wp, LPARAM lp);
+	KeyEvent(UINT virKey, LPARAM lParam, CONST BYTE *keyState);
 	KeyEvent(const KeyEvent& other);
 	~KeyEvent(void);
 

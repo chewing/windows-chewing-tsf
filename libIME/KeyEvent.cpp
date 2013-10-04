@@ -43,6 +43,28 @@ KeyEvent::KeyEvent(UINT type, WPARAM wp, LPARAM lp):
 	keyStates_[VK_CONTROL] = ctrlState;
 }
 
+KeyEvent::KeyEvent(UINT virKey, LPARAM lParam, CONST BYTE *keyState):
+	type_(WM_KEYDOWN),
+	keyCode_(virKey),
+	lParam_(lParam) {
+
+	if(keyState)
+		memcpy(keyStates_, keyState, 256 * sizeof(BYTE));
+
+	// try to convert the key event to an ASCII character
+	// ToAscii API tries to convert Ctrl + printable characters to
+	// ASCII 0x00 - 0x31 non-printable escape characters, which we don't want
+	// So here is a hack: pretend that Ctrl key is not pressed
+	WORD result[2] = {0, 0};
+	BYTE ctrlState = keyStates_[VK_CONTROL];
+	keyStates_[VK_CONTROL] = 0;
+	if(::ToAscii(keyCode_, scanCode(), keyStates_, result, 0) == 1)
+		charCode_ = (UINT)result[0];
+	else
+		charCode_ = 0;
+	keyStates_[VK_CONTROL] = ctrlState;
+}
+
 KeyEvent::KeyEvent(const KeyEvent& other):
 	type_(other.type_),
 	keyCode_(other.keyCode_),

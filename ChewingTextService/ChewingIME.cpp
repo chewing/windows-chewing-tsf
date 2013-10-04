@@ -5,13 +5,21 @@
 #include <winreg.h>
 #include <shlobj.h>
 #include <windowsx.h>
-// #include "resource.h"
+#include "resource.h"
 #include <msctf.h>
 
-HINSTANCE g_dllInst = NULL;
-static wchar_t g_chewingIMEClass[] = L"ChewingIme";
+#include "ChewingImeModule.h"
+#include "ChewingTextService.h"
+#include <libIME/KeyEvent.h>
+#include <libIME/EditSession.h>
 
+// defined in DllEntry.cpp
+extern Chewing::ImeModule* g_imeModule;
+static wchar_t g_chewingIMEClass[] = L"ChewingIme";
 static ITfThreadMgr* g_threadMgr = NULL;
+static TfClientId g_clientId = 0;
+static ITfDocumentMgr* g_documentMgr = NULL;
+static Chewing::TextService* g_textService = NULL;
 
 LRESULT CALLBACK imeUiWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 	switch(msg) {
@@ -28,7 +36,7 @@ BOOL registerUIClass() {
 	wc.lpfnWndProc		= (WNDPROC)imeUiWndProc;
 	wc.cbClsExtra		= 0;
 	wc.cbWndExtra		= 2 * sizeof(LONG);
-	wc.hInstance		= g_dllInst;
+	wc.hInstance		= g_imeModule->hInstance();
 	wc.hCursor			= LoadCursor(NULL, IDC_ARROW);
 	wc.hIcon			= NULL;
 	wc.lpszMenuName		= (LPTSTR)NULL;
@@ -54,6 +62,7 @@ BOOL WINAPI ImeInquire(LPIMEINFO lpIMEInfo, LPTSTR lpszUIClass, LPCTSTR lpszOpti
 }
 
 BOOL WINAPI ImeConfigure(HKL hkl, HWND hWnd, DWORD dwMode, LPVOID pRegisterWord) {
+	g_imeModule->onConfigure(hWnd);
 	return TRUE;
 }
 
@@ -127,18 +136,44 @@ BOOL WINAPI ImeProcessKey(HIMC hIMC, UINT uVirKey, LPARAM lParam, CONST BYTE *lp
 	::OutputDebugStringW(L"ImeProcessKey\n");
 	if(!hIMC)
 		return FALSE;
-	return TRUE;
+	if(!g_textService)
+		return FALSE;
+
+	Ime::KeyEvent keyEvent(uVirKey, lParam, lpbKeyState);
+	TfEditCookie cookie = 0;
+	Ime::EditSession* session = new Ime::EditSession(g_textService, NULL);
+	bool ret = g_textService->onKeyDown(keyEvent, session);
+	session->Release();
+
+	return ret;
 }
 
 BOOL WINAPI ImeSelect(HIMC hIMC, BOOL fSelect) {
 	::OutputDebugStringW(L"ImeSelect\n");
 	if(fSelect) {
 		if(CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, (void**)&g_threadMgr) == S_OK) {
-			TfClientId cid;
-			g_threadMgr->Activate(&cid);
+			g_threadMgr->Activate(&g_clientId);
+			g_threadMgr->CreateDocumentMgr(&g_documentMgr);
+			if(g_documentMgr) {
+			}
+
+			if(!g_textService) {
+				g_textService = new Chewing::TextService(g_imeModule, hIMC);
+				g_textService->Activate(g_threadMgr, g_clientId);
+			}
 		}
 	}
 	else {
+		if(g_textService) {
+			if(g_documentMgr) {
+				g_documentMgr->Release();
+				g_documentMgr = NULL;
+			}
+			g_textService->Deactivate();
+			g_textService->Release();
+			g_textService = NULL;
+			g_clientId = 0;
+		}
 		if(g_threadMgr) {
 			g_threadMgr->Deactivate();
 			g_threadMgr->Release();
@@ -359,28 +394,15 @@ BOOL WINAPI ImeSetCompositionString(HIMC, DWORD dwIndex, LPCVOID lpComp, DWORD, 
 	return FALSE;
 }
 
-BOOL WINAPI DllMain(HANDLE hModule, DWORD  dwReason, LPVOID lpReserved) {
-	switch(dwReason) {
-	case DLL_PROCESS_ATTACH: {
-			DisableThreadLibraryCalls((HMODULE)hModule);
-			g_dllInst = (HINSTANCE)hModule;
-			registerUIClass();
-			break;
-		}
-	case DLL_PROCESS_DETACH:
-		break;
-	}
-    return TRUE;
-}
-
 void CALLBACK Install() {
 	wchar_t path[MAX_PATH];
-	::GetModuleFileNameW(g_dllInst, path, MAX_PATH);
-	wchar_t name[] = L"中文 (繁體) - Chewing IME";
+	::GetModuleFileNameW(g_imeModule->hInstance(), path, MAX_PATH);
+	wchar_t name[] = L"中文(繁體)-Chewing";
 	HKL hkl = ::ImmInstallIMEW(path, name);
 	DWORD err = ::GetLastError();
 	wchar_t buf[1024];
-	wsprintf(buf, L"file: %s\nname: %s\nhkl: %p\nErr: %d", path, name, hkl, err);
+	wsprintf(buf, L"file: '%s'\nname: '%s'\nhkl: %p\nErr: %d", path, name, hkl, err);
+	::MessageBox(0, buf, 0, 0);
 }
 
 void CALLBACK Uninstall() {
