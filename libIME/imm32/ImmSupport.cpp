@@ -115,6 +115,11 @@ bool ImmSupport::isComposing() const {
 
 void ImmSupport::setCompositionString(const wchar_t* str, int len) {
 	compositionStr_ = str;
+	ImcLock lock(hImc_);
+	CompStr* cs = lock.getCompStr();
+	cs->setCompStr(str);
+	// commit the result only
+	generateMessage(WM_IME_COMPOSITION, 0, GCS_CURSORPOS|GCS_COMPSTR);
 }
 
 void ImmSupport::setCompositionCursor(int pos) {
