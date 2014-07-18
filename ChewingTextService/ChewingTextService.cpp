@@ -29,7 +29,8 @@
 #include <fstream>
 #include <ostream>
 #include <codecvt>
-
+#include <stdexcept>
+#include <mutex>
 
 using namespace std;
 
@@ -224,9 +225,138 @@ bool TextService::filterKeyDown(Ime::KeyEvent& keyEvent) {
 	return true;
 }
 
+
+
+
+class defString{
+public:
+	defString();
+	~defString();
+	//bool writeToFile(int,const std::wstring);
+	bool writeToFile();
+	bool readFromFile();
+	bool ctrlSwitch(UINT);
+	bool writeToBuf(int,const std::wstring );
+	bool examineCtrlFlag(std::wstring  &);
+	int  examineCtrlFlag();
+	string wstring_to_utf8(const std::wstring &);
+
+private:
+	bool  ctrlFlag[10]; //limit 10
+    std::wstring ctrlStr[10];  //limit 10
+	bool read;
+};
+
+defString::defString(){
+	 for(int i=0;i<9;i++){
+		ctrlFlag[i]=0;
+	 }
+	 read=1;
+}
+
+defString::~defString(){
+	 writeToFile();
+}
+
+bool defString::writeToBuf(int num,const std::wstring wBuf){
+	if(wBuf.empty())
+		 return false;
+	 ctrlStr[num]=wBuf;
+	 return true;
+}
+
+
+//call by reference
+bool defString::examineCtrlFlag(std::wstring& ctrlBuf){
+	for(int i=0;i<9;i++){
+		if(ctrlFlag[i]==1){
+			ctrlFlag[i]=0;
+			ctrlBuf=ctrlStr[i];
+		}
+	}
+    return -1;
+}
+
+//call by reference
+int defString::examineCtrlFlag(){
+	for(int i=0;i<9;i++){
+		if(ctrlFlag[i]==1){
+			ctrlFlag[i]=0;
+			return i;
+		}
+	}
+    return -1;
+}
+
+// convert wstring to UTF-8 string
+string defString::wstring_to_utf8 (const std::wstring& str)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
+    return myconv.to_bytes(str);
+}
+
+
+// write to file using RALL(Resource acquisition is initialization)
+//bool defString::writeToFile(int num,const std::wstring buf){
+bool defString::writeToFile(){
+	//mutex to protect file access
+	static std::mutex mutex;
+	//lock mutex before accessing file
+	std::lock_guard<std::mutex> lock(mutex);
+
+	//reflush ctrlStr	    
+	//ctrlStr[num].clear();
+	//ctrlStr[num]=buf;
+
+	//try to open File
+	std::locale::global(std::locale(""));	
+	std::ofstream wf("userString.txt");
+    if (!wf.is_open()){
+        throw std::runtime_error("unable to open file");
+		return false;
+	}
+
+	// write message to file
+    std::wstring eof=L"\r\n";
+
+	for(int i=1; i<10 ;i++){
+		ctrlStr[i]+=eof;
+		string ctrlTmp=wstring_to_utf8(ctrlStr[i]);
+		wf.write(ctrlTmp.c_str() , ctrlTmp.size());
+	}
+	read=1;
+	return true;
+}
+
+
+// write to file using RALL(Resource acquisition is initialization)
+bool defString::readFromFile(){
+	//mutex to protect file access
+	if(read==0)
+		return false;
+
+	static std::mutex mutex;
+	//lock mutex before accessing file
+	std::lock_guard<std::mutex> lock(mutex);
+
+	//try to open File
+	//std::ofstream file("example.txt");
+    std::fstream fs("userString.txt");
+	if (!fs.is_open())
+        throw std::runtime_error("unable to open file");
+
+	// read message from file
+    char buf[30];
+	for(int i=0; fs.getline(buf, sizeof(buf))&&i<10; i++){
+		 ctrlStr[i]=utf8ToUtf16(buf);
+	} 
+    read=0;
+	return true;
+}
+
 //Detect for nummber
 //ctrl[0] buffer can't be uesd so we put ctrl+1 string to ctrl[1]
-bool ctrlSwitch(UINT charCode,bool *ctrlFlag){
+bool defString::ctrlSwitch(UINT charCode){
 	if(charCode >= '1' && charCode <= '9'){
 		ctrlFlag[charCode - '1'] = 1;
 		return true;
@@ -234,12 +364,7 @@ bool ctrlSwitch(UINT charCode,bool *ctrlFlag){
 	return false;
 }
 
-// convert wstring to UTF-8 string
-std::string wstring_to_utf8 (const std::wstring& str)
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
-    return myconv.to_bytes(str);
-}
+
 
 // virtual
 bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
@@ -258,31 +383,13 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 
 	UINT charCode = keyEvent.charCode();
 
-	//dirty add varaible	
-	enum Mode {composition_mode, noncomposition_mode};
-	static Mode mode = noncomposition_mode;
-	static bool ctrlFlag[11]={0};	
-	static wstring ctrl[11];
-	static char line[30];
-	static bool readFlag=1;
-	static int  lineNum;
 	
 	//read form ctrl+num string from dictionary.txt
-	std::fstream fs;
-	if(readFlag){
-		fs.open("dictionary.txt",ios::in | ios::app);
-		if(fs){
-			for(int i=0; fs.getline(line, sizeof(line)); i++){
-				ctrl[i] = utf8ToUtf16(line);
-			}
-		}
-		fs.flush();
-		fs.clear(); 
-		fs.close();
-		readFlag=0;
-	}
+	static defString defObj;
+	defObj.readFromFile();
+	enum Mode {composition_mode, noncomposition_mode};
+	static Mode mode=noncomposition_mode;
 
-	
 	if(charCode && isprint(charCode)) { // printable characters (exclude extended keys?)
 		int oldLangMode = ::chewing_get_ChiEngMode(chewingContext_);
 		bool temporaryEnglishMode = false;
@@ -300,13 +407,13 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 		}
 
 		// 1.Detect Ctrl + number (0~9) 	
-		if(mode == noncomposition_mode&&keyEvent.isKeyDown(VK_CONTROL) && ctrlSwitch(charCode,ctrlFlag)){ 
-			
+		if(mode == noncomposition_mode&&keyEvent.isKeyDown(VK_CONTROL)){ 
+			defObj.ctrlSwitch(charCode);
 		}
 		else if(langMode_ == SYMBOL_MODE) { // English mode
 			// 2.Detect Ctrl + number (0~9) for English mode
-			if(keyEvent.isKeyDown(VK_CONTROL) && isdigit(charCode) && ctrlSwitch(charCode,ctrlFlag)){ 
-				
+			if(keyEvent.isKeyDown(VK_CONTROL) && isdigit(charCode)){ 
+			    defObj.ctrlSwitch(charCode);	
 			}
 			else
 				::chewing_handle_Default(chewingContext_, charCode);
@@ -328,7 +435,7 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 			else if(keyEvent.keyCode() == VK_SPACE) // space key
 				::chewing_handle_Space(chewingContext_);
 			else if(keyEvent.isKeyDown(VK_CONTROL) && isdigit(charCode)){ // Ctrl + number (0~9)
-				ctrlSwitch(charCode,ctrlFlag);//3.Add string to Ctrl+num of position
+				defObj.ctrlSwitch(charCode);//3.Add string to Ctrl+num of position
 				::chewing_handle_CtrlNum(chewingContext_, charCode);
 			}else if(keyEvent.isKeyToggled(VK_NUMLOCK) && keyEvent.keyCode() >= VK_NUMPAD0 && keyEvent.keyCode() <= VK_DIVIDE)
 				// numlock is on, handle numpad keys
@@ -459,15 +566,14 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 	}
 
 
-	 //examine ctrl flag to printf
+	//examine ctrl flag to printf
 	if(mode == noncomposition_mode){
-		for(int i=0;i<9;i++){
-			if( ctrlFlag[i]){
-				//output string ctrl+num when non-composition mode
-				ctrlFlag[i]=0; 
-				setCompositionString(session, ctrl[i+1].c_str(), ctrl[i+1].length());
-				endComposition(session->context());
-			}
+		bool OK;
+		wstring ctrlBuf;
+		OK=defObj.examineCtrlFlag(ctrlBuf); 
+		if(OK==true){
+			setCompositionString(session, ctrlBuf.c_str(), ctrlBuf.length());
+			endComposition(session->context());
 		}
 	}
 
@@ -479,39 +585,15 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 		}
 		setCompositionString(session, compositionBuf.c_str(), compositionBuf.length());
 		
-		
 		// add string to txt
+		// if defStrinf be destoryed write data to userString.txt
 		if(mode == composition_mode){
-			for(int i=0;i<9;i++){
-				if(ctrlFlag[i]){
-
-					ctrl[i+1].clear();	
-					ctrl[i+1] = compositionBuf;					
-					std::locale::global(std::locale(""));	
-					std::ofstream wf;
-					//ctrl[0] can't be uesd so we write line 1  
-					char *ctrl1="define your string";
-					wf.open("dictionary.txt",std::ios_base::binary );
-					if(wf){
-						std::wstring dd=L"\r\n";
-						wf.write(ctrl1,sizeof(ctrl1)); 							
-						wf.write("\r\n",2); 		
-						for(int i=1; i<10 ;i++){			
-						    ctrl[i]+=dd;
-						    string ctrlTmp=wstring_to_utf8(ctrl[i]);
-						    wf.write(ctrlTmp.c_str() , ctrlTmp.size() ); 							
-						}	
-					}
-				        wf.flush();
-					wf.clear();  
-					wf.close();								
-					readFlag=1;					
-					ctrlFlag[i]=0;	
-				}			
+			int num=defObj.examineCtrlFlag();
+			if(num!=-1){
+				//defObj.writeToFile(num,compositionBuf);
+				defObj.writeToBuf(num,compositionBuf);
 			}
 		}
-		
-		
 		
 	}
 	else { // nothing left in composition buffer, terminate composition status
