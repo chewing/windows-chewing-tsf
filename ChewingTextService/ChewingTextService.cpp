@@ -286,14 +286,14 @@ int defString::examineCtrlFlag(){
 			return i;
 		}
 	}
-    return -1;
+	return -1;
 }
 
 // convert wstring to UTF-8 string
 string defString::wstring_to_utf8 (const std::wstring& str)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
-    return myconv.to_bytes(str);
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
+	return myconv.to_bytes(str);
 }
 
 
@@ -305,20 +305,16 @@ bool defString::writeToFile(){
 	//lock mutex before accessing file
 	std::lock_guard<std::mutex> lock(mutex);
 
-	//reflush ctrlStr	    
-	//ctrlStr[num].clear();
-	//ctrlStr[num]=buf;
-
 	//try to open File
 	std::locale::global(std::locale(""));	
 	std::ofstream wf("userString.txt");
-    if (!wf.is_open()){
-        throw std::runtime_error("unable to open file");
+        if (!wf.is_open()){
+		throw std::runtime_error("unable to open file");
 		return false;
 	}
 
 	// write message to file
-    std::wstring eof=L"\n";
+	std::wstring eof=L"\n";
 
 	for(int i=0; i<10 ;i++){
 		ctrlStr[i]+=eof;
