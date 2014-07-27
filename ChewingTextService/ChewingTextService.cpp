@@ -243,26 +243,27 @@ public:
 
 private:
 	bool  ctrlFlag[10]; //limit 10
-    std::wstring ctrlStr[10];  //limit 10
+	std::wstring ctrlStr[10];  //limit 10
 	bool read;
 };
 
 defString::defString(){
-	 for(int i=0;i<9;i++){
+	for(int i=0;i<9;i++){
 		ctrlFlag[i]=0;
-	 }
-	 read=1;
+	}
+	read=1;
 }
 
 defString::~defString(){
-	 writeToFile();
+	writeToFile();
 }
 
 bool defString::writeToBuf(int num,const std::wstring wBuf){
 	if(wBuf.empty())
-		 return false;
-	 ctrlStr[num]=wBuf;
-	 return true;
+		return false;
+	ctrlStr[num]=wBuf;
+	writeToFile();
+	return true;
 }
 
 
@@ -274,7 +275,7 @@ bool defString::examineCtrlFlag(std::wstring& ctrlBuf){
 			ctrlBuf=ctrlStr[i];
 		}
 	}
-    return -1;
+	return -1;
 }
 
 //call by reference
@@ -317,9 +318,9 @@ bool defString::writeToFile(){
 	}
 
 	// write message to file
-    std::wstring eof=L"\r\n";
+    std::wstring eof=L"\n";
 
-	for(int i=1; i<10 ;i++){
+	for(int i=0; i<10 ;i++){
 		ctrlStr[i]+=eof;
 		string ctrlTmp=wstring_to_utf8(ctrlStr[i]);
 		wf.write(ctrlTmp.c_str() , ctrlTmp.size());
@@ -341,16 +342,18 @@ bool defString::readFromFile(){
 
 	//try to open File
 	//std::ofstream file("example.txt");
-    std::fstream fs("userString.txt");
+	std::fstream fs("userString.txt");
 	if (!fs.is_open())
         throw std::runtime_error("unable to open file");
 
 	// read message from file
-    char buf[30];
+	char buf[30]={'\0'};
 	for(int i=0; fs.getline(buf, sizeof(buf))&&i<10; i++){
-		 ctrlStr[i]=utf8ToUtf16(buf);
+		ctrlStr[i]=utf8ToUtf16(buf);
+		for(int j=0;j<29;j++)
+			 buf[j]='\0';
 	} 
-    read=0;
+	read=0;
 	return true;
 }
 
