@@ -52,7 +52,7 @@ All parts are licensed under GNU LGPL v2.1 license.
 
 # Install
 *   Copy `ChewingTextService.dll` to C:\Program Files (X86)\ChewingTextService.
-*   Copy `libchewing/data/*.dat` to `C:\Program Files (X86)\ChewingTextService\Dictionary`
+*   Copy `libchewing/data/*.dat` and `pinyin.tab` to `C:\Program Files (X86)\ChewingTextService\Dictionary`
 *   Use `regsvr32` to register `ChewingService.dll`. 64-bit system need to register both 32-bit and 64-bit `ChewingService.dll`
 
         regsvr32 "C:\Program Files (X86)\ChewingTextService\ChewingTextService.dll" (run as administrator)
