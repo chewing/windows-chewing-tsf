@@ -11,7 +11,7 @@ All parts are licensed under GNU LGPL v2.1 license.
 
 ## Tool Requirements
 *   [CMake](http://www.cmake.org/) >= 2.8.11
-*   [Visual Studio Express 2012](http://www.microsoft.com/visualstudio/eng/products/visual-studio-express-products)
+*   [Visual Studio Express 2012 with Update 1](http://www.microsoft.com/visualstudio/eng/products/visual-studio-express-products)
 *   [git](http://windows.github.com/)
 *   Editor with [EditorConfig](http://editorconfig.org/) supported
 
@@ -27,8 +27,8 @@ All parts are licensed under GNU LGPL v2.1 license.
 
         cmake -G "Visual Studio 11" -T "v110_xp" <path to windows-chewing-tsf>
         cmake -G "Visual Studio 11 Win64" -T "v110_xp" <path to windows-chewing-tsf>
-		
-*	NOTICE: The cmake command line argument -T "v110_xp" is required. Otherwise the compiled program won't run on Windows xp. (requires cmake 2.8.11 and VS express 2012 update)
+
+*	NOTICE: In order to support Windows xp, it is required to add the argument "v110_xp" ([MSDN](http://msdn.microsoft.com/en-us/library/jj851139%28v=vs.110%29.aspx))
 
 *   Open generated project with Visual Studio and build it
 
@@ -52,7 +52,7 @@ All parts are licensed under GNU LGPL v2.1 license.
 
 # Install
 *   Copy `ChewingTextService.dll` to C:\Program Files (X86)\ChewingTextService.
-*   Copy `libchewing/data/*.dat` to `C:\Program Files (X86)\ChewingTextService\Dictionary`
+*   Copy `libchewing/data/*.dat` and `pinyin.tab` to `C:\Program Files (X86)\ChewingTextService\Dictionary`
 *   Use `regsvr32` to register `ChewingService.dll`. 64-bit system need to register both 32-bit and 64-bit `ChewingService.dll`
 
         regsvr32 "C:\Program Files (X86)\ChewingTextService\ChewingTextService.dll" (run as administrator)
