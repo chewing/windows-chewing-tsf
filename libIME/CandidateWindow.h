@@ -42,7 +42,7 @@ public:
 
 	void setItems(const std::vector<std::wstring>& items, const std::vector<wchar_t>& sekKeys) {
 		items_ = items;
-		selKeys_ = selKeys_;
+		selKeys_ = sekKeys;
 		recalculateSize();
 		refresh();
 	}
