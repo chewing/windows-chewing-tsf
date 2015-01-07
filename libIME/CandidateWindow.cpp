@@ -145,7 +145,6 @@ void CandidateWindow::recalculateSize() {
 	itemHeight_ = 0;
 
 	HGDIOBJ oldFont = ::SelectObject(hDC, font_);
-	vector<wstring>::const_iterator it;
 	for(int i = 0, n = items_.size(); i < n; ++i) {
 		SIZE selKeySize;
 		int lineHeight = 0;
