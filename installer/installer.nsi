@@ -73,7 +73,7 @@ Function uninstallOldVersion
 	ReadRegStr $R0 HKLM "${PRODUCT_UNINST_KEY}" "UninstallString"
 	${If} $R0 != ""
 		ClearErrors
-		MessageBox MB_OKCANCEL|MB_ICONQUESTION "偵測到已安裝舊版，是否要移除舊版後繼續安裝新版？" IDOK +2
+		MessageBox MB_OKCANCEL|MB_ICONQUESTION "偵測到已安裝舊版，現在將移除舊版並安裝新版" IDOK +2
 			Abort ; this is skipped if the user select OK
 
 		CopyFiles "$INSTDIR\Uninstall.exe" "$TEMP"
