@@ -168,9 +168,6 @@ Section "新酷音輸入法" SecMain
 	WriteUninstaller "$INSTDIR\Uninstall.exe" ;Create uninstaller
 SectionEnd
 
-;Language strings
-LangString DESC_SecMain ${LANG_ENGLISH} "A test section." ; What's this??
-
 ;Assign language strings to sections
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
@@ -178,7 +175,6 @@ LangString DESC_SecMain ${LANG_ENGLISH} "A test section." ; What's this??
 
 ;Uninstaller Section
 Section "Uninstall"
-
 	; Unregister COM objects (NSIS UnRegDLL command is broken and cannot be used)
 	ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x86\ChewingTextService.dll"'
 	${If} ${RunningX64} 
@@ -198,6 +194,4 @@ Section "Uninstall"
 
 	Delete "$INSTDIR\Uninstall.exe"
 	RMDir "$INSTDIR"
-
 SectionEnd
-
