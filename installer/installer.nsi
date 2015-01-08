@@ -169,9 +169,9 @@ Section "新酷音輸入法" SecMain
 SectionEnd
 
 ;Assign language strings to sections
-!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-!insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
-!insertmacro MUI_FUNCTION_DESCRIPTION_END
+;!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+;!insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
+;!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;Uninstaller Section
 Section "Uninstall"
