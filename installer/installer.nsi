@@ -47,7 +47,7 @@ RequestExecutionLevel admin
 
 ;Pages
 ; license page
-!insertmacro MUI_PAGE_LICENSE "..\COPYING.txt"
+!insertmacro MUI_PAGE_LICENSE "COPYING.txt"
 
 ; !insertmacro MUI_PAGE_COMPONENTS
 
