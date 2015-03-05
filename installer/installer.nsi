@@ -1,4 +1,4 @@
-;
+ï»¿;
 ;	Copyright (C) 2013 Hong Jen Yee (PCMan) <pcman.tw@gmail.com>
 ;
 ;	This library is free software; you can redistribute it and/or
@@ -33,8 +33,8 @@ AllowSkipFiles off ; cannot skip a file
 
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService"
 
-Name "·s»Å­µ¿é¤Jªk"
-BrandingText "·s»Å­µ¿é¤Jªk"
+Name "æ–°é…·éŸ³è¼¸å…¥æ³•"
+BrandingText "æ–°é…·éŸ³è¼¸å…¥æ³•"
 
 OutFile "windows-chewing-tsf.exe" ; The generated installer file name
 
@@ -56,7 +56,7 @@ RequestExecutionLevel admin
 
 ; finish page
 !define MUI_FINISHPAGE_LINK_LOCATION "http://chewing.im/"
-!define MUI_FINISHPAGE_LINK "·s»Å­µ±M®×ºô­¶ ${MUI_FINISHPAGE_LINK_LOCATION}"
+!define MUI_FINISHPAGE_LINK "æ–°é…·éŸ³å°ˆæ¡ˆç¶²é  ${MUI_FINISHPAGE_LINK_LOCATION}"
 !insertmacro MUI_PAGE_FINISH
 
 ; uninstallation pages
@@ -73,7 +73,7 @@ Function uninstallOldVersion
 	ReadRegStr $R0 HKLM "${PRODUCT_UNINST_KEY}" "UninstallString"
 	${If} $R0 != ""
 		ClearErrors
-		MessageBox MB_OKCANCEL|MB_ICONQUESTION "°»´ú¨ì¤w¦w¸ËÂÂª©¡A¬O§_­n²¾°£ÂÂª©«áÄ~Äò¦w¸Ë·sª©¡H" IDOK +2
+		MessageBox MB_OKCANCEL|MB_ICONQUESTION "åµæ¸¬åˆ°å·²å®‰è£èˆŠç‰ˆï¼Œæ˜¯å¦è¦ç§»é™¤èˆŠç‰ˆå¾Œç¹¼çºŒå®‰è£æ–°ç‰ˆï¼Ÿ" IDOK +2
 			Abort ; this is skipped if the user select OK
 
 		CopyFiles "$INSTDIR\Uninstall.exe" "$TEMP"
@@ -100,7 +100,7 @@ FunctionEnd
 Function .onInit
 	; Currently, we're not able to support Windows xp since it has an incomplete TSF.
 	${IfNot} ${AtLeastWinVista}
-		MessageBox MB_ICONSTOP|MB_OK "©êºp¡A¥»µ{¦¡¥Ø«e¥u¯à¤ä´© Windows Vista ¥H¤Wª©¥»"
+		MessageBox MB_ICONSTOP|MB_OK "æŠ±æ­‰ï¼Œæœ¬ç¨‹å¼ç›®å‰åªèƒ½æ”¯æ´ Windows Vista ä»¥ä¸Šç‰ˆæœ¬"
 		Quit
 	${EndIf}
 
@@ -114,17 +114,17 @@ FunctionEnd
 
 ; called to show an error message when errors happen
 Function .onInstFailed
-	MessageBox MB_ICONSTOP|MB_OK "¦w¸Ëµo¥Í¿ù»~¡AµLªk§¹¦¨¡C$\n$\n¥i¯à¦³ÀÉ®×¥¿¦b¨Ï¥Î¤¤¡A¼È®ÉµLªk§R°£©ÎÂĞ¼g$\n$\n«ØÄ³­«·s¶}¾÷«á¡A¦A¦¸°õ¦æ¦w¸Ëµ{¦¡¡C"
+	MessageBox MB_ICONSTOP|MB_OK "å®‰è£ç™¼ç”ŸéŒ¯èª¤ï¼Œç„¡æ³•å®Œæˆã€‚$\n$\nå¯èƒ½æœ‰æª”æ¡ˆæ­£åœ¨ä½¿ç”¨ä¸­ï¼Œæš«æ™‚ç„¡æ³•åˆªé™¤æˆ–è¦†å¯«$\n$\nå»ºè­°é‡æ–°é–‹æ©Ÿå¾Œï¼Œå†æ¬¡åŸ·è¡Œå®‰è£ç¨‹å¼ã€‚"
 FunctionEnd
 
 ; called to show an error message when errors happen
 ;Function onInstError
-;	MessageBox MB_ICONSTOP|MB_OK "¦w¸Ëµo¥Í¿ù»~¡AÂÂª©¥i¯à¦³ÀÉ®×¥¿¦b¨Ï¥Î¤¤¡A¼È®ÉµLªkÂĞ¼g$\n$\n½Ğ­«¶}¾÷«á¡A¦A¦¸°õ¦æ¦w¸Ëµ{¦¡¡C"
+;	MessageBox MB_ICONSTOP|MB_OK "å®‰è£ç™¼ç”ŸéŒ¯èª¤ï¼ŒèˆŠç‰ˆå¯èƒ½æœ‰æª”æ¡ˆæ­£åœ¨ä½¿ç”¨ä¸­ï¼Œæš«æ™‚ç„¡æ³•è¦†å¯«$\n$\nè«‹é‡é–‹æ©Ÿå¾Œï¼Œå†æ¬¡åŸ·è¡Œå®‰è£ç¨‹å¼ã€‚"
 ;	Abort
 ;FunctionEnd
 
 ;Installer Sections
-Section "·s»Å­µ¿é¤Jªk" SecMain
+Section "æ–°é…·éŸ³è¼¸å…¥æ³•" SecMain
 	SetOutPath "$INSTDIR"
 	SetOverwrite on ; overwrite existing files
 	${If} ${RunningX64}
@@ -159,9 +159,9 @@ Section "·s»Å­µ¿é¤Jªk" SecMain
 	;Store installation folder in the registry
 	WriteRegStr HKLM "Software\ChewingTextService" "" $INSTDIR
 	;Write an entry to Add & Remove applications
-	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayName" "·s»Å­µ¿é¤Jªk (TSF)"
+	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayName" "æ–°é…·éŸ³è¼¸å…¥æ³• (TSF)"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
-	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "Publisher" "·s»Å­µ¿é¤Jªk¶}µo¹Î¶¤"
+	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "Publisher" "æ–°é…·éŸ³è¼¸å…¥æ³•é–‹ç™¼åœ˜éšŠ"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\x86\ChewingTextService.dll"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "http://chewing.im/"
