@@ -53,7 +53,7 @@ INT_PTR PropertyDialog::showModal(HINSTANCE hInstance, LPCTSTR captionId, LPCTST
 	// }
 
 	PROPSHEETPAGE* pages = new PROPSHEETPAGE[pages_.size()];
-	for(int i = 0; i < pages_.size(); ++i) {
+	for(size_t i = 0; i < pages_.size(); ++i) {
 		pages_[i]->setup(pages[i]);
 		pages[i].hInstance = hInstance;
 	}
