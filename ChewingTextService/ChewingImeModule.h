@@ -46,7 +46,11 @@ public:
 	}
 
 	// called when config dialog needs to be launched
-	virtual bool onConfigure(HWND hwndParent);
+	bool onConfigure(HWND hwndParent, LANGID langid, REFGUID rguidProfile) override {
+		return onConfigure(hwndParent);
+	}
+
+	bool onConfigure(HWND hwndParent);
 
 private:
 	Config config_;

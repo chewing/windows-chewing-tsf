@@ -98,7 +98,6 @@ Ime::TextService* ImeModule::createTextService() {
 	return service;
 }
 
-// virtual
 bool ImeModule::onConfigure(HWND hwndParent) {
 	// launch ChewingPreferences
 	std::wstring path = programDir_;

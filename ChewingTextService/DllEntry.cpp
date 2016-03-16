@@ -35,20 +35,29 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppvObj) {
 }
 
 STDAPI DllUnregisterServer(void) {
-	return g_imeModule->unregisterServer(g_profileGuid);
+	return g_imeModule->unregisterServer();
 }
 
 STDAPI DllRegisterServer(void) {
 	wchar_t name[32];
 	::LoadStringW(g_imeModule->hInstance(), IDS_CHEWING, name, 32);
+
+	// get path of our module
+	wchar_t modulePath[MAX_PATH];
+	DWORD modulePathLen = GetModuleFileNameW(g_imeModule->hInstance(), modulePath, MAX_PATH);
+
 	int iconIndex = 0; // use classic icon
 	if(g_imeModule->isWindows8Above())
 		iconIndex = 1; // use Windows 8 style IME icon
 
-	return g_imeModule->registerServer(
-		name,
-		g_profileGuid,
-		MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL), iconIndex);
+	Ime::LangProfileInfo info;
+	info.name = name;
+	info.profileGuid = g_profileGuid;
+	info.languageId = MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL);
+	info.iconIndex = iconIndex;
+	info.iconFile = modulePath;
+
+	return g_imeModule->registerServer(name, &info, 1);
 }
 
 STDAPI ChewingSetup() {

@@ -500,7 +500,8 @@ bool TextService::onCommand(UINT id, CommandType type) {
 			break;
 		case ID_CONFIG: // show config dialog
 			if(!isImmersive()) { // only do this in desktop app mode
-				imeModule()->onConfigure(HWND_DESKTOP);
+				ImeModule* module = static_cast<ImeModule*>(imeModule());
+				module->onConfigure(HWND_DESKTOP);
 			}
 			break;
 		case ID_OUTPUT_SIMP_CHINESE: // toggle output traditional or simplified Chinese
