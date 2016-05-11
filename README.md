@@ -17,17 +17,15 @@ All parts are licensed under GNU LGPL v2.1 license.
 
 ## How to Build
 *   Get source from github
-
-        git clone https://github.com/chewing/windows-chewing-tsf.git
-        cd windows-chewing-tsf
-        git submodule init
-        git submodule update
-
+```bash
+    git clone --recursive https://github.com/chewing/windows-chewing-tsf.git
+    cd windows-chewing-tsf
+```
 *   Use one of the following CMake commands to generate Visual Studio project
-
-        cmake -G "Visual Studio 11" -T "v110_xp" <path to windows-chewing-tsf>
-        cmake -G "Visual Studio 11 Win64" -T "v110_xp" <path to windows-chewing-tsf>
-
+```
+    cmake -G "Visual Studio 11" -T "v110_xp" <path to windows-chewing-tsf>
+    cmake -G "Visual Studio 11 Win64" -T "v110_xp" <path to windows-chewing-tsf>
+```
 *	NOTICE: In order to support Windows xp, it is required to add the argument "v110_xp" ([MSDN](http://msdn.microsoft.com/en-us/library/jj851139%28v=vs.110%29.aspx))
 
 *   Open generated project with Visual Studio and build it
