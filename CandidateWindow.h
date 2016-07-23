@@ -31,10 +31,33 @@ class EditSession;
 class KeyEvent;
 
 // TODO: make the candidate window looks different in immersive mode
-class CandidateWindow : public ImeWindow {
+class CandidateWindow :
+	public ImeWindow,
+	public ITfCandidateListUIElement {
 public:
 	CandidateWindow(TextService* service, EditSession* session);
 	~CandidateWindow(void);
+
+	// IUnknown
+	STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
+	STDMETHODIMP_(ULONG) AddRef(void);
+	STDMETHODIMP_(ULONG) Release(void);
+
+	// ITfUIElement
+	STDMETHODIMP GetDescription(BSTR *pbstrDescription);
+	STDMETHODIMP GetGUID(GUID *pguid);
+	STDMETHODIMP Show(BOOL bShow);
+	STDMETHODIMP IsShown(BOOL *pbShow);
+
+	// ITfCandidateListUIElement
+	STDMETHODIMP GetUpdatedFlags(DWORD *pdwFlags);
+	STDMETHODIMP GetDocumentMgr(ITfDocumentMgr **ppdim);
+	STDMETHODIMP GetCount(UINT *puCount);
+	STDMETHODIMP GetSelection(UINT *puIndex);
+	STDMETHODIMP GetString(UINT uIndex, BSTR *pstr);
+	STDMETHODIMP GetPageIndex(UINT *puIndex, UINT uSize, UINT *puPageCnt);
+	STDMETHODIMP SetPageIndex(UINT *puIndex, UINT uPageCnt);
+	STDMETHODIMP GetCurrentPage(UINT *puPage);
 
 	const std::vector<std::wstring>& items() const {
 		return items_;
@@ -89,6 +112,9 @@ protected:
 	void itemRect(int i, RECT& rect);
 
 private:
+	ULONG refCount_;
+	BOOL shown_;
+
 	int selKeyWidth_;
 	int textWidth_;
 	int itemHeight_;

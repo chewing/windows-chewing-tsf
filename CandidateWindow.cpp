@@ -22,6 +22,9 @@
 #include "TextService.h"
 #include "EditSession.h"
 
+#include <algorithm>
+#include <cassert>
+
 #include <tchar.h>
 #include <windows.h>
 
@@ -31,6 +34,8 @@ namespace Ime {
 
 CandidateWindow::CandidateWindow(TextService* service, EditSession* session):
 	ImeWindow(service),
+	refCount_(1),
+	shown_(false),
 	candPerRow_(1),
 	textWidth_(0),
 	itemHeight_(0),
@@ -55,6 +60,137 @@ CandidateWindow::CandidateWindow(TextService* service, EditSession* session):
 }
 
 CandidateWindow::~CandidateWindow(void) {
+}
+
+// IUnknown
+STDMETHODIMP CandidateWindow::QueryInterface(REFIID riid, void **ppvObj) {
+	if (!ppvObj)
+		return E_INVALIDARG;
+
+	if (IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_ITfCandidateListUIElement)) {
+		*ppvObj = (ITfCandidateListUIElement*)this;
+	}
+	else {
+		*ppvObj = NULL;
+	}
+
+	if (!*ppvObj) {
+		return E_NOINTERFACE;
+	}
+
+	AddRef();
+	return S_OK;
+}
+
+STDMETHODIMP_(ULONG) CandidateWindow::AddRef(void) {
+	return ++refCount_;
+}
+
+STDMETHODIMP_(ULONG) CandidateWindow::Release(void) {
+	assert(refCount_ > 0);
+	const ULONG newCount = --refCount_;
+	if (refCount_ == 0)
+		delete this;
+	return newCount;
+}
+
+// ITfUIElement
+STDMETHODIMP CandidateWindow::GetDescription(BSTR *pbstrDescription) {
+	if (!pbstrDescription)
+		return E_INVALIDARG;
+	*pbstrDescription = SysAllocString(L"Candidate window~");
+	return S_OK;
+}
+
+// {BD7CCC94-57CD-41D3-A789-AF47890CEB29}
+STDMETHODIMP CandidateWindow::GetGUID(GUID *pguid) {
+	if (!pguid)
+		return E_INVALIDARG;
+	*pguid = { 0xbd7ccc94, 0x57cd, 0x41d3, { 0xa7, 0x89, 0xaf, 0x47, 0x89, 0xc, 0xeb, 0x29 } };
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::Show(BOOL bShow) {
+	shown_ = bShow;
+	if (shown_)
+		show();
+	else
+		hide();
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::IsShown(BOOL *pbShow) {
+	if (!pbShow)
+		return E_INVALIDARG;
+	*pbShow = shown_;
+	return S_OK;
+}
+
+// ITfCandidateListUIElement
+STDMETHODIMP CandidateWindow::GetUpdatedFlags(DWORD *pdwFlags) {
+	if (!pdwFlags)
+		return E_INVALIDARG;
+	/// XXX update all!!!
+	*pdwFlags = TF_CLUIE_DOCUMENTMGR | TF_CLUIE_COUNT | TF_CLUIE_SELECTION | TF_CLUIE_STRING | TF_CLUIE_PAGEINDEX | TF_CLUIE_CURRENTPAGE;
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::GetDocumentMgr(ITfDocumentMgr **ppdim) {
+	if (!textService_)
+		return E_FAIL;
+	return textService_->currentContext()->GetDocumentMgr(ppdim);
+}
+
+STDMETHODIMP CandidateWindow::GetCount(UINT *puCount) {
+	if (!puCount)
+		return E_INVALIDARG;
+	*puCount = std::min<UINT>(10, items_.size());
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::GetSelection(UINT *puIndex) {
+	assert(currentSel_ >= 0);
+	if (!puIndex)
+		return E_INVALIDARG;
+	*puIndex = static_cast<UINT>(currentSel_);
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::GetString(UINT uIndex, BSTR *pbstr) {
+	if (!pbstr)
+		return E_INVALIDARG;
+	if (uIndex >= items_.size())
+		return E_INVALIDARG;
+	*pbstr = SysAllocString(items_[uIndex].c_str());
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::GetPageIndex(UINT *puIndex, UINT uSize, UINT *puPageCnt) {
+	/// XXX Always return the same single page index.
+	if (!puPageCnt)
+		return E_INVALIDARG;
+	*puPageCnt = 1;
+	if (puIndex) {
+		if (uSize < *puPageCnt) {
+			return E_INVALIDARG;
+		}
+		puIndex[0] = 0;
+	}
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::SetPageIndex(UINT *puIndex, UINT uPageCnt) {
+	/// XXX Do not let app set page indices.
+	if (!puIndex)
+		return E_INVALIDARG;
+	return S_OK;
+}
+
+STDMETHODIMP CandidateWindow::GetCurrentPage(UINT *puPage) {
+	if (!puPage)
+		return E_INVALIDARG;
+	*puPage = 0;
+	return S_OK;
 }
 
 LRESULT CandidateWindow::wndProc(UINT msg, WPARAM wp , LPARAM lp) {

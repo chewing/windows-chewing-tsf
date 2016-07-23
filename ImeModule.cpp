@@ -188,7 +188,8 @@ HRESULT ImeModule::registerServer(wchar_t* imeName, LangProfileInfo* langs, int 
 			}
 
 			// enable UI less mode
-			if(categoryMgr->RegisterCategory(textServiceClsid_, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, textServiceClsid_) != S_OK) {
+			if(categoryMgr->RegisterCategory(textServiceClsid_, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, textServiceClsid_) != S_OK ||
+				categoryMgr->RegisterCategory(textServiceClsid_, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, textServiceClsid_) != S_OK) {
 				result  = E_FAIL;
 			}
 
