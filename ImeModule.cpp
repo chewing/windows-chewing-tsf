@@ -20,9 +20,11 @@
 #include "ImeModule.h"
 #include <string>
 #include <algorithm>
+#include <memory>
 #include <ObjBase.h>
 #include <msctf.h>
 #include <Shlwapi.h>
+#include <ShlObj.h>
 #include <assert.h>
 #include "Window.h"
 #include "TextService.h"
@@ -113,13 +115,111 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int count) {
 			if(inputProcessProfiles->Register(textServiceClsid_) == S_OK) {
 				//wstring t = (lang.name + L"\n" + lang.iconFile + L"\n....");
 				//::MessageBox(0, t.c_str(), 0, 0);
-				if(inputProcessProfiles->AddLanguageProfile(textServiceClsid_, lang.languageId, lang.profileGuid,
+				LCID lcid = LocaleNameToLCID(lang.localeName.c_str(), 0);
+				LANGID langId = LANGIDFROMLCID(lcid);
+				if(inputProcessProfiles->AddLanguageProfile(textServiceClsid_, langId, lang.profileGuid,
 					lang.name.c_str(), lang.name.length(), lang.iconFile.empty() ? NULL : lang.iconFile.c_str(),
 					lang.iconFile.length(), lang.iconIndex) != S_OK) {
 					return E_FAIL;
 				}
 			}
 		}
+	}
+
+	// NOTE: For Windows newer than Windows 8, we have to manually write some settings
+	//       to the registry so the input methods can appear in the Windows control panel.
+	//
+	//       Registry path: "HKEY_CURRENT_USER\Control Panel\International\User Profile\<locale_name>"
+	//       Sub key: "<lang ID>:{text service GUID}{input module GUID}"
+	//
+	//       Unfortunately, this is not documented officially by Microsoft.
+	//       We found the values with some registry monitor tools:
+	//       These settings are user-specific so they should be written to HKEY_CURRENT_USER of all users.
+	//       This might be achieved by Microsoft Acitve Setup, yet another undocumented feature.
+	//       https://helgeklein.com/blog/2010/04/active-setup-explained/
+	//
+	//       However, there is no way to uninstall keys installed with Active Setup. So let's avoid it.
+	//       References: https://support.microsoft.com/en-us/kb/284193
+	//                   https://blogs.technet.microsoft.com/deploymentguys/2009/10/29/configuring-default-user-settings-full-update-for-windows-7-and-windows-server-2008-r2/
+	if (isWindows8Above()) {
+		DWORD n_sids = 0;
+		if (::RegQueryInfoKeyW(HKEY_USERS, NULL, NULL, NULL, &n_sids, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
+			return E_FAIL;
+		wchar_t* textServiceClsIdStr = nullptr;
+		if (FAILED(::StringFromCLSID(textServiceClsid_, &textServiceClsIdStr)))
+			return E_FAIL;
+
+		// The registry settings of all newly created users are based on the content of 
+		// "C:\Users\Default User\ntuser.dat", so we need to write our settings to this file so 
+		// the HKEY_CURRENT_USER key of newly created users can also contain our settings.
+		// In order to do this, we need to load the default "hive" to registry first.
+		// Reference: https://msdn.microsoft.com/zh-tw/library/windows/desktop/ms724889(v=vs.85).aspx
+		const wchar_t* defaultUserRegKey = L"__PIME_Default_user__";
+		wchar_t *userProfilesDir = nullptr;
+		if (SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_UserProfiles, 0, NULL, &userProfilesDir))) {
+			// get the path of the default ntuser.dat file
+			std::wstring defaultRegFile = userProfilesDir;
+			::CoTaskMemFree(userProfilesDir);
+			defaultRegFile += L"\\Default User\\ntuser.dat";
+
+			// loading registry file requires special privileges SE_RESTORE_NAME and SE_BACKUP_NAME.
+			// So let's do privilege elevation for our process.
+			HANDLE processToken = NULL;
+			::OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &processToken);
+			DWORD bufLen = sizeof(TOKEN_PRIVILEGES) + sizeof(LUID_AND_ATTRIBUTES);
+			std::unique_ptr<char> buf(new char[bufLen]);
+			TOKEN_PRIVILEGES* privileges = reinterpret_cast<TOKEN_PRIVILEGES*>(buf.get());
+			privileges->PrivilegeCount = 2;
+			::LookupPrivilegeValue(NULL, SE_RESTORE_NAME, &privileges->Privileges[0].Luid);
+			privileges->Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+			::LookupPrivilegeValue(NULL, SE_BACKUP_NAME, &privileges->Privileges[1].Luid);
+			privileges->Privileges[1].Attributes = SE_PRIVILEGE_ENABLED;
+			::AdjustTokenPrivileges(processToken, FALSE, privileges, bufLen, NULL, NULL);
+			::CloseHandle(processToken);
+
+			// load the default registry hive under the specified key name
+			::RegLoadKeyW(HKEY_USERS, defaultUserRegKey, defaultRegFile.c_str());
+		}
+
+		// write the language settings to user-specific registry.
+		wchar_t sid[256];
+		for (DWORD iSid = 0; iSid < n_sids; ++iSid) {
+			DWORD sidLen = sizeof(sid) / sizeof(wchar_t);
+			if (::RegEnumKeyExW(HKEY_USERS, iSid, sid, &sidLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+				// write settings of each input module to the user's registry
+				for (int i = 0; i < count; ++i) {
+					auto& lang = langs[i];
+					std::wstring localeRegPath = sid;
+					localeRegPath += L"\\Control Panel\\International\\User Profile\\";
+					localeRegPath += lang.localeName;
+					HKEY localeRegKey = NULL;
+					DWORD err = ::RegCreateKeyExW(HKEY_USERS, localeRegPath.c_str(), 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &localeRegKey, NULL);
+					if (err == ERROR_SUCCESS) {
+						LCID lcid = LocaleNameToLCID(lang.localeName.c_str(), 0);
+						wchar_t lcid_hex[16];
+						wsprintf(lcid_hex, L"%04x", lcid);
+						std::wstring valueName = lcid_hex;
+						valueName += L":";
+						valueName += textServiceClsIdStr;
+						wchar_t* profileClsIdStr = nullptr;
+						if (SUCCEEDED(::StringFromCLSID(lang.profileGuid, &profileClsIdStr))) {
+							valueName += profileClsIdStr;
+							::CoTaskMemFree(profileClsIdStr);
+							DWORD n_profiles = 0;
+							::RegQueryInfoKeyW(localeRegKey, NULL, NULL, NULL, NULL, NULL, NULL, &n_profiles, NULL, NULL, NULL, NULL);
+							// write the value to the key
+							++n_profiles;
+							::RegSetKeyValueW(localeRegKey, NULL, valueName.c_str(), REG_DWORD, &n_profiles, sizeof(DWORD));
+						}
+						::RegCloseKey(localeRegKey);
+					}
+				}
+			}
+		}
+		::CoTaskMemFree(textServiceClsIdStr);
+
+		// unload the default user registry hive
+		::RegUnLoadKeyW(HKEY_USERS, defaultUserRegKey);
 	}
 	return S_OK;
 }
