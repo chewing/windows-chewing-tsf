@@ -106,15 +106,48 @@ HRESULT ImeModule::getClassObject(REFCLSID rclsid, REFIID riid, void **ppvObj) {
     return CLASS_E_CLASSNOTAVAILABLE;
 }
 
-HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int count) {
+#ifndef _WIN64  // only do this for the 32-bit version dll
+static void loadDefaultUserRegistry(const wchar_t* defaultUserRegKey) {
+	// The registry settings of all newly created users are based on the content of 
+	// "C:\Users\Default User\ntuser.dat", so we need to write our settings to this file so 
+	// the HKEY_CURRENT_USER key of newly created users can also contain our settings.
+	// In order to do this, we need to load the default "hive" to registry first.
+	// Reference: https://msdn.microsoft.com/zh-tw/library/windows/desktop/ms724889(v=vs.85).aspx
+	wchar_t *userProfilesDir = nullptr;
+	if (SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_UserProfiles, 0, NULL, &userProfilesDir))) {
+		// get the path of the default ntuser.dat file
+		std::wstring defaultRegFile = userProfilesDir;
+		::CoTaskMemFree(userProfilesDir);
+		defaultRegFile += L"\\Default User\\ntuser.dat";
+
+		// loading registry file requires special privileges SE_RESTORE_NAME and SE_BACKUP_NAME.
+		// So let's do privilege elevation for our process.
+		HANDLE processToken = NULL;
+		::OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &processToken);
+		DWORD bufLen = sizeof(TOKEN_PRIVILEGES) + sizeof(LUID_AND_ATTRIBUTES);
+		std::unique_ptr<char> buf(new char[bufLen]);
+		TOKEN_PRIVILEGES* privileges = reinterpret_cast<TOKEN_PRIVILEGES*>(buf.get());
+		privileges->PrivilegeCount = 2;
+		::LookupPrivilegeValue(NULL, SE_RESTORE_NAME, &privileges->Privileges[0].Luid);
+		privileges->Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+		::LookupPrivilegeValue(NULL, SE_BACKUP_NAME, &privileges->Privileges[1].Luid);
+		privileges->Privileges[1].Attributes = SE_PRIVILEGE_ENABLED;
+		::AdjustTokenPrivileges(processToken, FALSE, privileges, bufLen, NULL, NULL);
+		::CloseHandle(processToken);
+
+		// load the default registry hive under the specified key name
+		::RegLoadKeyW(HKEY_USERS, defaultUserRegKey, defaultRegFile.c_str());
+	}
+}
+#endif  // #ifndef _WIN64
+
+HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int langsCount) {
 	// register the language profile
 	ComPtr<ITfInputProcessorProfiles> inputProcessProfiles;
 	if(CoCreateInstance(CLSID_TF_InputProcessorProfiles, NULL, CLSCTX_INPROC_SERVER, IID_ITfInputProcessorProfiles, (void**)&inputProcessProfiles) == S_OK) {
-		for(int i = 0; i < count; ++i) {
+		for(int i = 0; i < langsCount; ++i) {
 			LangProfileInfo& lang = langs[i];
 			if(inputProcessProfiles->Register(textServiceClsid_) == S_OK) {
-				//wstring t = (lang.name + L"\n" + lang.iconFile + L"\n....");
-				//::MessageBox(0, t.c_str(), 0, 0);
 				LCID lcid = LocaleNameToLCID(lang.localeName.c_str(), 0);
 				LANGID langId = LANGIDFROMLCID(lcid);
 				if(inputProcessProfiles->AddLanguageProfile(textServiceClsid_, langId, lang.profileGuid,
@@ -141,53 +174,28 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int count) {
 	//       However, there is no way to uninstall keys installed with Active Setup. So let's avoid it.
 	//       References: https://support.microsoft.com/en-us/kb/284193
 	//                   https://blogs.technet.microsoft.com/deploymentguys/2009/10/29/configuring-default-user-settings-full-update-for-windows-7-and-windows-server-2008-r2/
+#ifndef _WIN64  // only do this for the 32-bit version dll
+	// The keys under HKCU\Control Panel\ is shared between the x86 and x64 versions and 
+	// are not affected by WOW64 redirection. So doing this inside the 32-bit version is enough.
+
 	if (isWindows8Above()) {
-		DWORD n_sids = 0;
-		if (::RegQueryInfoKeyW(HKEY_USERS, NULL, NULL, NULL, &n_sids, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
+		DWORD sidCount = 0;
+		if (::RegQueryInfoKeyW(HKEY_USERS, NULL, NULL, NULL, &sidCount, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
 			return E_FAIL;
 		wchar_t* textServiceClsIdStr = nullptr;
 		if (FAILED(::StringFromCLSID(textServiceClsid_, &textServiceClsIdStr)))
 			return E_FAIL;
 
-		// The registry settings of all newly created users are based on the content of 
-		// "C:\Users\Default User\ntuser.dat", so we need to write our settings to this file so 
-		// the HKEY_CURRENT_USER key of newly created users can also contain our settings.
-		// In order to do this, we need to load the default "hive" to registry first.
-		// Reference: https://msdn.microsoft.com/zh-tw/library/windows/desktop/ms724889(v=vs.85).aspx
 		const wchar_t* defaultUserRegKey = L"__PIME_Default_user__";
-		wchar_t *userProfilesDir = nullptr;
-		if (SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_UserProfiles, 0, NULL, &userProfilesDir))) {
-			// get the path of the default ntuser.dat file
-			std::wstring defaultRegFile = userProfilesDir;
-			::CoTaskMemFree(userProfilesDir);
-			defaultRegFile += L"\\Default User\\ntuser.dat";
-
-			// loading registry file requires special privileges SE_RESTORE_NAME and SE_BACKUP_NAME.
-			// So let's do privilege elevation for our process.
-			HANDLE processToken = NULL;
-			::OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &processToken);
-			DWORD bufLen = sizeof(TOKEN_PRIVILEGES) + sizeof(LUID_AND_ATTRIBUTES);
-			std::unique_ptr<char> buf(new char[bufLen]);
-			TOKEN_PRIVILEGES* privileges = reinterpret_cast<TOKEN_PRIVILEGES*>(buf.get());
-			privileges->PrivilegeCount = 2;
-			::LookupPrivilegeValue(NULL, SE_RESTORE_NAME, &privileges->Privileges[0].Luid);
-			privileges->Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-			::LookupPrivilegeValue(NULL, SE_BACKUP_NAME, &privileges->Privileges[1].Luid);
-			privileges->Privileges[1].Attributes = SE_PRIVILEGE_ENABLED;
-			::AdjustTokenPrivileges(processToken, FALSE, privileges, bufLen, NULL, NULL);
-			::CloseHandle(processToken);
-
-			// load the default registry hive under the specified key name
-			::RegLoadKeyW(HKEY_USERS, defaultUserRegKey, defaultRegFile.c_str());
-		}
+		loadDefaultUserRegistry(defaultUserRegKey);
 
 		// write the language settings to user-specific registry.
 		wchar_t sid[256];
-		for (DWORD iSid = 0; iSid < n_sids; ++iSid) {
+		for (DWORD iSid = 0; iSid < sidCount; ++iSid) {
 			DWORD sidLen = sizeof(sid) / sizeof(wchar_t);
 			if (::RegEnumKeyExW(HKEY_USERS, iSid, sid, &sidLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
 				// write settings of each input module to the user's registry
-				for (int i = 0; i < count; ++i) {
+				for (int i = 0; i < langsCount; ++i) {
 					auto& lang = langs[i];
 					std::wstring localeRegPath = sid;
 					localeRegPath += L"\\Control Panel\\International\\User Profile\\";
@@ -205,11 +213,12 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int count) {
 						if (SUCCEEDED(::StringFromCLSID(lang.profileGuid, &profileClsIdStr))) {
 							valueName += profileClsIdStr;
 							::CoTaskMemFree(profileClsIdStr);
-							DWORD n_profiles = 0;
-							::RegQueryInfoKeyW(localeRegKey, NULL, NULL, NULL, NULL, NULL, NULL, &n_profiles, NULL, NULL, NULL, NULL);
-							// write the value to the key
-							++n_profiles;
-							::RegSetKeyValueW(localeRegKey, NULL, valueName.c_str(), REG_DWORD, &n_profiles, sizeof(DWORD));
+							DWORD profileCount = 1;
+							if (::RegQueryInfoKeyW(localeRegKey, NULL, NULL, NULL, NULL, NULL, NULL, &profileCount, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+								// ::MessageBoxW(0, std::to_wstring(profileCount).c_str(), 0, 0);
+								++profileCount;
+							}
+							::RegSetKeyValueW(localeRegKey, NULL, valueName.c_str(), REG_DWORD, &profileCount, sizeof(DWORD));
 						}
 						::RegCloseKey(localeRegKey);
 					}
@@ -221,6 +230,7 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int count) {
 		// unload the default user registry hive
 		::RegUnLoadKeyW(HKEY_USERS, defaultUserRegKey);
 	}
+#endif  // #ifndef _WIN64
 	return S_OK;
 }
 
@@ -350,6 +360,74 @@ HRESULT ImeModule::unregisterServer() {
 		CoTaskMemFree(clsidStr);
 		::SHDeleteKey(HKEY_CLASSES_ROOT, regPath.c_str());
 	}
+
+#ifndef _WIN64  // only do this for the 32-bit version dll
+	// The keys under HKCU\Control Panel\ is shared between the x86 and x64 versions and 
+	// are not affected by WOW64 redirection. So doing this inside the 32-bit version is enough.
+
+	// delete settings under "HKEY_CURRENT_USER\Control Panel\International\User Profile\<locale_name>" for all users
+	if (isWindows8Above()) {
+		DWORD sidCount = 0;
+		if (::RegQueryInfoKeyW(HKEY_USERS, NULL, NULL, NULL, &sidCount, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
+			return E_FAIL;
+		wchar_t* textServiceClsIdStr = nullptr;
+		if (FAILED(::StringFromCLSID(textServiceClsid_, &textServiceClsIdStr)))
+			return E_FAIL;
+
+		const wchar_t* defaultUserRegKey = L"__PIME_Default_user__";
+		loadDefaultUserRegistry(defaultUserRegKey);
+
+		// delete the language settings from user-specific registry.
+		wchar_t sid[256];
+		for (DWORD iSid = 0; iSid < sidCount; ++iSid) {
+			DWORD sidLen = sizeof(sid) / sizeof(wchar_t);
+			if (::RegEnumKeyExW(HKEY_USERS, iSid, sid, &sidLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+				// remove settings of each input module to the user's registry
+				std::wstring userRegPath = sid;
+				userRegPath += L"\\Control Panel\\International\\User Profile";
+				HKEY userKey = NULL;
+				if (::RegOpenKeyExW(HKEY_USERS, userRegPath.c_str(), 0, KEY_READ, &userKey) == ERROR_SUCCESS) {
+					DWORD localeCount = 0;
+					if (::RegQueryInfoKeyW(userKey, NULL, NULL, NULL, &localeCount, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+						// list all locales under this user
+						wchar_t locale[100];
+						for (DWORD iLocale = 0; iLocale < localeCount; ++iLocale) {
+							DWORD localeLen = sizeof(locale) / sizeof(wchar_t);
+							if (::RegEnumKeyExW(userKey, iLocale, locale, &localeLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+								HKEY localeKey = NULL;
+								if (::RegOpenKeyExW(userKey, locale, 0, KEY_ALL_ACCESS | KEY_READ, &localeKey) == ERROR_SUCCESS) {
+									DWORD profileCount = 0;
+									::RegQueryInfoKeyW(localeKey, NULL, NULL, NULL, NULL, NULL, NULL, &profileCount, NULL, NULL, NULL, NULL);
+									// list all language profiles under this locale
+									std::vector<std::wstring> profiles;
+									for (DWORD iProfile = 0; iProfile < profileCount; ++iProfile) {
+										wchar_t profile[128];
+										DWORD profileLen = sizeof(profile) / sizeof(wchar_t);
+										if (::RegEnumValueW(localeKey, iProfile, profile, &profileLen, 0, NULL, NULL, NULL) == ERROR_SUCCESS) {
+											if (wcsstr(profile, textServiceClsIdStr)) {  // this profile is registered by us
+												profiles.push_back(profile);
+											}
+										}
+									}
+									// delete these language profiles beloning to us
+									for (const auto& profile : profiles) {
+										::RegDeleteValueW(localeKey, profile.c_str());
+									}
+									::RegCloseKey(localeKey);
+								}
+							}
+						}
+					}
+					::RegCloseKey(userKey);
+				}
+			}
+		}
+		::CoTaskMemFree(textServiceClsIdStr);
+
+		// unload the default user registry hive
+		::RegUnLoadKeyW(HKEY_USERS, defaultUserRegKey);
+	}
+#endif // #ifndef _WIN64
 	return S_OK;
 }
 
