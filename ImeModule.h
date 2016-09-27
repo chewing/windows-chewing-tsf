@@ -36,7 +36,8 @@ class DisplayAttributeInfo;
 struct LangProfileInfo {
 	std::wstring name; // should not exceed 32 chars
 	GUID profileGuid;
-	std::wstring langName; // RFC 4646 locale names
+	std::wstring locale; // RFC 4646 locale name
+	std::wstring fallbackLocale; // RFC 1766 locale name or other alternatives if locale does not work
 	std::wstring iconFile;
 	int iconIndex;
 };

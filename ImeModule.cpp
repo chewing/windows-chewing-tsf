@@ -148,15 +148,21 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int langsCount) 
 		for(int i = 0; i < langsCount; ++i) {
 			LangProfileInfo& lang = langs[i];
 			if(inputProcessProfiles->Register(textServiceClsid_) == S_OK) {
-				wchar_t locale[LOCALE_NAME_MAX_LENGTH];
-				// New RFC4646 language tag needs to be converted to tradional locale names first
-				// before calling LocaleNameToLCID(). Otherwise this won't work in Windows 7.
-				::ResolveLocaleName(lang.langName.c_str(), locale, LOCALE_NAME_MAX_LENGTH);
-				LCID lcid = LocaleNameToLCID(locale, 0);
-				LANGID langId = LANGIDFROMLCID(lcid);
-				if(inputProcessProfiles->AddLanguageProfile(textServiceClsid_, langId, lang.profileGuid,
-					lang.name.c_str(), lang.name.length(), lang.iconFile.empty() ? NULL : lang.iconFile.c_str(),
-					lang.iconFile.length(), lang.iconIndex) != S_OK) {
+				LCID lcid = LocaleNameToLCID(lang.locale.c_str(), 0);
+				if (lcid == 0 && !lang.fallbackLocale.empty()) { // the conversion fails
+					// The new RFC4646 locale names are not well-supported in Windows 7/Vista, so
+					// here we provide a fallback locale which uses the deprecated RFC 1766 format instead.
+					lcid = LocaleNameToLCID(lang.fallbackLocale.c_str(), 0);
+				}
+				if (lcid != 0) {
+					LANGID langId = LANGIDFROMLCID(lcid);
+					if (inputProcessProfiles->AddLanguageProfile(textServiceClsid_, langId, lang.profileGuid,
+						lang.name.c_str(), lang.name.length(), lang.iconFile.empty() ? NULL : lang.iconFile.c_str(),
+						lang.iconFile.length(), lang.iconIndex) != S_OK) {
+						return E_FAIL;
+					}
+				}
+				else {
 					return E_FAIL;
 				}
 			}
@@ -203,11 +209,14 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int langsCount) 
 					auto& lang = langs[i];
 					std::wstring localeRegPath = sid;
 					localeRegPath += L"\\Control Panel\\International\\User Profile\\";
-					localeRegPath += lang.langName;
+					localeRegPath += lang.locale;
 					HKEY localeRegKey = NULL;
 					DWORD err = ::RegCreateKeyExW(HKEY_USERS, localeRegPath.c_str(), 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &localeRegKey, NULL);
 					if (err == ERROR_SUCCESS) {
-						LCID lcid = LocaleNameToLCID(lang.langName.c_str(), 0);
+						LCID lcid = LocaleNameToLCID(lang.locale.c_str(), 0);
+						if (lcid == 0 && !lang.fallbackLocale.empty()) { // the conversion fails
+							lcid = LocaleNameToLCID(lang.fallbackLocale.c_str(), 0);  // try the fallback locale name
+						}
 						wchar_t lcid_hex[16];
 						wsprintf(lcid_hex, L"%04x", lcid);
 						std::wstring valueName = lcid_hex;
