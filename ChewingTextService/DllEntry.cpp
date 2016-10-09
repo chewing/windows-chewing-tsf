@@ -53,7 +53,8 @@ STDAPI DllRegisterServer(void) {
 	Ime::LangProfileInfo info;
 	info.name = name;
 	info.profileGuid = g_profileGuid;
-	info.languageId = MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL);
+	info.locale = L"zh-Hant-TW";
+	info.fallbackLocale = L"zh-TW";
 	info.iconIndex = iconIndex;
 	info.iconFile = modulePath;
 
