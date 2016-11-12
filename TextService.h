@@ -127,6 +127,7 @@ public:
 	bool selectionRect(EditSession* session, RECT* rect);
 	HWND compositionWindow(EditSession* session);
 
+	std::wstring compositionString(EditSession* session);
 	void setCompositionString(EditSession* session, const wchar_t* str, int len);
 	void setCompositionCursor(EditSession* session, int pos);
 

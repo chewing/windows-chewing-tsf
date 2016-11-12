@@ -242,6 +242,27 @@ void TextService::endComposition(ITfContext* context) {
 	session->Release();
 }
 
+std::wstring TextService::compositionString(EditSession* session) {
+	if (composition_) {
+		ComPtr<ITfRange> compositionRange;
+		if (composition_->GetRange(&compositionRange) == S_OK) {
+			TfEditCookie editCookie = session->editCookie();
+			// FIXME: the TSF API is really stupid here and it provides no way to know the size of the range.
+			// we cannot even get the actual position of start and end to calculate by ourselves.
+			// So, just use a huge buffer and assume that it's enough. :-(
+			// this should be quite enough for most of the IME on the earth as most composition strings
+			// only contain dozens of characters.
+			wchar_t buf[4096];  
+			ULONG len = 0;
+			if (compositionRange->GetText(editCookie, 0, buf, 4096, &len) == S_OK) {
+				buf[len] = '\0';
+				return std::wstring(buf);
+			}
+		}
+	}
+	return std::wstring();
+}
+
 void TextService::setCompositionString(EditSession* session, const wchar_t* str, int len) {
 	ITfContext* context = session->context();
 	if(context) {
