@@ -34,7 +34,6 @@ class LangBarButton:
 	public ITfSource {
 public:
 	LangBarButton(TextService* service, const GUID& guid, UINT commandId = 0, const wchar_t* text = NULL, DWORD style = TF_LBI_STYLE_BTN_BUTTON);
-	virtual ~LangBarButton(void);
 
 	// public methods
 	const wchar_t* text() const;
@@ -94,6 +93,9 @@ public:
 	TextService* textService() const {
 		return textService_;
 	};
+
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~LangBarButton(void);
 
 private:
 	void buildITfMenu(ITfMenu* menu, HMENU templ);

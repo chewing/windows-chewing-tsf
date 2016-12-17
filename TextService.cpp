@@ -46,15 +46,12 @@ TextService::TextService(ImeModule* module):
 	langBarSinkCookie_(TF_INVALID_COOKIE),
 	activateLanguageProfileNotifySinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
-	candidateWindow_(NULL),
 	refCount_(1) {
 
 	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
 }
 
 TextService::~TextService(void) {
-	if(candidateWindow_)
-		delete candidateWindow_;
 
 	// This should only happen in rare cases
 	if(!compartmentMonitors_.empty()) {
@@ -624,9 +621,9 @@ STDMETHODIMP_(ULONG) TextService::Release(void) {
 	assert(refCount_ > 0);
 	--refCount_;
 	if(0 == refCount_) {
-		// We do not call "delete this" since ImeModule needs to do
-		// some clean up before deleting the TextService object.
-		module_->freeTextService(this);
+		// ImeModule needs to do some clean up before deleting the TextService object.
+		module_->removeTextService(this);
+		delete this;
 	}
 	return refCount_;
 }

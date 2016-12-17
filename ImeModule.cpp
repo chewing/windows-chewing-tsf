@@ -461,9 +461,8 @@ bool ImeModule::registerDisplayAttributeInfos() {
 	return false;
 }
 
-void ImeModule::freeTextService(TextService* service) {
+void ImeModule::removeTextService(TextService* service) {
 	textServices_.remove(service);
-	delete service;
 }
 
 // virtual

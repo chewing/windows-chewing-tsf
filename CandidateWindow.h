@@ -36,7 +36,6 @@ class CandidateWindow :
 	public ITfCandidateListUIElement {
 public:
 	CandidateWindow(TextService* service, EditSession* session);
-	~CandidateWindow(void);
 
 	// IUnknown
 	STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
@@ -110,6 +109,9 @@ protected:
 	void onPaint(WPARAM wp, LPARAM lp);
 	void paintItem(HDC hDC, int i, int x, int y);
 	void itemRect(int i, RECT& rect);
+
+protected: // COM object should not be deleted directly. calling Release() instead.
+	~CandidateWindow(void);
 
 private:
 	ULONG refCount_;

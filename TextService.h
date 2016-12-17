@@ -38,7 +38,6 @@
 namespace Ime {
 
 class ImeModule;
-class CandidateWindow;
 class LangBarButton;
 
 class TextService:
@@ -61,7 +60,6 @@ public:
 	};
 
 	TextService(ImeModule* module);
-	virtual ~TextService(void);
 
 	// public methods
 	ImeModule* imeModule() const;
@@ -286,6 +284,9 @@ protected:
 		}
 	};
 
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~TextService(void);
+
 private:
 	ComPtr<ImeModule> module_;
 	ComPtr<ITfThreadMgr> threadMgr_;
@@ -303,7 +304,6 @@ private:
 	DWORD activateLanguageProfileNotifySinkCookie_;
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
-	CandidateWindow* candidateWindow_;
 	ComPtr<ITfLangBarMgr> langBarMgr_;
 	std::vector<LangBarButton*> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;

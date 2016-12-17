@@ -48,7 +48,6 @@ class ImeModule:
 	public ITfFnConfigure {
 public:
 	ImeModule(HMODULE module, const CLSID& textServiceClsid);
-	virtual ~ImeModule(void);
 
 	// public methods
 	HINSTANCE hInstance() const {
@@ -77,7 +76,7 @@ public:
 
 	// should be override by IME implementors
 	virtual TextService* createTextService() = 0;
-	void freeTextService(TextService* service);
+	void removeTextService(TextService* service);
 
 	// called when config dialog needs to be launched
 	virtual bool onConfigure(HWND hwndParent, LANGID langid, REFGUID rguidProfile);
@@ -120,6 +119,9 @@ protected:
 
 	// ITfFnConfigure
 	STDMETHODIMP Show(HWND hwndParent, LANGID langid, REFGUID rguidProfile);
+
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~ImeModule(void);
 
 private:
 	volatile unsigned long refCount_;

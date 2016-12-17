@@ -33,7 +33,6 @@ class DisplayAttributeInfoEnum : public IEnumTfDisplayAttributeInfo {
 public:
 	DisplayAttributeInfoEnum(DisplayAttributeProvider* provider);
 	DisplayAttributeInfoEnum(const DisplayAttributeInfoEnum& other);
-	virtual ~DisplayAttributeInfoEnum(void);
 
     // IUnknown
     STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
@@ -45,6 +44,9 @@ public:
     STDMETHODIMP Next(ULONG ulCount, ITfDisplayAttributeInfo **rgInfo, ULONG *pcFetched);
     STDMETHODIMP Reset();
     STDMETHODIMP Skip(ULONG ulCount);
+
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~DisplayAttributeInfoEnum(void);
 
 private:
 	int refCount_;

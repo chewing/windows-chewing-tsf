@@ -35,7 +35,6 @@ public:
 	friend class DisplayAttributeInfoEnum;
 
 	DisplayAttributeProvider(ImeModule* module);
-	virtual ~DisplayAttributeProvider(void);
 
 	// COM stuff
 
@@ -48,6 +47,9 @@ public:
     STDMETHODIMP EnumDisplayAttributeInfo(IEnumTfDisplayAttributeInfo **ppEnum);
     STDMETHODIMP GetDisplayAttributeInfo(REFGUID guidInfo, ITfDisplayAttributeInfo **ppInfo);
 
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~DisplayAttributeProvider(void);
+
 private:
 	int refCount_;
 	ComPtr<ImeModule> imeModule_;
@@ -56,5 +58,3 @@ private:
 }
 
 #endif
-
-

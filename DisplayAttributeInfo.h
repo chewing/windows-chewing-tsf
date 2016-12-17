@@ -27,7 +27,6 @@ namespace Ime {
 class DisplayAttributeInfo : public ITfDisplayAttributeInfo {
 public:
 	DisplayAttributeInfo(const GUID& guid);
-	virtual ~DisplayAttributeInfo(void);
 
 	// public methods
 
@@ -102,6 +101,9 @@ public:
     STDMETHODIMP GetAttributeInfo(TF_DISPLAYATTRIBUTE *ptfDisplayAttr);
     STDMETHODIMP SetAttributeInfo(const TF_DISPLAYATTRIBUTE *ptfDisplayAttr);
     STDMETHODIMP Reset();
+
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~DisplayAttributeInfo(void);
 
 private:
 	int refCount_;

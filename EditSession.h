@@ -29,7 +29,6 @@ class TextService;
 class EditSession: public ITfEditSession {
 public:
 	EditSession(TextService* service, ITfContext* context);
-	virtual ~EditSession(void);
 
 	TextService* textService() {
 		return textService_;
@@ -52,6 +51,9 @@ public:
 
     // ITfEditSession
     virtual STDMETHODIMP DoEditSession(TfEditCookie ec);
+
+protected: // COM object should not be deleted directly. calling Release() instead.
+	virtual ~EditSession(void);
 
 protected:
 	TextService* textService_;
