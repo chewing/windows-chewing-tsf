@@ -118,7 +118,7 @@ TextService::~TextService(void) {
 		::DestroyMenu(popupMenu_);
 
 	if(candidateWindow_)
-		delete candidateWindow_;
+		candidateWindow_->Release();
 
 	if(messageWindow_)
 		hideMessage();
@@ -155,7 +155,7 @@ void TextService::onDeactivate() {
 
 	if(candidateWindow_) {
 		showingCandidates_ = false;
-		delete candidateWindow_;
+		candidateWindow_->Release();
 		candidateWindow_ = NULL;
 	}
 }
@@ -805,7 +805,7 @@ void TextService::showCandidates(Ime::EditSession* session) {
 void TextService::hideCandidates() {
 	assert(candidateWindow_);
 	if(candidateWindow_) {
-		delete candidateWindow_;
+		candidateWindow_->Release();
 		candidateWindow_ = NULL;
 	}
 	showingCandidates_ = false;
