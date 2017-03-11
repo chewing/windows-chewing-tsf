@@ -23,7 +23,7 @@
 !include "LogicLib.nsh" ; for ${If}, ${Switch} commands
 
 Unicode true ; turn on Unicode (This requires NSIS 3.0)
-SetCompressor lzma ; use LZMA for best compression ratio
+SetCompressor /SOLID lzma ; use LZMA for best compression ratio
 AllowSkipFiles off ; cannot skip a file
 
 ; icons of the generated installer and uninstaller
@@ -47,7 +47,7 @@ RequestExecutionLevel admin
 
 ;Pages
 ; license page
-!insertmacro MUI_PAGE_LICENSE "..\COPYING.txt"
+!insertmacro MUI_PAGE_LICENSE "COPYING.txt"
 
 ; !insertmacro MUI_PAGE_COMPONENTS
 
@@ -73,7 +73,7 @@ Function uninstallOldVersion
 	ReadRegStr $R0 HKLM "${PRODUCT_UNINST_KEY}" "UninstallString"
 	${If} $R0 != ""
 		ClearErrors
-		MessageBox MB_OKCANCEL|MB_ICONQUESTION "偵測到已安裝舊版，是否要移除舊版後繼續安裝新版？" IDOK +2
+		MessageBox MB_OKCANCEL|MB_ICONQUESTION "偵測到已安裝舊版，現在將移除舊版並安裝新版" IDOK +2
 			Abort ; this is skipped if the user select OK
 
 		CopyFiles "$INSTDIR\Uninstall.exe" "$TEMP"
@@ -168,17 +168,13 @@ Section "新酷音輸入法" SecMain
 	WriteUninstaller "$INSTDIR\Uninstall.exe" ;Create uninstaller
 SectionEnd
 
-;Language strings
-LangString DESC_SecMain ${LANG_ENGLISH} "A test section." ; What's this??
-
 ;Assign language strings to sections
-!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-!insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
-!insertmacro MUI_FUNCTION_DESCRIPTION_END
+;!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+;!insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
+;!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;Uninstaller Section
 Section "Uninstall"
-
 	; Unregister COM objects (NSIS UnRegDLL command is broken and cannot be used)
 	ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x86\ChewingTextService.dll"'
 	${If} ${RunningX64} 
@@ -198,6 +194,4 @@ Section "Uninstall"
 
 	Delete "$INSTDIR\Uninstall.exe"
 	RMDir "$INSTDIR"
-
 SectionEnd
-
