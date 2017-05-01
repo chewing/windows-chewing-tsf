@@ -62,7 +62,9 @@ TextService::~TextService(void) {
 				source = globalCompartment(it->guid);
 			else
 				source = threadCompartment(it->guid);
-			source->UnadviseSink(it->cookie);
+			if (source) {
+				source->UnadviseSink(it->cookie);
+			}
 		}
 	}
 
