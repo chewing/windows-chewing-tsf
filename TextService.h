@@ -305,7 +305,7 @@ private:
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
 	ComPtr<ITfLangBarMgr> langBarMgr_;
-	std::vector<LangBarButton*> langBarButtons_;
+	std::vector<ComPtr<LangBarButton>> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
 	std::vector<CompartmentMonitor> compartmentMonitors_;
 

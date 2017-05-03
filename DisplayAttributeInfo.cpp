@@ -62,10 +62,10 @@ STDMETHODIMP_(ULONG) DisplayAttributeInfo::AddRef(void) {
 
 STDMETHODIMP_(ULONG) DisplayAttributeInfo::Release(void) {
 	assert(refCount_ > 0);
-	--refCount_;
+	const ULONG newCount = --refCount_;
 	if(0 == refCount_)
 		delete this;
-	return refCount_;
+	return newCount;
 }
 
 // ITfDisplayAttributeInfo

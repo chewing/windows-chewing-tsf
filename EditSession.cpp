@@ -67,10 +67,10 @@ STDMETHODIMP_(ULONG) EditSession::AddRef(void) {
 
 STDMETHODIMP_(ULONG) EditSession::Release(void) {
 	assert(refCount_ > 0);
-	--refCount_;
-	if(0 == refCount_)
+	const ULONG newCount = --refCount_;
+	if (0 == refCount_)
 		delete this;
-	return refCount_;
+	return newCount;
 }
 
 STDMETHODIMP EditSession::DoEditSession(TfEditCookie ec) {

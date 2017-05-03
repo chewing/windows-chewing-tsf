@@ -33,8 +33,8 @@ public:
 	ComPtr(void): p_(NULL) {
 	}
 
-	ComPtr(T* p): p_(p) {
-		if(p_)
+	ComPtr(T* p, bool ref = true): p_(p) {
+		if(p_ && ref)
 			p_->AddRef();
 	}
 
@@ -81,12 +81,17 @@ public:
 		return p_ < p;
 	}
 
+	ComPtr& operator = (const ComPtr& other) {
+		return operator = (other.p_);
+	}
+
 	ComPtr& operator = (T* p) {
-		if(p_)
-			p_->Release();
+		T* old = p_;
 		p_ = p;
 		if(p_)
 			p_->AddRef();
+		if (old)
+			old->Release();
 		return *this;
 	}
 
