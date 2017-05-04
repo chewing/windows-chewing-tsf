@@ -59,12 +59,19 @@ const wchar_t* LangBarButton::text() const {
 }
 
 void LangBarButton::setText(const wchar_t* text) {
-	if(text) {
+	if (text && text[0] != '\0') {
 		wcsncpy(info_.szDescription, text, TF_LBI_DESC_MAXLEN - 1);
 		info_.szDescription[TF_LBI_DESC_MAXLEN - 1] = 0;
 	}
-	else
-		*info_.szDescription = 0;
+	else {
+		// NOTE: The language button text should NOT be empty.
+		// Otherwise, when the button status or icon is changed after its creation,
+		// the button will disappear temporarily in Windows 10 for unknown reason.
+		// This can be considered a bug of Windows 10 and there does not seem to be a way to fix it.
+		// So we need to avoid empty button text otherwise the language button won't work properly.
+		// Here we use a space character to make the text non-empty to workaround the problem.
+		wcscpy(info_.szDescription, L" ");
+	}
 	update(TF_LBI_TEXT);
 }
 
