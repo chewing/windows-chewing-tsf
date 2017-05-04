@@ -20,6 +20,8 @@
 #ifndef IME_COM_PTR_H
 #define IME_COM_PTR_H
 
+#include <utility>
+
 // ATL-indepdent smart pointers for COM objects
 // very similar to the ones provided by ATL (CComPtr & CComQIPtr).
 
@@ -30,12 +32,16 @@ namespace Ime {
 template <class T>
 class ComPtr {
 public:
-	ComPtr(void): p_(NULL) {
+	ComPtr(void): p_(nullptr) {
 	}
 
 	ComPtr(T* p, bool ref = true): p_(p) {
 		if(p_ && ref)
 			p_->AddRef();
+	}
+
+	ComPtr(ComPtr&& other) : p_(other.p_) {
+		other.p_ = nullptr;
 	}
 
 	ComPtr(const ComPtr& other): p_(other.p_) {
@@ -81,6 +87,12 @@ public:
 		return p_ < p;
 	}
 
+	ComPtr& operator = (ComPtr&& other) {
+		p_ = other.p_;
+		other.p_ = nullptr;
+		return *this;
+	}
+
 	ComPtr& operator = (const ComPtr& other) {
 		return operator = (other.p_);
 	}
@@ -116,6 +128,9 @@ public:
 	}
 
 	ComQIPtr(const ComQIPtr& other): ComPtr<T>(other) {
+	}
+
+	ComQIPtr(ComQIPtr&& other) : ComPtr<T>(std::move(other)) {
 	}
 
 	ComQIPtr(IUnknown* p) {
