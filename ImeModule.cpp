@@ -505,11 +505,11 @@ STDMETHODIMP_(ULONG) ImeModule::Release(void) {
 	// The last reference is released in DllMain() when unloading.
 	// Hence interlocked operations are enough here, I guess.
 	assert(refCount_ > 0);
-	const ULONG newCount = --refCount_;
 	if(::InterlockedExchangeSubtract(&refCount_, 1) == 1) {
 		delete this;
+		return 0;
 	}
-	return newCount;
+	return refCount_;
 }
 
 // IClassFactory
