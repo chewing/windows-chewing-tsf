@@ -50,8 +50,6 @@ LangBarButton::~LangBarButton(void) {
 		textService_->Release();
 	if(menu_)
 		::DestroyMenu(menu_);
-	if(tooltip_) // allocated by wcsdup()
-		::free(tooltip_);
 }
 
 const wchar_t* LangBarButton::text() const {
@@ -89,23 +87,20 @@ void LangBarButton::setText(UINT stringId) {
 
 // public methods
 const wchar_t* LangBarButton::tooltip() const {
-	return tooltip_;
+	return tooltip_.c_str();
 }
 
 void LangBarButton::setTooltip(const wchar_t* tooltip) {
-	if(tooltip_)
-		free(tooltip_);
-	tooltip_ = _wcsdup(tooltip);
+	tooltip_ = tooltip;
 	update(TF_LBI_TOOLTIP);
 }
 
 void LangBarButton::setTooltip(UINT tooltipId) {
 	const wchar_t* str;
-	int len = ::LoadStringW(textService_->imeModule()->hInstance(), tooltipId, (LPTSTR)&str, 0);
+	//  If this parameter is 0, then lpBuffer receives a read-only pointer to the resource itself.
+	auto len = ::LoadStringW(textService_->imeModule()->hInstance(), tooltipId, (LPTSTR)&str, 0);
 	if(str) {
-		tooltip_ = (wchar_t*)malloc((len + 1) * sizeof(wchar_t));
-		wcsncpy(tooltip_, str, len);
-		tooltip_[len] = 0;
+		tooltip_ = std::wstring(str, len);
 		update(TF_LBI_TOOLTIP);
 	}
 }
@@ -241,11 +236,8 @@ STDMETHODIMP LangBarButton::Show(BOOL fShow) {
 }
 
 STDMETHODIMP LangBarButton::GetTooltipString(BSTR *pbstrToolTip) {
-	if(tooltip_) {
-		*pbstrToolTip = ::SysAllocString(tooltip_);
-		return *pbstrToolTip ? S_OK : E_FAIL;
-	}
-	return E_FAIL;
+	*pbstrToolTip = ::SysAllocString(tooltip_.c_str());
+	return *pbstrToolTip ? S_OK : E_FAIL;
 }
 
 // ITfLangBarItemButton
@@ -324,7 +316,7 @@ void LangBarButton::buildITfMenu(ITfMenu* menu, HMENU templ) {
 		mi.fMask = MIIM_FTYPE|MIIM_ID|MIIM_STATE|MIIM_STRING|MIIM_SUBMENU;
 		if(::GetMenuItemInfoW(templ, i, TRUE, &mi)) {
 			UINT flags = 0;
-			wchar_t* text;
+			wchar_t* text = nullptr;
 			ULONG textLen = 0;
 			ITfMenu* subMenu = NULL;
 			ITfMenu** pSubMenu = NULL;

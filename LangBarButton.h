@@ -24,6 +24,7 @@
 #include <string.h>
 #include <Windows.h>
 #include <map>
+#include <string>
 
 namespace Ime {
 
@@ -105,7 +106,7 @@ private:
 	TextService* textService_;
 	TF_LANGBARITEMINFO info_;
 	UINT commandId_;
-	wchar_t* tooltip_;
+	std::wstring tooltip_;
 	HICON icon_;
 	HMENU menu_;
 	std::map<DWORD, ITfLangBarItemSink*> sinks_;
