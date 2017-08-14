@@ -279,8 +279,8 @@ protected:
 		DWORD cookie;
 		bool isGlobal;
 
-		bool operator == (const GUID& other) {
-			return ::IsEqualGUID(guid, other);
+		bool operator == (const GUID& other) const {
+			return bool(::IsEqualGUID(guid, other));
 		}
 	};
 

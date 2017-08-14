@@ -671,7 +671,7 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 			compartmentSource->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
 		}
 	}
-	isKeyboardOpened_ = threadCompartmentValue(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
+	isKeyboardOpened_ = threadCompartmentValue(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE) != 0;
 
 	// FIXME: under Windows 7, it seems that the keyboard is closed every time
 	// our text service is activated. The value in the compartment is always empty. :-(
