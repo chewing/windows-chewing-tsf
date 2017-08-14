@@ -36,17 +36,19 @@ public:
 	}
 
 	ComPtr(T* p, bool ref = true): p_(p) {
-		if(p_ && ref)
+		if (p_ && ref) {
 			p_->AddRef();
+		}
 	}
 
-	ComPtr(ComPtr&& other) : p_(other.p_) {
+	ComPtr(ComPtr&& other) noexcept : p_(other.p_) {
 		other.p_ = nullptr;
 	}
 
 	ComPtr(const ComPtr& other): p_(other.p_) {
-		if(p_)
+		if (p_) {
 			p_->AddRef();
+		}
 	}
 
 	~ComPtr(void) {
@@ -87,7 +89,7 @@ public:
 		return p_ < p;
 	}
 
-	ComPtr& operator = (ComPtr&& other) {
+	ComPtr& operator = (ComPtr&& other) noexcept {
 		p_ = other.p_;
 		other.p_ = nullptr;
 		return *this;
@@ -100,10 +102,12 @@ public:
 	ComPtr& operator = (T* p) {
 		T* old = p_;
 		p_ = p;
-		if(p_)
+		if (p_) {
 			p_->AddRef();
-		if (old)
+		}
+		if (old) {
 			old->Release();
+		}
 		return *this;
 	}
 
@@ -130,17 +134,17 @@ public:
 	ComQIPtr(const ComQIPtr& other): ComPtr<T>(other) {
 	}
 
-	ComQIPtr(ComQIPtr&& other) : ComPtr<T>(std::move(other)) {
+	ComQIPtr(ComQIPtr&& other) noexcept : ComPtr<T>(std::move(other)) {
 	}
 
-	ComQIPtr(IUnknown* p) {
+	ComQIPtr(IUnknown* p) : ComPtr<T>() {
 		if(p) {
 			p->QueryInterface(__uuidof(T), (void**)&p_);
 		}
 	}
 
 	ComQIPtr& operator = (IUnknown* p) {
-		ComPtr<T>::operator = (NULL);
+		ComPtr<T>::operator = (nullptr);
 		if(p) {
 			p->QueryInterface(__uuidof(T), (void**)&p_);
 		}
