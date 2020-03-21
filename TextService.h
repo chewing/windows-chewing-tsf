@@ -29,6 +29,7 @@
 
 #include <vector>
 #include <list>
+#include <string>
 
 // for Windows 8 support
 #ifndef TF_TMF_IMMERSIVEMODE // this is defined in Win 8 SDK
