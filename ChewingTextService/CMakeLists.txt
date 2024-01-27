@@ -29,6 +29,6 @@ add_library(ChewingTextService SHARED
     ${PROJECT_SOURCE_DIR}/mainicon.ico
 )
 target_link_libraries(ChewingTextService
-    chewing_static
+    libchewing
     libIME_static
 )
