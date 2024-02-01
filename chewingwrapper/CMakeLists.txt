@@ -20,7 +20,7 @@ add_library(chewingwrapper_static STATIC
 	${PROJECT_SOURCE_DIR}/include/chewingwrapper.hpp
 	${PROJECT_SOURCE_DIR}/src/chewingwrapper.cpp
 )
-target_link_libraries(chewingwrapper_static chewing_static)
+target_link_libraries(chewingwrapper_static libchewing)
 
 enable_testing()
 set(CHEWINGWRAPPER_TEST
