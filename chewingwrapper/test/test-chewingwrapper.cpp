@@ -8,8 +8,8 @@
 int main()
 {
 	// XXX: Use SetEnvironmentVariableA here will cause crash in Visual Studio.
-	_putenv("CHEWING_PATH="CHEWING_PATH);
-	_putenv("CHEWING_USER_PATH="CHEWING_USER_PATH);
+	_putenv("CHEWING_PATH=" CHEWING_PATH);
+	_putenv("CHEWING_USER_PATH=" CHEWING_USER_PATH);
 
 	const wchar_t EXPECT[] = { 0x6e2c, 0x8a66, 0 /* 測試 */ };
 	const wchar_t EXPECT_BOPOMOFO[] = { 0x3118, 0x311c, 0 /* ㄘㄜ */ };
