@@ -6,12 +6,14 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX	${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_fla
 
 project(windows-chewing-tsf)
 
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+
 # http://www.utf8everywhere.org/
 add_definitions(
 	/D_UNICODE=1 /DUNICODE=1 # do Unicode build
 	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
-	/GR- # turn off C++ RTTI
 )
+set(CMAKE_CXX_FLAGS "/GR- ${CMAKE_CXX_FLAGS}") # turn off C++ RTTI
 
 enable_testing()
 
