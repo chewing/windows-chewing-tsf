@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 2.8.8)
 project(chewingwrapper)
 
 if(NOT DEFINED PROJECT_LIBCHEWING OR NOT DEFINED CHEWING_DATA_PREFIX)
