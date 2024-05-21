@@ -1,7 +1,7 @@
 [submodule "libchewing"]
 	path = libchewing
 	url = https://github.com/chewing/libchewing.git
-	branch = 0.8.x
+	branch = release/0.8.x
 [submodule "libIME"]
 	path = libIME
 	url = https://github.com/EasyIME/libIME.git
