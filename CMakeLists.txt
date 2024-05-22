@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.24.0)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE	${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX	${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 
-project(windows-chewing-tsf)
+project(windows-chewing-tsf LANGUAGES CXX)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
