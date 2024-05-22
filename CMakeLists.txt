@@ -15,6 +15,7 @@ add_definitions(
 )
 set(CMAKE_CXX_FLAGS "/GR- ${CMAKE_CXX_FLAGS}") # turn off C++ RTTI
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION $<CONFIG:Release>)
 
 enable_testing()
 
