@@ -14,6 +14,7 @@ add_definitions(
 	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
 )
 set(CMAKE_CXX_FLAGS "/GR- ${CMAKE_CXX_FLAGS}") # turn off C++ RTTI
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 enable_testing()
 
