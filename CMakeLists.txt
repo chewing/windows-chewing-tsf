@@ -9,7 +9,7 @@ add_definitions(
 	/D_UNICODE=1 /DUNICODE=1 # do Unicode build
 	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
 )
-set(CMAKE_CXX_FLAGS "/GR- ${CMAKE_CXX_FLAGS}") # turn off C++ RTTI
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-") # turn off C++ RTTI
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /Gw")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /Gw")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
