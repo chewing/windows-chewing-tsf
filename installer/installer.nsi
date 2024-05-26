@@ -47,6 +47,8 @@ RequestExecutionLevel admin
 
 ;Pages
 ; license page
+!define MUI_LICENSEPAGE_BUTTON $(^InstallBtn)
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "$(^Name) 使用 GNU Lesser General Public License (LGPL) 2.1。$\n$_CLICK"
 !insertmacro MUI_PAGE_LICENSE "..\COPYING.txt"
 
 ; !insertmacro MUI_PAGE_COMPONENTS
