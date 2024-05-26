@@ -516,10 +516,10 @@ bool TextService::onCommand(UINT id, CommandType type) {
 			}
 			break;
 		case ID_WEBSITE: // visit chewing website
-			::ShellExecuteW(NULL, NULL, L"http://chewing.im/", NULL, NULL, SW_SHOWNORMAL);
+			::ShellExecuteW(NULL, NULL, L"https://chewing.im/", NULL, NULL, SW_SHOWNORMAL);
 			break;
 		case ID_GROUP: // visit chewing google groups website
-			::ShellExecuteW(NULL, NULL, L"http://groups.google.com/group/chewing-devel", NULL, NULL, SW_SHOWNORMAL);
+			::ShellExecuteW(NULL, NULL, L"https://groups.google.com/group/chewing-devel", NULL, NULL, SW_SHOWNORMAL);
 			break;
 		case ID_BUGREPORT: // visit bug tracker page
 			::ShellExecuteW(NULL, NULL, L"https://github.com/chewing/windows-chewing-tsf/issues?state=open", NULL, NULL, SW_SHOWNORMAL);
@@ -531,16 +531,16 @@ bool TextService::onCommand(UINT id, CommandType type) {
 			::ShellExecuteW(NULL, NULL, L"https://www.moedict.tw/", NULL, NULL, SW_SHOWNORMAL);
 			break;
 		case ID_DICT: // online Chinese dictonary
-			::ShellExecuteW(NULL, NULL, L"http://dict.revised.moe.edu.tw/", NULL, NULL, SW_SHOWNORMAL);
+			::ShellExecuteW(NULL, NULL, L"https://dict.revised.moe.edu.tw/", NULL, NULL, SW_SHOWNORMAL);
 			break;
 		case ID_SIMPDICT: // a simplified version of the online dictonary
-			::ShellExecuteW(NULL, NULL, L"http://dict.concised.moe.edu.tw/main/cover/main.htm", NULL, NULL, SW_SHOWNORMAL);
+			::ShellExecuteW(NULL, NULL, L"https://dict.concised.moe.edu.tw/", NULL, NULL, SW_SHOWNORMAL);
 			break;
 		case ID_LITTLEDICT: // a simplified dictionary for little children
-			::ShellExecuteW(NULL, NULL, L"http://dict.mini.moe.edu.tw/cgi-bin/gdic/gsweb.cgi?o=ddictionary", NULL, NULL, SW_SHOWNORMAL);
+			::ShellExecuteW(NULL, NULL, L"https://dict.mini.moe.edu.tw/", NULL, NULL, SW_SHOWNORMAL);
 			break;
-		case ID_PROVERBDICT: // a dictionary for proverbs (seems to be broken at the moment?)
-			::ShellExecuteW(NULL, NULL, L"http://dict.idioms.moe.edu.tw/?", NULL, NULL, SW_SHOWNORMAL);
+		case ID_PROVERBDICT: // a dictionary for proverbs
+			::ShellExecuteW(NULL, NULL, L"https://dict.idioms.moe.edu.tw/", NULL, NULL, SW_SHOWNORMAL);
 			break;
 		case ID_CHEWING_HELP:
 			// TODO: open help file here
