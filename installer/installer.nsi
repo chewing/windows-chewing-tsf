@@ -55,7 +55,7 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_INSTFILES
 
 ; finish page
-!define MUI_FINISHPAGE_LINK_LOCATION "http://chewing.im/"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://chewing.im/"
 !define MUI_FINISHPAGE_LINK "新酷音專案網頁 ${MUI_FINISHPAGE_LINK_LOCATION}"
 !insertmacro MUI_PAGE_FINISH
 
@@ -164,7 +164,7 @@ Section "新酷音輸入法" SecMain
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "Publisher" "新酷音輸入法開發團隊"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\x86\ChewingTextService.dll"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
-	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "http://chewing.im/"
+	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "https://chewing.im/"
 	WriteUninstaller "$INSTDIR\Uninstall.exe" ;Create uninstaller
 SectionEnd
 
