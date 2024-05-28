@@ -135,6 +135,7 @@ Section "新酷音輸入法" SecMain
 	File /r "x86" ; put 32-bit ChewingTextService.dll in x86 folder
 	File /r Dictionary ; Install dictionary files
 	File ChewingPreferences.exe ; Configuration Tool
+	File chewing-cli.exe ; Command-line Tool
 
 	; Register COM objects (NSIS RegDLL command is broken and cannot be used)
 	ExecWait '"$SYSDIR\regsvr32.exe" /s "$INSTDIR\x86\ChewingTextService.dll"'
@@ -185,6 +186,7 @@ Section "Uninstall"
 	RMDir /r "$INSTDIR\Dictionary"
 	Delete "$INSTDIR\SetupChewing.bat"
 	Delete "$INSTDIR\ChewingPreferences.exe"
+	Delete "$INSTDIR\chewing-cli.exe"
 
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService"
 	DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "SetupChewing"

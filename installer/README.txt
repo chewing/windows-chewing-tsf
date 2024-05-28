@@ -8,5 +8,7 @@ To build an installer:
 
 4. Put `32-bit` ChewingPreferences.exe in this dir.
 
-5. Compile installer.nsi with NSIS.
+5. Put `32-bit` chewing-cli.exe in this dir.
+
+6. Compile installer.nsi with NSIS.
 
