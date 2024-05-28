@@ -23,6 +23,7 @@
 !include "LogicLib.nsh" ; for ${If}, ${Switch} commands
 
 Unicode true ; turn on Unicode (This requires NSIS 3.0)
+ManifestDPIAware true ; declare the installer is DPI-aware so the text is never blurry
 SetCompressor /SOLID lzma ; use LZMA for best compression ratio
 AllowSkipFiles off ; cannot skip a file
 
