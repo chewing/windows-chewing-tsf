@@ -23,7 +23,7 @@
 !include "LogicLib.nsh" ; for ${If}, ${Switch} commands
 
 Unicode true ; turn on Unicode (This requires NSIS 3.0)
-SetCompressor lzma ; use LZMA for best compression ratio
+SetCompressor /SOLID lzma ; use LZMA for best compression ratio
 AllowSkipFiles off ; cannot skip a file
 
 ; icons of the generated installer and uninstaller
