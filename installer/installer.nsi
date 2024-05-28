@@ -35,7 +35,6 @@ AllowSkipFiles off ; cannot skip a file
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService"
 
 Name "新酷音輸入法"
-BrandingText "新酷音輸入法"
 
 OutFile "windows-chewing-tsf.exe" ; The generated installer file name
 
