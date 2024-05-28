@@ -23,7 +23,8 @@
 !include "LogicLib.nsh" ; for ${If}, ${Switch} commands
 
 Unicode true ; turn on Unicode (This requires NSIS 3.0)
-SetCompressor lzma ; use LZMA for best compression ratio
+ManifestDPIAware true ; declare the installer is DPI-aware so the text is never blurry
+SetCompressor /SOLID lzma ; use LZMA for best compression ratio
 AllowSkipFiles off ; cannot skip a file
 
 ; icons of the generated installer and uninstaller
@@ -34,7 +35,6 @@ AllowSkipFiles off ; cannot skip a file
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService"
 
 Name "新酷音輸入法"
-BrandingText "新酷音輸入法"
 
 OutFile "windows-chewing-tsf.exe" ; The generated installer file name
 
@@ -88,11 +88,11 @@ Function uninstallOldVersion
 	;${If} ${RunningX64}
 	;	${If} ${FileExists} "$INSTDIR\x64\ChewingTextService.dll"
 	;		Call onInstError
-	;	${EndIf}			
+	;	${EndIf}
 	;${EndIf}
 	;${If} ${FileExists} "$INSTDIR\x86\ChewingTextService.dll"
 	;	Call onInstError
-	;${EndIf}			
+	;${EndIf}
 	;${If} ${FileExists} "$INSTDIR\Dictionary\*.dat"
 	;	Call onInstError
 	;${EndIf}
@@ -106,7 +106,7 @@ Function .onInit
 		Quit
 	${EndIf}
 
-	${If} ${RunningX64} 
+	${If} ${RunningX64}
 		SetRegView 64 ; disable registry redirection and use 64 bit Windows registry directly
 	${EndIf}
 
@@ -138,7 +138,7 @@ Section "新酷音輸入法" SecMain
 
 	; Register COM objects (NSIS RegDLL command is broken and cannot be used)
 	ExecWait '"$SYSDIR\regsvr32.exe" /s "$INSTDIR\x86\ChewingTextService.dll"'
-	${If} ${RunningX64} 
+	${If} ${RunningX64}
 		ExecWait '"$SYSDIR\regsvr32.exe" /s "$INSTDIR\x64\ChewingTextService.dll"'
 	${EndIf}
 
@@ -170,20 +170,12 @@ Section "新酷音輸入法" SecMain
 	WriteUninstaller "$INSTDIR\Uninstall.exe" ;Create uninstaller
 SectionEnd
 
-;Language strings
-LangString DESC_SecMain ${LANG_ENGLISH} "A test section." ; What's this??
-
-;Assign language strings to sections
-!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-!insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
-!insertmacro MUI_FUNCTION_DESCRIPTION_END
-
 ;Uninstaller Section
 Section "Uninstall"
 
 	; Unregister COM objects (NSIS UnRegDLL command is broken and cannot be used)
 	ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x86\ChewingTextService.dll"'
-	${If} ${RunningX64} 
+	${If} ${RunningX64}
 		SetRegView 64 ; disable registry redirection and use 64 bit Windows registry directly
 		ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x64\ChewingTextService.dll"'
 		RMDir /r "$INSTDIR\x64"
