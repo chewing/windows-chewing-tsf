@@ -31,6 +31,7 @@ jobs:
             x86\ChewingTextService\Release\*.dll
             x86\libchewing\Release\*.dll
             x86\ChewingPreferences\Release\*.exe
+            x86\libchewing\chewing-cli.exe
           name: x86
           retention-days: 1
   x64:
@@ -58,6 +59,7 @@ jobs:
             x64\ChewingTextService\Release\*.dll
             x64\libchewing\Release\*.dll
             x64\ChewingPreferences\Release\*.exe
+            x64\libchewing\chewing-cli.exe
           name: x64
           retention-days: 1
   package:
@@ -79,6 +81,7 @@ jobs:
           copy x86\ChewingTextService\Release\*.dll nsis\x86\
           copy x86\libchewing\Release\*.dll nsis\x86\
           copy x86\ChewingPreferences\Release\*.exe nsis\
+          copy x86\libchewing\chewing-cli.exe nsis\
           mkdir nsis\x64
           copy x64\ChewingTextService\Release\*.dll nsis\x64\
           copy x64\libchewing\Release\*.dll nsis\x64\
