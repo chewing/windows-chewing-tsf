@@ -1,4 +1,4 @@
-project(ChewingPreferences)
+project(ChewingPreferences LANGUAGES CXX)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}

@@ -1,4 +1,4 @@
-project(chewingwrapper)
+project(chewingwrapper LANGUAGES CXX)
 
 if(NOT DEFINED PROJECT_LIBCHEWING OR NOT DEFINED CHEWING_DATA_PREFIX)
 	message(FATAL_ERROR "PROJECT_LIBCHEWING and CHEWING_DATA_PREFIX must be provided")
