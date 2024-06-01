@@ -1,0 +1,106 @@
+version: "{build}"
+clone_depth: 1
+os: Visual Studio 2022
+platform: x64
+test: false
+environment:
+  SIGN_PATH_TOKEN:
+    secure: w9Tr3wEpZP53yt8gtJ0G+/hUbjJYuyyPjtEGqEgUOeFYyLM0fqoC/OWkJnRkqhgt
+init:
+  - ps: $env:BUILD_YYYYMMDD=(Get-Date).ToString("yyyyMMdd")
+install:
+  - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - rustup-init -yv --default-toolchain stable-x86_64-pc-windows-msvc
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - rustup target add i686-pc-windows-msvc
+before_build:
+  - git submodule update --init --depth 1
+build_script:
+  - cmake -B x86 -A Win32 -DBUILD_TESTING=OFF
+  - cmake --build x86 --config Release
+  - cmake -B x64 -A x64 -DBUILD_TESTING=OFF
+  - cmake --build x64 --config Release
+  - mkdir dist
+  - mkdir nsis
+  - copy installer\* nsis\
+  - copy COPYING.txt nsis\
+  - mkdir nsis\Dictionary
+  - copy x64\libchewing\data\*.dat nsis\Dictionary\
+  - mkdir nsis\x86
+  - copy x86\ChewingTextService\Release\*.dll nsis\x86\
+  - copy x86\libchewing\Release\*.dll nsis\x86\
+  - copy x86\ChewingPreferences\Release\*.exe nsis\
+  - copy x86\libchewing\chewing-cli.exe nsis\
+  - mkdir nsis\x64
+  - copy x64\ChewingTextService\Release\*.dll nsis\x64\
+  - copy x64\libchewing\Release\*.dll nsis\x64\
+  - cd nsis
+  - makensis installer.nsi
+
+for:
+  - branches:
+      only:
+        - nightly
+    before_build:
+      - git submodule update --init --remote --depth 1
+    after_build:
+      - ps: Install-Module -Name SignPath
+      - ps: |
+          Submit-SigningRequest `
+            -InputArtifactPath "windows-chewing-tsf.exe" `
+            -ApiToken $env:SIGN_PATH_TOKEN `
+            -OrganizationId "e8feb3e7-02b0-4e78-aa0a-f3431f374964" `
+            -ProjectSlug "windows-chewing-tsf" `
+            -SigningPolicySlug "test-signing" `
+            -OutputArtifactPath "..\dist\windows-chewing-tsf.exe" `
+            -WaitForCompletion
+      - ps: (Get-FileHash "..\dist\windows-chewing-tsf.exe" -Algorithm SHA256).Hash | Out-File -FilePath "..\dist\windows-chewing-tsf.exe.sha256" -Encoding ASCII
+      - ps: $env:SHORT_LOG = (git shortlog --since yesterday) -join "`n"
+    artifacts:
+      - path: dist\windows-chewing-tsf.exe
+      - path: dist\windows-chewing-tsf.exe.sha256
+    deploy:
+      - provider: GitHub
+        auth_token:
+          secure: 5ju2Q+JyZpOIAf3igbOK+21y1bGc8BWI5wIa2U9HsnjLAfT5aLKHpjqjnzpK6tJhnRngMWxoRtdEj/YgWgxsZZHelgmvkKpYGI/ENarXAFpGTAU3fLQvJXNugJtltJ1J
+        tag: nightly
+        release: 最新開發版 $(BUILD_YYYYMMDD)
+        description: |
+          This is a nightly build of Windows Chewing TSF.
+
+          windows-chewing-tsf changes:
+          ```
+          $(SHORT_LOG)
+          ```
+
+          **Full Changelog**: https://github.com/chewing/windows-chewing-tsf/compare/1ba881c...nightly
+        artifact: dist\windows-chewing-tsf.exe,dist\windows-chewing-tsf.exe.sha256
+        prerelease: true
+        force_update: true
+  - branches:
+      only:
+        - /v\d+\.\d+\.\d+/
+    after_build:
+      - ps: Install-Module -Name SignPath
+      - ps: |
+          Submit-SigningRequest `
+            -InputArtifactPath "windows-chewing-tsf.exe" `
+            -ApiToken $env:SIGN_PATH_TOKEN `
+            -OrganizationId "e8feb3e7-02b0-4e78-aa0a-f3431f374964" `
+            -ProjectSlug "windows-chewing-tsf" `
+            -SigningPolicySlug "release-signing" `
+            -OutputArtifactPath "..\dist\windows-chewing-tsf.exe" `
+            -WaitForCompletion
+      - ps: (Get-FileHash "..\dist\windows-chewing-tsf.exe" -Algorithm SHA256).Hash | Out-File -FilePath "..\dist\windows-chewing-tsf.exe.sha256" -Encoding ASCII
+    artifacts:
+      - path: dist\windows-chewing-tsf.exe
+      - path: dist\windows-chewing-tsf.exe.sha256
+    deploy:
+      - provider: GitHub
+        auth_token:
+          secure: 5ju2Q+JyZpOIAf3igbOK+24w1i/y1TcIsyIFRsGEGYE1fjKDA27nUIQjc9HR6BWP8Rguh5y5bOFVzTejhyzYBgnP853VPZfMAfST3siZNubS83lO2dsTdQFG0SXpJdmz
+        release: Release v$(APPVEYOR_REPO_BRANCH)
+        description: UPDATE ME
+        artifact: dist\windows-chewing-tsf.exe,dist\windows-chewing-tsf.exe.sha256
+        draft: true
+        force_update: true
