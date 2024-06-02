@@ -6,117 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  x86:
-    runs-on: windows-latest
-    name: 32-bit Build
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Configure build for x86
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
-        with:
-          arch: x86
-      - name: Build
-        run: |
-          cmake -B x86 -A Win32
-          cmake --build x86 --config Release
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          path: |
-            x86\libchewing\data\*.dat
-            x86\libchewing\data\*.tab
-            x86\ChewingTextService\Release\*.dll
-            x86\libchewing\Release\*.dll
-            x86\ChewingPreferences\Release\*.exe
-            x86\libchewing\chewing-cli.exe
-          name: x86
-          retention-days: 1
-  x64:
-    runs-on: windows-latest
-    name: 64-bit Build
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Configure build for x64
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
-        with:
-          arch: x64
-      - name: Build
-        run: |
-          cmake -B x64 -A x64
-          cmake --build x64 --config Release
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          path: |
-            x64\libchewing\data\*.dat
-            x64\libchewing\data\*.tab
-            x64\ChewingTextService\Release\*.dll
-            x64\libchewing\Release\*.dll
-            x64\ChewingPreferences\Release\*.exe
-            x64\libchewing\chewing-cli.exe
-          name: x64
-          retention-days: 1
-  package:
-    runs-on: windows-latest
-    name: Build Installer
-    needs: [x86, x64]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-      - name: NSIS
-        run: |
-          mkdir nsis
-          copy installer\* nsis\
-          copy COPYING.txt nsis\
-          mkdir nsis\Dictionary
-          copy x64\libchewing\data\*.dat nsis\Dictionary\
-          copy x64\libchewing\data\*.tab nsis\Dictionary\
-          mkdir nsis\x86
-          copy x86\ChewingTextService\Release\*.dll nsis\x86\
-          copy x86\libchewing\Release\*.dll nsis\x86\
-          copy x86\ChewingPreferences\Release\*.exe nsis\
-          copy x86\libchewing\chewing-cli.exe nsis\
-          mkdir nsis\x64
-          copy x64\ChewingTextService\Release\*.dll nsis\x64\
-          copy x64\libchewing\Release\*.dll nsis\x64\
-          cd nsis
-          makensis installer.nsi
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          path: nsis\windows-chewing-tsf.exe
-          name: nsis
-          retention-days: 1
-  upload:
-    name: Update Nightly Release
-    permissions:
-      contents: write
+  tag-nightly:
     runs-on: ubuntu-latest
-    needs: [package]
+    name: "Update Nightly Tag"
     steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
+      - name: Create or update tag
+        uses: actions/github-script@v7
         with:
-          name: nsis
-      - name: Compute Checksum
-        run: |
-          sha256sum windows-chewing-tsf.exe > SHA256SUMS.txt
-      - name: Update nightly release
-        uses: andelf/nightly-release@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: nightly
-          prerelease: true
-          name: "Windows Chewing TSF nightly build $$"
-          body: |
-            This is a nightly build of Windows Chewing TSF.
-          files: |
-            ./SHA256SUMS.txt
-            ./windows-chewing-tsf.exe
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/nightly',
+              sha: context.sha
+            })
