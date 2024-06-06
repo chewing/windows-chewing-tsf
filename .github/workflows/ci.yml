@@ -3,10 +3,15 @@ name: CI
 on:
   push:
     branches: ["master"]
+    tags:
+      - v2*
   pull_request:
     branches: ["master"]
   merge_group:
     types: [checks_requested]
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -35,6 +40,7 @@ jobs:
   code-signing:
     runs-on: ubuntu-latest
     name: Code Signing
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     needs: [build]
     steps:
       - uses: actions/download-artifact@v4
@@ -57,5 +63,36 @@ jobs:
         with:
           name: Signed Installer
           path: |
+            dist/windows-chewing-tsf.exe
+            dist/windows-chewing-tsf.exe.sha256
+
+  nightly-release:
+    runs-on: ubuntu-latest
+    name: Nightly Release
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: [code-signing]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Signed Installer
+          path: dist
+      - name: Upload Nightly Release
+        uses: andelf/nightly-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: nightly
+          prerelease: true
+          name: 最新開發版 $$
+          body: |
+            This is a nightly build of Windows Chewing TSF.
+
+            windows-chewing-tsf changes:
+            ```
+            TBD
+            ```
+
+            **Full Changelog**: https://github.com/chewing/windows-chewing-tsf/compare/1ba881c...nightly
+          files: |
             dist/windows-chewing-tsf.exe
             dist/windows-chewing-tsf.exe.sha256
