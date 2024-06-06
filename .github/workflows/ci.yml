@@ -8,27 +8,54 @@ on:
   merge_group:
     types: [checks_requested]
 
-env:
-  RUST_VERSION: "1.70"
-
 jobs:
   build:
     runs-on: windows-latest
-    name: Smoke test - build only
+    name: Build
+    outputs:
+      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
-
       - name: Setup rustup
-        run: |
-          rustup default ${{ env.RUST_VERSION }}
-          rustup update
+        run: rustup target add i686-pc-windows-msvc
 
       - name: Build
+        run: scripts/build_installer.bat
+
+      - id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: Unsigned Installer
+          path: dist\windows-chewing-tsf-unsigned.exe
+
+  code-signing:
+    runs-on: ubuntu-latest
+    name: Code Signing
+    needs: [build]
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: Sign Artifact
+        uses: signpath/github-action-submit-signing-request@v0.4
+        with:
+          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
+          organization-id: "e8feb3e7-02b0-4e78-aa0a-f3431f374964"
+          project-slug: "windows-chewing-tsf"
+          signing-policy-slug: "test-signing"
+          github-artifact-id: "${{ needs.build.outputs.unsigned-artifact-id }}"
+          wait-for-completion: true
+          output-artifact-directory: dist
+      - name: Rename Artifact and Calculate Checksum
         run: |
-          cmake -B build
-          cmake --build build
+          mv dist/windows-chewing-tsf-unsigned.exe dist/windows-chewing-tsf.exe
+          sha256sum dist/windows-chewing-tsf.exe > dist/windows-chewing-tsf.exe.sha256
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Signed Installer
+          path: |
+            dist/windows-chewing-tsf.exe
+            dist/windows-chewing-tsf.exe.sha256
