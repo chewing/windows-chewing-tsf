@@ -36,12 +36,3 @@ jobs:
         with:
           name: Unsigned Installer
           path: dist\windows-chewing-tsf-unsigned.exe
-  test-signing:
-    needs: [build]
-    if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/code-signing.yml
-    with:
-      signing-policy-slug: test-signing
-      github-artifact-id: ${{ needs.build.outputs.unsigned-artifact-id }}
-    secrets:
-      api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
