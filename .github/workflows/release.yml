@@ -1,0 +1,18 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - "v2*"
+
+jobs:
+  release-build:
+    uses: ./.github/workflows/ci.yml
+  code-signing:
+    needs: [nightly-build]
+    uses: ./.github/workflows/code-signing.yml
+    with:
+      signing-policy-slug: release-signing
+      github-artifact-id: ${{ needs.release-build.outputs.unsigned-artifact-id }}
+    secrets:
+      api-token: ${{ secrets.SIGNPATH_API_TOKEN }}

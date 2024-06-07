@@ -1,0 +1,48 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly-build:
+    uses: ./.github/workflows/ci.yml
+  code-signing:
+    needs: [nightly-build]
+    uses: ./.github/workflows/code-signing.yml
+    with:
+      signing-policy-slug: test-signing
+      github-artifact-id: ${{ needs.nightly-build.outputs.unsigned-artifact-id }}
+    secrets:
+      api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+  nightly-release:
+    runs-on: ubuntu-latest
+    name: Nightly Release
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: [code-signing]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Signed Installer
+          path: dist
+      - name: Upload Nightly Release
+        uses: andelf/nightly-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: nightly
+          prerelease: true
+          name: 最新開發版 $$
+          body: |
+            This is a nightly build of Windows Chewing TSF.
+
+            windows-chewing-tsf changes:
+            ```
+            TBD
+            ```
+
+            **Full Changelog**: https://github.com/chewing/windows-chewing-tsf/compare/1ba881c...nightly
+          files: |
+            dist/windows-chewing-tsf.exe
+            dist/windows-chewing-tsf.exe.sha256

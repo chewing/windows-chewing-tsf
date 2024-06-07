@@ -3,15 +3,15 @@ name: CI
 on:
   push:
     branches: ["master"]
-    tags:
-      - v2*
   pull_request:
     branches: ["master"]
   merge_group:
     types: [checks_requested]
-  schedule:
-    - cron: "0 0 * * *"
-  workflow_dispatch:
+  workflow_call:
+    outputs:
+      unsigned-artifact-id:
+        description: "Unsigned Installer"
+        value: ${{ jobs.build.outputs.unsigned-artifact-id }}
 
 jobs:
   build:
@@ -36,63 +36,12 @@ jobs:
         with:
           name: Unsigned Installer
           path: dist\windows-chewing-tsf-unsigned.exe
-
-  code-signing:
-    runs-on: ubuntu-latest
-    name: Code Signing
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+  test-signing:
     needs: [build]
-    steps:
-      - uses: actions/download-artifact@v4
-      - name: Sign Artifact
-        uses: signpath/github-action-submit-signing-request@v0.4
-        with:
-          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
-          organization-id: "e8feb3e7-02b0-4e78-aa0a-f3431f374964"
-          project-slug: "windows-chewing-tsf"
-          signing-policy-slug: "test-signing"
-          github-artifact-id: "${{ needs.build.outputs.unsigned-artifact-id }}"
-          wait-for-completion: true
-          output-artifact-directory: dist
-      - name: Rename Artifact and Calculate Checksum
-        run: |
-          mv dist/windows-chewing-tsf-unsigned.exe dist/windows-chewing-tsf.exe
-          sha256sum dist/windows-chewing-tsf.exe > dist/windows-chewing-tsf.exe.sha256
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Signed Installer
-          path: |
-            dist/windows-chewing-tsf.exe
-            dist/windows-chewing-tsf.exe.sha256
-
-  nightly-release:
-    runs-on: ubuntu-latest
-    name: Nightly Release
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    needs: [code-signing]
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: Signed Installer
-          path: dist
-      - name: Upload Nightly Release
-        uses: andelf/nightly-release@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: nightly
-          prerelease: true
-          name: 最新開發版 $$
-          body: |
-            This is a nightly build of Windows Chewing TSF.
-
-            windows-chewing-tsf changes:
-            ```
-            TBD
-            ```
-
-            **Full Changelog**: https://github.com/chewing/windows-chewing-tsf/compare/1ba881c...nightly
-          files: |
-            dist/windows-chewing-tsf.exe
-            dist/windows-chewing-tsf.exe.sha256
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/code-signing.yml
+    with:
+      signing-policy-slug: test-signing
+      github-artifact-id: ${{ needs.build.outputs.unsigned-artifact-id }}
+    secrets:
+      api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
