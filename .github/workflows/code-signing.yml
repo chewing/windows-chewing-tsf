@@ -1,0 +1,42 @@
+name: Code Signing
+
+on:
+  workflow_call:
+    inputs:
+      signing-policy-slug:
+        required: true
+        type: string
+      github-artifact-id:
+        required: true
+        type: string
+    secrets:
+      api-token:
+        required: true
+
+jobs:
+  code-signing:
+    runs-on: ubuntu-latest
+    name: Code Signing
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: Sign Artifact
+        uses: signpath/github-action-submit-signing-request@912af2ed71b3a308b185e8f89e836839b5adf56b # v0.4
+        with:
+          api-token: "${{ secrets.api-token }}"
+          organization-id: "e8feb3e7-02b0-4e78-aa0a-f3431f374964"
+          project-slug: "windows-chewing-tsf"
+          signing-policy-slug: "${{ inputs.signing-policy-slug }}"
+          github-artifact-id: "${{ inputs.github-artifact-id }}"
+          wait-for-completion: true
+          output-artifact-directory: dist
+      - name: Rename Artifact and Calculate Checksum
+        run: |
+          mv dist/windows-chewing-tsf-unsigned.exe dist/windows-chewing-tsf.exe
+          sha256sum dist/windows-chewing-tsf.exe > dist/windows-chewing-tsf.exe.sha256
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Signed Installer
+          path: |
+            dist/windows-chewing-tsf.exe
+            dist/windows-chewing-tsf.exe.sha256
