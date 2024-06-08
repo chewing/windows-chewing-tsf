@@ -8,6 +8,12 @@ on:
   merge_group:
     types: [checks_requested]
   workflow_call:
+    inputs:
+      nightly:
+        description: "Update all submodules to build nightly build"
+        default: false
+        required: false
+        type: boolean
     outputs:
       unsigned-artifact-id:
         description: "Unsigned Installer"
@@ -24,6 +30,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      - name: Update Submodules
+        if: ${{ inputs.nightly }}
+        run: git submodule update --remote
 
       - name: Setup rustup
         run: rustup target add i686-pc-windows-msvc
