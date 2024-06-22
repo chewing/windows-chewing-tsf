@@ -7,6 +7,7 @@ mkdir nsis
 copy installer\* nsis\
 copy COPYING.txt nsis\
 mkdir nsis\Dictionary
+copy libchewing\data\*.dat nsis\Dictionary\
 copy x64\libchewing\data\*.dat nsis\Dictionary\
 mkdir nsis\x86
 copy x86\ChewingTextService\Release\*.dll nsis\x86\
