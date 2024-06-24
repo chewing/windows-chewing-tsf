@@ -26,6 +26,11 @@
 #include "resource.h"
 #include <Shellapi.h>
 #include <sys/stat.h>
+#include <fstream>
+#include <ostream>
+#include <codecvt>
+#include <stdexcept>
+#include <mutex>
 
 using namespace std;
 
@@ -181,7 +186,7 @@ bool TextService::filterKeyDown(Ime::KeyEvent& keyEvent) {
 			// FIXME: we only need Ctrl in composition mode for adding user phrases.
 			// However, if we turn on easy symbol input with Ctrl support later,
 			// we'll need th Ctrl key then.
-			return false;
+			return true;
 		}
 
 		// we always need further processing in full shape mode since all English chars,
@@ -220,6 +225,146 @@ bool TextService::filterKeyDown(Ime::KeyEvent& keyEvent) {
 	return true;
 }
 
+
+
+
+class defString{
+public:
+	defString();
+	~defString();
+	//bool writeToFile(int,const std::wstring);
+	bool writeToFile();
+	bool readFromFile();
+	bool ctrlSwitch(UINT);
+	bool writeToBuf(int,const std::wstring );
+	bool examineCtrlFlag(std::wstring  &);
+	int  examineCtrlFlag();
+	string wstring_to_utf8(const std::wstring &);
+
+private:
+	bool  ctrlFlag[10]; //limit 10
+	std::wstring ctrlStr[10];  //limit 10
+	bool read;
+};
+
+defString::defString(){
+	for(int i=0;i<9;i++){
+		ctrlFlag[i]=0;
+	}
+	read=1;
+}
+
+defString::~defString(){
+	writeToFile();
+}
+
+bool defString::writeToBuf(int num,const std::wstring wBuf){
+	if(wBuf.empty())
+		return false;
+	ctrlStr[num]=wBuf;
+	writeToFile();
+	return true;
+}
+
+
+//call by reference
+bool defString::examineCtrlFlag(std::wstring& ctrlBuf){
+	for(int i=0;i<9;i++){
+		if(ctrlFlag[i]==1){
+			ctrlFlag[i]=0;
+			ctrlBuf=ctrlStr[i];
+		}
+	}
+	return -1;
+}
+
+//call by reference
+int defString::examineCtrlFlag(){
+	for(int i=0;i<9;i++){
+		if(ctrlFlag[i]==1){
+			ctrlFlag[i]=0;
+			return i;
+		}
+	}
+	return -1;
+}
+
+// convert wstring to UTF-8 string
+string defString::wstring_to_utf8 (const std::wstring& str)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
+	return myconv.to_bytes(str);
+}
+
+
+// write to file using RALL(Resource acquisition is initialization)
+//bool defString::writeToFile(int num,const std::wstring buf){
+bool defString::writeToFile(){
+	//mutex to protect file access
+	static std::mutex mutex;
+	//lock mutex before accessing file
+	std::lock_guard<std::mutex> lock(mutex);
+
+	//try to open File
+	std::locale::global(std::locale(""));	
+	std::ofstream wf("userString.txt");
+        if (!wf.is_open()){
+		throw std::runtime_error("unable to open file");
+		return false;
+	}
+
+	// write message to file
+	std::wstring eof=L"\n";
+
+	for(int i=0; i<10 ;i++){
+		ctrlStr[i]+=eof;
+		string ctrlTmp=wstring_to_utf8(ctrlStr[i]);
+		wf.write(ctrlTmp.c_str() , ctrlTmp.size());
+	}
+	read=1;
+	return true;
+}
+
+
+// write to file using RALL(Resource acquisition is initialization)
+bool defString::readFromFile(){
+	//mutex to protect file access
+	if(read==0)
+		return false;
+
+	static std::mutex mutex;
+	//lock mutex before accessing file
+	std::lock_guard<std::mutex> lock(mutex);
+
+	//try to open File
+	//std::ofstream file("example.txt");
+	std::fstream fs("userString.txt");
+	if (!fs.is_open())
+        throw std::runtime_error("unable to open file");
+
+	// read message from file
+	char buf[30]={'\0'};
+	for(int i=0; fs.getline(buf, sizeof(buf))&&i<10; i++){
+		ctrlStr[i]=utf8ToUtf16(buf);
+		for(int j=0;j<29;j++)
+			 buf[j]='\0';
+	} 
+	read=0;
+	return true;
+}
+
+//Detect for nummber
+//ctrl[0] buffer can't be uesd so we put ctrl+1 string to ctrl[1]
+bool defString::ctrlSwitch(UINT charCode){
+	if(charCode >= '1' && charCode <= '9'){
+		ctrlFlag[charCode - '1'] = 1;
+		return true;
+	}	
+	return false;
+}
+
+
+
 // virtual
 bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
 	assert(chewingContext_);
@@ -236,6 +381,14 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 #endif
 
 	UINT charCode = keyEvent.charCode();
+
+	
+	//read form ctrl+num string from dictionary.txt
+	static defString defObj;
+	defObj.readFromFile();
+	enum Mode {composition_mode, noncomposition_mode};
+	static Mode mode=noncomposition_mode;
+
 	if(charCode && isprint(charCode)) { // printable characters (exclude extended keys?)
 		int oldLangMode = ::chewing_get_ChiEngMode(chewingContext_);
 		bool temporaryEnglishMode = false;
@@ -252,8 +405,17 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 				invertCase = true; // need to convert upper case to lower, and vice versa.
 		}
 
-		if(langMode_ == SYMBOL_MODE) { // English mode
-			::chewing_handle_Default(chewingContext_, charCode);
+		// 1.Detect Ctrl + number (0~9) 	
+		if(mode == noncomposition_mode&&keyEvent.isKeyDown(VK_CONTROL)){ 
+			defObj.ctrlSwitch(charCode);
+		}
+		else if(langMode_ == SYMBOL_MODE) { // English mode
+			// 2.Detect Ctrl + number (0~9) for English mode
+			if(keyEvent.isKeyDown(VK_CONTROL) && isdigit(charCode)){ 
+			    defObj.ctrlSwitch(charCode);	
+			}
+			else
+				::chewing_handle_Default(chewingContext_, charCode);
 		}
 		else if(temporaryEnglishMode) { // temporary English mode
 			::chewing_set_ChiEngMode(chewingContext_, SYMBOL_MODE); // change to English mode temporarily
@@ -266,13 +428,15 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 			::chewing_set_ChiEngMode(chewingContext_, oldLangMode); // restore previous mode
 		}
 		else { // Chinese mode
+			mode = composition_mode;
 			if(isalpha(charCode)) // alphabets: A-Z
 				::chewing_handle_Default(chewingContext_, tolower(charCode));
 			else if(keyEvent.keyCode() == VK_SPACE) // space key
 				::chewing_handle_Space(chewingContext_);
-			else if(keyEvent.isKeyDown(VK_CONTROL) && isdigit(charCode)) // Ctrl + number (0~9)
+			else if(keyEvent.isKeyDown(VK_CONTROL) && isdigit(charCode)){ // Ctrl + number (0~9)
+				defObj.ctrlSwitch(charCode);//3.Add string to Ctrl+num of position
 				::chewing_handle_CtrlNum(chewingContext_, charCode);
-			else if(keyEvent.isKeyToggled(VK_NUMLOCK) && keyEvent.keyCode() >= VK_NUMPAD0 && keyEvent.keyCode() <= VK_DIVIDE)
+			}else if(keyEvent.isKeyToggled(VK_NUMLOCK) && keyEvent.keyCode() >= VK_NUMPAD0 && keyEvent.keyCode() <= VK_DIVIDE)
 				// numlock is on, handle numpad keys
 				::chewing_handle_Numlock(chewingContext_, charCode);
 			else { // other keys, no special handling is needed
@@ -366,7 +530,7 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 	}
 
 	// has something to commit
-	if(::chewing_commit_Check(chewingContext_)) {
+	if(mode == composition_mode && ::chewing_commit_Check(chewingContext_)) {
 		char* buf = ::chewing_commit_String(chewingContext_);
 		std::wstring wbuf = utf8ToUtf16(buf);
 		::chewing_free(buf);
@@ -400,24 +564,49 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 		compositionBuf.insert(pos, wbuf);
 	}
 
+
+	//examine ctrl flag to printf
+	if(mode == noncomposition_mode){
+		bool OK;
+		wstring ctrlBuf;
+		OK=defObj.examineCtrlFlag(ctrlBuf); 
+		if(OK==true){
+			setCompositionString(session, ctrlBuf.c_str(), ctrlBuf.length());
+			endComposition(session->context());
+		}
+	}
+
 	// has something in composition buffer
 	if(!compositionBuf.empty()) {
 		if(!isComposing()) { // start the composition
 			startComposition(session->context());
+
 		}
 		setCompositionString(session, compositionBuf.c_str(), compositionBuf.length());
+		
+		// add string to txt
+		// if defStrinf be destoryed write data to userString.txt
+		if(mode == composition_mode){
+			int num=defObj.examineCtrlFlag();
+			if(num!=-1){
+				//defObj.writeToFile(num,compositionBuf);
+				defObj.writeToBuf(num,compositionBuf);
+			}
+		}
+		
 	}
 	else { // nothing left in composition buffer, terminate composition status
 		if(isComposing()) {
 			// clean composition before end it
 			setCompositionString(session, compositionBuf.c_str(), compositionBuf.length());
-
+			
 			// We also need to make sure that the candidate window is not currently shown.
 			// When typing symbols with ` key, it's possible that the composition string empty,
 			// while the candidate window is shown. We should not terminate the composition in this case.
 			if(!showingCandidates())
 				endComposition(session->context());
 		}
+		 mode = noncomposition_mode; 
 	}
 
 	// update cursor pos
