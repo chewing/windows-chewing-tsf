@@ -138,9 +138,10 @@ Section "新酷音輸入法" SecMain
 	File chewing-cli.exe ; Command-line Tool
 
 	; Register COM objects (NSIS RegDLL command is broken and cannot be used)
-	ExecWait '"$SYSDIR\regsvr32.exe" /s "$INSTDIR\x86\ChewingTextService.dll"'
 	${If} ${RunningX64}
 		ExecWait '"$SYSDIR\regsvr32.exe" /s "$INSTDIR\x64\ChewingTextService.dll"'
+	${Else}
+		ExecWait '"$SYSDIR\regsvr32.exe" /s "$INSTDIR\x86\ChewingTextService.dll"'
 	${EndIf}
 
 	; Special handling for Windows 8
@@ -168,22 +169,24 @@ Section "新酷音輸入法" SecMain
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\x86\ChewingTextService.dll"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
 	WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "https://chewing.im/"
+
 	WriteUninstaller "$INSTDIR\Uninstall.exe" ;Create uninstaller
 SectionEnd
 
 ;Uninstaller Section
 Section "Uninstall"
-
 	; Unregister COM objects (NSIS UnRegDLL command is broken and cannot be used)
-	ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x86\ChewingTextService.dll"'
 	${If} ${RunningX64}
 		SetRegView 64 ; disable registry redirection and use 64 bit Windows registry directly
 		ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x64\ChewingTextService.dll"'
-		RMDir /r "$INSTDIR\x64"
+	${Else}
+		ExecWait '"$SYSDIR\regsvr32.exe" /u /s "$INSTDIR\x86\ChewingTextService.dll"'
 	${EndIf}
 
+	RMDir /r "$INSTDIR\x64"
 	RMDir /r "$INSTDIR\x86"
 	RMDir /r "$INSTDIR\Dictionary"
+
 	Delete "$INSTDIR\SetupChewing.bat"
 	Delete "$INSTDIR\ChewingPreferences.exe"
 	Delete "$INSTDIR\chewing-cli.exe"
@@ -194,6 +197,4 @@ Section "Uninstall"
 
 	Delete "$INSTDIR\Uninstall.exe"
 	RMDir "$INSTDIR"
-
 SectionEnd
-
