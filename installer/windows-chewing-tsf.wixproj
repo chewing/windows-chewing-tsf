@@ -1,0 +1,8 @@
+<Project Sdk="WixToolset.Sdk/5.0.0">
+    <PropertyGroup>
+        <Cultures>zh-TW</Cultures>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="WixToolset.UI.wixext" Version="5.0.0" />
+    </ItemGroup>
+</Project>

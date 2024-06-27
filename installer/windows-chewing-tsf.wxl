@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<WixLocalization Culture="zh-tw" Codepage="950" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+    <String Id="WelcomeEulaDlgTitle" Overridable="yes" Value="{\WixUI_Font_Title}[ProductName]使用 GNU Lesser General Public License (LGPL) 2.1 授權。" />
+    <String Id="WelcomeEulaDlgLicenseAcceptedCheckBox" Overridable="yes" Value="我已閱讀並了解我的權利(&amp;R)" />
+
+    <!-- Remove spaces before and after [ProductName] -->
+
+    <String Id="AdvancedWelcomeEulaDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="AdvancedWelcomeEulaDlgTitle" Overridable="yes" Value="{\WixUI_Font_Title}請閱讀[ProductName]授權合約" />
+
+    <String Id="BrowseDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="CancelDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="CancelDlgText" Overridable="yes" Value="您確定要取消[ProductName]安裝嗎?" />
+
+    <String Id="CustomizeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="DiskCostDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="ErrorDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="ExitDialog_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="ExitDialogTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}已完成[ProductName]安裝精靈" />
+
+    <String Id="FatalError_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="FatalErrorTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}[ProductName]安裝精靈提前結束" />
+    <String Id="FatalErrorDescription1" Overridable="yes" Value="[ProductName]安裝精靈因發生錯誤而提前結束，您的系統尚未被修改。若要稍後再安裝此程式，請再執行一次安裝精靈。" />
+
+    <String Id="FeaturesDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="FilesInUse_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="InstallDirDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="InstallDirDlgFolderLabel" Overridable="yes" Value="安裝[ProductName]到:" />
+
+    <String Id="InstallScopeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="InstallScopeDlgPerUserDescription" Overridable="yes" Value="[ProductName]將安裝在個別使用者資料夾中，並且僅供您的使用者帳戶使用。您不需要本機系統管理員權限。" />
+    <String Id="InstallScopeDlgNoPerUserDescription" Overridable="yes" Value="[ProductName]不支援個別使用者安裝。" />
+    <String Id="InstallScopeDlgPerMachineDescription" Overridable="yes" Value="[ProductName]將依預設安裝在個別電腦資料夾中，並且可供所有使用者使用。您可以變更預設安裝資料夾。您必須擁有本機系統管理員權限。" />
+
+    <String Id="InvalidDirDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="LicenseAgreementDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="MaintenanceTypeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="MaintenanceTypeDlgChangeDisabledText" Overridable="yes" Value="[ProductName]沒有可以單獨選取的功能。" />
+    <String Id="MaintenanceTypeDlgRemoveText" Overridable="yes" Value="從您的電腦移除[ProductName]。" />
+    <String Id="MaintenanceTypeDlgRemoveDisabledText" Overridable="yes" Value="[ProductName]無法移除。" />
+    <String Id="MaintenanceTypeDlgRepairDisabledText" Overridable="yes" Value="[ProductName]無法修復。" />
+
+    <String Id="MaintenanceWelcomeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="MaintenanceWelcomeDlgDescription" Overridable="yes" Value="安裝精靈可以讓您變更[ProductName]功能安裝在電腦上的方式，或從電腦移除它們。請按 [\[]下一步[\]] 繼續進行，或按 [\[]取消[\]] 結束安裝精靈。" />
+    <String Id="MaintenanceWelcomeDlgTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}歡迎使用[ProductName]安裝精靈" />
+
+    <String Id="MsiRMFilesInUse_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="OutOfDiskDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="OutOfRbDiskDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="PrepareDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="PrepareDlgTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}歡迎使用[ProductName]安裝精靈" />
+
+    <String Id="ProgressDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="ProgressDlgTextInstalling" Overridable="yes" Value="安裝程式精靈正在安裝[ProductName]，請稍候。" />
+    <String Id="ProgressDlgTitleInstalling" Overridable="yes" Value="{\WixUI_Font_Title}正在安裝[ProductName]" />
+    <String Id="ProgressDlgTextChanging" Overridable="yes" Value="安裝精靈正在變更[ProductName]，請稍候。" />
+    <String Id="ProgressDlgTitleChanging" Overridable="yes" Value="{\WixUI_Font_Title}正在變更[ProductName]" />
+    <String Id="ProgressDlgTextRepairing" Overridable="yes" Value="安裝精靈正在修復[ProductName]，請稍候。" />
+    <String Id="ProgressDlgTitleRepairing" Overridable="yes" Value="{\WixUI_Font_Title}正在修復[ProductName]" />
+    <String Id="ProgressDlgTextRemoving" Overridable="yes" Value="安裝精靈正在移除[ProductName]，請稍候。" />
+    <String Id="ProgressDlgTitleRemoving" Overridable="yes" Value="{\WixUI_Font_Title}正在移除[ProductName]" />
+    <String Id="ProgressDlgTextUpdating" Overridable="yes" Value="安裝精靈正在更新[ProductName]，請稍候。" />
+    <String Id="ProgressDlgTitleUpdating" Overridable="yes" Value="{\WixUI_Font_Title}正在更新[ProductName]" />
+
+    <String Id="ResumeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="ResumeDlgDescription" Overridable="yes" Value="安裝精靈即將完成在您的電腦上安裝[ProductName]。請按 [\[]安裝[\]] 繼續進行，或按 [\[]取消[\]] 結束安裝精靈。" />
+    <String Id="ResumeDlgTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}繼續執行[ProductName]安裝精靈" />
+
+    <String Id="SetupTypeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="UserExit_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="UserExitTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}[ProductName]安裝精靈已中斷" />
+    <String Id="UserExitDescription1" Overridable="yes" Value="[ProductName]安裝程式已中斷。您的系統尚未被修改。若要稍後再安裝此程式，請再執行一次安裝精靈。" />
+
+    <String Id="VerifyReadyDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="VerifyReadyDlgInstallTitle" Overridable="yes" Value="{\WixUI_Font_Title}準備安裝[ProductName]" />
+    <String Id="VerifyReadyDlgChangeTitle" Overridable="yes" Value="{\WixUI_Font_Title}準備變更[ProductName]" />
+    <String Id="VerifyReadyDlgRepairTitle" Overridable="yes" Value="{\WixUI_Font_Title}準備修復[ProductName]" />
+    <String Id="VerifyReadyDlgRemoveText" Overridable="yes" Value="按一下 [\[]移除[\]] 即可從電腦移除[ProductName]。按一下 [\[]上一步[\]] 可檢閱或變更您的任何安裝設定。按一下 [\[]取消[\]] 可結束此精靈。" />
+    <String Id="VerifyReadyDlgRemoveTitle" Overridable="yes" Value="{\WixUI_Font_Title}準備移除[ProductName]" />
+    <String Id="VerifyReadyDlgUpdateText" Overridable="yes" Value="按一下 [\[]更新[\]] 即可更新您電腦中的[ProductName]。按一下 [\[]上一步[\]] 可檢閱或變更您的任何安裝設定。按一下 [\[]取消[\]] 可結束此精靈。" />
+    <String Id="VerifyReadyDlgUpdateTitle" Overridable="yes" Value="{\WixUI_Font_Title}準備更新[ProductName]" />
+
+    <String Id="WaitForCostingDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+
+    <String Id="WelcomeDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="WelcomeDlgDescription" Overridable="yes" Value="安裝精靈將在您的電腦上安裝[ProductName]。請按 [\[]下一步[\]] 繼續進行，或按 [\[]取消[\]] 結束安裝精靈。" />
+    <String Id="WelcomeUpdateDlgDescriptionUpdate" Overridable="yes" Value="安裝精靈將更新您電腦上的[ProductName]。請按 [\[]下一步[\]] 繼續進行，或按 [\[]取消[\]] 結束安裝精靈。" />
+    <String Id="WelcomeDlgTitle" Overridable="yes" Value="{\WixUI_Font_Bigger}歡迎使用[ProductName]安裝精靈" />
+
+    <String Id="WelcomeEulaDlg_Title" Overridable="yes" Value="[ProductName]安裝程式" />
+    <String Id="WelcomeEulaDlgTitle" Overridable="yes" Value="{\WixUI_Font_Title}請閱讀[ProductName]授權合約" />
+
+    <String Id="Error20" Overridable="yes" Value="請稍候，Windows 在設定[ProductName]" />
+    <String Id="Error32" Overridable="yes" Value="{[ProductName]}安裝成功。" />
+    <String Id="Error33" Overridable="yes" Value="{[ProductName]}安裝失敗。" />
+</WixLocalization>

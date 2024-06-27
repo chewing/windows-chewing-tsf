@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+    xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+    <Package Name="新酷音"
+        Codepage="65001"
+        Manufacturer="Libchewing Core Team"
+        Version="1.0.0.1"
+        UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
+        <MediaTemplate EmbedCab="yes" />
+        <StandardDirectory Id="ProgramFiles6432Folder">
+            <Directory Id="INSTALLFOLDER" Name="ChewingTextService">
+                <Directory Id="Dictionary" Name="Dictionary">
+                    <File Source="Dictionary\swkb.dat" />
+                    <File Source="Dictionary\symbols.dat" />
+                    <File Source="Dictionary\tsi.dat" />
+                    <File Source="Dictionary\word.dat" />
+                </Directory>
+                <Directory Id="X86Folder" Name="x86">
+                    <File Source="x86\chewing-msvc.dll" />
+                    <File Source="x86\ChewingTextService.dll" SelfRegCost="1" />
+                </Directory>
+                <Directory Id="X64Folder" Name="x64">
+                    <File Source="x64\chewing-msvc.dll" />
+                    <File Source="x64\ChewingTextService.dll" SelfRegCost="1" />
+                </Directory>
+                <File Source="ChewingPreferences.exe" />
+                <File Source="chewing-cli.exe" />
+            </Directory>
+        </StandardDirectory>
+        <ui:WixUI Id="WixUI_Minimal" />
+        <WixVariable Id="WixUILicenseRtf" Value="lgpl-2.1.rtf" />
+    </Package>
+</Wix>
