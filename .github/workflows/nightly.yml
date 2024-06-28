@@ -48,3 +48,5 @@ jobs:
           files: |
             dist/windows-chewing-tsf.exe
             dist/windows-chewing-tsf.exe.sha256
+            dist/windows-chewing-tsf.msi
+            dist/windows-chewing-tsf.msi.sha256
