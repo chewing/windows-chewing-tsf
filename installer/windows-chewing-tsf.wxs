@@ -18,33 +18,84 @@
                     <File Source="Dictionary\word.dat" Bitness="always32" />
                 </Directory>
                 <File Source="x86\chewing-msvc.dll" Bitness="always32" />
-                <File Source="x86\ChewingTextService.dll" Bitness="always32">
-                    <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                        Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                        ThreadingModel="apartment" />
-                </File>
+                <Component Bitness="always32">
+                    <File Source="x86\ChewingTextService.dll">
+                        <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
+                            Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
+                            ThreadingModel="apartment" />
+                    </File>
+                    <!-- Remove NSIS Uninstaller -->
+                    <RemoveFile Name="Uninstall.exe" On="install" />
+                </Component>
                 <File Source="ChewingPreferences.exe" Bitness="always32" />
                 <File Source="chewing-cli.exe" Bitness="always32" />
+
             </Directory>
         </StandardDirectory>
         <StandardDirectory Id="ProgramFiles64Folder">
             <Directory Id="INSTALLFOLDER64" Name="ChewingTextService">
                 <File Source="x64\chewing-msvc.dll" />
-                <File Source="x64\ChewingTextService.dll" Bitness="always64">
-                    <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                        Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                        ThreadingModel="apartment" />
-                </File>
+                <Component Bitness="always64">
+                    <File Source="x64\ChewingTextService.dll">
+                        <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
+                            Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
+                            ThreadingModel="apartment" />
+                    </File>
+                    <!-- Remove NSIS Uninstaller -->
+                    <RemoveFile Name="Uninstall.exe" On="install" />
+                </Component>
             </Directory>
         </StandardDirectory>
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
-        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r '[ProgramFiles64Folder]'" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r '[ProgramFiles64Folder]'"
+            Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no"
+            Execute="deferred" Return="check" />
         <InstallExecuteSequence>
-            <Custom Action="RegisterTSF" After="WriteRegistryValues" Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
-            <Custom Action="UnregisterTSF" Before="RemoveRegistryValues" Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
+            <Custom Action="RegisterTSF" After="WriteRegistryValues"
+                Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
+            <Custom Action="UnregisterTSF" Before="RemoveRegistryValues"
+                Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
         </InstallExecuteSequence>
         <ui:WixUI Id="WixUI_Minimal" />
         <WixVariable Id="WixUILicenseRtf" Value="lgpl-2.1.rtf" />
+
+        <Property Id="NSISUNINSTALLFOLDER32">
+            <RegistrySearch Id="NSISUNINSTALLFOLDER32" Type="file" Root="HKLM"
+                Bitness="always32" Name="UninstallString"
+                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
+        </Property>
+        <Property Id="NSISUNINSTALLCMD32">
+            <RegistrySearch Id="NSISUNINSTALLCMD32" Type="file" Root="HKLM"
+                Bitness="always32" Name="UninstallString"
+                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
+                <FileSearch Name="Uninstall.exe" />
+            </RegistrySearch>
+        </Property>
+        <Property Id="NSISUNINSTALLFOLDER64">
+            <RegistrySearch Id="NSISUNINSTALLFOLDER64" Type="file" Root="HKLM"
+                Bitness="always64" Name="UninstallString"
+                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
+        </Property>
+        <Property Id="NSISUNINSTALLCMD64">
+            <RegistrySearch Id="NSISUNINSTALLCMD64" Type="file" Root="HKLM"
+                Bitness="always64" Name="UninstallString"
+                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
+                <FileSearch Name="Uninstall.exe" />
+            </RegistrySearch>
+        </Property>
+
+        <CustomAction Id="RemoveNsisInst32" Property="NSISUNINSTALLCMD32"
+            ExeCommand="/S _?=[NSISUNINSTALLFOLDER32]"
+            Execute="deferred" Impersonate="no" Return="check" />
+        <CustomAction Id="RemoveNsisInst64" Property="NSISUNINSTALLCMD64"
+            ExeCommand="/S _?=[NSISUNINSTALLFOLDER64]"
+            Execute="deferred" Impersonate="no" Return="check" />
+        <InstallExecuteSequence>
+            <Custom Action="RemoveNsisInst32" After="InstallInitialize"
+                Condition='NSISUNINSTALLCMD32&lt;&gt;""' />
+            <Custom Action="RemoveNsisInst64" After="InstallInitialize"
+                Condition='NSISUNINSTALLCMD64&lt;&gt;""' />
+        </InstallExecuteSequence>
     </Package>
 </Wix>
