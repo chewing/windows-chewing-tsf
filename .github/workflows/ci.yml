@@ -38,6 +38,9 @@ jobs:
       - name: Setup rustup
         run: rustup target add i686-pc-windows-msvc
 
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
       - name: Build
         run: scripts/build_installer.bat
 
