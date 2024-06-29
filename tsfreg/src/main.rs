@@ -8,7 +8,7 @@ use windows::{
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 const CHEWING_PROFILE_GUID: GUID = GUID::from_u128(0xCE45F71D_CE79_41D1_967D_640B65A380E3);
 
-fn register(pfiles: String) -> Result<()> {
+fn register(dllpath: String) -> Result<()> {
     unsafe {
         let input_processor_profiles: ITfInputProcessorProfiles =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
@@ -19,8 +19,7 @@ fn register(pfiles: String) -> Result<()> {
         if lcid == 0 {
             lcid = LocaleNameToLCID(w!("zh-TW"), 0);
         }
-        let icon_path = pfiles + "\\ChewingTextService\\ChewingTextService.dll";
-        let pw_icon_path = icon_path.encode_utf16().collect::<Vec<_>>();
+        let pw_icon_path = dllpath.encode_utf16().collect::<Vec<_>>();
         input_processor_profiles.AddLanguageProfile(
             &CHEWING_TSF_CLSID,
             lcid.try_into().unwrap(),
@@ -84,14 +83,14 @@ fn main() -> Result<()> {
 
         if env::args().len() == 1 {
             println!("Usage:");
-            println!("  tsfreg -r <PFilesPath>    註冊輸入法");
+            println!("  tsfreg -r <DllPath>    註冊輸入法");
             println!("  tsfreg -u                 取消註冊");
             process::exit(1);
         }
 
         if let Some("-r") = env::args().nth(1).as_ref().map(|s| s.as_str()) {
-            let pfiles = env::args().nth(2).expect("缺少 PFilesPath");
-            register(pfiles)?;
+            let dllpath = env::args().nth(2).expect("缺少 DllPath");
+            register(dllpath)?;
         } else {
             unregister()?;
         }

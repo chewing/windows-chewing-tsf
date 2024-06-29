@@ -47,12 +47,12 @@
             </Directory>
         </StandardDirectory>
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
-        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r '[ProgramFiles64Folder]'"
+        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r '[INSTALLFOLDER32]ChewingTextService.dll'"
             Impersonate="no" Execute="deferred" Return="check" />
         <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no"
             Execute="deferred" Return="check" />
         <InstallExecuteSequence>
-            <Custom Action="RegisterTSF" After="WriteRegistryValues"
+            <Custom Action="RegisterTSF" Before="InstallFinalize"
                 Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
             <Custom Action="UnregisterTSF" Before="RemoveRegistryValues"
                 Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
