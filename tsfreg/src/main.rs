@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use std::{env, process};
 
 use windows::{
@@ -8,25 +10,29 @@ use windows::{
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 const CHEWING_PROFILE_GUID: GUID = GUID::from_u128(0xCE45F71D_CE79_41D1_967D_640B65A380E3);
 
-fn register(dllpath: String) -> Result<()> {
+fn register(icon_path: String) -> Result<()> {
     unsafe {
-        let input_processor_profiles: ITfInputProcessorProfiles =
+        let input_processor_profile_mgr: ITfInputProcessorProfileMgr =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
-
-        input_processor_profiles.Register(&CHEWING_TSF_CLSID)?;
 
         let mut lcid = LocaleNameToLCID(w!("zh-Hant-TW"), 0);
         if lcid == 0 {
             lcid = LocaleNameToLCID(w!("zh-TW"), 0);
         }
-        let pw_icon_path = dllpath.encode_utf16().collect::<Vec<_>>();
-        input_processor_profiles.AddLanguageProfile(
+
+        let pw_icon_path = icon_path.encode_utf16().collect::<Vec<_>>();
+
+        input_processor_profile_mgr.RegisterProfile(
             &CHEWING_TSF_CLSID,
-            lcid.try_into().unwrap(),
+            lcid as u16,
             &CHEWING_PROFILE_GUID,
             w!("新酷音輸入法").as_wide(),
             &pw_icon_path,
-            1,
+            0,
+            None,
+            0,
+            true,
+            0,
         )?;
 
         let category_manager: ITfCategoryMgr =
@@ -69,10 +75,20 @@ fn register(dllpath: String) -> Result<()> {
 
 fn unregister() -> Result<()> {
     unsafe {
-        let input_processor_profiles: ITfInputProcessorProfiles =
+        let input_processor_profile_mgr: ITfInputProcessorProfileMgr =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
 
-        input_processor_profiles.Unregister(&CHEWING_TSF_CLSID)?;
+        let mut lcid = LocaleNameToLCID(w!("zh-Hant-TW"), 0);
+        if lcid == 0 {
+            lcid = LocaleNameToLCID(w!("zh-TW"), 0);
+        }
+
+        input_processor_profile_mgr.UnregisterProfile(
+            &CHEWING_TSF_CLSID,
+            lcid as u16,
+            &CHEWING_PROFILE_GUID,
+            0,
+        )?;
     }
     Ok(())
 }
@@ -83,14 +99,14 @@ fn main() -> Result<()> {
 
         if env::args().len() == 1 {
             println!("Usage:");
-            println!("  tsfreg -r <DllPath>    註冊輸入法");
+            println!("  tsfreg -r <IconPath>    註冊輸入法");
             println!("  tsfreg -u                 取消註冊");
             process::exit(1);
         }
 
         if let Some("-r") = env::args().nth(1).as_ref().map(|s| s.as_str()) {
-            let dllpath = env::args().nth(2).expect("缺少 DllPath");
-            register(dllpath)?;
+            let icon_path = env::args().nth(2).expect("缺少 IconPath");
+            register(icon_path)?;
         } else {
             unregister()?;
         }
