@@ -9,6 +9,7 @@ mkdir dist
 mkdir nsis
 copy installer\* nsis\
 copy COPYING.txt nsis\
+copy ChewingTextService\mainicon2.ico nsis\chewing.ico
 mkdir nsis\Dictionary
 copy libchewing\data\*.dat nsis\Dictionary\
 copy x64\libchewing\data\*.dat nsis\Dictionary\

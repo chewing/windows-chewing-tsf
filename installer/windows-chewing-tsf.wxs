@@ -7,8 +7,10 @@
         Language="1028"
         Manufacturer="新酷音輸入法開發團隊"
         Version="1.0.0.1"
+        UpgradeStrategy="majorUpgrade"
         UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
-        <MediaTemplate EmbedCab="yes" />
+        <MajorUpgrade AllowDowngrades="yes" />
+        <MediaTemplate CompressionLevel="high" EmbedCab="yes" />
         <StandardDirectory Id="ProgramFilesFolder">
             <Directory Id="INSTALLFOLDER32" Name="ChewingTextService">
                 <Directory Id="Dictionary" Name="Dictionary">
@@ -44,15 +46,17 @@
                     <!-- Remove NSIS Uninstaller -->
                     <RemoveFile Name="Uninstall.exe" On="install" />
                 </Component>
+                <File Source="chewing.ico" />
             </Directory>
         </StandardDirectory>
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
-        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r '[INSTALLFOLDER32]ChewingTextService.dll'"
+        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg"
+            ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;"
             Impersonate="no" Execute="deferred" Return="check" />
         <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no"
             Execute="deferred" Return="check" />
         <InstallExecuteSequence>
-            <Custom Action="RegisterTSF" Before="InstallFinalize"
+            <Custom Action="RegisterTSF" After="WriteRegistryValues"
                 Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
             <Custom Action="UnregisterTSF" Before="RemoveRegistryValues"
                 Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
