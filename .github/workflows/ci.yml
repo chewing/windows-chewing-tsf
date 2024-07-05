@@ -49,5 +49,4 @@ jobs:
         with:
           name: Unsigned Installer
           path: |
-            dist\windows-chewing-tsf-unsigned.exe
             dist\windows-chewing-tsf-unsigned.msi

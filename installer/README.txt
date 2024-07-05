@@ -10,5 +10,6 @@ To build an installer:
 
 5. Put `32-bit` chewing-cli.exe in this dir.
 
-6. Compile installer.nsi with NSIS.
+6. Compile windows-chewing-tsf.wixproj with msbuild.
 
+All steps can be automated by scripts\build_installer.bat

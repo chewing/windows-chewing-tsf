@@ -31,8 +31,6 @@ jobs:
           output-artifact-directory: dist
       - name: Rename Artifact and Calculate Checksum
         run: |
-          mv dist/windows-chewing-tsf-unsigned.exe dist/windows-chewing-tsf.exe
-          sha256sum dist/windows-chewing-tsf.exe > dist/windows-chewing-tsf.exe.sha256
           mv dist/windows-chewing-tsf-unsigned.msi dist/windows-chewing-tsf.msi
           sha256sum dist/windows-chewing-tsf.msi > dist/windows-chewing-tsf.msi.sha256
       - name: Upload Artifact
@@ -40,7 +38,5 @@ jobs:
         with:
           name: Signed Installer
           path: |
-            dist/windows-chewing-tsf.exe
-            dist/windows-chewing-tsf.exe.sha256
             dist/windows-chewing-tsf.msi
             dist/windows-chewing-tsf.msi.sha256
