@@ -46,7 +46,5 @@ jobs:
 
             **Full Changelog**: https://github.com/chewing/windows-chewing-tsf/compare/1ba881c...nightly
           files: |
-            dist/windows-chewing-tsf.exe
-            dist/windows-chewing-tsf.exe.sha256
             dist/windows-chewing-tsf.msi
             dist/windows-chewing-tsf.msi.sha256

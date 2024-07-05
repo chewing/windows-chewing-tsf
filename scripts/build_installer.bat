@@ -1,30 +1,27 @@
-cmake -B x86 -A Win32 -DBUILD_TESTING=OFF
-cmake --build x86 --config Release
-cmake -B x64 -A x64 -DBUILD_TESTING=OFF
-cmake --build x64 --config Release
+cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF
+cmake --build build\x86 --config Release
+cmake -B build\x64 -A x64 -DBUILD_TESTING=OFF
+cmake --build build\x64 --config Release
 pushd tsfreg
 cargo build --release
 popd
 mkdir dist
-mkdir nsis
-copy installer\* nsis\
-copy COPYING.txt nsis\
-copy ChewingTextService\mainicon2.ico nsis\chewing.ico
-mkdir nsis\Dictionary
-copy libchewing\data\*.dat nsis\Dictionary\
-copy x64\libchewing\data\*.dat nsis\Dictionary\
-mkdir nsis\x86
-copy x86\ChewingTextService\Release\*.dll nsis\x86\
-copy x86\libchewing\Release\*.dll nsis\x86\
-copy x86\ChewingPreferences\Release\*.exe nsis\
-copy x86\libchewing\chewing-cli.exe nsis\
-mkdir nsis\x64
-copy x64\ChewingTextService\Release\*.dll nsis\x64\
-copy x64\libchewing\Release\*.dll nsis\x64\
-copy tsfreg\target\release\tsfreg.exe nsis\
-pushd nsis
-makensis installer.nsi
+mkdir build\installer
+copy installer\* build\installer\
+copy ChewingTextService\mainicon2.ico build\installer\chewing.ico
+mkdir build\installer\Dictionary
+copy libchewing\data\*.dat build\installer\Dictionary\
+copy build\x64\libchewing\data\*.dat build\installer\Dictionary\
+mkdir build\installer\x86
+copy build\x86\ChewingTextService\Release\*.dll build\installer\x86\
+copy build\x86\libchewing\Release\*.dll build\installer\x86\
+copy build\x86\ChewingPreferences\Release\*.exe build\installer\
+copy build\x86\libchewing\chewing-cli.exe build\installer\
+mkdir build\installer\x64
+copy build\x64\ChewingTextService\Release\*.dll build\installer\x64\
+copy build\x64\libchewing\Release\*.dll build\installer\x64\
+copy tsfreg\target\release\tsfreg.exe build\installer\
+pushd build\installer
 msbuild -p:Configuration=Release -restore windows-chewing-tsf.wixproj
 popd
-copy nsis\windows-chewing-tsf.exe dist\windows-chewing-tsf-unsigned.exe
-copy nsis\bin\Release\zh-TW\windows-chewing-tsf.msi dist\windows-chewing-tsf-unsigned.msi
+copy build\installer\bin\Release\zh-TW\windows-chewing-tsf.msi dist\windows-chewing-tsf-unsigned.msi
