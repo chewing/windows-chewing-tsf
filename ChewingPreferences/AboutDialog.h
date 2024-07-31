@@ -21,7 +21,7 @@
 #define CHEWING_ABOUT_DIALOG_H
 #pragma once
 
-#include <libIME\Dialog.h>
+#include "Dialog.h"
 
 namespace Chewing {
 

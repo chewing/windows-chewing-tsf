@@ -21,7 +21,7 @@
 #define CHEWING_SYMBOLS_PROPERTY_PAGE
 #pragma once
 
-#include <libIME/PropertyPage.h>
+#include "PropertyPage.h"
 #include <ChewingTextService/ChewingConfig.h>
 #include <string>
 

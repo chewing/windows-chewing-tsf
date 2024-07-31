@@ -20,7 +20,8 @@
 #ifndef IME_DIALOG_H
 #define IME_DIALOG_H
 
-#include "Window.h"
+// FIXME
+#include <libIME/Window.h>
 #include <windows.h>
 
 namespace Ime {

@@ -20,7 +20,7 @@
 #ifndef CHEWING_TYPING_PROPERTY_PAGE_H
 #define CHEWING_TYPING_PROPERTY_PAGE_H
 
-#include <libIME/PropertyPage.h>
+#include "PropertyPage.h"
 #include <ChewingTextService/ChewingConfig.h>
 
 namespace Chewing {
