@@ -1,11 +1,5 @@
 project(libIME)
 
-# http://www.utf8everywhere.org/
-add_definitions(
-    /D_UNICODE=1
-    /DUNICODE=1
-)
-
 add_library(libIME_static STATIC
     # Core TSF part
     ${PROJECT_SOURCE_DIR}/ImeModule.cpp
