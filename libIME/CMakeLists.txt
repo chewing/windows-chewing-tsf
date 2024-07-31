@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 2.8.8)
-
 project(libIME)
 
 # http://www.utf8everywhere.org/
