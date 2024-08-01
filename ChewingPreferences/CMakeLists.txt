@@ -10,9 +10,6 @@ add_executable(ChewingPreferences WIN32
     # Configurations
     ${CMAKE_SOURCE_DIR}/ChewingTextService/ChewingConfig.cpp
     ${CMAKE_SOURCE_DIR}/ChewingTextService/ChewingConfig.h
-    # libIME UI code
-    ${CMAKE_SOURCE_DIR}/libIME/Utils.cpp
-    ${CMAKE_SOURCE_DIR}/libIME/Utils.h
     # Configuration dialog
     ${PROJECT_SOURCE_DIR}/Dialog.cpp
     ${PROJECT_SOURCE_DIR}/Dialog.h
