@@ -13,8 +13,6 @@ add_executable(ChewingPreferences WIN32
     # libIME UI code
     ${CMAKE_SOURCE_DIR}/libIME/Utils.cpp
     ${CMAKE_SOURCE_DIR}/libIME/Utils.h
-    ${CMAKE_SOURCE_DIR}/libIME/Window.cpp
-    ${CMAKE_SOURCE_DIR}/libIME/Window.h
     # Configuration dialog
     ${PROJECT_SOURCE_DIR}/Dialog.cpp
     ${PROJECT_SOURCE_DIR}/Dialog.h

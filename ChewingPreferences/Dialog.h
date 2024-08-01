@@ -20,13 +20,13 @@
 #ifndef IME_DIALOG_H
 #define IME_DIALOG_H
 
-// FIXME
-#include <libIME/Window.h>
 #include <windows.h>
+
+#include <map>
 
 namespace Ime {
 
-class Dialog : public Window {
+class Dialog {
 public:
 	Dialog(void);
 	virtual ~Dialog(void);
@@ -46,6 +46,8 @@ protected:
 	virtual void onOK();
 	virtual void onCancel();
 
+	HWND hwnd_;
+	static std::map<HWND, Dialog*> hwndMap_;
 private:
 };
 

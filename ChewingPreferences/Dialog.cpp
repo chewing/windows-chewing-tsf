@@ -21,11 +21,15 @@
 
 namespace Ime {
 
-Dialog::Dialog(void):
-	Window() {
+std::map<HWND, Dialog*> Dialog::hwndMap_;
+
+Dialog::Dialog(void): hwnd_(NULL) {
 }
 
 Dialog::~Dialog(void) {
+	if(hwnd_) {
+		DestroyWindow(hwnd_);
+	}
 }
 
 bool Dialog::Create(HINSTANCE hinstance, UINT dialogId, HWND parent) { // modaless
