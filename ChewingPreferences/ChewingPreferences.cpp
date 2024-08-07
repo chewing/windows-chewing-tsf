@@ -18,14 +18,14 @@
 //
 
 #include <Windows.h>
-#include <libIME/Dialog.h>
-#include <libIME/PropertyDialog.h>
 #include <libIME/WindowsVersion.h>
 #include <libIME/ComPtr.h>
 #include "TypingPropertyPage.h"
 #include "UiPropertyPage.h"
 #include "KeyboardPropertyPage.h"
 #include "SymbolsPropertyPage.h"
+#include "Dialog.h"
+#include "PropertyDialog.h"
 #include "AboutDialog.h"
 #include "resource.h"
 #include <CommCtrl.h>

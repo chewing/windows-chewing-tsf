@@ -61,14 +61,20 @@ bool SymbolsPropertyPage::onInitDialog() {
 	}
 	if(file != INVALID_HANDLE_VALUE) {
 		DWORD size = GetFileSize(file, NULL);
-		char* buf = new char[size+1];
+		char* buf = new char[size];
 		DWORD rsize;
 		ReadFile(file, buf, size, &rsize, NULL);
 		CloseHandle(file);
-		buf[size] = 0;
-		std::wstring wstr = utf8ToUtf16(buf);
+		std::wstring wstr;
+		int wlen = ::MultiByteToWideChar(CP_UTF8, 0, buf, size, NULL, 0);
+		if (wlen > 0) {
+			wstr.resize(wlen);
+			::MultiByteToWideChar(CP_UTF8, 0, buf, size, &wstr[0], wlen);
+			::SetDlgItemTextW(hwnd_, IDC_EDIT, wstr.c_str());
+		} else {
+			::SetDlgItemTextW(hwnd_, IDC_EDIT, L"無法讀取檔案");
+		}
 		delete []buf;
-		::SetDlgItemTextW(hwnd_, IDC_EDIT, wstr.c_str());
 	}
 	return PropertyPage::onInitDialog();
 }
@@ -97,16 +103,19 @@ void SymbolsPropertyPage::onOK() {
 	HANDLE file = CreateFile(filename.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, 0, NULL );
 	if( file != INVALID_HANDLE_VALUE ) {
 		HWND edit = ::GetDlgItem(hwnd_, IDC_EDIT);
-		int len = ::GetWindowTextLengthW(edit) + 1;
+		int len = ::GetWindowTextLengthW(edit);
 		wchar_t* buf = new wchar_t[len];
 		len = ::GetWindowText(edit, buf, len);
-		buf[len] = 0;
-		std::string ustr = utf16ToUtf8(buf);
+		std::string ustr;
+		int ulen = ::WideCharToMultiByte(CP_UTF8, 0, &buf[0], len, NULL, 0, NULL, NULL);
+		if (ulen > 0) {
+			ustr.resize(ulen);
+			::WideCharToMultiByte(CP_UTF8, 0, &buf[0], len, &ustr[0], ulen, NULL, NULL);
+			DWORD wsize;
+			::WriteFile( file, ustr.c_str(), ustr.length(), &wsize, NULL );
+			::CloseHandle(file);
+		}
 		delete []buf;
-
-		DWORD wsize;
-		WriteFile( file, ustr.c_str(), ustr.length(), &wsize, NULL );
-		CloseHandle(file);
 	}
 
 	PropertyPage::onOK();

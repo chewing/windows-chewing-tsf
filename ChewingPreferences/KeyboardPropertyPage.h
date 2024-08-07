@@ -21,7 +21,7 @@
 #define CHEWING_KEYBOARD_PROPERTY_PAGE_H
 #pragma once
 
-#include <libIME/PropertyPage.h>
+#include "PropertyPage.h"
 #include <ChewingTextService/ChewingConfig.h>
 
 namespace Chewing {

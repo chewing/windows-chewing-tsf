@@ -1,12 +1,4 @@
-cmake_minimum_required(VERSION 2.8.8)
-
 project(libIME)
-
-# http://www.utf8everywhere.org/
-add_definitions(
-    /D_UNICODE=1
-    /DUNICODE=1
-)
 
 add_library(libIME_static STATIC
     # Core TSF part
@@ -37,12 +29,6 @@ add_library(libIME_static STATIC
     ${PROJECT_SOURCE_DIR}/DrawUtils.cpp
     ${PROJECT_SOURCE_DIR}/Window.cpp
     ${PROJECT_SOURCE_DIR}/Window.h
-    # ${PROJECT_SOURCE_DIR}/Dialog.cpp
-    # ${PROJECT_SOURCE_DIR}/Dialog.h
-    # ${PROJECT_SOURCE_DIR}/PropertyDialog.cpp
-    # ${PROJECT_SOURCE_DIR}/PropertyDialog.h
-    # ${PROJECT_SOURCE_DIR}/PropertyPage.cpp
-    # ${PROJECT_SOURCE_DIR}/PropertyPage.h
     ${PROJECT_SOURCE_DIR}/ImeWindow.cpp
     ${PROJECT_SOURCE_DIR}/ImeWindow.h
     ${PROJECT_SOURCE_DIR}/MessageWindow.cpp
