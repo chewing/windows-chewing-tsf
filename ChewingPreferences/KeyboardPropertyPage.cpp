@@ -34,13 +34,13 @@ KeyboardPropertyPage::~KeyboardPropertyPage(void) {
 
 // virtual
 bool KeyboardPropertyPage::onInitDialog() {
-	CheckRadioButton(hwnd_, IDC_KB1, IDC_KB11, IDC_KB1 + config_->keyboardLayout);
+	CheckRadioButton(hwnd_, IDC_KB1, IDC_KB15, IDC_KB1 + config_->keyboardLayout);
 	return PropertyPage::onInitDialog();
 }
 
 // virtual
 void KeyboardPropertyPage::onOK() {
-	for(UINT id = IDC_KB1; id <= IDC_KB11; ++id) {
+	for(UINT id = IDC_KB1; id <= IDC_KB15; ++id) {
 		if(IsDlgButtonChecked(hwnd_, id)) {
 			config_->keyboardLayout = (id - IDC_KB1);
 			break;
