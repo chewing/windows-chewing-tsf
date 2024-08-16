@@ -3,7 +3,6 @@
 Implement chewing in Windows via Text Services Framework:
 *   LibIME contains a library which aims to be a simple wrapper for Windows Text Service Framework (TSF).
 *   ChewingTextService contains an implementation of Windows text service for libchewing using libIME.
-*   chewingwrapper contains a C++ wrapper for libchewing.
 
 All parts are licensed under GNU LGPL v2.1 license.
 
