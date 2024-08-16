@@ -370,6 +370,7 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 		char* buf = ::chewing_commit_String(chewingContext_);
 		std::wstring wbuf = utf8ToUtf16(buf);
 		::chewing_free(buf);
+		::chewing_ack(chewingContext_);
 
 		// FIXME: this should be per-instance rather than a global setting.
 		if(outputSimpChinese_) // convert output to simplified Chinese
