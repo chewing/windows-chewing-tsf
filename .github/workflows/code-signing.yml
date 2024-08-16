@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
       - name: Sign Artifact
-        uses: signpath/github-action-submit-signing-request@912af2ed71b3a308b185e8f89e836839b5adf56b # v0.4
+        uses: signpath/github-action-submit-signing-request@b889265c0bf404280c1fc05a4f00ad8da5fbe5be # v1.0
         with:
           api-token: "${{ secrets.api-token }}"
           organization-id: "e8feb3e7-02b0-4e78-aa0a-f3431f374964"
