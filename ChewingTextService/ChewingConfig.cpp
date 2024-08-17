@@ -34,6 +34,13 @@ const wchar_t* Config::selKeys[]={
 	NULL
 };
 
+const wchar_t* Config::convEngines[]={
+    L"簡單注音",
+    L"智慧選詞",
+    L"模糊智慧選詞",
+    NULL
+};
+
 // http://msdn.microsoft.com/en-us/library/windows/desktop/hh448449(v=vs.85).aspx
 // define new Win 8 app related constants for older versions of SDK and VC++
 #ifndef SECURITY_APP_PACKAGE_AUTHORITY
@@ -62,6 +69,7 @@ Config::Config(Ime::WindowsVersion winver):
 	advanceAfterSelection = true;
 	fontSize = DEF_FONT_SIZE;
 	selKeyType = 0;
+	convEngine = 1;
 	candPerPage = 9;
 	cursorCandList = 1;
 	enableCapsLock = 1;
@@ -112,6 +120,7 @@ void Config::load() {
 		::RegQueryValueEx(hk, L"AdvanceAfterSelection", 0, &type, (LPBYTE)&advanceAfterSelection, &size);
         ::RegQueryValueEx(hk, L"DefFontSize", 0, &type, (LPBYTE)&fontSize, &size);
 		::RegQueryValueEx(hk, L"SelKeyType", 0, &type, (LPBYTE)&selKeyType, &size);
+		::RegQueryValueEx(hk, L"ConvEngine", 0, &type, (LPBYTE)&convEngine, &size);
 		::RegQueryValueEx(hk, L"SelAreaLen", 0, &type, (LPBYTE)&candPerPage, &size);
 		::RegQueryValueEx(hk, L"CursorCandList", 0, &type, (LPBYTE)&cursorCandList, &size);
 		::RegQueryValueEx(hk, L"EnableCapsLock", 0, &type, (LPBYTE)&enableCapsLock, &size);
@@ -152,6 +161,7 @@ void Config::save() {
 		::RegSetValueEx(hk, L"AdvanceAfterSelection", 0, REG_DWORD, (LPBYTE)&advanceAfterSelection, sizeof(DWORD));
 		::RegSetValueEx(hk, L"DefFontSize", 0, REG_DWORD, (LPBYTE)&fontSize, sizeof(DWORD));
 		::RegSetValueEx(hk, L"SelKeyType", 0, REG_DWORD, (LPBYTE)&selKeyType, sizeof(DWORD));
+		::RegSetValueEx(hk, L"ConvEngine", 0, REG_DWORD, (LPBYTE)&convEngine, sizeof(DWORD));
 		::RegSetValueEx(hk, L"SelAreaLen", 0, REG_DWORD, (LPBYTE)&candPerPage, sizeof(DWORD));
 		::RegSetValueEx(hk, L"CursorCandList", 0, REG_DWORD, (LPBYTE)&cursorCandList, sizeof(DWORD));
 		::RegSetValueEx(hk, L"EnableCapsLock", 0, REG_DWORD, (LPBYTE)&enableCapsLock, sizeof(DWORD));
