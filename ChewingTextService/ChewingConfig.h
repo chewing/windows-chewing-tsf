@@ -60,6 +60,7 @@ public:
 	DWORD advanceAfterSelection; // automatically shift cursor to the next char after choosing a candidate
 	DWORD fontSize; // font size of candidate window and tip window (not supported yet)
 	DWORD selKeyType; // keys use to select candidate strings (default: 123456789)
+	DWORD convEngine; // conversion engine (default: CHEWING_CONVERSION_ENGINE)
 	DWORD candPerPage; // number of candiate strings per page
 	DWORD cursorCandList; // use cursor to select items in the candidate window (not supported yet)
 	DWORD enableCapsLock; // use capslock to Change language mode
@@ -71,6 +72,7 @@ public:
 	DWORD easySymbolsWithCtrl; // output easy symbols when Ctrl is pressed
 
 	static const wchar_t* selKeys[]; // keys used to select candidate strings.
+	static const wchar_t* convEngines[];
 
 private:
 	DWORD stamp; // timestamp used to check if the config values are up to date

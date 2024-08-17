@@ -704,6 +704,8 @@ void TextService::applyConfig() {
 		for(int i = 0; i < 10; ++i)
 			selKeys[i] = (int)Config::selKeys[cfg.selKeyType][i];
 		::chewing_set_selKey(chewingContext_, selKeys, 10);
+
+		chewing_config_set_int(chewingContext_, "chewing.conversion_engine", cfg.convEngine);
 	}
 
 	// font for candidate and mesasge windows

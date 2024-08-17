@@ -53,6 +53,12 @@ bool TypingPropertyPage::onInitDialog() {
 	for(const wchar_t** pselkeys = config_->selKeys; *pselkeys; ++pselkeys)
 		ComboBox_AddString(combo, *pselkeys);
 	ComboBox_SetCurSel(combo, config_->selKeyType);
+
+	combo = GetDlgItem(hwnd_, IDC_CONV_ENGINES);
+	for(const wchar_t** pconvEngine = config_->convEngines; *pconvEngine; ++pconvEngine)
+		ComboBox_AddString(combo, *pconvEngine);
+	ComboBox_SetCurSel(combo, config_->convEngine);
+
 	return PropertyPage::onInitDialog();
 }
 
@@ -63,6 +69,10 @@ void TypingPropertyPage::onOK() {
 	config_->selKeyType = ComboBox_GetCurSel(GetDlgItem(hwnd_, IDC_SELKEYS));
 	if(config_->selKeyType < 0)
 		config_->selKeyType = 0;
+
+	config_->convEngine = ComboBox_GetCurSel(GetDlgItem(hwnd_, IDC_CONV_ENGINES));
+	if(config_->convEngine < 0)
+		config_->convEngine = 0;
 
 	config_->showCandWithSpaceKey = IsDlgButtonChecked(hwnd_, IDC_SPACESEL);
 	config_->switchLangWithShift = IsDlgButtonChecked(hwnd_, IDC_ENABLE_SHIFT);
