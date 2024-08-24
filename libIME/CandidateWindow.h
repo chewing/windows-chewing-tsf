@@ -20,9 +20,15 @@
 #ifndef IME_CANDIDATE_WINDOW_H
 #define IME_CANDIDATE_WINDOW_H
 
-#include "ImeWindow.h"
+#include <Unknwn.h>
+#include <d2d1_1.h>
+#include <d3d11_1.h>
+#include <winrt/base.h>
+
 #include <string>
 #include <vector>
+
+#include "ImeWindow.h"
 
 namespace Ime {
 
@@ -31,105 +37,98 @@ class EditSession;
 class KeyEvent;
 
 // TODO: make the candidate window looks different in immersive mode
-class CandidateWindow :
-	public ImeWindow,
-	public ITfCandidateListUIElement {
-public:
-	CandidateWindow(TextService* service, EditSession* session);
+class CandidateWindow : public ImeWindow, public ITfCandidateListUIElement {
+   public:
+    CandidateWindow(TextService *service, EditSession *session);
 
-	// IUnknown
-	STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
-	STDMETHODIMP_(ULONG) AddRef(void);
-	STDMETHODIMP_(ULONG) Release(void);
+    // IUnknown
+    STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
+    STDMETHODIMP_(ULONG) AddRef(void);
+    STDMETHODIMP_(ULONG) Release(void);
 
-	// ITfUIElement
-	STDMETHODIMP GetDescription(BSTR *pbstrDescription);
-	STDMETHODIMP GetGUID(GUID *pguid);
-	STDMETHODIMP Show(BOOL bShow);
-	STDMETHODIMP IsShown(BOOL *pbShow);
+    // ITfUIElement
+    STDMETHODIMP GetDescription(BSTR *pbstrDescription);
+    STDMETHODIMP GetGUID(GUID *pguid);
+    STDMETHODIMP Show(BOOL bShow);
+    STDMETHODIMP IsShown(BOOL *pbShow);
 
-	// ITfCandidateListUIElement
-	STDMETHODIMP GetUpdatedFlags(DWORD *pdwFlags);
-	STDMETHODIMP GetDocumentMgr(ITfDocumentMgr **ppdim);
-	STDMETHODIMP GetCount(UINT *puCount);
-	STDMETHODIMP GetSelection(UINT *puIndex);
-	STDMETHODIMP GetString(UINT uIndex, BSTR *pstr);
-	STDMETHODIMP GetPageIndex(UINT *puIndex, UINT uSize, UINT *puPageCnt);
-	STDMETHODIMP SetPageIndex(UINT *puIndex, UINT uPageCnt);
-	STDMETHODIMP GetCurrentPage(UINT *puPage);
+    // ITfCandidateListUIElement
+    STDMETHODIMP GetUpdatedFlags(DWORD *pdwFlags);
+    STDMETHODIMP GetDocumentMgr(ITfDocumentMgr **ppdim);
+    STDMETHODIMP GetCount(UINT *puCount);
+    STDMETHODIMP GetSelection(UINT *puIndex);
+    STDMETHODIMP GetString(UINT uIndex, BSTR *pstr);
+    STDMETHODIMP GetPageIndex(UINT *puIndex, UINT uSize, UINT *puPageCnt);
+    STDMETHODIMP SetPageIndex(UINT *puIndex, UINT uPageCnt);
+    STDMETHODIMP GetCurrentPage(UINT *puPage);
 
-	const std::vector<std::wstring>& items() const {
-		return items_;
-	}
+    const std::vector<std::wstring> &items() const { return items_; }
 
-	void setItems(const std::vector<std::wstring>& items, const std::vector<wchar_t>& sekKeys) {
-		items_ = items;
-		selKeys_ = selKeys_;
-		recalculateSize();
-		refresh();
-	}
+    void setItems(const std::vector<std::wstring> &items,
+                  const std::vector<wchar_t> &sekKeys) {
+        items_ = items;
+        selKeys_ = selKeys_;
+        recalculateSize();
+        refresh();
+    }
 
-	void add(std::wstring item, wchar_t selKey) {
-		items_.push_back(item);
-		selKeys_.push_back(selKey);
-	}
+    void add(std::wstring item, wchar_t selKey) {
+        items_.push_back(item);
+        selKeys_.push_back(selKey);
+    }
 
-	void clear();
+    void clear();
 
-	int candPerRow() const {
-		return candPerRow_;
-	}
-	void setCandPerRow(int n);
+    int candPerRow() const { return candPerRow_; }
+    void setCandPerRow(int n);
 
-	virtual void recalculateSize();
+    virtual void recalculateSize();
 
-	bool filterKeyEvent(KeyEvent& keyEvent);
+    bool filterKeyEvent(KeyEvent &keyEvent);
 
-	int currentSel() const {
-		return currentSel_;
-	}
-	void setCurrentSel(int sel);
+    int currentSel() const { return currentSel_; }
+    void setCurrentSel(int sel);
 
-	wchar_t currentSelKey() const {
-		return selKeys_.at(currentSel_);
-	}
+    wchar_t currentSelKey() const { return selKeys_.at(currentSel_); }
 
-	bool hasResult() const {
-		return hasResult_;
-	}
+    bool hasResult() const { return hasResult_; }
 
-	bool useCursor() const {
-		return useCursor_;
-	}
+    bool useCursor() const { return useCursor_; }
 
-	void setUseCursor(bool use);
+    void setUseCursor(bool use);
 
-protected:
-	LRESULT wndProc(UINT msg, WPARAM wp , LPARAM lp);
-	void onPaint(WPARAM wp, LPARAM lp);
-	void paintItem(HDC hDC, int i, int x, int y);
-	void itemRect(int i, RECT& rect);
+   protected:
+    LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
+    void onPaint(WPARAM wp, LPARAM lp);
+    void paintItemD2D(ID2D1RenderTarget *pRenderTarget, int i, int x, int y);
+    void itemRect(int i, RECT &rect);
+    void resizeSwapChain(int width, int height);
 
-protected: // COM object should not be deleted directly. calling Release() instead.
-	~CandidateWindow(void);
+   protected:  // COM object should not be deleted directly. calling Release()
+               // instead.
+    ~CandidateWindow(void);
 
-private:
-	ULONG refCount_;
-	BOOL shown_;
+   private:
+    winrt::com_ptr<ID2D1DeviceContext> target_;
+    winrt::com_ptr<IDXGISwapChain1> swapChain_;
+    winrt::com_ptr<ID2D1Factory1> factory_;
 
-	int selKeyWidth_;
-	int textWidth_;
-	int itemHeight_;
-	int candPerRow_;
-	int colSpacing_;
-	int rowSpacing_;
-	std::vector<wchar_t> selKeys_;
-	std::vector<std::wstring> items_;
-	int currentSel_;
-	bool hasResult_;
-	bool useCursor_;
+    ULONG refCount_;
+    BOOL shown_;
+
+    int selKeyWidth_;
+    int textWidth_;
+    int itemHeight_;
+    int candPerRow_;
+    int colSpacing_;
+    int rowSpacing_;
+    std::vector<wchar_t> selKeys_;
+    std::vector<std::wstring> items_;
+    int currentSel_;
+    bool hasResult_;
+    bool useCursor_;
 };
 
-}
+}  // namespace Ime
 
 #endif

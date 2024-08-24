@@ -18,14 +18,18 @@
 //
 
 #include "ChewingTextService.h"
+
+#include <Shellapi.h>
 #include <assert.h>
-#include <string>
-#include <libIME/Utils.h>
 #include <libIME/LangBarButton.h>
+#include <libIME/Utils.h>
+#include <sys/stat.h>
+
+#include <string>
+
 #include "ChewingImeModule.h"
 #include "resource.h"
-#include <Shellapi.h>
-#include <sys/stat.h>
+
 
 using namespace std;
 
@@ -717,8 +721,11 @@ void TextService::applyConfig() {
 		font_ = CreateFontIndirect(&lf); // create new font
 		if(messageWindow_)
 			messageWindow_->setFont(font_);
-		if(candidateWindow_)
+			// messageWindow_->setFontSize(cfg.fontSize);
+		if(candidateWindow_) {
 			candidateWindow_->setFont(font_);
+			candidateWindow_->setFontSize(static_cast<float>(cfg.fontSize));
+		}
 	}
 }
 
@@ -759,6 +766,7 @@ void TextService::updateCandidates(Ime::EditSession* session) {
 	candidateWindow_->clear();
 	candidateWindow_->setUseCursor(config().cursorCandList);
 	candidateWindow_->setCandPerRow(config().candPerRow);
+	candidateWindow_->setFontSize(static_cast<float>(config().fontSize));
 
 	::chewing_cand_Enumerate(chewingContext_);
 	int* selKeys = ::chewing_get_selKey(chewingContext_); // keys used to select candidates
@@ -798,6 +806,7 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	if(!candidateWindow_) {
 		candidateWindow_ = new Ime::CandidateWindow(this, session);
 		candidateWindow_->setFont(font_);
+		candidateWindow_->setFontSize(config().fontSize);
 	}
 	updateCandidates(session);
 	candidateWindow_->show();
@@ -821,6 +830,7 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	// FIXME: reuse the window whenever possible
 	messageWindow_ = new Ime::MessageWindow(this, session);
 	messageWindow_->setFont(font_);
+	messageWindow_->setFontSize(config().fontSize);
 	messageWindow_->setText(message);
 	
 	int x = 0, y = 0;

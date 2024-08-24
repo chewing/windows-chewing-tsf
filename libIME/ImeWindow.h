@@ -39,6 +39,7 @@ public:
 	}
 
 	void setFont(HFONT f);
+	void setFontSize(float size) { fontSize_ = size; }
 	virtual void recalculateSize();
 
 protected:
@@ -50,6 +51,7 @@ protected:
 	TextService* textService_;
 	POINTS oldPos;
 	HFONT font_;
+	float fontSize_;
 	int margin_;
 };
 

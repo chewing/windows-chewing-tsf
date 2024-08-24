@@ -22,7 +22,7 @@
 namespace Ime {
 
 ImeWindow::ImeWindow(TextService* service):
-	textService_(service) {
+	textService_(service), fontSize_(16.0f) {
 
 	if(service->isImmersive()) { // windows 8 app mode
 		margin_ = 10;

@@ -37,6 +37,11 @@ add_library(libIME_static STATIC
     ${PROJECT_SOURCE_DIR}/CandidateWindow.cpp
 )
 
+target_compile_features(libIME_static PUBLIC cxx_std_17)
+
 target_link_libraries(libIME_static
-    shlwapi.lib
+    PUBLIC shlwapi.lib
+    PUBLIC d2d1.lib
+    PUBLIC d3d11.lib
+    PUBLIC dwrite.lib
 )

@@ -9,6 +9,10 @@ add_definitions(
 	/D_UNICODE=1 /DUNICODE=1 # do Unicode build
 	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
 )
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8") # set source code encoding to UTF-8
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-") # turn off C++ RTTI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8") # set source code encoding to UTF-8
