@@ -312,6 +312,7 @@ void CandidateWindow::onPaint(WPARAM wp, LPARAM lp) {
     }
     check_hresult(target_->EndDraw());
     check_hresult(swapChain_->Present(1, 0));
+    ValidateRect(hwnd_, nullptr);
 }
 
 void CandidateWindow::recalculateSize() {
