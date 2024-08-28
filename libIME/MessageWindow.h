@@ -20,37 +20,45 @@
 #ifndef IME_MESSAGE_WINDOW_H
 #define IME_MESSAGE_WINDOW_H
 
-#include "ImeWindow.h"
-#include "EditSession.h"
+#include <Unknwn.h>
+#include <d2d1_1.h>
+#include <d3d11_1.h>
+#include <winrt/base.h>
+
 #include <string>
+
+#include "EditSession.h"
+#include "ImeWindow.h"
 
 namespace Ime {
 
 class TextService;
 
 class MessageWindow : public ImeWindow {
-public:
-	MessageWindow(TextService* service, EditSession* session = NULL);
-	virtual ~MessageWindow(void);
+   public:
+    MessageWindow(TextService* service, EditSession* session = NULL);
+    virtual ~MessageWindow(void);
 
-	std::wstring text() {
-		return text_;
-	}
-	void setText(std::wstring text);
+    std::wstring text() { return text_; }
+    void setText(std::wstring text);
 
-	TextService* textService() {
-		return textService_;
-	}
+    TextService* textService() { return textService_; }
 
-	virtual void recalculateSize();
-protected:
-	LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
-	void onPaint(PAINTSTRUCT& ps);
+    virtual void recalculateSize();
 
-private:
-	std::wstring text_;
+   protected:
+    LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
+    void onPaint(WPARAM wp, LPARAM lp);
+    void resizeSwapChain(int width, int height);
+
+   private:
+    winrt::com_ptr<ID2D1DeviceContext> target_;
+    winrt::com_ptr<IDXGISwapChain1> swapChain_;
+    winrt::com_ptr<ID2D1Factory1> factory_;
+
+    std::wstring text_;
 };
 
-}
+}  // namespace Ime
 
 #endif

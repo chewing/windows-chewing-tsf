@@ -493,17 +493,11 @@ void CandidateWindow::paintItemD2D(ID2D1RenderTarget *pRenderTarget, int i,
     // FIXME: make the color of strings configurable.
     COLORREF selKeyColor = RGB(0, 0, 255);
     COLORREF textColor = GetSysColor(COLOR_WINDOWTEXT);
-    pRenderTarget->CreateSolidColorBrush(
-        D2D1::ColorF(GetRValue(selKeyColor) / 255.0f,
-                     GetGValue(selKeyColor) / 255.0f,
-                     GetBValue(selKeyColor) / 255.0f),
-        pSelKeyBrush.put());
-    pRenderTarget->CreateSolidColorBrush(
-        D2D1::ColorF(GetRValue(textColor) / 255.0f,
-                     GetGValue(textColor) / 255.0f,
-                     GetBValue(textColor) / 255.0f),
-        pTextBrush.put());
-    pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f),
+    pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(selKeyColor),
+                                         pSelKeyBrush.put());
+    pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(textColor),
+                                         pTextBrush.put());
+    pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White),
                                          pSelectedTextBrush.put());
 
     pRenderTarget->DrawText(selKey, 3, pTextFormat.get(),
