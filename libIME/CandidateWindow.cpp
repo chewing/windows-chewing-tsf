@@ -23,17 +23,22 @@
 #include <d2d1_1.h>
 #include <d2d1_1helper.h>
 #include <d3d11_1.h>
+#include <dcomp.h>
 #include <dwrite_1.h>
+#include <dxgi1_2.h>
 #include <tchar.h>
 #include <unknwnbase.h>
 #include <windows.h>
 #include <winrt/base.h>
 
 #include <cassert>
+#include <string>
 
 #include "DrawUtils.h"
 #include "EditSession.h"
+#include "NinePatch.h"
 #include "TextService.h"
+#include "rustlib_bridge/lib.h"
 
 using namespace std;
 using winrt::check_hresult;
@@ -41,7 +46,8 @@ using winrt::com_ptr;
 
 namespace Ime {
 
-CandidateWindow::CandidateWindow(TextService *service, EditSession *session)
+CandidateWindow::CandidateWindow(TextService *service, EditSession *session,
+                                 wstring bitmap_path)
     : ImeWindow(service),
       refCount_(1),
       shown_(false),
@@ -51,20 +57,21 @@ CandidateWindow::CandidateWindow(TextService *service, EditSession *session)
       currentSel_(0),
       hasResult_(false),
       useCursor_(true),
-      selKeyWidth_(0) {
+      selKeyWidth_(0),
+      ninePatch_(bitmap_path) {
     if (service->isImmersive()) {  // windows 8 app mode
         margin_ = 10;
         rowSpacing_ = 8;
         colSpacing_ = 12;
     } else {  // desktop mode
-        margin_ = 5;
+        margin_ = ninePatch_.GetMargin();
         rowSpacing_ = 4;
         colSpacing_ = 8;
     }
 
     HWND parent = service->compositionWindow(session);
     create(parent, WS_POPUP | WS_CLIPCHILDREN,
-           WS_EX_TOOLWINDOW | WS_EX_TOPMOST);
+           WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST);
 
     check_hresult(
         D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, factory_.put()));
@@ -86,32 +93,42 @@ CandidateWindow::CandidateWindow(TextService *service, EditSession *session)
                                               target_.put()));
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.Width = 0;
-    swapChainDesc.Height = 0;
+    swapChainDesc.Width = 100;
+    swapChainDesc.Height = 100;
     swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    swapChainDesc.Stereo = false;
     swapChainDesc.SampleDesc.Count = 1;  // don't use multi-sampling
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = 2;  // use double buffering to enable flip
-    swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-    swapChainDesc.Flags = 0;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
 
     check_hresult(dxdevice->GetAdapter(adapter.put()));
     check_hresult(adapter->GetParent(__uuidof(factory), factory.put_void()));
 
-    check_hresult(factory->CreateSwapChainForHwnd(d3device.get(), hwnd_,
-                                                  &swapChainDesc, nullptr,
-                                                  nullptr, swapChain_.put()));
+    check_hresult(factory->CreateSwapChainForComposition(
+        d3device.get(), &swapChainDesc, nullptr, swapChain_.put()));
     check_hresult(
         swapChain_->GetBuffer(0, __uuidof(surface), surface.put_void()));
     auto bitmap_props = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE));
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                          D2D1_ALPHA_MODE_PREMULTIPLIED));
     check_hresult(target_->CreateBitmapFromDxgiSurface(
         surface.get(), &bitmap_props, bitmap.put()));
     target_->SetTarget(bitmap.get());
+
+    // Setup Direct Composition
+    check_hresult(DCompositionCreateDevice(
+        dxdevice.get(), __uuidof(dcompDevice_), dcompDevice_.put_void()));
+
+    check_hresult(
+        dcompDevice_->CreateTargetForHwnd(hwnd_, true, dcompTarget.put()));
+
+    check_hresult(dcompDevice_->CreateVisual(dcompVisual.put()));
+    check_hresult(dcompVisual->SetContent(swapChain_.get()));
+    check_hresult(dcompTarget->SetRoot(dcompVisual.get()));
+    check_hresult(dcompDevice_->Commit());
 }
 
 CandidateWindow::~CandidateWindow(void) {}
@@ -291,9 +308,13 @@ void CandidateWindow::onPaint(WPARAM wp, LPARAM lp) {
             D2D1::RectF(rc.left, rc.top, rc.right, rc.bottom), pBrush.get(),
             3.0f);
     } else {
-        ::FillSolidRectD2D(target_.get(), rc.left, rc.top, rc.right - rc.left,
-                           rc.bottom - rc.top, GetSysColor(COLOR_WINDOW));
-        ::Draw3DBorderD2D(target_.get(), &rc, GetSysColor(COLOR_3DFACE), 0, 1);
+        // ::FillSolidRectD2D(target_.get(), rc.left, rc.top, rc.right -
+        // rc.left,
+        //                    rc.bottom - rc.top, GetSysColor(COLOR_WINDOW));
+        // ::Draw3DBorderD2D(target_.get(), &rc, GetSysColor(COLOR_3DFACE), 0,
+        // 1);
+        ninePatch_.DrawBitmap(
+            target_.get(), D2D1::RectF(rc.left, rc.top, rc.right, rc.bottom));
     }
 
     // paint items
@@ -403,7 +424,8 @@ void CandidateWindow::resizeSwapChain(int width, int height) {
         swapChain_->GetBuffer(0, __uuidof(surface), surface.put_void()));
     auto bitmap_props = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE));
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                          D2D1_ALPHA_MODE_PREMULTIPLIED));
     check_hresult(target_->CreateBitmapFromDxgiSurface(
         surface.get(), &bitmap_props, bitmap.put()));
     target_->SetTarget(bitmap.get());
@@ -492,7 +514,7 @@ void CandidateWindow::paintItemD2D(ID2D1RenderTarget *pRenderTarget, int i,
     textRect.right = textRect.left + selKeyWidth_;
 
     // FIXME: make the color of strings configurable.
-    COLORREF selKeyColor = RGB(0, 0, 255);
+    COLORREF selKeyColor = RGB(255, 0, 0);
     COLORREF textColor = GetSysColor(COLOR_WINDOWTEXT);
     pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(selKeyColor),
                                          pSelKeyBrush.put());

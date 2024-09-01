@@ -1,0 +1,13 @@
+[package]
+name = "rustlib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+cxx = { version = "1.0.128", features = ["c++17"] }
+log = "0.4.22"
+nine_patch_drawable = "0.1.0"
+win_dbg_logger = "0.1.0"

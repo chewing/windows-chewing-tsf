@@ -18,7 +18,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-") # turn off C++ RTTI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8") # set source code encoding to UTF-8
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /Gw")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /Gw")
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION $<CONFIG:Release>)
 
 enable_testing()

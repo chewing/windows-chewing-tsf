@@ -19,6 +19,9 @@
                     <File Source="Dictionary\tsi.dat" Bitness="always32" />
                     <File Source="Dictionary\word.dat" Bitness="always32" />
                 </Directory>
+                <Directory Id="Assets" Name="Assets">
+                    <File Source="assets\bubble.9.png" Bitness="always32" />
+                </Directory>
                 <File Source="x86\chewing-msvc.dll" Bitness="always32" />
                 <Component Bitness="always32">
                     <File Source="x86\ChewingTextService.dll">

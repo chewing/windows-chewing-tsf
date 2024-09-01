@@ -804,7 +804,9 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	// The candidate window created should be a child window of the composition window.
 	// Please see Ime::CandidateWindow::CandidateWindow() for an example.
 	if(!candidateWindow_) {
-		candidateWindow_ = new Ime::CandidateWindow(this, session);
+		std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
+		bitmap_path += L"\\Assets\\bubble.9.png";
+		candidateWindow_ = new Ime::CandidateWindow(this, session, bitmap_path);
 		candidateWindow_->setFont(font_);
 		candidateWindow_->setFontSize(config().fontSize);
 	}

@@ -1,7 +1,7 @@
 cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF
-cmake --build build\x86 --config Release
+cmake --build build\x86 --config Debug
 cmake -B build\x64 -A x64 -DBUILD_TESTING=OFF
-cmake --build build\x64 --config Release
+cmake --build build\x64 --config Debug
 pushd tsfreg
 cargo build --release
 popd
@@ -15,13 +15,13 @@ mkdir build\installer\Dictionary
 copy libchewing\data\*.dat build\installer\Dictionary\
 copy build\x64\libchewing\data\*.dat build\installer\Dictionary\
 mkdir build\installer\x86
-copy build\x86\ChewingTextService\Release\*.dll build\installer\x86\
-copy build\x86\libchewing\Release\*.dll build\installer\x86\
-copy build\x86\ChewingPreferences\Release\*.exe build\installer\
+copy build\x86\ChewingTextService\Debug\*.dll build\installer\x86\
+copy build\x86\libchewing\Debug\*.dll build\installer\x86\
+copy build\x86\ChewingPreferences\Debug\*.exe build\installer\
 copy build\x86\libchewing\chewing-cli.exe build\installer\
 mkdir build\installer\x64
-copy build\x64\ChewingTextService\Release\*.dll build\installer\x64\
-copy build\x64\libchewing\Release\*.dll build\installer\x64\
+copy build\x64\ChewingTextService\Debug\*.dll build\installer\x64\
+copy build\x64\libchewing\Debug\*.dll build\installer\x64\
 copy tsfreg\target\release\tsfreg.exe build\installer\
 pushd build\installer
 msbuild -p:Configuration=Release -restore windows-chewing-tsf.wixproj

@@ -23,12 +23,14 @@
 #include <Unknwn.h>
 #include <d2d1_1.h>
 #include <d3d11_1.h>
+#include <dcomp.h>
 #include <winrt/base.h>
 
 #include <string>
 #include <vector>
 
 #include "ImeWindow.h"
+#include "NinePatch.h"
 
 namespace Ime {
 
@@ -39,7 +41,8 @@ class KeyEvent;
 // TODO: make the candidate window looks different in immersive mode
 class CandidateWindow : public ImeWindow, public ITfCandidateListUIElement {
    public:
-    CandidateWindow(TextService *service, EditSession *session);
+    CandidateWindow(TextService *service, EditSession *session,
+                    std::wstring bitmap_path);
 
     // IUnknown
     STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
@@ -112,6 +115,11 @@ class CandidateWindow : public ImeWindow, public ITfCandidateListUIElement {
     winrt::com_ptr<ID2D1DeviceContext> target_;
     winrt::com_ptr<IDXGISwapChain1> swapChain_;
     winrt::com_ptr<ID2D1Factory1> factory_;
+    winrt::com_ptr<IDCompositionDevice> dcompDevice_;
+    winrt::com_ptr<IDCompositionTarget> dcompTarget;
+    winrt::com_ptr<IDCompositionVisual> dcompVisual;
+
+    NinePatch ninePatch_;
 
     ULONG refCount_;
     BOOL shown_;
