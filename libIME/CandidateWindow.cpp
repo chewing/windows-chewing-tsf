@@ -59,15 +59,9 @@ CandidateWindow::CandidateWindow(TextService *service, EditSession *session,
       useCursor_(true),
       selKeyWidth_(0),
       ninePatch_(bitmap_path) {
-    if (service->isImmersive()) {  // windows 8 app mode
-        margin_ = 10;
-        rowSpacing_ = 8;
-        colSpacing_ = 12;
-    } else {  // desktop mode
-        margin_ = ninePatch_.GetMargin();
-        rowSpacing_ = 4;
-        colSpacing_ = 8;
-    }
+    margin_ = ninePatch_.GetMargin();
+    rowSpacing_ = 4;
+    colSpacing_ = 8;
 
     HWND parent = service->compositionWindow(session);
     create(parent, WS_POPUP | WS_CLIPCHILDREN,
@@ -296,26 +290,8 @@ void CandidateWindow::onPaint(WPARAM wp, LPARAM lp) {
     GetClientRect(hwnd_, &rc);
 
     target_->BeginDraw();
-    // paint window background and border
-    // draw a flat black border in Windows 8 app immersive mode
-    // draw a 3d border in desktop mode
-    if (isImmersive()) {
-        com_ptr<ID2D1SolidColorBrush> pBrush;
-        check_hresult(target_->CreateSolidColorBrush(
-            D2D1::ColorF(D2D1::ColorF::Black), pBrush.put()));
-        target_->Clear(D2D1::ColorF(D2D1::ColorF::White));
-        target_->DrawRectangle(
-            D2D1::RectF(rc.left, rc.top, rc.right, rc.bottom), pBrush.get(),
-            3.0f);
-    } else {
-        // ::FillSolidRectD2D(target_.get(), rc.left, rc.top, rc.right -
-        // rc.left,
-        //                    rc.bottom - rc.top, GetSysColor(COLOR_WINDOW));
-        // ::Draw3DBorderD2D(target_.get(), &rc, GetSysColor(COLOR_3DFACE), 0,
-        // 1);
-        ninePatch_.DrawBitmap(
-            target_.get(), D2D1::RectF(rc.left, rc.top, rc.right, rc.bottom));
-    }
+    ninePatch_.DrawBitmap(target_.get(),
+                          D2D1::RectF(rc.left, rc.top, rc.right, rc.bottom));
 
     // paint items
     int col = 0;
