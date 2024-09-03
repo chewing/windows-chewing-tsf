@@ -9,7 +9,7 @@ add_definitions(
 	/D_UNICODE=1 /DUNICODE=1 # do Unicode build
 	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
 )
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
 if (MSVC)
 	add_compile_options(/utf-8)
