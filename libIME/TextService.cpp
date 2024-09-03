@@ -25,6 +25,8 @@
 #include "ImeModule.h"
 
 #include <assert.h>
+#include <msctf.h>
+#include <winrt/base.h>
 #include <string>
 #include <algorithm>
 
@@ -33,7 +35,6 @@ using namespace std;
 namespace Ime {
 
 TextService::TextService(ImeModule* module):
-	module_(module),
 	threadMgr_(NULL),
 	clientId_(TF_CLIENTID_NULL),
 	activateFlags_(0),
@@ -47,7 +48,7 @@ TextService::TextService(ImeModule* module):
 	activateLanguageProfileNotifySinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
 	refCount_(1) {
-
+	module_.copy_from(module);
 	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
 }
 
@@ -57,11 +58,11 @@ TextService::~TextService(void) {
 	if(!compartmentMonitors_.empty()) {
 		vector<CompartmentMonitor>::iterator it;
 		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			ComQIPtr<ITfSource> source;
+			winrt::com_ptr<ITfSource> source;
 			if(it->isGlobal)
-				source = globalCompartment(it->guid);
+				source = globalCompartment(it->guid).as<ITfSource>();
 			else
-				source = threadCompartment(it->guid);
+				source = threadCompartment(it->guid).as<ITfSource>();
 			if (source) {
 				source->UnadviseSink(it->cookie);
 			}
@@ -77,11 +78,11 @@ TextService::~TextService(void) {
 // public methods
 
 ImeModule* TextService::imeModule() const {
-	return module_;
+	return module_.get();
 }
 
 ITfThreadMgr* TextService::threadMgr() const {
-	return threadMgr_;
+	return threadMgr_.get();
 }
 
 TfClientId TextService::clientId() const {
@@ -102,10 +103,12 @@ DWORD TextService::langBarStatus() const {
 
 void TextService::addButton(LangBarButton* button) {
 	if(button) {
-		langBarButtons_.emplace_back(button);
+		winrt::com_ptr<LangBarButton> btn;
+		btn.copy_from(button);
+		langBarButtons_.emplace_back(btn);
 		if(isActivated()) {
-			ComPtr<ITfLangBarItemMgr> langBarItemMgr;
-			if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, (void**)&langBarItemMgr) == S_OK) {
+			winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
+			if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 				langBarItemMgr->AddItem(button);
 			}
 		}
@@ -114,11 +117,13 @@ void TextService::addButton(LangBarButton* button) {
 
 void TextService::removeButton(LangBarButton* button) {
 	if(button) {
-		auto it = find(langBarButtons_.begin(), langBarButtons_.end(), button);
+		winrt::com_ptr<LangBarButton> btn;
+		btn.copy_from(button);
+		auto it = find(langBarButtons_.begin(), langBarButtons_.end(), btn);
 		if(it != langBarButtons_.end()) {
 			if(isActivated()) {
-				ComPtr<ITfLangBarItemMgr> langBarItemMgr;
-				if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, (void**)&langBarItemMgr) == S_OK) {
+				winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
+				if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 					langBarItemMgr->RemoveItem(button);
 				}
 			}
@@ -232,8 +237,8 @@ void TextService::endComposition(ITfContext* context) {
 
 std::wstring TextService::compositionString(EditSession* session) {
 	if (composition_) {
-		ComPtr<ITfRange> compositionRange;
-		if (composition_->GetRange(&compositionRange) == S_OK) {
+		winrt::com_ptr<ITfRange> compositionRange;
+		if (composition_->GetRange(compositionRange.put()) == S_OK) {
 			TfEditCookie editCookie = session->editCookie();
 			// FIXME: the TSF API is really stupid here and it provides no way to know the size of the range.
 			// we cannot even get the actual position of start and end to calculate by ourselves.
@@ -259,8 +264,8 @@ void TextService::setCompositionString(EditSession* session, const wchar_t* str,
 		ULONG selectionNum;
 		// get current selection/insertion point
 		if(context->GetSelection(editCookie, TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK) {
-			ComPtr<ITfRange> compositionRange;
-			if(composition_->GetRange(&compositionRange) == S_OK) {
+			winrt::com_ptr<ITfRange> compositionRange;
+			if(composition_->GetRange(compositionRange.put()) == S_OK) {
 				bool selPosInComposition = true;
 				// if current insertion point is not covered by composition, we cannot insert text here.
 				if(selPosInComposition) {
@@ -273,12 +278,12 @@ void TextService::setCompositionString(EditSession* session, const wchar_t* str,
 				}
 
 				// set display attribute to the composition range
-				ComPtr<ITfProperty> dispAttrProp;
-				if(context->GetProperty(GUID_PROP_ATTRIBUTE, &dispAttrProp) == S_OK) {
+				winrt::com_ptr<ITfProperty> dispAttrProp;
+				if(context->GetProperty(GUID_PROP_ATTRIBUTE, dispAttrProp.put()) == S_OK) {
 					VARIANT val;
 					val.vt = VT_I4;
 					val.lVal = module_->inputAttrib()->atom();
-					dispAttrProp->SetValue(editCookie, compositionRange, &val);
+					dispAttrProp->SetValue(editCookie, compositionRange.get(), &val);
 				}
 			}
 			selection.range->Release();
@@ -312,41 +317,42 @@ void TextService::setCompositionCursor(EditSession* session, int pos) {
 }
 
 // compartment handling
-ComPtr<ITfCompartment> TextService::globalCompartment(const GUID& key) {
+winrt::com_ptr<ITfCompartment> TextService::globalCompartment(const GUID& key) {
 	if(threadMgr_) {
-		ComQIPtr<ITfCompartmentMgr> compartmentMgr;
-		if(threadMgr_->GetGlobalCompartment(&compartmentMgr) == S_OK) {
-			ComPtr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, &compartment);
+		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
+		if(threadMgr_->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
+			winrt::com_ptr<ITfCompartment> compartment;
+			compartmentMgr->GetCompartment(key, compartment.put());
 			return compartment;
 		}
 	}
 	return NULL;
 }
 
-ComPtr<ITfCompartment> TextService::threadCompartment(const GUID& key) {
+winrt::com_ptr<ITfCompartment> TextService::threadCompartment(const GUID& key) {
 	if(threadMgr_) {
-		ComQIPtr<ITfCompartmentMgr> compartmentMgr = threadMgr_;
+		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr = threadMgr_.as<ITfCompartmentMgr>();
 		if(compartmentMgr) {
-			ComPtr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, &compartment);
+			winrt::com_ptr<ITfCompartment> compartment;
+			compartmentMgr->GetCompartment(key, compartment.put());
 			return compartment;
 		}
 	}
 	return NULL;
 }
 
-ComPtr<ITfCompartment> TextService::contextCompartment(const GUID& key, ITfContext* context) {
-	ITfContext* curContext = NULL;
+winrt::com_ptr<ITfCompartment> TextService::contextCompartment(const GUID& key, ITfContext* context) {
+	winrt::com_ptr<ITfContext> curContext;
 	if(!context) {
-		curContext = currentContext();
-		context = curContext;
+		curContext.attach(currentContext());
+	} else {
+		curContext.copy_from(context);
 	}
 	if(context) {
-		ComQIPtr<ITfCompartmentMgr> compartmentMgr = context;
+		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr = curContext.as<ITfCompartmentMgr>();
 		if(compartmentMgr) {
-			ComPtr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, &compartment);
+			winrt::com_ptr<ITfCompartment> compartment;
+			compartmentMgr->GetCompartment(key, compartment.put());
 			return compartment;
 		}
 	}
@@ -357,7 +363,7 @@ ComPtr<ITfCompartment> TextService::contextCompartment(const GUID& key, ITfConte
 
 
 DWORD TextService::globalCompartmentValue(const GUID& key) {
-	ComPtr<ITfCompartment> compartment = globalCompartment(key);
+	winrt::com_ptr<ITfCompartment> compartment = globalCompartment(key);
 	if(compartment) {
 		VARIANT var;
 		if(compartment->GetValue(&var) == S_OK && var.vt == VT_I4) {
@@ -368,7 +374,7 @@ DWORD TextService::globalCompartmentValue(const GUID& key) {
 }
 
 DWORD TextService::threadCompartmentValue(const GUID& key) {
-	ComPtr<ITfCompartment> compartment = threadCompartment(key);
+	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(key);
 	if(compartment) {
 		VARIANT var;
 		::VariantInit(&var);
@@ -382,7 +388,7 @@ DWORD TextService::threadCompartmentValue(const GUID& key) {
 }
 
 DWORD TextService::contextCompartmentValue(const GUID& key, ITfContext* context) {
-	ComPtr<ITfCompartment> compartment = contextCompartment(key, context);
+	winrt::com_ptr<ITfCompartment> compartment = contextCompartment(key, context);
 	if(compartment) {
 		VARIANT var;
 		if(compartment->GetValue(&var) == S_OK && var.vt == VT_I4) {
@@ -394,7 +400,7 @@ DWORD TextService::contextCompartmentValue(const GUID& key, ITfContext* context)
 
 void TextService::setGlobalCompartmentValue(const GUID& key, DWORD value) {
 	if(threadMgr_) {
-		ComPtr<ITfCompartment> compartment = globalCompartment(key);
+		winrt::com_ptr<ITfCompartment> compartment = globalCompartment(key);
 		if(compartment) {
 			VARIANT var;
 			::VariantInit(&var);
@@ -406,13 +412,13 @@ void TextService::setGlobalCompartmentValue(const GUID& key, DWORD value) {
 	else {
 		// if we don't have a thread manager (this is possible when we try to set
 		// a global compartment value while the text service is not activated)
-		ComPtr<ITfThreadMgr> threadMgr;
-		if(::CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, (void**)&threadMgr) == S_OK) {
+		winrt::com_ptr<ITfThreadMgr> threadMgr;
+		if(::CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, threadMgr.put_void()) == S_OK) {
 			if(threadMgr) {
-				ComPtr<ITfCompartmentMgr> compartmentMgr;
-				if(threadMgr->GetGlobalCompartment(&compartmentMgr) == S_OK) {
-					ComPtr<ITfCompartment> compartment;
-					if(compartmentMgr->GetCompartment(key, &compartment) == S_OK && compartment) {
+				winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
+				if(threadMgr->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
+					winrt::com_ptr<ITfCompartment> compartment;
+					if(compartmentMgr->GetCompartment(key, compartment.put()) == S_OK && compartment) {
 						TfClientId id;
 						if(threadMgr->Activate(&id) == S_OK) {
 							VARIANT var;
@@ -430,7 +436,7 @@ void TextService::setGlobalCompartmentValue(const GUID& key, DWORD value) {
 }
 
 void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
-	ComPtr<ITfCompartment> compartment = threadCompartment(key);
+	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(key);
 	if(compartment) {
 		VARIANT var;
 		::VariantInit(&var);
@@ -441,7 +447,7 @@ void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
 }
 
 void TextService::setContextCompartmentValue(const GUID& key, DWORD value, ITfContext* context) {
-	ComPtr<ITfCompartment> compartment = contextCompartment(key, context);
+	winrt::com_ptr<ITfCompartment> compartment = contextCompartment(key, context);
 	if(compartment) {
 		VARIANT var;
 		::VariantInit(&var);
@@ -459,11 +465,11 @@ void TextService::addCompartmentMonitor(const GUID key, bool isGlobal) {
 	monitor.isGlobal = isGlobal;
 	// if the text service is activated
 	if(threadMgr_) {
-		ComQIPtr<ITfSource> source;
+		winrt::com_ptr<ITfSource> source;
 		if(isGlobal)
-			source = globalCompartment(key);
+			source = globalCompartment(key).as<ITfSource>();
 		else
-			source = threadCompartment(key);
+			source = threadCompartment(key).as<ITfSource>();
 		if(source) {
 			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &monitor.cookie);
 		}
@@ -476,11 +482,11 @@ void TextService::removeCompartmentMonitor(const GUID key) {
 	it = find(compartmentMonitors_.begin(), compartmentMonitors_.end(), key);
 	if(it != compartmentMonitors_.end()) {
 		if(threadMgr_) {
-			ComQIPtr<ITfSource> source;
+			winrt::com_ptr<ITfSource> source;
 			if(it->isGlobal)
-				source = globalCompartment(key);
+				source = globalCompartment(key).as<ITfSource>();
 			else
-				source = threadCompartment(key);
+				source = threadCompartment(key).as<ITfSource>();
 			source->UnadviseSink(it->cookie);
 		}
 		compartmentMonitors_.erase(it);
@@ -622,11 +628,11 @@ STDMETHODIMP_(ULONG) TextService::Release(void) {
 // ITfTextInputProcessor
 STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClientId) {
 	// store tsf manager & client id
-	threadMgr_ = pThreadMgr;
+	threadMgr_.copy_from(pThreadMgr);
 	clientId_ = tfClientId;
 
 	activateFlags_ = 0;
-	ComQIPtr<ITfThreadMgrEx> threadMgrEx = threadMgr_;
+	winrt::com_ptr<ITfThreadMgrEx> threadMgrEx = threadMgr_.as<ITfThreadMgrEx>();
 	if(threadMgrEx) {
 		threadMgrEx->GetActiveFlags(&activateFlags_);
 	}
@@ -634,7 +640,7 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	// advice event sinks (set up event listeners)
 	
 	// ITfThreadMgrEventSink, ITfActiveLanguageProfileNotifySink
-	ComQIPtr<ITfSource> source = threadMgr_;
+	winrt::com_ptr<ITfSource> source = threadMgr_.as<ITfSource>();
 	if(source) {
 		source->AdviseSink(IID_ITfThreadMgrEventSink, (ITfThreadMgrEventSink *)this, &threadMgrEventSinkCookie_);
 		source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, (ITfActiveLanguageProfileNotifySink *)this, &activateLanguageProfileNotifySinkCookie_);
@@ -643,7 +649,7 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	// ITfTextEditSink,
 
 	// ITfKeyEventSink
-	ComQIPtr<ITfKeystrokeMgr> keystrokeMgr = threadMgr_;
+	winrt::com_ptr<ITfKeystrokeMgr> keystrokeMgr = threadMgr_.as<ITfKeystrokeMgr>();
 	if(keystrokeMgr)
 		keystrokeMgr->AdviseKeyEventSink(clientId_, (ITfKeyEventSink*)this, TRUE);
 
@@ -663,11 +669,11 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	if(!compartmentMonitors_.empty()) {
 		vector<CompartmentMonitor>::iterator it;
 		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			ComQIPtr<ITfSource> compartmentSource;
+			winrt::com_ptr<ITfSource> compartmentSource;
 			if(it->isGlobal)	// global compartment
-				compartmentSource = globalCompartment(it->guid);
+				compartmentSource = globalCompartment(it->guid).as<ITfSource>();
 			else 	// thread specific compartment
-				compartmentSource = threadCompartment(it->guid);
+				compartmentSource = threadCompartment(it->guid).as<ITfSource>();
 			compartmentSource->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
 		}
 	}
@@ -687,10 +693,10 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	}
 	// Note: language bar has no effects in Win 8 immersive mode
 	if(!langBarButtons_.empty()) {
-		ComPtr<ITfLangBarItemMgr> langBarItemMgr;
-		if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, (void**)&langBarItemMgr) == S_OK) {
+		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
+		if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 			for(auto& button: langBarButtons_) {
-				langBarItemMgr->AddItem(button);
+				langBarItemMgr->AddItem(button.get());
 			}
 		}
 	}
@@ -715,10 +721,10 @@ STDMETHODIMP TextService::Deactivate() {
 
 	// uninitialize language bar
 	if(!langBarButtons_.empty()) {
-		ComPtr<ITfLangBarItemMgr> langBarItemMgr;
-		if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, (void**)&langBarItemMgr) == S_OK) {
+		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
+		if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 			for(auto& button: langBarButtons_) {
-				langBarItemMgr->RemoveItem(button);
+				langBarItemMgr->RemoveItem(button.get());
 			}
 		}
 	}
@@ -731,7 +737,7 @@ STDMETHODIMP TextService::Deactivate() {
 	// unadvice event sinks
 
 	// ITfThreadMgrEventSink
-	ComQIPtr<ITfSource> source = threadMgr_;
+	winrt::com_ptr<ITfSource> source = threadMgr_.as<ITfSource>();
 	if(source) {
 		source->UnadviseSink(threadMgrEventSinkCookie_);
 		source->UnadviseSink(activateLanguageProfileNotifySinkCookie_);
@@ -742,7 +748,7 @@ STDMETHODIMP TextService::Deactivate() {
 	// ITfTextEditSink,
 
 	// ITfKeyEventSink
-	ComQIPtr<ITfKeystrokeMgr> keystrokeMgr = threadMgr_;
+	winrt::com_ptr<ITfKeystrokeMgr> keystrokeMgr = threadMgr_.as<ITfKeystrokeMgr>();
 	if(keystrokeMgr) {
 		keystrokeMgr->UnadviseKeyEventSink(clientId_);
 		// unregister preserved keys
@@ -759,9 +765,9 @@ STDMETHODIMP TextService::Deactivate() {
 
 	// ITfCompartmentEventSink
 	// thread specific compartment
-	ComPtr<ITfCompartment> compartment = threadCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
+	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
 	if(compartment) {
-		ComQIPtr<ITfSource> compartmentSource = compartment;
+		winrt::com_ptr<ITfSource> compartmentSource = compartment.as<ITfSource>();
 		if(compartmentSource)
 			compartmentSource->UnadviseSink(keyboardOpenEventSinkCookie_);
 		keyboardOpenEventSinkCookie_ = TF_INVALID_COOKIE;
@@ -830,8 +836,8 @@ STDMETHODIMP TextService::OnEndEdit(ITfContext *pContext, TfEditCookie ecReadOnl
 			TF_SELECTION selection;
 			ULONG selectionNum;
 			if(pContext->GetSelection(ecReadOnly, TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK) {
-				ComPtr<ITfRange> compRange;
-				if(composition_->GetRange(&compRange) == S_OK) {
+				winrt::com_ptr<ITfRange> compRange;
+				if(composition_->GetRange(compRange.put()) == S_OK) {
 					// check if two ranges overlaps
 					// check if current selection is covered by composition range
 					LONG compareResult1;
@@ -1076,8 +1082,8 @@ HRESULT TextService::doEndCompositionEditSession(TfEditCookie cookie, EndComposi
 		ITfRange* compositionRange;
 		if(composition_->GetRange(&compositionRange) == S_OK) {
 			// clear display attribute for the composition range
-			ComPtr<ITfProperty> dispAttrProp;
-			if(session->context()->GetProperty(GUID_PROP_ATTRIBUTE, &dispAttrProp) == S_OK) {
+			winrt::com_ptr<ITfProperty> dispAttrProp;
+			if(session->context()->GetProperty(GUID_PROP_ATTRIBUTE, dispAttrProp.put()) == S_OK) {
 				dispAttrProp->Clear(cookie, compositionRange);
 			}
 
@@ -1114,12 +1120,12 @@ ITfContext* TextService::currentContext() {
 bool TextService::compositionRect(EditSession* session, RECT* rect) {
 	bool ret = false;
 	if(isComposing()) {
-		ComPtr<ITfContextView> view;
-		if(session->context()->GetActiveView(&view) == S_OK) {
+		winrt::com_ptr<ITfContextView> view;
+		if(session->context()->GetActiveView(view.put()) == S_OK) {
 			BOOL clipped;
-			ComPtr<ITfRange> range;
-			if(composition_->GetRange(&range) == S_OK) {
-				if(view->GetTextExt(session->editCookie(), range, rect, &clipped) == S_OK)
+			winrt::com_ptr<ITfRange> range;
+			if(composition_->GetRange(range.put()) == S_OK) {
+				if(view->GetTextExt(session->editCookie(), range.get(), rect, &clipped) == S_OK)
 					ret = true;
 			}
 		}
@@ -1130,8 +1136,8 @@ bool TextService::compositionRect(EditSession* session, RECT* rect) {
 bool TextService::selectionRect(EditSession* session, RECT* rect) {
 	bool ret = false;
 	if(isComposing()) {
-		ComPtr<ITfContextView> view;
-		if(session->context()->GetActiveView(&view) == S_OK) {
+		winrt::com_ptr<ITfContextView> view;
+		if(session->context()->GetActiveView(view.put()) == S_OK) {
 			BOOL clipped;
 			TF_SELECTION selection;
 			ULONG selectionNum;
@@ -1147,8 +1153,8 @@ bool TextService::selectionRect(EditSession* session, RECT* rect) {
 
 HWND TextService::compositionWindow(EditSession* session) {
 	HWND hwnd = NULL;
-	ComPtr<ITfContextView> view;
-	if(session->context()->GetActiveView(&view) == S_OK) {
+	winrt::com_ptr<ITfContextView> view;
+	if(session->context()->GetActiveView(view.put()) == S_OK) {
 		// get current composition window
 		view->GetWnd(&hwnd);
 	}

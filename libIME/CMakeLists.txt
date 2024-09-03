@@ -42,8 +42,6 @@ add_library(libIME_static STATIC
     LangBarButton.h
     Utils.cpp
     Utils.h
-    ComPtr.h
-	WindowsVersion.h
     # GUI-related code
     DrawUtils.h
     DrawUtils.cpp

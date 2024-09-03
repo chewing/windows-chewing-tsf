@@ -31,8 +31,7 @@ const CLSID g_textServiceClsid = {
 };
 
 ImeModule::ImeModule(HMODULE module):
-	Ime::ImeModule(module, g_textServiceClsid),
-	config_(windowsVersion()) {
+	Ime::ImeModule(module, g_textServiceClsid) {
 	
 	config_.load(); // load configurations
 

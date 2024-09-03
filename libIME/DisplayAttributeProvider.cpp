@@ -28,8 +28,8 @@ using namespace std;
 namespace Ime {
 
 DisplayAttributeProvider::DisplayAttributeProvider(ImeModule* module):
-	imeModule_(module),
 	refCount_(1) {
+	imeModule_.copy_from(module);
 }
 
 DisplayAttributeProvider::~DisplayAttributeProvider(void) {

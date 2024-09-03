@@ -22,7 +22,9 @@
 
 #include <msctf.h>
 #include <list>
-#include "ComPtr.h"
+
+#include <Unknwn.h>
+#include <winrt/base.h>
 
 namespace Ime {
 
@@ -52,7 +54,7 @@ protected: // COM object should not be deleted directly. calling Release() inste
 
 private:
 	int refCount_;
-	ComPtr<ImeModule> imeModule_;
+	winrt::com_ptr<ImeModule> imeModule_;
 };
 
 }

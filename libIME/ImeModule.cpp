@@ -17,6 +17,9 @@
 //	Boston, MA  02110-1301, USA.
 //
 
+#include <Windows.h>
+#include <VersionHelpers.h>
+
 #include "ImeModule.h"
 #include <string>
 #include <algorithm>
@@ -143,8 +146,8 @@ static void loadDefaultUserRegistry(const wchar_t* defaultUserRegKey) {
 
 HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int langsCount) {
 	// register the language profile
-	ComPtr<ITfInputProcessorProfiles> inputProcessProfiles;
-	if(CoCreateInstance(CLSID_TF_InputProcessorProfiles, NULL, CLSCTX_INPROC_SERVER, IID_ITfInputProcessorProfiles, (void**)&inputProcessProfiles) == S_OK) {
+	winrt::com_ptr<ITfInputProcessorProfiles> inputProcessProfiles;
+	if(CoCreateInstance(CLSID_TF_InputProcessorProfiles, NULL, CLSCTX_INPROC_SERVER, IID_ITfInputProcessorProfiles, inputProcessProfiles.put_void()) == S_OK) {
 		for(int i = 0; i < langsCount; ++i) {
 			LangProfileInfo& lang = langs[i];
 			if(inputProcessProfiles->Register(textServiceClsid_) == S_OK) {
@@ -188,7 +191,7 @@ HRESULT ImeModule::registerLangProfiles(LangProfileInfo* langs, int langsCount) 
 	// The keys under HKCU\Control Panel\ is shared between the x86 and x64 versions and 
 	// are not affected by WOW64 redirection. So doing this inside the 32-bit version is enough.
 
-	if (isWindows8Above()) {
+	if (IsWindows8OrGreater()) {
 		DWORD sidCount = 0;
 		if (::RegQueryInfoKeyW(HKEY_USERS, NULL, NULL, NULL, &sidCount, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
 			return E_FAIL;
@@ -316,7 +319,7 @@ HRESULT ImeModule::registerServer(wchar_t* imeName, LangProfileInfo* langs, int 
 				result  = E_FAIL;
 			}
 
-			if(isWindows8Above()) {
+			if(IsWindows8OrGreater()) {
 				// for Windows 8 store app support
 				// TODO: according to a exhaustive Google search, I found that
 				// TF_IPP_CAPS_IMMERSIVESUPPORT is required to make the IME work with Windows 8.
@@ -356,7 +359,7 @@ HRESULT ImeModule::unregisterServer() {
 		// UI less mode
 		categoryMgr->UnregisterCategory(textServiceClsid_, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, textServiceClsid_);
 
-		if(isWindows8Above()) {
+		if(IsWindows8OrGreater()) {
 			// Windows 8 support
 			categoryMgr->UnregisterCategory(textServiceClsid_, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, textServiceClsid_);
 			categoryMgr->RegisterCategory(textServiceClsid_, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, textServiceClsid_);
@@ -379,7 +382,7 @@ HRESULT ImeModule::unregisterServer() {
 	// are not affected by WOW64 redirection. So doing this inside the 32-bit version is enough.
 
 	// delete settings under "HKEY_CURRENT_USER\Control Panel\International\User Profile\<locale_name>" for all users
-	if (isWindows8Above()) {
+	if (IsWindows8OrGreater()) {
 		DWORD sidCount = 0;
 		if (::RegQueryInfoKeyW(HKEY_USERS, NULL, NULL, NULL, &sidCount, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != ERROR_SUCCESS)
 			return E_FAIL;
@@ -449,8 +452,8 @@ HRESULT ImeModule::unregisterServer() {
 bool ImeModule::registerDisplayAttributeInfos() {
 
 	// register display attributes
-	ComPtr<ITfCategoryMgr> categoryMgr;
-	if(::CoCreateInstance(CLSID_TF_CategoryMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr, (void**)&categoryMgr) == S_OK) {
+	winrt::com_ptr<ITfCategoryMgr> categoryMgr;
+	if(::CoCreateInstance(CLSID_TF_CategoryMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr, categoryMgr.put_void()) == S_OK) {
 		TfGuidAtom atom;
 		categoryMgr->RegisterGUID(g_inputDisplayAttributeGuid, &atom);
 		inputAttrib_->setAtom(atom);

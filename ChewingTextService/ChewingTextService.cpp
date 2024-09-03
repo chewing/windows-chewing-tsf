@@ -19,6 +19,9 @@
 
 #include "ChewingTextService.h"
 
+#include <Windows.h>
+#include <VersionHelpers.h>
+
 #include <Shellapi.h>
 #include <assert.h>
 #include <libIME/LangBarButton.h>
@@ -99,7 +102,7 @@ TextService::TextService(ImeModule* module):
 	button->Release();
 
 	// Windows 8 systray IME mode icon
-	if(imeModule()->isWindows8Above()) {
+	if(IsWindows8OrGreater()) {
 		imeModeIcon_ = new Ime::LangBarButton(this, _GUID_LBI_INPUTMODE, ID_MODE_ICON);
 		imeModeIcon_->setIcon(IDI_ENG);
 		addButton(imeModeIcon_);

@@ -23,7 +23,9 @@
 #include <msctf.h>
 #include <list>
 #include "DisplayAttributeInfo.h"
-#include "ComPtr.h"
+
+#include <Unknwn.h>
+#include <winrt/base.h>
 
 namespace Ime {
 
@@ -51,7 +53,7 @@ protected: // COM object should not be deleted directly. calling Release() inste
 private:
 	int refCount_;
 	std::list<DisplayAttributeInfo*>::iterator iterator_;
-	ComPtr<DisplayAttributeProvider> provider_;
+	winrt::com_ptr<DisplayAttributeProvider> provider_;
 };
 
 }

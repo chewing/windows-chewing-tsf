@@ -24,7 +24,6 @@
 #include <Windows.h>
 #include <Ctffunc.h>
 #include <list>
-#include "WindowsVersion.h"
 #include <string>
 
 namespace Ime {
@@ -56,14 +55,6 @@ public:
 
 	const CLSID& textServiceClsid() const {
 		return textServiceClsid_;
-	}
-
-	bool isWindows8Above() {
-		return winVer_.isWindows8Above();
-	}
-
-	WindowsVersion windowsVersion() const {
-		return winVer_;
 	}
 
 	// Dll entry points implementations
@@ -134,7 +125,6 @@ private:
 	DisplayAttributeInfo* inputAttrib_;
 	// DisplayAttributeInfo* convertedAttrib_;
 
-	WindowsVersion winVer_;
 	std::list<TextService*> textServices_;
 };
 

@@ -5,10 +5,12 @@
 #include <msctf.h>
 #include "EditSession.h"
 #include "KeyEvent.h"
-#include "ComPtr.h"
 
 #include <vector>
 #include <list>
+
+#include <Unknwn.h>
+#include <winrt/base.h>
 
 // for Windows 8 support
 #ifndef TF_TMF_IMMERSIVEMODE // this is defined in Win 8 SDK
@@ -85,9 +87,9 @@ public:
 	void setCompositionCursor(EditSession* session, int pos);
 
 	// compartment handling
-	ComPtr<ITfCompartment> globalCompartment(const GUID& key);
-	ComPtr<ITfCompartment> threadCompartment(const GUID& key);
-	ComPtr<ITfCompartment> contextCompartment(const GUID& key, ITfContext* context = NULL);
+	winrt::com_ptr<ITfCompartment> globalCompartment(const GUID& key);
+	winrt::com_ptr<ITfCompartment> threadCompartment(const GUID& key);
+	winrt::com_ptr<ITfCompartment> contextCompartment(const GUID& key, ITfContext* context = NULL);
 
 	DWORD globalCompartmentValue(const GUID& key);
 	DWORD threadCompartmentValue(const GUID& key);
@@ -134,8 +136,8 @@ public:
 	virtual void onCompositionTerminated(bool forced);
 
 private:
-	ComPtr<ImeModule> module_;
-	ComPtr<ITfThreadMgr> threadMgr_;
+	winrt::com_ptr<ImeModule> module_;
+	winrt::com_ptr<ITfThreadMgr> threadMgr_;
 	TfClientId clientId_;
 	DWORD activateFlags_;
 	bool isKeyboardOpened_;
@@ -150,7 +152,7 @@ private:
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
 	CandidateWindow* candidateWindow_;
-	ComPtr<ITfLangBarMgr> langBarMgr_;
+	winrt::com_ptr<ITfLangBarMgr> langBarMgr_;
 	std::vector<LangBarButton*> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
 	std::vector<CompartmentMonitor> compartmentMonitors_;
