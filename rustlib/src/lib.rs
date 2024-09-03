@@ -34,12 +34,12 @@ mod ffi {
 }
 
 use ffi::{Patch, RectF};
-use log::debug;
 use nine_patch_drawable::{PatchKind, Section};
 
 pub struct NinePatchDrawable(nine_patch_drawable::NinePatchDrawable);
 
 pub fn nine_patch_uninit() -> Box<NinePatchDrawable> {
+    // FIXME: move to rustlib::init()
     win_dbg_logger::init();
     win_dbg_logger::rust_win_dbg_logger_init_debug();
     make_nine_patch(&[], 0, 0, 0)
@@ -51,7 +51,6 @@ pub fn make_nine_patch(
     width: usize,
     height: usize,
 ) -> Box<NinePatchDrawable> {
-    debug!("{:?} {:?} {:?} {:?}", bitmap, stride, width, height);
     let drawable = nine_patch_drawable::NinePatchDrawable::new(bitmap, stride, width, height)
         .unwrap_or(nine_patch_drawable::NinePatchDrawable {
             width,

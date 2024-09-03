@@ -9,27 +9,16 @@ add_definitions(
 	/D_UNICODE=1 /DUNICODE=1 # do Unicode build
 	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
 )
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 20)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8") # set source code encoding to UTF-8
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-") # turn off C++ RTTI
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8") # set source code encoding to UTF-8
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL /Gw")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /Gw")
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION $<CONFIG:Release>)
+if (MSVC)
+	add_compile_options(/utf-8)
+endif()
 
-enable_testing()
+# Static link MSVC runtime
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
-set(PROJECT_LIBCHEWING ${PROJECT_SOURCE_DIR}/libchewing)
-set(CHEWING_DATA_PREFIX ${PROJECT_BINARY_DIR}/libchewing/data)
-
-add_subdirectory(${PROJECT_LIBCHEWING})
-
-add_subdirectory(${PROJECT_SOURCE_DIR}/libIME)
-
-add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingTextService)
-
-add_subdirectory(${PROJECT_SOURCE_DIR}/ChewingPreferences)
+add_subdirectory(libchewing)
+add_subdirectory(libIME)
+add_subdirectory(ChewingTextService)
+add_subdirectory(ChewingPreferences)

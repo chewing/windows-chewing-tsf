@@ -10,11 +10,15 @@ if(NOT Corrosion_FOUND)
 endif()
 
 corrosion_import_crate(MANIFEST_PATH ../rustlib/Cargo.toml CRATES rustlib CRATE_TYPES staticlib)
-# corrosion_set_env_vars(rustlib "CFLAGS=-MDd" "CXXFLAGS=-MDd")
 corrosion_add_cxxbridge(rustlib_bridge
         CRATE rustlib
         FILES lib.rs
 )
+corrosion_add_target_rustflags(rustlib "-C target-feature=+crt-static")
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
+    corrosion_set_env_vars(rustlib "CFLAGS=-EHsc" "CXXFLAGS=-EHsc")
+endif()
 
 add_library(libIME_static STATIC
     # Core TSF part
@@ -55,8 +59,6 @@ add_library(libIME_static STATIC
     NinePatch.cpp
 )
 
-target_compile_features(libIME_static PUBLIC cxx_std_17)
-
 target_link_libraries(libIME_static
     PUBLIC rustlib_bridge
     PUBLIC shlwapi.lib
@@ -65,7 +67,3 @@ target_link_libraries(libIME_static
     PUBLIC dwrite.lib
     PUBLIC dcomp.lib
 )
-set_target_properties(rustlib_bridge PROPERTIES
-    MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-set_target_properties(libIME_static PROPERTIES
-    MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")

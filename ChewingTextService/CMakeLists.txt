@@ -1,11 +1,6 @@
 project(ChewingTextService)
 
-if(NOT DEFINED PROJECT_LIBCHEWING)
-    message(FATAL_ERROR "PROJECT_LIBCHEWING must be provided")
-endif()
-
 include_directories(
-    ${PROJECT_LIBCHEWING}/include
     ${CMAKE_SOURCE_DIR}
 )
 
@@ -27,4 +22,8 @@ add_library(ChewingTextService SHARED
 target_link_libraries(ChewingTextService
     libchewing
     libIME_static
+)
+target_link_options(ChewingTextService
+    PRIVATE /NODEFAULTLIB:MSVCRT
+    PRIVATE /NODEFAULTLIB:MSVCRTD
 )
