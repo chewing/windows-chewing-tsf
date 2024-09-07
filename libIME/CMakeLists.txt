@@ -9,15 +9,15 @@ if(NOT Corrosion_FOUND)
     FetchContent_MakeAvailable(Corrosion)
 endif()
 
-corrosion_import_crate(MANIFEST_PATH ../rustlib/Cargo.toml CRATES rustlib CRATE_TYPES staticlib)
-corrosion_add_cxxbridge(rustlib_bridge
-        CRATE rustlib
+corrosion_import_crate(MANIFEST_PATH Cargo.toml CRATES libime2 CRATE_TYPES staticlib)
+corrosion_add_cxxbridge(libime2_bridge
+        CRATE libime2
         FILES lib.rs
 )
-corrosion_add_target_rustflags(rustlib "-C target-feature=+crt-static")
+corrosion_add_target_rustflags(libime2 "-C target-feature=+crt-static")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
-    corrosion_set_env_vars(rustlib "CFLAGS=-EHsc" "CXXFLAGS=-EHsc")
+    corrosion_set_env_vars(libime2 "CFLAGS=-EHsc" "CXXFLAGS=-EHsc")
 endif()
 
 add_library(libIME_static STATIC
@@ -58,7 +58,7 @@ add_library(libIME_static STATIC
 )
 
 target_link_libraries(libIME_static
-    PUBLIC rustlib_bridge
+    PUBLIC libime2_bridge
     PUBLIC shlwapi.lib
     PUBLIC d2d1.lib
     PUBLIC d3d11.lib

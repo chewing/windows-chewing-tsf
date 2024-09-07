@@ -38,7 +38,7 @@
 #include "EditSession.h"
 #include "NinePatch.h"
 #include "TextService.h"
-#include "rustlib_bridge/lib.h"
+#include "libime2_bridge/lib.h"
 
 using namespace std;
 using winrt::check_hresult;

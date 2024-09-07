@@ -14,7 +14,7 @@
 
 #include <string>
 
-#include "rustlib_bridge/lib.h"
+#include "libime2_bridge/lib.h"
 
 using winrt::check_hresult;
 using winrt::com_ptr;
