@@ -1,3 +1,5 @@
+mod window;
+
 #[cxx::bridge]
 mod ffi {
     struct RectF {
@@ -39,9 +41,6 @@ use nine_patch_drawable::{PatchKind, Section};
 pub struct NinePatchDrawable(nine_patch_drawable::NinePatchDrawable);
 
 pub fn nine_patch_uninit() -> Box<NinePatchDrawable> {
-    // FIXME: move to rustlib::init()
-    win_dbg_logger::init();
-    win_dbg_logger::rust_win_dbg_logger_init_debug();
     make_nine_patch(&[], 0, 0, 0)
 }
 
@@ -101,4 +100,9 @@ pub fn nine_patch_scale_to(
             },
         })
         .collect()
+}
+
+#[no_mangle]
+unsafe extern "C" fn LibIME2Init() {
+    win_dbg_logger::rust_win_dbg_logger_init_debug();
 }

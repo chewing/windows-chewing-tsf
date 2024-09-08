@@ -33,6 +33,8 @@
 #include "TextService.h"
 #include "DisplayAttributeProvider.h"
 
+#include "libime2.h"
+
 using namespace std;
 
 namespace Ime {
@@ -64,7 +66,9 @@ ImeModule::ImeModule(HMODULE module, const CLSID& textServiceClsid):
 	textServiceClsid_(textServiceClsid),
 	refCount_(1) {
 
+	LibIME2Init();
 	Window::registerClass(hInstance_);
+	ImeWindowRegisterClass(hInstance_);
 
 	// regiser default display attributes
 	inputAttrib_ = new DisplayAttributeInfo(g_inputDisplayAttributeGuid);

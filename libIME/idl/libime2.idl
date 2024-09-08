@@ -1,0 +1,53 @@
+import "unknwn.idl";
+
+[
+object,
+uuid(d73284e1-59aa-42ef-84ca-1633beca464b),
+local
+]
+interface IWindow : IUnknown
+{
+  HWND hwnd();
+  boolean create(HWND parent, DWORD style, [defaultvalue(0)] DWORD exStyle);
+  void destroy();
+  boolean isVisible();
+  boolean isWindow();
+  void move(int x, int y);
+  void size([out] int *width, [out] int *height);
+  void resize(int width, int height);
+  void clientRect([out] RECT *rect);
+  void rect([out] RECT *rect);
+  void show();
+  void hide();
+  void refresh();
+
+  LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
+}
+
+[
+object,
+uuid(d4eee9d6-60a0-4169-b3b8-d99f66ebe61a),
+local
+]
+interface ICandidateWindow : IWindow
+{
+  void setFontSize(float size);
+}
+
+[
+object,
+uuid(7375ef7b-4564-46eb-b8d1-e27228428623),
+local
+]
+interface IMessageWindow : IWindow
+{
+  const unsigned long ID_TIMEOUT = 1;
+  void setFontSize(DWORD fontSize);
+  void setText(LPCWSTR text);
+}
+
+[local] void LibIME2Init();
+[local] void CreateImeWindow([out] void **window);
+[local] void CreateMessageWindow(HWND parent, [out] void **messagewindow);
+[local] IWindow *ImeWindowFromHwnd(HWND hwnd);
+[local] boolean ImeWindowRegisterClass(HINSTANCE hinstance);

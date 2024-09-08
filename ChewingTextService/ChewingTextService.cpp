@@ -27,11 +27,14 @@
 #include <libIME/LangBarButton.h>
 #include <libIME/Utils.h>
 #include <sys/stat.h>
+#include <winrt/base.h>
 
+#include <cstddef>
 #include <string>
 
 #include "ChewingImeModule.h"
 #include "resource.h"
+#include "libime2.h"
 
 
 using namespace std;
@@ -70,7 +73,6 @@ TextService::TextService(ImeModule* module):
 	shapeMode_(-1),
 	outputSimpChinese_(false),
 	lastKeyDownCode_(0),
-	messageWindow_(NULL),
 	messageTimerId_(0),
 	candidateWindow_(NULL),
 	imeModeIcon_(NULL),
@@ -722,9 +724,10 @@ void TextService::applyConfig() {
 		::DeleteObject(font_); // delete old font
 		lf.lfHeight = cfg.fontSize; // apply the new size
 		font_ = CreateFontIndirect(&lf); // create new font
-		if(messageWindow_)
-			messageWindow_->setFont(font_);
-			// messageWindow_->setFontSize(cfg.fontSize);
+		if(messageWindow_) {
+		// 	messageWindow_->setFont(font_);
+			messageWindow_->setFontSize(cfg.fontSize);
+		}
 		if(candidateWindow_) {
 			candidateWindow_->setFont(font_);
 			candidateWindow_->setFontSize(static_cast<float>(cfg.fontSize));
@@ -833,10 +836,11 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	// remove previous message if there's any
 	hideMessage();
 	// FIXME: reuse the window whenever possible
-	messageWindow_ = new Ime::MessageWindow(this, session);
-	messageWindow_->setFont(font_);
+	HWND parent = this->compositionWindow(session);
+	messageWindow_ = nullptr;
+	CreateMessageWindow(parent, messageWindow_.put_void());
 	messageWindow_->setFontSize(config().fontSize);
-	messageWindow_->setText(message);
+	messageWindow_->setText(message.c_str());
 	
 	int x = 0, y = 0;
 	if(isComposing()) {
@@ -849,7 +853,7 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	messageWindow_->move(x, y);
 	messageWindow_->show();
 
-	messageTimerId_ = ::SetTimer(messageWindow_->hwnd(), 1, duration * 1000, (TIMERPROC)TextService::onMessageTimeout);
+	messageTimerId_ = ::SetTimer(messageWindow_->hwnd(), 1, duration * 1000, nullptr);
 }
 
 void TextService::hideMessage() {
@@ -858,26 +862,10 @@ void TextService::hideMessage() {
 		messageTimerId_ = 0;
 	}
 	if(messageWindow_) {
-		delete messageWindow_;
-		messageWindow_ = NULL;
+		messageWindow_->destroy();
+		messageWindow_ = nullptr;
 	}
 }
-
-// called when the message window timeout
-void TextService::onMessageTimeout() {
-	hideMessage();
-}
-
-// static
-void CALLBACK TextService::onMessageTimeout(HWND hwnd, UINT msg, UINT_PTR id, DWORD time) {
-	Ime::MessageWindow* messageWindow = (Ime::MessageWindow*)Ime::Window::fromHwnd(hwnd);
-	assert(messageWindow);
-	if(messageWindow) {
-		TextService* pThis = (Chewing::TextService*)messageWindow->textService();
-		pThis->onMessageTimeout();
-	}
-}
-
 
 void TextService::updateLangButtons() {
 	if(!chewingContext_)

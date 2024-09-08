@@ -20,6 +20,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC
     corrosion_set_env_vars(libime2 "CFLAGS=-EHsc" "CXXFLAGS=-EHsc")
 endif()
 
+find_program(MIDL midl)
+add_custom_command(
+    OUTPUT
+        dlldata.c
+        libime2.h
+        libime2_i.c
+        libime2_p.c
+    COMMAND MIDL ${CMAKE_CURRENT_SOURCE_DIR}/idl/libime2.idl
+    MAIN_DEPENDENCY idl/libime2.idl
+)
+
 add_library(libIME_static STATIC
     # Core TSF part
     ImeModule.cpp
@@ -49,13 +60,18 @@ add_library(libIME_static STATIC
     Window.h
     ImeWindow.cpp
     ImeWindow.h
-    MessageWindow.cpp
-    MessageWindow.h
     CandidateWindow.h
     CandidateWindow.cpp
     NinePatch.h
     NinePatch.cpp
+
+    dlldata.c
+    libime2.h
+    libime2_i.c
+    libime2_p.c
 )
+
+target_include_directories(libIME_static PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(libIME_static
     PUBLIC libime2_bridge
@@ -64,4 +80,7 @@ target_link_libraries(libIME_static
     PUBLIC d3d11.lib
     PUBLIC dwrite.lib
     PUBLIC dcomp.lib
+
+    PUBLIC Propsys.lib
+    PUBLIC RuntimeObject.lib
 )
