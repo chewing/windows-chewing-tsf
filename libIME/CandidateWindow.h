@@ -65,40 +65,18 @@ class CandidateWindow : public ImeWindow, public ITfCandidateListUIElement {
     STDMETHODIMP SetPageIndex(UINT *puIndex, UINT uPageCnt);
     STDMETHODIMP GetCurrentPage(UINT *puPage);
 
-    const std::vector<std::wstring> &items() const { return items_; }
-
-    void setItems(const std::vector<std::wstring> &items,
-                  const std::vector<wchar_t> &sekKeys) {
-        items_ = items;
-        selKeys_ = selKeys_;
-        recalculateSize();
-        refresh();
-    }
-
     void add(std::wstring item, wchar_t selKey) {
         items_.push_back(item);
         selKeys_.push_back(selKey);
     }
 
-    void clear();
-
-    int candPerRow() const { return candPerRow_; }
-    void setCandPerRow(int n);
-
-    virtual void recalculateSize();
-
-    bool filterKeyEvent(KeyEvent &keyEvent);
-
-    int currentSel() const { return currentSel_; }
-    void setCurrentSel(int sel);
-
     wchar_t currentSelKey() const { return selKeys_.at(currentSel_); }
-
-    bool hasResult() const { return hasResult_; }
-
-    bool useCursor() const { return useCursor_; }
-
+    void clear();
+    void setCandPerRow(int n);
     void setUseCursor(bool use);
+    bool filterKeyEvent(KeyEvent &keyEvent);
+    bool hasResult() const { return hasResult_; }
+    virtual void recalculateSize();
 
    protected:
     LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
@@ -106,6 +84,19 @@ class CandidateWindow : public ImeWindow, public ITfCandidateListUIElement {
     void paintItemD2D(ID2D1RenderTarget *pRenderTarget, int i, int x, int y);
     void itemRect(int i, RECT &rect);
     void resizeSwapChain(int width, int height);
+
+    const std::vector<std::wstring> &items() const { return items_; }
+    void setItems(const std::vector<std::wstring> &items,
+                  const std::vector<wchar_t> &sekKeys) {
+        items_ = items;
+        selKeys_ = selKeys_;
+        recalculateSize();
+        refresh();
+    }
+    int candPerRow() const { return candPerRow_; }
+    int currentSel() const { return currentSel_; }
+    void setCurrentSel(int sel);
+    bool useCursor() const { return useCursor_; }
 
    protected:  // COM object should not be deleted directly. calling Release()
                // instead.

@@ -110,7 +110,7 @@ private:
 
 private:
 	ChewingContext* chewingContext_;
-	Ime::CandidateWindow* candidateWindow_;
+	winrt::com_ptr<Ime::CandidateWindow> candidateWindow_;
 	bool showingCandidates_;
 	winrt::com_ptr<IMessageWindow> messageWindow_;
 	UINT messageTimerId_;

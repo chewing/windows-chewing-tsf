@@ -19,7 +19,6 @@
 
 #include "TextService.h"
 #include "EditSession.h"
-#include "CandidateWindow.h"
 #include "LangBarButton.h"
 #include "DisplayAttributeInfoEnum.h"
 #include "ImeModule.h"

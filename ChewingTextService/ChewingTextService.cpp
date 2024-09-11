@@ -74,7 +74,6 @@ TextService::TextService(ImeModule* module):
 	outputSimpChinese_(false),
 	lastKeyDownCode_(0),
 	messageTimerId_(0),
-	candidateWindow_(NULL),
 	imeModeIcon_(NULL),
 	symbolsFileTime_(0),
 	chewingContext_(NULL) {
@@ -126,9 +125,6 @@ TextService::~TextService(void) {
 	if(popupMenu_)
 		::DestroyMenu(popupMenu_);
 
-	if(candidateWindow_)
-		candidateWindow_->Release();
-
 	if(messageWindow_)
 		hideMessage();
 
@@ -164,8 +160,7 @@ void TextService::onDeactivate() {
 
 	if(candidateWindow_) {
 		showingCandidates_ = false;
-		candidateWindow_->Release();
-		candidateWindow_ = NULL;
+		candidateWindow_ = nullptr;
 	}
 }
 
@@ -812,7 +807,7 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	if(!candidateWindow_) {
 		std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
 		bitmap_path += L"\\Assets\\bubble.9.png";
-		candidateWindow_ = new Ime::CandidateWindow(this, session, bitmap_path);
+		candidateWindow_.attach(new Ime::CandidateWindow(this, session, bitmap_path));
 		candidateWindow_->setFont(font_);
 		candidateWindow_->setFontSize(config().fontSize);
 	}
@@ -825,8 +820,7 @@ void TextService::showCandidates(Ime::EditSession* session) {
 void TextService::hideCandidates() {
 	assert(candidateWindow_);
 	if(candidateWindow_) {
-		candidateWindow_->Release();
-		candidateWindow_ = NULL;
+		candidateWindow_ = nullptr;
 	}
 	showingCandidates_ = false;
 }

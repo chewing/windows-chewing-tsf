@@ -1,6 +1,5 @@
 #include "ImeEngine.h"
 #include "EditSession.h"
-#include "CandidateWindow.h"
 #include "LangBarButton.h"
 #include "DisplayAttributeInfoEnum.h"
 #include "ImeModule.h"
@@ -25,15 +24,12 @@ ImeEngine::ImeEngine(ImeModule* module):
 	keyboardOpenEventSinkCookie_(TF_INVALID_COOKIE),
 	globalCompartmentEventSinkCookie_(TF_INVALID_COOKIE),
 	langBarSinkCookie_(TF_INVALID_COOKIE),
-	composition_(NULL),
-	candidateWindow_(NULL) {
+	composition_(NULL) {
 
 	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
 }
 
 ImeEngine::~ImeEngine() {
-	if(candidateWindow_)
-		delete candidateWindow_;
 
 	// This should only happen in rare cases
 	if(!compartmentMonitors_.empty()) {

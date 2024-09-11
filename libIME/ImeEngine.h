@@ -20,7 +20,6 @@
 namespace Ime {
 
 class ImeModule;
-class CandidateWindow;
 class LangBarButton;
 
 class ImeEngine {
@@ -151,7 +150,6 @@ private:
 	DWORD langBarSinkCookie_;
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
-	CandidateWindow* candidateWindow_;
 	winrt::com_ptr<ITfLangBarMgr> langBarMgr_;
 	std::vector<LangBarButton*> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
