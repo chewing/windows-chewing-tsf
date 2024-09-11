@@ -288,7 +288,7 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 		// if we want to use the arrow keys to select candidate strings
 		if(config().cursorCandList && showingCandidates() && candidateWindow_) {
 			// if the candidate window is open, let it handle the key first
-			if(candidateWindow_->filterKeyEvent(keyEvent)) {
+			if(candidateWindow_->filterKeyEvent(keyEvent.keyCode())) {
 				// the user selected a string from the candidate list already
 				if(candidateWindow_->hasResult()) {
 					wchar_t selKey = candidateWindow_->currentSelKey();
@@ -479,11 +479,21 @@ bool TextService::onCommand(UINT id, CommandType type) {
 	assert(chewingContext_);
 	if(type == COMMAND_RIGHT_CLICK) {
 		if(id == ID_MODE_ICON) { // Windows 8 IME mode icon
-			Ime::Window window; // TrackPopupMenu requires a window to work, so let's build a transient one.
-			window.create(HWND_DESKTOP, 0);
+			// TrackPopupMenu requires a window to work, so let's build a transient one.
+			winrt::com_ptr<IWindow> window;
+			CreateImeWindow(window.put_void());
+			window->create(HWND_DESKTOP, 0);
 			POINT pos = {0};
 			::GetCursorPos(&pos);
-			UINT ret = ::TrackPopupMenu(popupMenu_, TPM_NONOTIFY|TPM_RETURNCMD|TPM_LEFTALIGN|TPM_BOTTOMALIGN, pos.x, pos.y, 0, window.hwnd(), NULL);
+			UINT ret = ::TrackPopupMenu(
+				popupMenu_,
+				TPM_NONOTIFY|TPM_RETURNCMD|TPM_LEFTALIGN|TPM_BOTTOMALIGN,
+				pos.x,
+				pos.y,
+				0,
+				window->hwnd(),
+				NULL
+			);
 			if(ret > 0)
 				onCommand(ret, COMMAND_MENU);
 		}
@@ -724,7 +734,7 @@ void TextService::applyConfig() {
 			messageWindow_->setFontSize(cfg.fontSize);
 		}
 		if(candidateWindow_) {
-			candidateWindow_->setFont(font_);
+			// candidateWindow_->setFont(font_);
 			candidateWindow_->setFontSize(static_cast<float>(cfg.fontSize));
 		}
 	}
@@ -777,7 +787,7 @@ void TextService::updateCandidates(Ime::EditSession* session) {
 		char* str = ::chewing_cand_String(chewingContext_);
 		std::wstring wstr = utf8ToUtf16(str);
 		::chewing_free(str);
-		candidateWindow_->add(wstr, (wchar_t)selKeys[i]);
+		candidateWindow_->add(wstr.c_str(), (wchar_t)selKeys[i]);
 	}
 	::chewing_free(selKeys);
 	candidateWindow_->recalculateSize();
@@ -807,8 +817,11 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	if(!candidateWindow_) {
 		std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
 		bitmap_path += L"\\Assets\\bubble.9.png";
-		candidateWindow_.attach(new Ime::CandidateWindow(this, session, bitmap_path));
-		candidateWindow_->setFont(font_);
+		// candidateWindow_.attach(new Ime::CandidateWindow(this, session, bitmap_path));
+		HWND parent = this->compositionWindow(session);
+		candidateWindow_ = nullptr;
+		CreateCandidateWindow(parent, bitmap_path.c_str(), candidateWindow_.put_void());
+		// candidateWindow_->setFont(font_);
 		candidateWindow_->setFontSize(config().fontSize);
 	}
 	updateCandidates(session);

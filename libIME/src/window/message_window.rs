@@ -1,55 +1,22 @@
-use core::f32;
 use std::{
     cell::RefCell,
     ffi::{c_int, c_uint, c_void},
     ops::Deref,
 };
 
-use windows::{
-    core::{h, implement, interface, w, ComObject, ComObjectInner, Interface, PCWSTR},
-    Foundation::Numerics::Matrix3x2,
-    Win32::{
-        Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
-        Graphics::{
-            Direct2D::{
-                Common::{D2D1_ALPHA_MODE_IGNORE, D2D1_COLOR_F, D2D1_PIXEL_FORMAT, D2D_RECT_F},
-                D2D1CreateFactory, ID2D1DeviceContext, ID2D1Factory1, ID2D1SolidColorBrush,
-                D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1_BITMAP_OPTIONS_TARGET,
-                D2D1_BITMAP_PROPERTIES1, D2D1_BRUSH_PROPERTIES, D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-                D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_OPTIONS,
-                D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_UNIT_MODE_DIPS,
-            },
-            Direct3D::{D3D_DRIVER_TYPE, D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP},
-            Direct3D11::{
-                D3D11CreateDevice, ID3D11Device, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-                D3D11_SDK_VERSION,
-            },
-            DirectWrite::{
-                DWriteCreateFactory, IDWriteFactory1, IDWriteTextFormat,
-                DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_WEIGHT_NORMAL, DWRITE_MEASURING_MODE_NATURAL, DWRITE_TEXT_METRICS,
-            },
-            Dxgi::{
-                Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_SAMPLE_DESC},
-                IDXGIDevice, IDXGIFactory2, IDXGISurface, IDXGISwapChain1, DXGI_ERROR_UNSUPPORTED,
-                DXGI_PRESENT, DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_CHAIN_FLAG,
-                DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, DXGI_USAGE_RENDER_TARGET_OUTPUT,
-            },
-            Gdi::{
-                BeginPaint, EndPaint, GetSysColor, COLOR_INFOBK, COLOR_INFOTEXT, PAINTSTRUCT,
-                SYS_COLOR_INDEX,
-            },
-        },
-        UI::WindowsAndMessaging::{
-            DefWindowProcW, GetClientRect, KillTimer, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE,
-            SWP_NOMOVE, WM_NCDESTROY, WM_PAINT, WM_TIMER, WS_CLIPCHILDREN, WS_EX_TOOLWINDOW,
-            WS_EX_TOPMOST, WS_POPUP,
-        },
-    },
-};
-use windows_core::{Result, HSTRING};
+use windows::core::*;
+use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Direct2D::Common::*;
+use windows::Win32::Graphics::Direct2D::*;
+use windows::Win32::Graphics::DirectComposition::*;
+use windows::Win32::Graphics::DirectWrite::*;
+use windows::Win32::Graphics::Dxgi::Common::*;
+use windows::Win32::Graphics::Dxgi::*;
+use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::UI::WindowsAndMessaging::*;
 
 use super::{IWindow, IWindow_Impl, IWindow_Vtbl, Window};
+use crate::gfx::*;
 
 const ID_TIMEOUT: usize = 1;
 
@@ -68,6 +35,7 @@ struct MessageWindow {
     text_format: RefCell<IDWriteTextFormat>,
     target: RefCell<Option<ID2D1DeviceContext>>,
     swapchain: RefCell<Option<IDXGISwapChain1>>,
+    dcomptarget: RefCell<Option<IDCompositionTarget>>,
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
     dpi: f32,
     window: ComObject<Window>,
@@ -126,7 +94,7 @@ impl MessageWindow {
                     )
                     .is_ok()
             } {
-                create_swapchain_bitmap(swapchain, target)?;
+                create_swapchain_bitmap(swapchain, target, self.dpi)?;
             } else {
                 self.target.take();
                 self.swapchain.take();
@@ -139,21 +107,38 @@ impl MessageWindow {
         Ok(())
     }
 
-    fn on_paint(&self) -> Result<()> {
+    fn create_target(&self) -> Result<()> {
         let create_target = self.target.borrow().is_none();
         if create_target {
             let device = create_device()?;
             let target = create_render_target(&self.factory, &device)?;
             unsafe { target.SetDpi(self.dpi, self.dpi) };
 
-            let swapchain = create_swapchain(&device, self.window.hwnd.get())?;
-            create_swapchain_bitmap(&swapchain, &target)?;
+            let mut rc = RECT::default();
+            unsafe { GetClientRect(self.window.hwnd.get(), &mut rc)? };
+
+            let swapchain = create_swapchain(
+                &device,
+                (rc.right - rc.left) as u32,
+                (rc.bottom - rc.top) as u32,
+            )?;
+
+            create_swapchain_bitmap(&swapchain, &target, self.dpi)?;
+            let dcomptarget =
+                setup_direct_composition(&device, self.window.hwnd.get(), &swapchain)?;
 
             self.brush
                 .replace(create_brush(&target, create_color(COLOR_INFOTEXT)).ok());
+            self.dcomptarget.replace(Some(dcomptarget));
             self.target.replace(Some(target));
             self.swapchain.replace(Some(swapchain));
         }
+        Ok(())
+    }
+
+    fn on_paint(&self) -> Result<()> {
+        self.create_target()?;
+
         let target = self.target.borrow();
         let swapchain = self.swapchain.borrow();
         let target = target.as_ref().unwrap();
@@ -234,6 +219,7 @@ unsafe extern "C" fn CreateMessageWindow(parent: HWND, ret: *mut *mut c_void) {
         factory,
         dwrite_factory,
         text_format: RefCell::new(text_format),
+        dcomptarget: None.into(),
         target: None.into(),
         swapchain: None.into(),
         brush: None.into(),
@@ -320,7 +306,7 @@ impl IWindow_Impl for MessageWindow_Impl {
                 self.brush.take();
                 LRESULT(0)
             }
-            _ => DefWindowProcW(self.hwnd(), msg, wp, lp),
+            _ => self.window.wnd_proc(msg, wp, lp),
         }
     }
 }
@@ -336,7 +322,7 @@ impl IMessageWindow_Impl for MessageWindow_Impl {
                     DWRITE_FONT_STYLE_NORMAL,
                     DWRITE_FONT_STRETCH_NORMAL,
                     font_size as f32,
-                    self.text.borrow().deref(),
+                    w!(""),
                 )
                 .unwrap(),
         );
@@ -348,116 +334,4 @@ impl IMessageWindow_Impl for MessageWindow_Impl {
             self.refresh();
         }
     }
-}
-
-fn create_color(gdi_color_index: SYS_COLOR_INDEX) -> D2D1_COLOR_F {
-    let color = unsafe { GetSysColor(gdi_color_index) };
-    D2D1_COLOR_F {
-        r: (color & 0xFF) as f32 / 255.0,
-        g: ((color >> 8) & 0xFF) as f32 / 255.0,
-        b: ((color >> 16) & 0xFF) as f32 / 255.0,
-        a: 1.0,
-    }
-}
-
-fn create_brush(target: &ID2D1DeviceContext, color: D2D1_COLOR_F) -> Result<ID2D1SolidColorBrush> {
-    let properties = D2D1_BRUSH_PROPERTIES {
-        opacity: 0.8,
-        transform: Matrix3x2::identity(),
-    };
-
-    unsafe { target.CreateSolidColorBrush(&color, Some(&properties)) }
-}
-
-fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
-    let flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-
-    let mut device = None;
-
-    unsafe {
-        D3D11CreateDevice(
-            None,
-            drive_type,
-            None,
-            flags,
-            None,
-            D3D11_SDK_VERSION,
-            Some(&mut device),
-            None,
-            None,
-        )
-        .map(|()| device.unwrap())
-    }
-}
-
-fn create_device() -> Result<ID3D11Device> {
-    let mut result = create_device_with_type(D3D_DRIVER_TYPE_HARDWARE);
-
-    if let Err(err) = &result {
-        if err.code() == DXGI_ERROR_UNSUPPORTED {
-            result = create_device_with_type(D3D_DRIVER_TYPE_WARP);
-        }
-    }
-
-    result
-}
-
-fn create_render_target(
-    factory: &ID2D1Factory1,
-    device: &ID3D11Device,
-) -> Result<ID2D1DeviceContext> {
-    unsafe {
-        let d2device = factory.CreateDevice(&device.cast::<IDXGIDevice>()?)?;
-
-        let target = d2device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
-
-        target.SetUnitMode(D2D1_UNIT_MODE_DIPS);
-
-        Ok(target)
-    }
-}
-
-fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
-    let dxdevice = device.cast::<IDXGIDevice>()?;
-    unsafe { dxdevice.GetAdapter()?.GetParent() }
-}
-
-fn create_swapchain_bitmap(swapchain: &IDXGISwapChain1, target: &ID2D1DeviceContext) -> Result<()> {
-    let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0)? };
-
-    let props = D2D1_BITMAP_PROPERTIES1 {
-        pixelFormat: D2D1_PIXEL_FORMAT {
-            format: DXGI_FORMAT_B8G8R8A8_UNORM,
-            alphaMode: D2D1_ALPHA_MODE_IGNORE,
-        },
-        dpiX: 96.0,
-        dpiY: 96.0,
-        bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        ..Default::default()
-    };
-
-    unsafe {
-        let bitmap = target.CreateBitmapFromDxgiSurface(&surface, Some(&props))?;
-        target.SetTarget(&bitmap);
-    };
-
-    Ok(())
-}
-
-fn create_swapchain(device: &ID3D11Device, window: HWND) -> Result<IDXGISwapChain1> {
-    let factory = get_dxgi_factory(device)?;
-
-    let props = DXGI_SWAP_CHAIN_DESC1 {
-        Format: DXGI_FORMAT_B8G8R8A8_UNORM,
-        SampleDesc: DXGI_SAMPLE_DESC {
-            Count: 1,
-            Quality: 0,
-        },
-        BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        BufferCount: 2,
-        SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
-        ..Default::default()
-    };
-
-    unsafe { factory.CreateSwapChainForHwnd(device, window, &props, None, None) }
 }

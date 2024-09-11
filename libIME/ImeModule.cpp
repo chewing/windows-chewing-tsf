@@ -22,14 +22,11 @@
 
 #include "ImeModule.h"
 #include <string>
-#include <algorithm>
-#include <memory>
 #include <ObjBase.h>
 #include <msctf.h>
 #include <Shlwapi.h>
 #include <ShlObj.h>
 #include <assert.h>
-#include "Window.h"
 #include "TextService.h"
 #include "DisplayAttributeProvider.h"
 
@@ -67,7 +64,6 @@ ImeModule::ImeModule(HMODULE module, const CLSID& textServiceClsid):
 	refCount_(1) {
 
 	LibIME2Init();
-	Window::registerClass(hInstance_);
 	ImeWindowRegisterClass(hInstance_);
 
 	// regiser default display attributes

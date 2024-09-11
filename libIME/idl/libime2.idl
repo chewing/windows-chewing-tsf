@@ -1,4 +1,5 @@
 import "unknwn.idl";
+import "msctf.idl";
 
 [
 object,
@@ -24,6 +25,14 @@ interface IWindow : IUnknown
   LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
 }
 
+typedef struct _KeyEvent {
+  UINT type;
+  UINT keyCode;
+  UINT charCode;
+  LPARAM lParapm;
+  BYTE keyStates[256];
+} KeyEvent;
+
 [
 object,
 uuid(d4eee9d6-60a0-4169-b3b8-d99f66ebe61a),
@@ -31,7 +40,15 @@ local
 ]
 interface ICandidateWindow : IWindow
 {
-  void setFontSize(float size);
+  void setFontSize(DWORD fontSize);
+  void add(LPCWSTR item, WCHAR selKey);
+  WCHAR currentSelKey();
+  void clear();
+  void setCandPerRow(int n);
+  void setUseCursor(boolean use);
+  boolean filterKeyEvent(UINT16 keyCode);
+  boolean hasResult();
+  void recalculateSize();
 }
 
 [
@@ -49,5 +66,6 @@ interface IMessageWindow : IWindow
 [local] void LibIME2Init();
 [local] void CreateImeWindow([out] void **window);
 [local] void CreateMessageWindow(HWND parent, [out] void **messagewindow);
+[local] void CreateCandidateWindow(HWND parent, [in] LPCWSTR image_path, [out] void **candidatewindow);
 [local] IWindow *ImeWindowFromHwnd(HWND hwnd);
 [local] boolean ImeWindowRegisterClass(HINSTANCE hinstance);

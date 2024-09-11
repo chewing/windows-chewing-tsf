@@ -21,7 +21,6 @@
 #define CHEWING_TEXT_SERVICE_H
 
 #include <LibIME/TextService.h>
-#include <LibIME/CandidateWindow.h>
 #include <LibIME/EditSession.h>
 #include <LibIME/LangBarButton.h>
 #include <chewing.h>
@@ -110,9 +109,9 @@ private:
 
 private:
 	ChewingContext* chewingContext_;
-	winrt::com_ptr<Ime::CandidateWindow> candidateWindow_;
-	bool showingCandidates_;
+	winrt::com_ptr<ICandidateWindow> candidateWindow_;
 	winrt::com_ptr<IMessageWindow> messageWindow_;
+	bool showingCandidates_;
 	UINT messageTimerId_;
 	HFONT font_;
 

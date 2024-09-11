@@ -10,10 +10,6 @@ if(NOT Corrosion_FOUND)
 endif()
 
 corrosion_import_crate(MANIFEST_PATH Cargo.toml CRATES libime2 CRATE_TYPES staticlib)
-corrosion_add_cxxbridge(libime2_bridge
-        CRATE libime2
-        FILES lib.rs
-)
 corrosion_add_target_rustflags(libime2 "-C target-feature=+crt-static")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
@@ -53,18 +49,7 @@ add_library(libIME_static STATIC
     LangBarButton.h
     Utils.cpp
     Utils.h
-    # GUI-related code
-    DrawUtils.h
-    DrawUtils.cpp
-    Window.cpp
-    Window.h
-    ImeWindow.cpp
-    ImeWindow.h
-    CandidateWindow.h
-    CandidateWindow.cpp
-    NinePatch.h
-    NinePatch.cpp
-
+    # Rust interop
     dlldata.c
     libime2.h
     libime2_i.c
@@ -74,7 +59,7 @@ add_library(libIME_static STATIC
 target_include_directories(libIME_static PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(libIME_static
-    PUBLIC libime2_bridge
+    PUBLIC libime2
     PUBLIC shlwapi.lib
     PUBLIC d2d1.lib
     PUBLIC d3d11.lib

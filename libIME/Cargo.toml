@@ -7,7 +7,6 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-cxx = { version = "1.0.128", features = ["c++17"] }
 log = "0.4.22"
 nine_patch_drawable = "0.1.0"
 win_dbg_logger = "0.1.0"
@@ -15,14 +14,18 @@ windows-core = "0.58.0"
 windows = { version = "0.58.0", features = [
     "implement",
     "Foundation_Numerics",
-    "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_DirectComposition",
     "Win32_Graphics_DirectWrite",
-    "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Dxgi",
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_Imaging",
+    "Win32_System_Com",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_TextServices",
     "Win32_UI_WindowsAndMessaging",
 ] }

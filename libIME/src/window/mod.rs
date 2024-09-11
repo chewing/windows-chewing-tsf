@@ -5,24 +5,12 @@ use std::{
     ptr::null_mut,
 };
 
-use windows::{
-    core::{implement, interface, w, IUnknown, IUnknown_Vtbl, Interface, Weak},
-    Win32::{
-        Foundation::{FALSE, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM},
-        Graphics::Gdi::{
-            GetMonitorInfoW, InvalidateRect, MonitorFromRect, HBRUSH, MONITORINFO,
-            MONITOR_DEFAULTTONEAREST,
-        },
-        UI::WindowsAndMessaging::{
-            CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, GetWindowRect, IsWindow,
-            IsWindowVisible, LoadCursorW, MoveWindow, RegisterClassExW, SetWindowPos, ShowWindow,
-            CS_IME, HICON, HWND_TOP, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER, SW_HIDE,
-            SW_SHOWNA, WINDOW_EX_STYLE, WINDOW_STYLE, WM_NCDESTROY, WNDCLASSEXW,
-        },
-    },
-};
-use windows_core::PCWSTR;
+use windows::core::*;
+use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::UI::WindowsAndMessaging::*;
 
+mod candidate_window;
 mod message_window;
 
 thread_local! {
@@ -259,7 +247,7 @@ impl IWindow_Impl for Window_Impl {
 
     unsafe fn refresh(&self) {
         if !self.hwnd().is_invalid() {
-            let _ = InvalidateRect(self.hwnd(), None, FALSE);
+            let _ = InvalidateRect(self.hwnd(), None, true);
         }
     }
 
