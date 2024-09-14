@@ -113,7 +113,6 @@ private:
 	winrt::com_ptr<IMessageWindow> messageWindow_;
 	bool showingCandidates_;
 	UINT messageTimerId_;
-	HFONT font_;
 
 	Ime::LangBarButton* switchLangButton_;
 	Ime::LangBarButton* switchShapeButton_;

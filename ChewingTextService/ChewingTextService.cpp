@@ -111,14 +111,6 @@ TextService::TextService(ImeModule* module):
 
 	// global compartment stuff
 	addCompartmentMonitor(g_configChangedGuid, true);
-
-	// font for candidate and mesasge windows
-	font_ = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-	LOGFONT lf;
-	GetObject(font_, sizeof(lf), &lf);
-	lf.lfHeight = config().fontSize;
-	lf.lfWeight = FW_NORMAL;
-	font_ = CreateFontIndirect(&lf);
 }
 
 TextService::~TextService(void) {
@@ -127,9 +119,6 @@ TextService::~TextService(void) {
 
 	if(messageWindow_)
 		hideMessage();
-
-	if(font_)
-		::DeleteObject(font_);
 
 	if(switchLangButton_)
 		switchLangButton_->Release();
@@ -722,21 +711,11 @@ void TextService::applyConfig() {
 		chewing_config_set_int(chewingContext_, "chewing.conversion_engine", cfg.convEngine);
 	}
 
-	// font for candidate and mesasge windows
-	LOGFONT lf;
-	GetObject(font_, sizeof(lf), &lf);
-	if(lf.lfHeight != cfg.fontSize) { // font size is changed
-		::DeleteObject(font_); // delete old font
-		lf.lfHeight = cfg.fontSize; // apply the new size
-		font_ = CreateFontIndirect(&lf); // create new font
-		if(messageWindow_) {
-		// 	messageWindow_->setFont(font_);
-			messageWindow_->setFontSize(cfg.fontSize);
-		}
-		if(candidateWindow_) {
-			// candidateWindow_->setFont(font_);
-			candidateWindow_->setFontSize(static_cast<float>(cfg.fontSize));
-		}
+	if(messageWindow_) {
+		messageWindow_->setFontSize(cfg.fontSize);
+	}
+	if(candidateWindow_) {
+		candidateWindow_->setFontSize(cfg.fontSize);
 	}
 }
 
@@ -777,7 +756,7 @@ void TextService::updateCandidates(Ime::EditSession* session) {
 	candidateWindow_->clear();
 	candidateWindow_->setUseCursor(config().cursorCandList);
 	candidateWindow_->setCandPerRow(config().candPerRow);
-	candidateWindow_->setFontSize(static_cast<float>(config().fontSize));
+	candidateWindow_->setFontSize(config().fontSize);
 
 	::chewing_cand_Enumerate(chewingContext_);
 	int* selKeys = ::chewing_get_selKey(chewingContext_); // keys used to select candidates
