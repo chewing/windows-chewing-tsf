@@ -17,9 +17,6 @@
 //	Boston, MA  02110-1301, USA.
 //
 
-#include <Windows.h>
-#include <libIME/WindowsVersion.h>
-#include <libIME/ComPtr.h>
 #include "TypingPropertyPage.h"
 #include "UiPropertyPage.h"
 #include "KeyboardPropertyPage.h"
@@ -30,6 +27,9 @@
 #include "resource.h"
 #include <CommCtrl.h>
 #include <Msctf.h>
+
+#include <Unknwn.h>
+#include <winrt/base.h>
 
 namespace Chewing {
 
@@ -51,8 +51,7 @@ static void initControls() {
 static void configDialog(HINSTANCE hInstance) {
 	initControls();
 
-	Ime::WindowsVersion winVer;
-	Config config(winVer);
+	Config config;
 	config.load();
 
 	Ime::PropertyDialog dlg;
@@ -76,14 +75,14 @@ static void configDialog(HINSTANCE hInstance) {
 			stamp = 0;
 		// set global compartment value to notify existing ChewingTextService instances
 		::CoInitialize(NULL); // initialize COM
-		Ime::ComPtr<ITfThreadMgr> threadMgr;
-		if(CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, (void**)&threadMgr) == S_OK) {
+		winrt::com_ptr<ITfThreadMgr> threadMgr;
+		if(CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, threadMgr.put_void()) == S_OK) {
 			TfClientId clientId = 0;
 			if(threadMgr->Activate(&clientId) == S_OK) {
-				Ime::ComPtr<ITfCompartmentMgr> compartmentMgr;
-				if(threadMgr->GetGlobalCompartment(&compartmentMgr) == S_OK) {
-					Ime::ComPtr<ITfCompartment> compartment;
-					if(compartmentMgr->GetCompartment(g_configChangedGuid, &compartment) == S_OK) {
+				winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
+				if(threadMgr->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
+					winrt::com_ptr<ITfCompartment> compartment;
+					if(compartmentMgr->GetCompartment(g_configChangedGuid, compartment.put()) == S_OK) {
 						VARIANT var;
 						VariantInit(&var);
 						var.vt = VT_I4;

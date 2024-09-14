@@ -17,8 +17,11 @@
 //	Boston, MA  02110-1301, USA.
 //
 
-#include "ChewingConfig.h"
 #include <Aclapi.h>
+#include <Windows.h>
+#include <VersionHelpers.h>
+
+#include "ChewingConfig.h"
 
 namespace Chewing {
 
@@ -54,8 +57,7 @@ const wchar_t* Config::convEngines[]={
 #define SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE 0x00000001L
 #endif
 
-Config::Config(Ime::WindowsVersion winver):
-	winVer_(winver) {
+Config::Config() {
 	// Configuration
 	keyboardLayout = 0;
 	candPerRow = 3;
@@ -175,7 +177,7 @@ void Config::save() {
 		::RegCloseKey(hk);
 
 		// grant access to app containers in Windows 8
-		if(winVer_.isWindows8Above())
+		if(IsWindows8OrGreater())
 			grantAppContainerAccess(L"CURRENT_USER\\Software\\ChewingTextService", SE_REGISTRY_KEY, KEY_READ);
 	}
 }

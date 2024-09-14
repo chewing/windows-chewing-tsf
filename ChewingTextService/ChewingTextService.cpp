@@ -18,14 +18,24 @@
 //
 
 #include "ChewingTextService.h"
+
+#include <Windows.h>
+#include <VersionHelpers.h>
+
+#include <Shellapi.h>
 #include <assert.h>
-#include <string>
-#include <libIME/Utils.h>
 #include <libIME/LangBarButton.h>
+#include <libIME/Utils.h>
+#include <sys/stat.h>
+#include <winrt/base.h>
+
+#include <cstddef>
+#include <string>
+
 #include "ChewingImeModule.h"
 #include "resource.h"
-#include <Shellapi.h>
-#include <sys/stat.h>
+#include "libime2.h"
+
 
 using namespace std;
 
@@ -63,9 +73,7 @@ TextService::TextService(ImeModule* module):
 	shapeMode_(-1),
 	outputSimpChinese_(false),
 	lastKeyDownCode_(0),
-	messageWindow_(NULL),
 	messageTimerId_(0),
-	candidateWindow_(NULL),
 	imeModeIcon_(NULL),
 	symbolsFileTime_(0),
 	chewingContext_(NULL) {
@@ -95,7 +103,7 @@ TextService::TextService(ImeModule* module):
 	button->Release();
 
 	// Windows 8 systray IME mode icon
-	if(imeModule()->isWindows8Above()) {
+	if(IsWindows8OrGreater()) {
 		imeModeIcon_ = new Ime::LangBarButton(this, _GUID_LBI_INPUTMODE, ID_MODE_ICON);
 		imeModeIcon_->setIcon(IDI_ENG);
 		addButton(imeModeIcon_);
@@ -103,28 +111,14 @@ TextService::TextService(ImeModule* module):
 
 	// global compartment stuff
 	addCompartmentMonitor(g_configChangedGuid, true);
-
-	// font for candidate and mesasge windows
-	font_ = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-	LOGFONT lf;
-	GetObject(font_, sizeof(lf), &lf);
-	lf.lfHeight = config().fontSize;
-	lf.lfWeight = FW_NORMAL;
-	font_ = CreateFontIndirect(&lf);
 }
 
 TextService::~TextService(void) {
 	if(popupMenu_)
 		::DestroyMenu(popupMenu_);
 
-	if(candidateWindow_)
-		candidateWindow_->Release();
-
 	if(messageWindow_)
 		hideMessage();
-
-	if(font_)
-		::DeleteObject(font_);
 
 	if(switchLangButton_)
 		switchLangButton_->Release();
@@ -155,8 +149,7 @@ void TextService::onDeactivate() {
 
 	if(candidateWindow_) {
 		showingCandidates_ = false;
-		candidateWindow_->Release();
-		candidateWindow_ = NULL;
+		candidateWindow_ = nullptr;
 	}
 }
 
@@ -284,7 +277,7 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 		// if we want to use the arrow keys to select candidate strings
 		if(config().cursorCandList && showingCandidates() && candidateWindow_) {
 			// if the candidate window is open, let it handle the key first
-			if(candidateWindow_->filterKeyEvent(keyEvent)) {
+			if(candidateWindow_->filterKeyEvent(keyEvent.keyCode())) {
 				// the user selected a string from the candidate list already
 				if(candidateWindow_->hasResult()) {
 					wchar_t selKey = candidateWindow_->currentSelKey();
@@ -475,11 +468,21 @@ bool TextService::onCommand(UINT id, CommandType type) {
 	assert(chewingContext_);
 	if(type == COMMAND_RIGHT_CLICK) {
 		if(id == ID_MODE_ICON) { // Windows 8 IME mode icon
-			Ime::Window window; // TrackPopupMenu requires a window to work, so let's build a transient one.
-			window.create(HWND_DESKTOP, 0);
+			// TrackPopupMenu requires a window to work, so let's build a transient one.
+			winrt::com_ptr<IWindow> window;
+			CreateImeWindow(window.put_void());
+			window->create(HWND_DESKTOP, 0);
 			POINT pos = {0};
 			::GetCursorPos(&pos);
-			UINT ret = ::TrackPopupMenu(popupMenu_, TPM_NONOTIFY|TPM_RETURNCMD|TPM_LEFTALIGN|TPM_BOTTOMALIGN, pos.x, pos.y, 0, window.hwnd(), NULL);
+			UINT ret = ::TrackPopupMenu(
+				popupMenu_,
+				TPM_NONOTIFY|TPM_RETURNCMD|TPM_LEFTALIGN|TPM_BOTTOMALIGN,
+				pos.x,
+				pos.y,
+				0,
+				window->hwnd(),
+				NULL
+			);
 			if(ret > 0)
 				onCommand(ret, COMMAND_MENU);
 		}
@@ -708,17 +711,11 @@ void TextService::applyConfig() {
 		chewing_config_set_int(chewingContext_, "chewing.conversion_engine", cfg.convEngine);
 	}
 
-	// font for candidate and mesasge windows
-	LOGFONT lf;
-	GetObject(font_, sizeof(lf), &lf);
-	if(lf.lfHeight != cfg.fontSize) { // font size is changed
-		::DeleteObject(font_); // delete old font
-		lf.lfHeight = cfg.fontSize; // apply the new size
-		font_ = CreateFontIndirect(&lf); // create new font
-		if(messageWindow_)
-			messageWindow_->setFont(font_);
-		if(candidateWindow_)
-			candidateWindow_->setFont(font_);
+	if(messageWindow_) {
+		messageWindow_->setFontSize(cfg.fontSize);
+	}
+	if(candidateWindow_) {
+		candidateWindow_->setFontSize(cfg.fontSize);
 	}
 }
 
@@ -759,6 +756,7 @@ void TextService::updateCandidates(Ime::EditSession* session) {
 	candidateWindow_->clear();
 	candidateWindow_->setUseCursor(config().cursorCandList);
 	candidateWindow_->setCandPerRow(config().candPerRow);
+	candidateWindow_->setFontSize(config().fontSize);
 
 	::chewing_cand_Enumerate(chewingContext_);
 	int* selKeys = ::chewing_get_selKey(chewingContext_); // keys used to select candidates
@@ -768,7 +766,7 @@ void TextService::updateCandidates(Ime::EditSession* session) {
 		char* str = ::chewing_cand_String(chewingContext_);
 		std::wstring wstr = utf8ToUtf16(str);
 		::chewing_free(str);
-		candidateWindow_->add(wstr, (wchar_t)selKeys[i]);
+		candidateWindow_->add(wstr.c_str(), (wchar_t)selKeys[i]);
 	}
 	::chewing_free(selKeys);
 	candidateWindow_->recalculateSize();
@@ -796,8 +794,12 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	// The candidate window created should be a child window of the composition window.
 	// Please see Ime::CandidateWindow::CandidateWindow() for an example.
 	if(!candidateWindow_) {
-		candidateWindow_ = new Ime::CandidateWindow(this, session);
-		candidateWindow_->setFont(font_);
+		std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
+		bitmap_path += L"\\Assets\\bubble.9.png";
+		HWND parent = this->compositionWindow(session);
+		candidateWindow_ = nullptr;
+		CreateCandidateWindow(parent, bitmap_path.c_str(), candidateWindow_.put_void());
+		candidateWindow_->setFontSize(config().fontSize);
 	}
 	updateCandidates(session);
 	candidateWindow_->show();
@@ -808,8 +810,7 @@ void TextService::showCandidates(Ime::EditSession* session) {
 void TextService::hideCandidates() {
 	assert(candidateWindow_);
 	if(candidateWindow_) {
-		candidateWindow_->Release();
-		candidateWindow_ = NULL;
+		candidateWindow_ = nullptr;
 	}
 	showingCandidates_ = false;
 }
@@ -819,9 +820,13 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	// remove previous message if there's any
 	hideMessage();
 	// FIXME: reuse the window whenever possible
-	messageWindow_ = new Ime::MessageWindow(this, session);
-	messageWindow_->setFont(font_);
-	messageWindow_->setText(message);
+	HWND parent = this->compositionWindow(session);
+	messageWindow_ = nullptr;
+	std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
+	bitmap_path += L"\\Assets\\msg.9.png";
+	CreateMessageWindow(parent, bitmap_path.c_str(), messageWindow_.put_void());
+	messageWindow_->setFontSize(config().fontSize);
+	messageWindow_->setText(message.c_str());
 	
 	int x = 0, y = 0;
 	if(isComposing()) {
@@ -834,7 +839,7 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	messageWindow_->move(x, y);
 	messageWindow_->show();
 
-	messageTimerId_ = ::SetTimer(messageWindow_->hwnd(), 1, duration * 1000, (TIMERPROC)TextService::onMessageTimeout);
+	messageTimerId_ = ::SetTimer(messageWindow_->hwnd(), 1, duration * 1000, nullptr);
 }
 
 void TextService::hideMessage() {
@@ -843,26 +848,10 @@ void TextService::hideMessage() {
 		messageTimerId_ = 0;
 	}
 	if(messageWindow_) {
-		delete messageWindow_;
-		messageWindow_ = NULL;
+		messageWindow_->destroy();
+		messageWindow_ = nullptr;
 	}
 }
-
-// called when the message window timeout
-void TextService::onMessageTimeout() {
-	hideMessage();
-}
-
-// static
-void CALLBACK TextService::onMessageTimeout(HWND hwnd, UINT msg, UINT_PTR id, DWORD time) {
-	Ime::MessageWindow* messageWindow = (Ime::MessageWindow*)Ime::Window::fromHwnd(hwnd);
-	assert(messageWindow);
-	if(messageWindow) {
-		TextService* pThis = (Chewing::TextService*)messageWindow->textService();
-		pThis->onMessageTimeout();
-	}
-}
-
 
 void TextService::updateLangButtons() {
 	if(!chewingContext_)

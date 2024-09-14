@@ -20,7 +20,6 @@
 #include "SymbolsPropertyPage.h"
 #include "resource.h"
 #include <ShlObj.h>
-#include <libIME/Utils.h>
 
 namespace Chewing {
 

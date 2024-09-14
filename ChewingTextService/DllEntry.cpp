@@ -1,3 +1,6 @@
+#include <Windows.h>
+#include <VersionHelpers.h>
+
 #include "ChewingImeModule.h"
 #include "ChewingConfig.h"
 #include "resource.h"
@@ -47,7 +50,7 @@ STDAPI DllRegisterServer(void) {
 	DWORD modulePathLen = GetModuleFileNameW(g_imeModule->hInstance(), modulePath, MAX_PATH);
 
 	int iconIndex = 0; // use classic icon
-	if(g_imeModule->isWindows8Above())
+	if(IsWindows8OrGreater())
 		iconIndex = 1; // use Windows 8 style IME icon
 
 	Ime::LangProfileInfo info;
@@ -63,7 +66,7 @@ STDAPI DllRegisterServer(void) {
 
 STDAPI ChewingSetup() {
 	// The directory is already created when the ImeModule object is constructed.
-	if(g_imeModule->isWindows8Above()) {
+	if(IsWindows8OrGreater()) {
 		// Grant permission to app containers
 		Chewing::Config::grantAppContainerAccess(g_imeModule->userDir().c_str(), SE_FILE_OBJECT, GENERIC_READ|GENERIC_WRITE|GENERIC_EXECUTE|DELETE);
 	}

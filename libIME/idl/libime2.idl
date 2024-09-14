@@ -1,0 +1,71 @@
+import "unknwn.idl";
+import "msctf.idl";
+
+[
+object,
+uuid(d73284e1-59aa-42ef-84ca-1633beca464b),
+local
+]
+interface IWindow : IUnknown
+{
+  HWND hwnd();
+  boolean create(HWND parent, DWORD style, [defaultvalue(0)] DWORD exStyle);
+  void destroy();
+  boolean isVisible();
+  boolean isWindow();
+  void move(int x, int y);
+  void size([out] int *width, [out] int *height);
+  void resize(int width, int height);
+  void clientRect([out] RECT *rect);
+  void rect([out] RECT *rect);
+  void show();
+  void hide();
+  void refresh();
+
+  LRESULT wndProc(UINT msg, WPARAM wp, LPARAM lp);
+}
+
+typedef struct _KeyEvent {
+  UINT type;
+  UINT keyCode;
+  UINT charCode;
+  LPARAM lParapm;
+  BYTE keyStates[256];
+} KeyEvent;
+
+[
+object,
+uuid(d4eee9d6-60a0-4169-b3b8-d99f66ebe61a),
+local
+]
+interface ICandidateWindow : IWindow
+{
+  void setFontSize(DWORD fontSize);
+  void add(LPCWSTR item, WCHAR selKey);
+  WCHAR currentSelKey();
+  void clear();
+  void setCandPerRow(int n);
+  void setUseCursor(boolean use);
+  boolean filterKeyEvent(UINT16 keyCode);
+  boolean hasResult();
+  void recalculateSize();
+}
+
+[
+object,
+uuid(7375ef7b-4564-46eb-b8d1-e27228428623),
+local
+]
+interface IMessageWindow : IWindow
+{
+  const unsigned long ID_TIMEOUT = 1;
+  void setFontSize(DWORD fontSize);
+  void setText(LPCWSTR text);
+}
+
+[local] void LibIME2Init();
+[local] void CreateImeWindow([out] void **window);
+[local] void CreateMessageWindow(HWND parent, [in] LPCWSTR image_path, [out] void **messagewindow);
+[local] void CreateCandidateWindow(HWND parent, [in] LPCWSTR image_path, [out] void **candidatewindow);
+[local] IWindow *ImeWindowFromHwnd(HWND hwnd);
+[local] boolean ImeWindowRegisterClass(HINSTANCE hinstance);
