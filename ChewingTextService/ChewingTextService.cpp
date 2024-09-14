@@ -817,11 +817,9 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	if(!candidateWindow_) {
 		std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
 		bitmap_path += L"\\Assets\\bubble.9.png";
-		// candidateWindow_.attach(new Ime::CandidateWindow(this, session, bitmap_path));
 		HWND parent = this->compositionWindow(session);
 		candidateWindow_ = nullptr;
 		CreateCandidateWindow(parent, bitmap_path.c_str(), candidateWindow_.put_void());
-		// candidateWindow_->setFont(font_);
 		candidateWindow_->setFontSize(config().fontSize);
 	}
 	updateCandidates(session);
@@ -845,7 +843,9 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	// FIXME: reuse the window whenever possible
 	HWND parent = this->compositionWindow(session);
 	messageWindow_ = nullptr;
-	CreateMessageWindow(parent, messageWindow_.put_void());
+	std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
+	bitmap_path += L"\\Assets\\msg.9.png";
+	CreateMessageWindow(parent, bitmap_path.c_str(), messageWindow_.put_void());
 	messageWindow_->setFontSize(config().fontSize);
 	messageWindow_->setText(message.c_str());
 	

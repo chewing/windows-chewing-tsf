@@ -65,7 +65,7 @@ interface IMessageWindow : IWindow
 
 [local] void LibIME2Init();
 [local] void CreateImeWindow([out] void **window);
-[local] void CreateMessageWindow(HWND parent, [out] void **messagewindow);
+[local] void CreateMessageWindow(HWND parent, [in] LPCWSTR image_path, [out] void **messagewindow);
 [local] void CreateCandidateWindow(HWND parent, [in] LPCWSTR image_path, [out] void **candidatewindow);
 [local] IWindow *ImeWindowFromHwnd(HWND hwnd);
 [local] boolean ImeWindowRegisterClass(HINSTANCE hinstance);

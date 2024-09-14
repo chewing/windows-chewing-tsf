@@ -21,6 +21,7 @@
                 </Directory>
                 <Directory Id="Assets" Name="Assets">
                     <File Source="assets\bubble.9.png" Bitness="always32" />
+                    <File Source="assets\msg.9.png" Bitness="always32" />
                 </Directory>
                 <File Source="x86\chewing-msvc.dll" Bitness="always32" />
                 <Component Bitness="always32">

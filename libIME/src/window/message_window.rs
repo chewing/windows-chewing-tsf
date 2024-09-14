@@ -37,6 +37,7 @@ struct MessageWindow {
     swapchain: RefCell<Option<IDXGISwapChain1>>,
     dcomptarget: RefCell<Option<IDCompositionTarget>>,
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
+    nine_patch_bitmap: NinePatchBitmap,
     dpi: f32,
     window: ComObject<Window>,
 }
@@ -54,8 +55,7 @@ impl MessageWindow {
         let mut metrics = DWRITE_TEXT_METRICS::default();
         unsafe { text_layout.GetMetrics(&mut metrics).unwrap() };
 
-        // FIXME
-        let margin = 5.0;
+        let margin = self.nine_patch_bitmap.margin();
         let width = metrics.width + margin * 2.0;
         let height = metrics.height + margin * 2.0;
         unsafe {
@@ -147,14 +147,21 @@ impl MessageWindow {
             GetClientRect(self.window.hwnd.get(), &mut rc)?;
 
             target.BeginDraw();
-            target.Clear(Some(&create_color(COLOR_INFOBK)));
+            let rect = D2D_RECT_F {
+                top: rc.top as f32,
+                left: rc.left as f32,
+                right: rc.right as f32,
+                bottom: rc.bottom as f32,
+            };
+            self.nine_patch_bitmap.draw_bitmap(target, rect)?;
+            let margin = self.nine_patch_bitmap.margin();
 
             target.DrawText(
                 self.text.borrow().as_wide(),
                 self.text_format.borrow().deref(),
                 &D2D_RECT_F {
-                    left: 5.0,
-                    top: 5.0,
+                    left: margin,
+                    top: margin,
                     right: f32::MAX,
                     bottom: f32::MAX,
                 },
@@ -183,7 +190,7 @@ impl MessageWindow {
 }
 
 #[no_mangle]
-unsafe extern "C" fn CreateMessageWindow(parent: HWND, ret: *mut *mut c_void) {
+unsafe extern "C" fn CreateMessageWindow(parent: HWND, image_path: PCWSTR, ret: *mut *mut c_void) {
     let window = Window::new().into_object();
     window.create(
         parent,
@@ -214,6 +221,8 @@ unsafe extern "C" fn CreateMessageWindow(parent: HWND, ret: *mut *mut c_void) {
         )
         .unwrap();
 
+    let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
+
     let message_window = MessageWindow {
         text: RefCell::new(h!("").to_owned()),
         factory,
@@ -223,6 +232,7 @@ unsafe extern "C" fn CreateMessageWindow(parent: HWND, ret: *mut *mut c_void) {
         target: None.into(),
         swapchain: None.into(),
         brush: None.into(),
+        nine_patch_bitmap,
         dpi,
         window,
     }

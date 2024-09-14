@@ -5,7 +5,6 @@ use std::{
     ops::Deref,
 };
 
-use log::debug;
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
@@ -132,7 +131,6 @@ impl CandidateWindow {
 
         unsafe { self.window.resize(width as i32, height as i32) };
         self.resize_swap_chain(width, height)?;
-        debug!("resize_swap_chain {} {}", width, height);
 
         Ok(())
     }
@@ -214,7 +212,6 @@ impl CandidateWindow {
                 right: rc.right as f32,
                 bottom: rc.bottom as f32,
             };
-            debug!("rect {:?}", rect);
             self.nine_patch_bitmap.draw_bitmap(target, rect)?;
 
             let mut col = 0;
