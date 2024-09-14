@@ -9,7 +9,7 @@ jobs:
   release-build:
     uses: ./.github/workflows/ci.yml
   code-signing:
-    needs: [nightly-build]
+    needs: [release-build]
     uses: ./.github/workflows/code-signing.yml
     with:
       signing-policy-slug: release-signing
