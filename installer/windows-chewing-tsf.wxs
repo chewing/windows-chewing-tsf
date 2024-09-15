@@ -6,7 +6,7 @@
         Codepage="65001"
         Language="1028"
         Manufacturer="新酷音輸入法開發團隊"
-        Version="1.0.0.1"
+        Version="24.10.258.0"
         UpgradeStrategy="majorUpgrade"
         UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
         <MajorUpgrade AllowDowngrades="yes" />
