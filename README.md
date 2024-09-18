@@ -9,25 +9,21 @@ All parts are licensed under GNU LGPL v2.1 license.
 # Development
 
 ## Tool Requirements
-*   [CMake](http://www.cmake.org/) >= 2.8.11
-*   [Visual Studio Express 2012 with Update 1](http://www.microsoft.com/visualstudio/eng/products/visual-studio-express-products)
-*   [git](http://windows.github.com/)
-*   Editor with [EditorConfig](http://editorconfig.org/) supported
+
+* [CMake](http://www.cmake.org/) >= 3.24.0
+* [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
+* [vcpkg](https://vcpkg.io/)
 
 ## How to Build
-*   Get source from github
-```bash
+* Get source from github
+    ```bash
     git clone --recursive https://github.com/chewing/windows-chewing-tsf.git
     cd windows-chewing-tsf
-```
-*   Use one of the following CMake commands to generate Visual Studio project
-```
-    cmake -G "Visual Studio 11" -T "v110_xp" <path to windows-chewing-tsf>
-    cmake -G "Visual Studio 11 Win64" -T "v110_xp" <path to windows-chewing-tsf>
-```
-*	NOTICE: In order to support Windows xp, it is required to add the argument "v110_xp" ([MSDN](http://msdn.microsoft.com/en-us/library/jj851139%28v=vs.110%29.aspx))
-
-*   Open generated project with Visual Studio and build it
+    ```
+* Use the build script to build the installer
+    ```
+    scripts\build_installer.bat
+    ```
 
 ## TSF References
 *   [Text Services Framework](http://msdn.microsoft.com/en-us/library/windows/desktop/ms629032%28v=vs.85%29.aspx)
@@ -47,33 +43,19 @@ All parts are licensed under GNU LGPL v2.1 license.
 *   [GetAppContainerNamedObjectPath function (enable accessing object outside app containers using ACL)](http://msdn.microsoft.com/en-us/library/windows/desktop/hh448493)
 *   [Creating a DACL](http://msdn.microsoft.com/en-us/library/windows/apps/ms717798.aspx)
 
-# Install
-*   Copy `ChewingTextService.dll` to C:\Program Files (X86)\ChewingTextService.
-*   Copy `libchewing/data/*.dat` and `pinyin.tab` to `C:\Program Files (X86)\ChewingTextService\Dictionary`
-*   Use `regsvr32` to register `ChewingService.dll`. 64-bit system need to register both 32-bit and 64-bit `ChewingService.dll`
+# Code Signing Policy
 
-        regsvr32 "C:\Program Files (X86)\ChewingTextService\ChewingTextService.dll" (run as administrator)
+This [project](https://signpath.org/projects/chewing-im/) is sponsored by SignPath. We use free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 
-*   NOTICE: the `regsvr32` command needs to be run as Administrator. Otherwise you'll get access denied error.
-*   In Windows 8, if you put the dlls in places other than C:\Windows or C:\Program Files, they will not be accessible in metro apps.
+**People and roles:**
 
-# For Windows 8, you also need to do this:
-*   Create C:\Users\<user_name>\ChewingTextService directory manually before using the input method.
-*   Set ACLs for the created directory so it can be accessible from Windows store apps
+* Committers and reviewers: [Chewing core team](https://github.com/orgs/chewing/teams/core), [Windows Chewing maintainers](https://github.com/orgs/chewing/teams/windows)
+* Approvers: [Chewing core team](https://github.com/orgs/chewing/teams/core)
 
-        cacls C:\Users\<user_name>\ChewingTextService /e /t /g "ALL APPLICATION PACKAGES:c"
+# Privacy Policy
 
-*   Warning: this will give full access of this folder to all metro apps. This may not be the optimized permission settings. Further study on ACL is required here.
-*   Open regedit and enable read access to HKCU\Software\ChewingTextService for "ALL APPLICATION PACKAGES".
-*   The NSIS installer automatically does the preceding changes for you
-
-# Uninstall
-*   Remove `%WINDIR%/chewing`
-*   Use `regsvr32` to unregister `ChewingTextService.dll`. 64-bit system need to register both 32-bit and 64-bit `ChewingTextService.dll`
-
-        regsvr32 /u "C:\Program Files (X86)\ChewingTextService\ChewingTextService.dll" (run as administrator)
-
-*   NOTICE: the `regsvr32` command needs to be run as Administrator. Otherwise you'll get access denied error.
+This program will not transfer any information to other networked systems unless
+specifically requested by the user or the person installing or operating it.
 
 # Bug Report
 Please report any issue to [here](https://github.com/chewing/windows-chewing-tsf/issues).
