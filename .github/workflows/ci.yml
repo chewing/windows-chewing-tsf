@@ -41,6 +41,13 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
+      - name: Setup vcpkg
+        run: |
+          echo VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT >> $env:GITHUB_ENV
+          echo CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake >> $env:GITHUB_ENV
+          & $env:VCPKG_INSTALLATION_ROOT\vcpkg install --triplet x86-windows-static sqlite3
+          & $env:VCPKG_INSTALLATION_ROOT\vcpkg install --triplet x64-windows-static sqlite3
+
       - name: Build
         run: scripts/build_installer.bat
 

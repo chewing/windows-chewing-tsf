@@ -1,6 +1,6 @@
-cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF
+cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF -DVCPKG_TARGET_TRIPLET=x86-windows-static
 cmake --build build\x86 --config Release
-cmake -B build\x64 -A x64 -DBUILD_TESTING=OFF
+cmake -B build\x64 -A x64 -DBUILD_TESTING=OFF -DVCPKG_TARGET_TRIPLET=x64-windows-static
 cmake --build build\x64 --config Release
 pushd tsfreg
 cargo build --release
