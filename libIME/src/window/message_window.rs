@@ -58,6 +58,11 @@ impl MessageWindow {
         let margin = self.nine_patch_bitmap.margin();
         let width = metrics.width + margin * 2.0;
         let height = metrics.height + margin * 2.0;
+
+        // Convert to HW pixels
+        let width = width * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
+        let height = height * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
+
         unsafe {
             SetWindowPos(
                 self.window.hwnd.get(),
@@ -148,10 +153,11 @@ impl MessageWindow {
 
             target.BeginDraw();
             let rect = D2D_RECT_F {
-                top: rc.top as f32,
-                left: rc.left as f32,
-                right: rc.right as f32,
-                bottom: rc.bottom as f32,
+                top: 0.0,
+                left: 0.0,
+                // Convert to DIPs
+                right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
+                bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
             };
             self.nine_patch_bitmap.draw_bitmap(target, rect)?;
             let margin = self.nine_patch_bitmap.margin();

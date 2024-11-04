@@ -63,10 +63,14 @@ const COL_SPACING: u32 = 8;
 
 impl CandidateWindow {
     fn recalculate_size(&self) -> Result<()> {
-        let margin = self.nine_patch_bitmap.margin().ceil() as u32;
+        let margin = self.nine_patch_bitmap.margin().ceil();
         if self.items.borrow().is_empty() {
-            unsafe { self.window.resize(margin as i32 * 2, margin as i32 * 2) };
-            self.resize_swap_chain(margin * 2, margin * 2)?;
+            // Convert to HW pixels
+            let width = 2.0 * margin * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
+            let height = 2.0 * margin * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
+
+            unsafe { self.window.resize(width as i32, height as i32) };
+            self.resize_swap_chain(width as u32, height as u32)?;
         }
 
         let mut selkey_width = 0.0_f32;
@@ -119,8 +123,12 @@ impl CandidateWindow {
         let rows = items_len.div_ceil(cand_per_row).clamp(1, u32::MAX);
         let width = cand_per_row * (selkey_width + text_width).ceil() as u32
             + (cand_per_row - 1) * COL_SPACING
-            + 2 * margin;
-        let height = rows * item_height as u32 + (rows - 1) * ROW_SPACING + 2 * margin;
+            + 2 * margin as u32;
+        let height = rows * item_height as u32 + (rows - 1) * ROW_SPACING + 2 * margin as u32;
+
+        // Convert to HW pixels
+        let width = width * self.dpi as u32 / USER_DEFAULT_SCREEN_DPI;
+        let height = height * self.dpi as u32 / USER_DEFAULT_SCREEN_DPI;
 
         unsafe { self.window.resize(width as i32, height as i32) };
         self.resize_swap_chain(width, height)?;
@@ -200,10 +208,11 @@ impl CandidateWindow {
 
             target.BeginDraw();
             let rect = D2D_RECT_F {
-                top: rc.top as f32,
-                left: rc.left as f32,
-                right: rc.right as f32,
-                bottom: rc.bottom as f32,
+                top: 0.0,
+                left: 0.0,
+                // Convert to DIPs
+                right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
+                bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
             };
             self.nine_patch_bitmap.draw_bitmap(target, rect)?;
 

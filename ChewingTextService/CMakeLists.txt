@@ -17,6 +17,8 @@ add_library(ChewingTextService SHARED
     # resources
     ${PROJECT_SOURCE_DIR}/ChewingTextService.rc
     ${PROJECT_SOURCE_DIR}/mainicon.ico
+    # manifest
+    ${PROJECT_SOURCE_DIR}/ChewingTextService.manifest
 )
 
 target_link_libraries(ChewingTextService
