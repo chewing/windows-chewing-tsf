@@ -22,7 +22,7 @@ copy build\x86\libchewing\chewing-cli.exe build\installer\
 mkdir build\installer\x64
 copy build\x64\ChewingTextService\Release\*.dll build\installer\x64\
 copy build\x64\libchewing\Release\*.dll build\installer\x64\
-copy tsfreg\target\release\tsfreg.exe build\installer\
+copy target\release\tsfreg.exe build\installer\
 pushd build\installer
 msbuild -p:Configuration=Release -restore windows-chewing-tsf.wixproj
 popd
