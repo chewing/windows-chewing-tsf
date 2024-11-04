@@ -28,6 +28,7 @@
 #include <libIME/Utils.h>
 #include <sys/stat.h>
 #include <winrt/base.h>
+#include <winuser.h>
 
 #include <cstddef>
 #include <string>
@@ -452,6 +453,13 @@ bool TextService::onKeyUp(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
 	if(config().switchLangWithShift) {
 		if(lastKeyDownCode_ == 0 && keyEvent.keyCode() == VK_SHIFT) {
 			toggleLanguageMode(session);
+			std::wstring msg;
+			if (chewing_get_ChiEngMode(chewingContext_) == SYMBOL_MODE) {
+				msg += L"英數模式";
+			} else {
+				msg += L"中文模式";
+			}
+			showMessage(session, msg, 2);
 		}
 	}
 	return true;
@@ -463,6 +471,13 @@ bool TextService::onPreservedKey(const GUID& guid) {
 	// some preserved keys registered in ctor are pressed
 	if(::IsEqualIID(guid, g_shiftSpaceGuid)) { // shift + space is pressed
 		toggleShapeMode();
+		// std::wstring msg;
+		// if (chewing_get_ShapeMode(chewingContext_) == FULLSHAPE_MODE) {
+		// 	msg += L"全形模式";
+		// } else {
+		// 	msg += L"半形模式";
+		// }
+		// showMessage(session, msg, 2);
 		return true;
 	}
 	return false;
@@ -847,13 +862,12 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	messageWindow_->setText(message.c_str());
 	
 	int x = 0, y = 0;
-	if(isComposing()) {
-		RECT rc;
-		if(selectionRect(session, &rc)) {
-			x = rc.left;
-			y = rc.bottom;
-		}
+	RECT rc;
+	if(selectionRect(session, &rc)) {
+		x = rc.left;
+		y = rc.bottom;
 	}
+
 	messageWindow_->move(x, y);
 	messageWindow_->show();
 
