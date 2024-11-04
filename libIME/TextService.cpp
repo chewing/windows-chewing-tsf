@@ -1134,17 +1134,15 @@ bool TextService::compositionRect(EditSession* session, RECT* rect) {
 
 bool TextService::selectionRect(EditSession* session, RECT* rect) {
 	bool ret = false;
-	if(isComposing()) {
-		winrt::com_ptr<ITfContextView> view;
-		if(session->context()->GetActiveView(view.put()) == S_OK) {
-			BOOL clipped;
-			TF_SELECTION selection;
-			ULONG selectionNum;
-			if(session->context()->GetSelection(session->editCookie(), TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK ) {
-				if(view->GetTextExt(session->editCookie(), selection.range, rect, &clipped) == S_OK)
-					ret = true;
-				selection.range->Release();
-			}
+	winrt::com_ptr<ITfContextView> view;
+	if(session->context()->GetActiveView(view.put()) == S_OK) {
+		BOOL clipped;
+		TF_SELECTION selection;
+		ULONG selectionNum;
+		if(session->context()->GetSelection(session->editCookie(), TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK ) {
+			if(view->GetTextExt(session->editCookie(), selection.range, rect, &clipped) == S_OK)
+				ret = true;
+			selection.range->Release();
 		}
 	}
 	return ret;
