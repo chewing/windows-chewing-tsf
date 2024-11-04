@@ -79,19 +79,18 @@ pub unsafe extern "C" fn ImeWindowFromHwnd(hwnd: HWND) -> *mut IWindow {
 pub unsafe extern "C" fn ImeWindowRegisterClass(hinstance: HINSTANCE) -> bool {
     MODULE_HINSTANCE.with(|hinst_cell| {
         let hinst = hinst_cell.get_or_init(|| hinstance);
-        let mut wc = WNDCLASSEXW::default();
-        wc.cbSize = size_of::<WNDCLASSEXW>() as u32;
-        wc.style = CS_IME;
-        wc.lpfnWndProc = Some(wnd_proc);
-        wc.cbClsExtra = 0;
-        wc.cbWndExtra = 0;
-        wc.hInstance = *hinst;
-        wc.hCursor = LoadCursorW(None, IDC_ARROW).expect("failed to load cursor");
-        wc.hIcon = HICON::default();
-        wc.lpszMenuName = PCWSTR::null();
-        wc.lpszClassName = w!("LibIme2Window");
-        wc.hbrBackground = HBRUSH::default();
-        wc.hIconSm = HICON::default();
+        let wc = WNDCLASSEXW {
+            cbSize: size_of::<WNDCLASSEXW>() as u32,
+            style: CS_IME,
+            lpfnWndProc: Some(wnd_proc),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: *hinst,
+            hCursor: LoadCursorW(None, IDC_ARROW).expect("failed to load cursor"),
+            lpszMenuName: PCWSTR::null(),
+            lpszClassName: w!("LibIme2Window"),
+            ..Default::default()
+        };
 
         RegisterClassExW(&wc) > 0
     })
@@ -182,8 +181,10 @@ impl IWindow_Impl for Window_Impl {
 
         // ensure that the window does not fall outside of the screen.
         let monitor = MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST);
-        let mut mi = MONITORINFO::default();
-        mi.cbSize = size_of::<MONITORINFO>() as u32;
+        let mut mi = MONITORINFO {
+            cbSize: size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
         if GetMonitorInfoW(monitor, &mut mi).as_bool() {
             rc = mi.rcWork;
         }

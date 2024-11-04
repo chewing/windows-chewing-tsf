@@ -63,71 +63,64 @@ const COL_SPACING: u32 = 8;
 
 impl CandidateWindow {
     fn recalculate_size(&self) -> Result<()> {
-        let margin = self.nine_patch_bitmap.margin() as u32;
+        let margin = self.nine_patch_bitmap.margin().ceil() as u32;
         if self.items.borrow().is_empty() {
             unsafe { self.window.resize(margin as i32 * 2, margin as i32 * 2) };
             self.resize_swap_chain(margin * 2, margin * 2)?;
         }
 
-        let items_len = self.items.borrow().len();
-        let mut selkey_width = 0.0;
-        let mut text_width = 0.0;
-        let mut item_height = 0.0;
-        let selkey = "?. ".to_string();
-        let mut selkey = selkey.encode_utf16().collect::<Vec<_>>();
-        for i in 0..items_len {
-            selkey[0] = *self.sel_keys.borrow().get(i).unwrap();
+        let mut selkey_width = 0.0_f32;
+        let mut text_width = 0.0_f32;
+        let mut item_height = 0.0_f32;
+        let mut selkey = "?. ".to_string().encode_utf16().collect::<Vec<_>>();
 
+        for (key, text) in self
+            .sel_keys
+            .borrow()
+            .iter()
+            .zip(self.items.borrow().iter())
+        {
             let mut selkey_metrics = DWRITE_TEXT_METRICS::default();
             let mut item_metrics = DWRITE_TEXT_METRICS::default();
-            unsafe {
-                let text_layout = self.dwrite_factory.CreateTextLayout(
-                    &selkey,
-                    self.text_format.borrow().deref(),
-                    f32::MAX,
-                    f32::MAX,
-                )?;
-                text_layout.GetMetrics(&mut selkey_metrics)?;
 
-                let items = self.items.borrow();
-                let text = items.get(i).unwrap().as_wide();
-                let text_layout = self.dwrite_factory.CreateTextLayout(
-                    text,
-                    self.text_format.borrow().deref(),
-                    f32::MAX,
-                    f32::MAX,
-                )?;
-                text_layout.GetMetrics(&mut item_metrics)?;
+            selkey[0] = *key;
+            unsafe {
+                self.dwrite_factory
+                    .CreateTextLayout(
+                        &selkey,
+                        self.text_format.borrow().deref(),
+                        f32::MAX,
+                        f32::MAX,
+                    )?
+                    .GetMetrics(&mut selkey_metrics)?;
+
+                self.dwrite_factory
+                    .CreateTextLayout(
+                        text.as_wide(),
+                        self.text_format.borrow().deref(),
+                        f32::MAX,
+                        f32::MAX,
+                    )?
+                    .GetMetrics(&mut item_metrics)?;
             }
 
-            selkey_width = f32::max(
-                selkey_width,
-                selkey_metrics.widthIncludingTrailingWhitespace,
-            );
-            text_width = f32::max(text_width, item_metrics.widthIncludingTrailingWhitespace);
-            item_height = f32::max(item_metrics.height, selkey_metrics.height).max(item_height);
+            selkey_width = selkey_width.max(selkey_metrics.widthIncludingTrailingWhitespace);
+            text_width = text_width.max(item_metrics.widthIncludingTrailingWhitespace);
+            item_height = item_height
+                .max(item_metrics.height)
+                .max(selkey_metrics.height);
         }
 
+        let items_len = self.items.borrow().len() as u32;
         self.selkey_width.set(selkey_width);
         self.text_width.set(text_width);
         self.item_height.set(item_height);
-        let cand_per_row = self.cand_per_row.get() as u32;
-        let (width, height) = if items_len <= self.cand_per_row.get() {
-            (
-                items_len as u32 * (selkey_width + text_width) as u32
-                    + COL_SPACING * (items_len - 1) as u32
-                    + margin * 2,
-                item_height as u32 + margin * 2,
-            )
-        } else {
-            (
-                cand_per_row * (selkey_width + text_width) as u32
-                    + COL_SPACING * (cand_per_row)
-                    + margin * 2,
-                (item_height as u32 + ROW_SPACING) * (items_len as u32).div_ceil(cand_per_row)
-                    + margin * 2,
-            )
-        };
+        let cand_per_row = items_len.min(self.cand_per_row.get() as u32);
+        let rows = items_len.div_ceil(cand_per_row).clamp(1, u32::MAX);
+        let width = cand_per_row * (selkey_width + text_width).ceil() as u32
+            + (cand_per_row - 1) * COL_SPACING
+            + 2 * margin;
+        let height = rows * item_height as u32 + (rows - 1) * ROW_SPACING + 2 * margin;
 
         unsafe { self.window.resize(width as i32, height as i32) };
         self.resize_swap_chain(width, height)?;
@@ -615,7 +608,7 @@ impl ITfCandidateListUIElement_Impl for CandidateWindow_Impl {
             .borrow()
             .get(uindex as usize)
             .map(|hstr| hstr.as_wide())
-            .map(|wstr| BSTR::from_wide(wstr))
+            .map(BSTR::from_wide)
             .ok_or(Error::empty())?
     }
 
