@@ -435,23 +435,22 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 
 // virtual
 bool TextService::filterKeyUp(Ime::KeyEvent& keyEvent) {
-	bool shouldHandle = false;
 	if(config().switchLangWithShift) {
-		if(lastKeyDownCode_ == VK_SHIFT && keyEvent.keyCode() == VK_SHIFT) {
+		if (lastKeyDownCode_ == VK_SHIFT && keyEvent.keyCode() == VK_SHIFT) {
 			// last key down event is also shift key
 			// a <Shift> key down + key up pair was detected
 			// switch language
-			shouldHandle = true;
+			return true;
 		}
 	}
 	lastKeyDownCode_ = 0;
-	return shouldHandle;
+	return false;
 }
 
 // virtual
 bool TextService::onKeyUp(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
 	if(config().switchLangWithShift) {
-		if(lastKeyDownCode_ == 0 && keyEvent.keyCode() == VK_SHIFT) {
+		if (lastKeyDownCode_ == VK_SHIFT && keyEvent.keyCode() == VK_SHIFT) {
 			toggleLanguageMode(session);
 			std::wstring msg;
 			if (chewing_get_ChiEngMode(chewingContext_) == SYMBOL_MODE) {
@@ -462,6 +461,7 @@ bool TextService::onKeyUp(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
 			showMessage(session, msg, 2);
 		}
 	}
+	lastKeyDownCode_ = 0;
 	return true;
 }
 
