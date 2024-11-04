@@ -103,7 +103,7 @@ private:
 	// apply current configurations to chewing context
 	void applyConfig();
 
-	void toggleLanguageMode(); // toggle between English and Chinese
+	void toggleLanguageMode(Ime::EditSession* session); // toggle between English and Chinese
 	void toggleShapeMode(); // toggle between full shape and half shape
 	void toggleSimplifiedChinese(); // toggle output traditional or simplified Chinese
 

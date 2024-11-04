@@ -434,20 +434,26 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 
 // virtual
 bool TextService::filterKeyUp(Ime::KeyEvent& keyEvent) {
+	bool shouldHandle = false;
 	if(config().switchLangWithShift) {
 		if(lastKeyDownCode_ == VK_SHIFT && keyEvent.keyCode() == VK_SHIFT) {
 			// last key down event is also shift key
 			// a <Shift> key down + key up pair was detected
 			// switch language
-			toggleLanguageMode();
+			shouldHandle = true;
 		}
 	}
 	lastKeyDownCode_ = 0;
-	return false;
+	return shouldHandle;
 }
 
 // virtual
 bool TextService::onKeyUp(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
+	if(config().switchLangWithShift) {
+		if(lastKeyDownCode_ == 0 && keyEvent.keyCode() == VK_SHIFT) {
+			toggleLanguageMode(session);
+		}
+	}
 	return true;
 }
 
@@ -494,13 +500,13 @@ bool TextService::onCommand(UINT id, CommandType type) {
 	else {
 		switch(id) {
 		case ID_SWITCH_LANG:
-			toggleLanguageMode();
+			toggleLanguageMode(nullptr);
 			break;
 		case ID_SWITCH_SHAPE:
 			toggleShapeMode();
 			break;
 		case ID_MODE_ICON: // Windows 8 IME mode icon
-			toggleLanguageMode();
+			toggleLanguageMode(nullptr);
 			break;
 		case ID_CONFIG: // show config dialog
 			if(!isImmersive()) { // only do this in desktop app mode
@@ -720,16 +726,28 @@ void TextService::applyConfig() {
 }
 
 // toggle between English and Chinese
-void TextService::toggleLanguageMode() {
+void TextService::toggleLanguageMode(Ime::EditSession* session) {
 	// switch between Chinses and English modes
 	if(chewingContext_) {
-		::chewing_set_ChiEngMode(chewingContext_, !::chewing_get_ChiEngMode(chewingContext_));
+		// NB: must clear the bopomofo buffer before we can switch mode
 		if(::chewing_bopomofo_Check(chewingContext_)) {
 			chewing_clean_bopomofo_buf(chewingContext_);
-			// FIXME: We should reset the composition string here, but a new edit session
-			// is required for this task. We need to make the TextService API better to 
-			// avoid touching TSF directly too much.
+			if (session) {
+				// HACK reset the composition and remove bopomofo
+				wstring compositionBuf;
+				if(::chewing_buffer_Check(chewingContext_)) {
+					char* buf = ::chewing_buffer_String(chewingContext_);
+					if(buf) {
+						std::wstring wbuf = ::utf8ToUtf16(buf);
+						::chewing_free(buf);
+						compositionBuf += wbuf;
+						setCompositionString(session, compositionBuf.c_str(), compositionBuf.length());
+					}
+				}
+			}
 		}
+		// HACK: send capslock to switch mode
+		chewing_handle_Capslock(chewingContext_);
 		updateLangButtons();
 	}
 }
