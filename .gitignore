@@ -1,4 +1,4 @@
 /build
+/dist
 /.cache
-/rustlib/target
-/tsfreg/target
+/target
