@@ -38,29 +38,14 @@ public:
 		return atom_;
 	}
 
-	void setTextColor(COLORREF color) {
-		attrib_.crText.type = TF_CT_COLORREF;
-		attrib_.crText.cr = color;
-	}
-
 	void setTextColor(int index) {
 		attrib_.crText.type = TF_CT_SYSCOLOR;
 		attrib_.crText.nIndex = index;
 	}
 
-	void setBackgroundColor(COLORREF color) {
-		attrib_.crBk.type = TF_CT_COLORREF;
-		attrib_.crBk.cr = color;
-	}
-
 	void setBackgroundColor(int index) {
 		attrib_.crBk.type = TF_CT_SYSCOLOR;
 		attrib_.crBk.nIndex = index;
-	}
-
-	void setLineColor(COLORREF color) {
-		attrib_.crLine.type = TF_CT_COLORREF;
-		attrib_.crLine.cr = color;
 	}
 
 	void setLineColor(int index) {
