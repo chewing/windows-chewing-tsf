@@ -57,9 +57,9 @@ ImeModule::ImeModule(HMODULE module, const CLSID& textServiceClsid):
 	// regiser default display attributes
 	inputAttrib_ = new DisplayAttributeInfo(g_inputDisplayAttributeGuid);
 	inputAttrib_->setTextColor(COLOR_WINDOWTEXT);
+	inputAttrib_->setBackgroundColor(COLOR_WINDOW);
 	inputAttrib_->setLineStyle(TF_LS_DOT);
 	inputAttrib_->setLineColor(COLOR_WINDOWTEXT);
-	inputAttrib_->setBackgroundColor(COLOR_WINDOW);
 	displayAttrInfos_.push_back(inputAttrib_);
 	// convertedAttrib_ = new DisplayAttributeInfo(g_convertedDisplayAttributeGuid);
 	// displayAttrInfos_.push_back(convertedAttrib_);
