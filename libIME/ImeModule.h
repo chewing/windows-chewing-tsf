@@ -61,10 +61,6 @@ public:
 	HRESULT canUnloadNow();
 	HRESULT getClassObject(REFCLSID rclsid, REFIID riid, void **ppvObj);
 
-	HRESULT registerServer(wchar_t* imeName, LangProfileInfo* langs, int count);
-	HRESULT registerLangProfiles(LangProfileInfo* langs, int count);
-	HRESULT unregisterServer();
-
 	// should be override by IME implementors
 	virtual TextService* createTextService() = 0;
 	void removeTextService(TextService* service);
