@@ -2,7 +2,7 @@
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
     <assemblyIdentity
         name="Chewing.Windows-chewing-tsf.ChewingPreferences"
-        version="1.0.0.0"
+        version="24.10.314.0"
         processorArchitecture="*"
         type="win32"
     />
