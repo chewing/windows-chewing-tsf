@@ -1,4 +1,5 @@
 set RUSTFLAGS=-Ctarget-feature=+crt-static
+set SQLITE3_STATIC=1
 
 cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF -DVCPKG_TARGET_TRIPLET=x86-windows-static
 cmake --build build\x86 --config Debug
