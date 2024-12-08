@@ -1,3 +1,5 @@
+set RUSTFLAGS=-Ctarget-feature=+crt-static
+
 cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF -DVCPKG_TARGET_TRIPLET=x86-windows-static
 cmake --build build\x86 --config Debug
 cmake -B build\x64 -A x64 -DBUILD_TESTING=OFF -DVCPKG_TARGET_TRIPLET=x64-windows-static

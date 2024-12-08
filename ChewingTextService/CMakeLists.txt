@@ -28,4 +28,5 @@ target_link_libraries(ChewingTextService
 target_link_options(ChewingTextService
     PRIVATE /NODEFAULTLIB:MSVCRT
     PRIVATE /NODEFAULTLIB:MSVCRTD
+    PRIVATE /NODEFAULTLIB:LIBCMTD
 )
