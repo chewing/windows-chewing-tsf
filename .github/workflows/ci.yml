@@ -47,6 +47,13 @@ jobs:
           echo CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake >> $env:GITHUB_ENV
           & $env:VCPKG_INSTALLATION_ROOT\vcpkg install --triplet x86-windows-static sqlite3
           & $env:VCPKG_INSTALLATION_ROOT\vcpkg install --triplet x64-windows-static sqlite3
+      
+      - name: Start SSH session
+        uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_TOKEN }}
+          SSH_PASS: ${{ secrets.SSH_PASS }}
+          NGROK_REGION: jp
 
       - name: Build
         shell: cmd
