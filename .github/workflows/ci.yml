@@ -40,16 +40,28 @@ jobs:
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
+      
+      # - name: Start SSH session
+      #   uses: luchihoratiu/debug-via-ssh@main
+      #   with:
+      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_TOKEN }}
+      #     SSH_PASS: ${{ secrets.SSH_PASS }}
+      #     NGROK_REGION: jp
 
       - name: Setup vcpkg
+        shell: cmd
         run: |
-          echo VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT >> $env:GITHUB_ENV
-          echo CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake >> $env:GITHUB_ENV
-          & $env:VCPKG_INSTALLATION_ROOT\vcpkg install --triplet x86-windows-static sqlite3
-          & $env:VCPKG_INSTALLATION_ROOT\vcpkg install --triplet x64-windows-static sqlite3
-
+          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+          vcpkg install --triplet x86-windows-static sqlite3
+          vcpkg install --triplet x64-windows-static sqlite3
+          
       - name: Build
-        run: scripts/build_installer.bat
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\vsdevcmd.bat"
+          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+          set CMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
+          scripts/build_installer.bat
 
       - id: upload-unsigned
         uses: actions/upload-artifact@v4
