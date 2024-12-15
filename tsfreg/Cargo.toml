@@ -1,6 +1,6 @@
 [package]
 name = "tsfreg"
-version = "24.10.314"
+version = "24.10.349"
 edition = "2021"
 
 [dependencies]
