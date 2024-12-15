@@ -26,7 +26,10 @@
 #include <assert.h>
 #include <libIME/LangBarButton.h>
 #include <libIME/Utils.h>
+#include <minwindef.h>
 #include <sys/stat.h>
+#include <winerror.h>
+#include <winreg.h>
 #include <winrt/base.h>
 #include <winuser.h>
 
@@ -106,7 +109,11 @@ TextService::TextService(ImeModule* module):
 	// Windows 8 systray IME mode icon
 	if(IsWindows8OrGreater()) {
 		imeModeIcon_ = new Ime::LangBarButton(this, _GUID_LBI_INPUTMODE, ID_MODE_ICON);
-		imeModeIcon_->setIcon(IDI_ENG);
+		if (isLightTheme()) {
+			imeModeIcon_->setIcon(IDI_ENG);
+		} else {
+			imeModeIcon_->setIcon(IDI_ENG_DARK);
+		}
 		addButton(imeModeIcon_);
 	}
 
@@ -885,6 +892,26 @@ void TextService::hideMessage() {
 	}
 }
 
+bool TextService::isLightTheme() {
+	DWORD value = 0;
+	DWORD len = sizeof(value);
+	LSTATUS st = RegGetValueW(
+		HKEY_CURRENT_USER,
+		L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+		L"AppsUseLightTheme",
+		RRF_RT_REG_DWORD,
+		nullptr,
+		&value,
+		&len
+	);
+	if (st != ERROR_SUCCESS) {
+		// assume light theme
+		return true;
+	}
+	// 0 = dark theme, 1 = light theme
+	return value > 0;
+}
+
 void TextService::updateLangButtons() {
 	if(!chewingContext_)
 		return;
@@ -892,11 +919,19 @@ void TextService::updateLangButtons() {
 	int langMode = ::chewing_get_ChiEngMode(chewingContext_);
 	if(langMode != langMode_) {
 		langMode_ = langMode;
-		switchLangButton_->setIcon(langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG);
+		if (isLightTheme()) {
+			switchLangButton_->setIcon(langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG);
+		} else {
+			switchLangButton_->setIcon(langMode == CHINESE_MODE ? IDI_CHI_DARK : IDI_ENG_DARK);
+		}
 		if(imeModeIcon_) {
 			// FIXME: we need a better set of icons to meet the 
 			//        WIndows 8 IME guideline and UX guidelines.
-			imeModeIcon_->setIcon(langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG);
+			if (isLightTheme()) {
+				imeModeIcon_->setIcon(langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG);
+			} else {
+				imeModeIcon_->setIcon(langMode == CHINESE_MODE ? IDI_CHI_DARK : IDI_ENG_DARK);
+			}
 		}
 	}
 

@@ -13,7 +13,7 @@ mkdir build\installer
 mkdir build\installer\assets
 copy assets\* build\installer\assets\
 copy installer\* build\installer\
-copy ChewingTextService\mainicon2.ico build\installer\chewing.ico
+copy ChewingTextService\im.chewing.Chewing.ico build\installer\chewing.ico
 mkdir build\installer\Dictionary
 copy libchewing\data\*.dat build\installer\Dictionary\
 copy build\x64\libchewing\data\*.dat build\installer\Dictionary\

@@ -95,6 +95,7 @@ private:
 	void showMessage(Ime::EditSession* session, std::wstring message, int duration = 3);
 	void hideMessage();
 
+	bool isLightTheme();
 	void updateLangButtons(); // update status of language bar buttons
 
 	// reload configurations if changes are detected
