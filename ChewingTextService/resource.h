@@ -17,6 +17,8 @@
 #define IDI_FULL_SHAPE 106
 #define IDS_CONFIG_TITLE 106
 #define IDI_HALF_SHAPE 107
+#define IDI_CHI_DARK 108
+#define IDI_ENG_DARK 109
 #define IDR_MENU1 108
 #define IDR_MENU2 109
 #define IDR_MENU 109
