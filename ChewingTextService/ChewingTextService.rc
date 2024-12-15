@@ -85,12 +85,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Chewing"
             VALUE "FileDescription", "新酷音輸入法"
-            VALUE "FileVersion", "24.10.314.0"
+            VALUE "FileVersion", "24.10.349.0"
             VALUE "InternalName", "ChewingTextService.dll"
             VALUE "LegalCopyright", "Copyright (C) 2013"
             VALUE "OriginalFilename", "ChewingTextService.rc"
             VALUE "ProductName", "新酷音輸入法"
-            VALUE "ProductVersion", "24.10.314.0"
+            VALUE "ProductVersion", "24.10.349.0"
         END
     END
     BLOCK "VarFileInfo"

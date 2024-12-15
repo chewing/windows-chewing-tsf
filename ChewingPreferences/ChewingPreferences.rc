@@ -76,12 +76,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Chewing"
             VALUE "FileDescription", "新酷音輸入法設定"
-            VALUE "FileVersion", "24.10.314.0"
+            VALUE "FileVersion", "24.10.349.0"
             VALUE "InternalName", "ChewingPreferences.exe"
             VALUE "LegalCopyright", "Copyright (C) 2024"
             VALUE "OriginalFilename", "ChewingConfig.rc"
             VALUE "ProductName", "新酷音輸入法設定"
-            VALUE "ProductVersion", "24.10.314.0"
+            VALUE "ProductVersion", "24.10.349.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -201,7 +201,7 @@ BEGIN
     LTEXT           "題字：翁政銓",IDC_STATIC,7,85,49,8
     PUSHBUTTON      "確定 (&O)",IDOK,83,178,50,14
     LTEXT           "新酷音 － 智慧型注音輸入法",IDC_STATIC,84,7,92,8
-    LTEXT           "版本：24.10.314.0",IDC_VERSION,84,20,92,8
+    LTEXT           "版本：24.10.349.0",IDC_VERSION,84,20,92,8
     LTEXT           "發行日期：2024 年 11 月 09 日",IDC_RELEASE_DATE,84,33,100,8
     LTEXT           "授權方式：",IDC_STATIC,84,59,35,8
     LTEXT           "專案首頁：",IDC_STATIC,84,72,35,8
