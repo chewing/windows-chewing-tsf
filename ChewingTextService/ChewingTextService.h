@@ -24,7 +24,7 @@
 #include <LibIME/EditSession.h>
 #include <LibIME/LangBarButton.h>
 #include <chewing.h>
-#include "ChewingImeModule.h"
+#include "ChewingConfig.h"
 #include <sys/types.h>
 
 #include <Unknwn.h>
@@ -36,8 +36,10 @@ namespace Chewing {
 
 class TextService: public Ime::TextService {
 public:
-	TextService(ImeModule* module);
+	TextService();
 	virtual ~TextService(void);
+
+	virtual CLSID clsid();
 
 	virtual void onActivate();
 	virtual void onDeactivate();
@@ -71,7 +73,7 @@ public:
 	}
 
 	Config& config() {
-		return static_cast<ImeModule*>(imeModule())->config();
+		return config_;
 	}
 
 private:
@@ -108,7 +110,14 @@ private:
 	void toggleShapeMode(); // toggle between full shape and half shape
 	void toggleSimplifiedChinese(); // toggle output traditional or simplified Chinese
 
+	std::wstring userDir();
+    std::wstring programDir();
+
+	std::string userDirA();
+    std::string programDirA();
+
 private:
+	Config config_;
 	ChewingContext* chewingContext_;
 	winrt::com_ptr<ICandidateWindow> candidateWindow_;
 	winrt::com_ptr<IMessageWindow> messageWindow_;

@@ -43,11 +43,11 @@ fn register(icon_path: String) -> Result<()> {
             &GUID_TFCAT_TIP_KEYBOARD,
             &CHEWING_TSF_CLSID,
         )?;
-        category_manager.RegisterCategory(
-            &CHEWING_TSF_CLSID,
-            &GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
-            &CHEWING_TSF_CLSID,
-        )?;
+        // category_manager.RegisterCategory(
+        //     &CHEWING_TSF_CLSID,
+        //     &GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
+        //     &CHEWING_TSF_CLSID,
+        // )?;
         category_manager.RegisterCategory(
             &CHEWING_TSF_CLSID,
             &GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,

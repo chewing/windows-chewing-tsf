@@ -24,9 +24,11 @@
 
 #include <Shellapi.h>
 #include <assert.h>
+#include <debugapi.h>
 #include <libIME/LangBarButton.h>
 #include <libIME/Utils.h>
 #include <minwindef.h>
+#include <shlobj_core.h>
 #include <sys/stat.h>
 #include <winerror.h>
 #include <winreg.h>
@@ -36,12 +38,13 @@
 #include <cstddef>
 #include <string>
 
-#include "ChewingImeModule.h"
 #include "resource.h"
 #include "libime2.h"
 
 
 using namespace std;
+
+extern HINSTANCE g_hInstance;
 
 namespace Chewing {
 
@@ -70,8 +73,14 @@ static const GUID g_configChangedGuid =
 static const GUID _GUID_LBI_INPUTMODE =
 { 0x2C77A81E, 0x41CC, 0x4178, { 0xA3, 0xA7, 0x5F, 0x8A, 0x98, 0x75, 0x68, 0xE6 } };
 
-TextService::TextService(ImeModule* module):
-	Ime::TextService(module),
+
+// CLSID of our Text service
+// {13F2EF08-575C-4D8C-88E0-F67BB8052B84}
+const CLSID g_textServiceClsid =
+{ 0x13f2ef08, 0x575c, 0x4d8c, { 0x88, 0xe0, 0xf6, 0x7b, 0xb8, 0x5, 0x2b, 0x84 } };
+
+TextService::TextService():
+	Ime::TextService(),
 	showingCandidates_(false),
 	langMode_(-1),
 	shapeMode_(-1),
@@ -81,6 +90,16 @@ TextService::TextService(ImeModule* module):
 	imeModeIcon_(NULL),
 	symbolsFileTime_(0),
 	chewingContext_(NULL) {
+
+	OutputDebugStringW(L"TextService Ctor\n");
+
+	config_.load();
+
+	OutputDebugStringW(L"Config loaded\n");
+
+	// FIXME we should only initialize once
+	LibIME2Init();
+	ImeWindowRegisterClass(g_hInstance);
 
 	// add preserved keys
 	addPreservedKey(VK_SPACE, TF_MOD_SHIFT, g_shiftSpaceGuid); // shift + space
@@ -100,7 +119,7 @@ TextService::TextService(ImeModule* module):
 	Ime::LangBarButton* button = new Ime::LangBarButton(this, g_settingsButtonGuid);
 	button->setTooltip(IDS_SETTINGS);
 	button->setIcon(IDI_CONFIG);
-	HMENU menu = ::LoadMenuW(this->imeModule()->hInstance(), LPCTSTR(IDR_MENU));
+	HMENU menu = ::LoadMenuW(g_hInstance, LPCTSTR(IDR_MENU));
 	popupMenu_ = ::GetSubMenu(menu, 0);
 	button->setMenu(popupMenu_);
 	addButton(button);
@@ -119,6 +138,8 @@ TextService::TextService(ImeModule* module):
 
 	// global compartment stuff
 	addCompartmentMonitor(g_configChangedGuid, true);
+
+	OutputDebugStringW(L"TextService Initialized\n");
 }
 
 TextService::~TextService(void) {
@@ -138,14 +159,20 @@ TextService::~TextService(void) {
 	freeChewingContext();
 }
 
+CLSID TextService::clsid() {
+	return g_textServiceClsid;
+}
+
 // virtual
 void TextService::onActivate() {
+	OutputDebugStringW(L"begin onActivate\n");
 	DWORD configStamp = globalCompartmentValue(g_configChangedGuid);
 	config().reloadIfNeeded(configStamp);
 	initChewingContext();
 	updateLangButtons();
 	if(imeModeIcon_) // windows 8 IME mode icon
 		imeModeIcon_->setEnabled(isKeyboardOpened());
+	OutputDebugStringW(L"end onActivate\n");
 }
 
 // virtual
@@ -532,8 +559,9 @@ bool TextService::onCommand(UINT id, CommandType type) {
 			break;
 		case ID_CONFIG: // show config dialog
 			if(!isImmersive()) { // only do this in desktop app mode
-				ImeModule* module = static_cast<ImeModule*>(imeModule());
-				module->onConfigure(HWND_DESKTOP);
+				std::wstring path = programDir();
+    			path += L"\\ChewingPreferences.exe";
+    			::ShellExecuteW(HWND_DESKTOP, L"open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
 			}
 			break;
 		case ID_OUTPUT_SIMP_CHINESE: // toggle output traditional or simplified Chinese
@@ -542,7 +570,7 @@ bool TextService::onCommand(UINT id, CommandType type) {
 		case ID_ABOUT: // show about dialog
 			if(!isImmersive()) { // only do this in desktop app mode
 				// show about dialog
-				std::wstring path = static_cast<ImeModule*>(imeModule())->programDir();
+				std::wstring path = programDir();
 				path += L"\\ChewingPreferences.exe";
 				::ShellExecuteW(NULL, L"open", path.c_str(), L"/about", NULL, SW_SHOWNORMAL);
 			}
@@ -594,10 +622,9 @@ void TextService::onCompartmentChanged(const GUID& key) {
 
 		// check if chewing context needs to be reloaded
 		bool chewingNeedsReload = false;
-		Chewing::ImeModule* module = static_cast<Chewing::ImeModule*>(imeModule());
 		// check if symbols.dat file is changed
 		// get last mtime of symbols.dat file
-		std::wstring file = module->userDir() + L"\\symbols.dat";
+		std::wstring file = userDir() + L"\\symbols.dat";
 		struct _stat64 stbuf;
 		if(_wstat64(file.c_str(), &stbuf) == 0 && symbolsFileTime_ != stbuf.st_mtime) {
 			symbolsFileTime_ = stbuf.st_mtime;
@@ -670,8 +697,12 @@ void TextService::onCompositionTerminated(bool forced) {
 }
 
 void TextService::initChewingContext() {
+	std::string userdict = userDirA();
+	std::string programDir = programDirA();
+	userdict += "\\chewing.dat";
+	programDir += "\\Dictionary";
 	if(!chewingContext_) {
-		chewingContext_ = ::chewing_new();
+		chewingContext_ = ::chewing_new2(programDir.c_str(), userdict.c_str(), nullptr, nullptr);
 		::chewing_set_maxChiSymbolLen(chewingContext_, 50);
 		Config& cfg = config();
 		if(cfg.defaultEnglish)
@@ -680,8 +711,7 @@ void TextService::initChewingContext() {
 			::chewing_set_ShapeMode(chewingContext_, FULLSHAPE_MODE);
 
 		// get last mtime of symbols.dat file
-		Chewing::ImeModule* module = static_cast<Chewing::ImeModule*>(imeModule());
-		std::wstring file = module->userDir() + L"\\symbols.dat";
+		std::wstring file = userDir() + L"\\symbols.dat";
 		struct _stat64 stbuf;
 		if(_wstat64(file.c_str(), &stbuf) == 0)
 			symbolsFileTime_ = stbuf.st_mtime;
@@ -834,7 +864,7 @@ void TextService::showCandidates(Ime::EditSession* session) {
 	// The candidate window created should be a child window of the composition window.
 	// Please see Ime::CandidateWindow::CandidateWindow() for an example.
 	if(!candidateWindow_) {
-		std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
+		std::wstring bitmap_path = programDir();
 		bitmap_path += L"\\Assets\\bubble.9.png";
 		HWND parent = this->compositionWindow(session);
 		candidateWindow_ = nullptr;
@@ -862,7 +892,7 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	// FIXME: reuse the window whenever possible
 	HWND parent = this->compositionWindow(session);
 	messageWindow_ = nullptr;
-	std::wstring bitmap_path = static_cast<ImeModule*>(imeModule())->programDir();
+	std::wstring bitmap_path = programDir();
 	bitmap_path += L"\\Assets\\msg.9.png";
 	CreateMessageWindow(parent, bitmap_path.c_str(), messageWindow_.put_void());
 	messageWindow_->setFontSize(config().fontSize);
@@ -941,6 +971,96 @@ void TextService::updateLangButtons() {
 		switchShapeButton_->setIcon(shapeMode == FULLSHAPE_MODE ? IDI_FULL_SHAPE : IDI_HALF_SHAPE);
 	}
 
+}
+
+std::wstring TextService::userDir() {
+    wchar_t path[MAX_PATH];
+    HRESULT result;
+    std::wstring userDir;
+    if (::GetEnvironmentVariableW(L"USERPROFILE", path, MAX_PATH)) {
+        userDir = path;
+        userDir += L"\\ChewingTextService";
+
+        // create the user directory if not exists
+        // NOTE: this call will fail in Windows 8 store apps
+        // We need a way to create the dir in desktop mode and
+        // set proper ACL, so later we can access it inside apps.
+        DWORD attributes = ::GetFileAttributesW(userDir.c_str());
+        if (attributes == INVALID_FILE_ATTRIBUTES) {
+            // create the directory if it does not exist
+            if (::GetLastError() == ERROR_FILE_NOT_FOUND) {
+                ::CreateDirectoryW(userDir.c_str(), NULL);
+                attributes = ::GetFileAttributesW(userDir.c_str());
+            }
+            // make the directory hidden
+            if (attributes != INVALID_FILE_ATTRIBUTES &&
+                (attributes & FILE_ATTRIBUTE_HIDDEN) == 0)
+                ::SetFileAttributesW(userDir.c_str(),
+                                     attributes | FILE_ATTRIBUTE_HIDDEN);
+        }
+    }
+    return userDir;
+}
+
+std::wstring TextService::programDir() {
+    wchar_t path[MAX_PATH];
+    HRESULT result;
+    // get the program data directory
+    // try C:\program files (x86) first
+    result = ::SHGetFolderPathW(NULL, CSIDL_PROGRAM_FILESX86, NULL, 0, path);
+    if (result != S_OK)  // failed, fall back to C:\program files
+        result = ::SHGetFolderPathW(NULL, CSIDL_PROGRAM_FILES, NULL, 0, path);
+    if (result == S_OK) {  // program files folder is found
+        std::wstring programDir = path;
+        programDir += L"\\ChewingTextService";
+        return programDir;
+    }
+    return std::wstring();
+}
+
+std::string TextService::userDirA() {
+    char path[MAX_PATH];
+    HRESULT result;
+    std::string userDir;
+    if (::GetEnvironmentVariableA("USERPROFILE", path, MAX_PATH)) {
+        userDir = path;
+        userDir += "\\ChewingTextService";
+
+        // create the user directory if not exists
+        // NOTE: this call will fail in Windows 8 store apps
+        // We need a way to create the dir in desktop mode and
+        // set proper ACL, so later we can access it inside apps.
+        DWORD attributes = ::GetFileAttributesA(userDir.c_str());
+        if (attributes == INVALID_FILE_ATTRIBUTES) {
+            // create the directory if it does not exist
+            if (::GetLastError() == ERROR_FILE_NOT_FOUND) {
+                ::CreateDirectoryA(userDir.c_str(), NULL);
+                attributes = ::GetFileAttributesA(userDir.c_str());
+            }
+            // make the directory hidden
+            if (attributes != INVALID_FILE_ATTRIBUTES &&
+                (attributes & FILE_ATTRIBUTE_HIDDEN) == 0)
+                ::SetFileAttributesA(userDir.c_str(),
+                                     attributes | FILE_ATTRIBUTE_HIDDEN);
+        }
+    }
+    return userDir;
+}
+
+std::string TextService::programDirA() {
+    char path[MAX_PATH];
+    HRESULT result;
+    // get the program data directory
+    // try C:\program files (x86) first
+    result = ::SHGetFolderPathA(NULL, CSIDL_PROGRAM_FILESX86, NULL, 0, path);
+    if (result != S_OK)  // failed, fall back to C:\program files
+        result = ::SHGetFolderPathA(NULL, CSIDL_PROGRAM_FILES, NULL, 0, path);
+    if (result == S_OK) {  // program files folder is found
+        std::string programDir = path;
+        programDir += "\\ChewingTextService";
+        return programDir;
+    }
+    return std::string();
 }
 
 

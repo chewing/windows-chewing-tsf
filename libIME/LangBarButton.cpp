@@ -19,10 +19,12 @@
 
 #include "LangBarButton.h"
 #include "TextService.h"
-#include "ImeModule.h"
 #include <OleCtl.h>
 #include <assert.h>
+#include <minwindef.h>
 #include <stdlib.h>
+
+extern HINSTANCE g_hInstance;
 
 namespace Ime {
 
@@ -35,10 +37,10 @@ LangBarButton::LangBarButton(TextService* service, const GUID& guid, UINT comman
 	status_(0),
 	refCount_(1) {
 
-	assert(service && service->imeModule());
+	assert(service);
 
 	textService_->AddRef();
-	info_.clsidService = service->imeModule()->textServiceClsid();
+	info_.clsidService = service->clsid();
 	info_.guidItem = guid;
 	info_.dwStyle = style;
 	info_.ulSort = 0;
@@ -75,7 +77,7 @@ void LangBarButton::setText(const wchar_t* text) {
 
 void LangBarButton::setText(UINT stringId) {
 	const wchar_t* str;
-	int len = ::LoadStringW(textService_->imeModule()->hInstance(), stringId, (LPTSTR)&str, 0);
+	int len = ::LoadStringW(g_hInstance, stringId, (LPTSTR)&str, 0);
 	if(str) {
 		if(len > (TF_LBI_DESC_MAXLEN - 1))
 			len = TF_LBI_DESC_MAXLEN - 1;
@@ -98,7 +100,7 @@ void LangBarButton::setTooltip(const wchar_t* tooltip) {
 void LangBarButton::setTooltip(UINT tooltipId) {
 	const wchar_t* str;
 	//  If this parameter is 0, then lpBuffer receives a read-only pointer to the resource itself.
-	auto len = ::LoadStringW(textService_->imeModule()->hInstance(), tooltipId, (LPTSTR)&str, 0);
+	auto len = ::LoadStringW(g_hInstance, tooltipId, (LPTSTR)&str, 0);
 	if(str) {
 		tooltip_ = std::wstring(str, len);
 		update(TF_LBI_TOOLTIP);
@@ -118,7 +120,7 @@ void LangBarButton::setIcon(HICON icon) {
 }
 
 void LangBarButton::setIcon(UINT iconId) {
-	HICON icon = ::LoadIconW(textService_->imeModule()->hInstance(), (LPCTSTR)iconId);
+	HICON icon = ::LoadIconW(g_hInstance, (LPCTSTR)iconId);
 	if(icon)
 		setIcon(icon);
 }

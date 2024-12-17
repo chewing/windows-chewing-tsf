@@ -19,7 +19,6 @@
 
 #include "DisplayAttributeInfoEnum.h"
 #include "DisplayAttributeProvider.h"
-#include "ImeModule.h"
 #include <assert.h>
 
 namespace Ime {
@@ -27,8 +26,9 @@ namespace Ime {
 DisplayAttributeInfoEnum::DisplayAttributeInfoEnum(DisplayAttributeProvider* provider):
 	refCount_(1) {
 	provider_.copy_from(provider);
-	std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
-	iterator_ = displayAttrInfos.begin();
+	// FIXME
+	// std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
+	// iterator_ = displayAttrInfos.begin();
 }
 
 DisplayAttributeInfoEnum::DisplayAttributeInfoEnum(const DisplayAttributeInfoEnum& other):
@@ -76,33 +76,36 @@ STDMETHODIMP DisplayAttributeInfoEnum::Clone(IEnumTfDisplayAttributeInfo **ppEnu
 }
 
 STDMETHODIMP DisplayAttributeInfoEnum::Next(ULONG ulCount, ITfDisplayAttributeInfo **rgInfo, ULONG *pcFetched) {
-	ULONG i = 0;
-	std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
-	for(; i < ulCount; ++i) {
-		if(iterator_ != displayAttrInfos.end()) {
-			DisplayAttributeInfo* info = *iterator_;
-			info->AddRef();
-			rgInfo[i] = info;
-			++iterator_;
-		}
-		else
-			break;
-	}
-	if(pcFetched)
-		*pcFetched = i;
+	// FIXME
+	// ULONG i = 0;
+	// std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
+	// for(; i < ulCount; ++i) {
+	// 	if(iterator_ != displayAttrInfos.end()) {
+	// 		DisplayAttributeInfo* info = *iterator_;
+	// 		info->AddRef();
+	// 		rgInfo[i] = info;
+	// 		++iterator_;
+	// 	}
+	// 	else
+	// 		break;
+	// }
+	// if(pcFetched)
+	// 	*pcFetched = i;
 	return S_OK;
 }
 
 STDMETHODIMP DisplayAttributeInfoEnum::Reset() {
-	std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
-	iterator_ = displayAttrInfos.begin();
+	// FIXME
+	// std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
+	// iterator_ = displayAttrInfos.begin();
 	return S_OK;
 }
 
 STDMETHODIMP DisplayAttributeInfoEnum::Skip(ULONG ulCount) {
-	std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
-	if(iterator_ != displayAttrInfos.end())
-		++iterator_;
+	// FIXME
+	// std::list<DisplayAttributeInfo*>& displayAttrInfos = provider_->imeModule_->displayAttrInfos();
+	// if(iterator_ != displayAttrInfos.end())
+	// 	++iterator_;
 	return S_OK;
 }
 

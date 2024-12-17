@@ -36,7 +36,7 @@ public:
 
 	friend class DisplayAttributeInfoEnum;
 
-	DisplayAttributeProvider(ImeModule* module);
+	DisplayAttributeProvider();
 
 	// COM stuff
 
@@ -54,7 +54,6 @@ protected: // COM object should not be deleted directly. calling Release() inste
 
 private:
 	int refCount_;
-	winrt::com_ptr<ImeModule> imeModule_;
 };
 
 }

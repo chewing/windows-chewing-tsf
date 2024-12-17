@@ -20,16 +20,14 @@
 #include "DisplayAttributeProvider.h"
 #include "DisplayAttributeInfo.h"
 #include "DisplayAttributeInfoEnum.h"
-#include "ImeModule.h"
 #include <assert.h>
 
 using namespace std;
 
 namespace Ime {
 
-DisplayAttributeProvider::DisplayAttributeProvider(ImeModule* module):
+DisplayAttributeProvider::DisplayAttributeProvider():
 	refCount_(1) {
-	imeModule_.copy_from(module);
 }
 
 DisplayAttributeProvider::~DisplayAttributeProvider(void) {
@@ -75,16 +73,17 @@ STDMETHODIMP DisplayAttributeProvider::EnumDisplayAttributeInfo(IEnumTfDisplayAt
 }
 
 STDMETHODIMP DisplayAttributeProvider::GetDisplayAttributeInfo(REFGUID guidInfo, ITfDisplayAttributeInfo **ppInfo) {
-	list<DisplayAttributeInfo*>& displayAttrInfos = imeModule_->displayAttrInfos();
-	list<DisplayAttributeInfo*>::iterator it;
-	for(it = displayAttrInfos.begin(); it != displayAttrInfos.end(); ++it) {
-		DisplayAttributeInfo* info = *it;
-		if(::IsEqualGUID(info->guid(), guidInfo)) {
-			*ppInfo = info;
-			info->AddRef();
-			return S_OK;
-		}
-	}
+	// FIXME
+	// list<DisplayAttributeInfo*>& displayAttrInfos = imeModule_->displayAttrInfos();
+	// list<DisplayAttributeInfo*>::iterator it;
+	// for(it = displayAttrInfos.begin(); it != displayAttrInfos.end(); ++it) {
+	// 	DisplayAttributeInfo* info = *it;
+	// 	if(::IsEqualGUID(info->guid(), guidInfo)) {
+	// 		*ppInfo = info;
+	// 		info->AddRef();
+	// 		return S_OK;
+	// 	}
+	// }
 	return E_INVALIDARG;
 }
 

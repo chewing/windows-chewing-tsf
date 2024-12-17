@@ -29,8 +29,6 @@ add_custom_command(
 
 add_library(libIME_static STATIC
     # Core TSF part
-    ImeModule.cpp
-    ImeModule.h
     libIME.cpp
     libIME.h
     TextService.cpp

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24.0)
 
 project(windows-chewing-tsf LANGUAGES CXX)
 
-option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 # http://www.utf8everywhere.org/
 add_definitions(

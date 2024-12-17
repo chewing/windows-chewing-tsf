@@ -31,6 +31,7 @@
 #include <string>
 
 #include <Unknwn.h>
+#include <winnt.h>
 #include <winrt/base.h>
 
 // for Windows 8 support
@@ -40,7 +41,6 @@
 
 namespace Ime {
 
-class ImeModule;
 class LangBarButton;
 
 class TextService:
@@ -62,11 +62,9 @@ public:
 		COMMAND_MENU
 	};
 
-	TextService(ImeModule* module);
+	TextService();
 
 	// public methods
-	ImeModule* imeModule() const;
-
 	ITfThreadMgr* threadMgr() const;
 
 	TfClientId clientId() const;
@@ -150,6 +148,8 @@ public:
 	void removeCompartmentMonitor(const GUID key);
 
 	// virtual functions that IME implementors may need to override
+	virtual CLSID clsid() = 0;
+
 	virtual void onActivate();
 	virtual void onDeactivate();
 
@@ -291,7 +291,6 @@ protected: // COM object should not be deleted directly. calling Release() inste
 	virtual ~TextService(void);
 
 private:
-	winrt::com_ptr<ImeModule> module_;
 	winrt::com_ptr<ITfThreadMgr> threadMgr_;
 	TfClientId clientId_;
 	DWORD activateFlags_;
