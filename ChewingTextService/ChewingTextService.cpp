@@ -697,12 +697,9 @@ void TextService::onCompositionTerminated(bool forced) {
 }
 
 void TextService::initChewingContext() {
-	std::string userdict = userDirA();
-	std::string programDir = programDirA();
-	userdict += "\\chewing.dat";
-	programDir += "\\Dictionary";
-	if(!chewingContext_) {
-		chewingContext_ = ::chewing_new2(programDir.c_str(), userdict.c_str(), nullptr, nullptr);
+	if (!chewingContext_) {
+		initChewingEnv();
+		chewingContext_ = ::chewing_new();
 		::chewing_set_maxChiSymbolLen(chewingContext_, 50);
 		Config& cfg = config();
 		if(cfg.defaultEnglish)
@@ -977,6 +974,9 @@ std::wstring TextService::userDir() {
     wchar_t path[MAX_PATH];
     HRESULT result;
     std::wstring userDir;
+
+	// SHGetFolderPathA might fail in impersonation security context.
+	// Use %USERPROFILE% to retrieve the user home directory.
     if (::GetEnvironmentVariableW(L"USERPROFILE", path, MAX_PATH)) {
         userDir = path;
         userDir += L"\\ChewingTextService";
@@ -1018,50 +1018,25 @@ std::wstring TextService::programDir() {
     return std::wstring();
 }
 
-std::string TextService::userDirA() {
-    char path[MAX_PATH];
-    HRESULT result;
-    std::string userDir;
-    if (::GetEnvironmentVariableA("USERPROFILE", path, MAX_PATH)) {
-        userDir = path;
-        userDir += "\\ChewingTextService";
+void TextService::initChewingEnv() {
+	std::wstring env;
+	std::wstring userPath = userDir();
+	std::wstring chewingPath = programDir();
 
-        // create the user directory if not exists
-        // NOTE: this call will fail in Windows 8 store apps
-        // We need a way to create the dir in desktop mode and
-        // set proper ACL, so later we can access it inside apps.
-        DWORD attributes = ::GetFileAttributesA(userDir.c_str());
-        if (attributes == INVALID_FILE_ATTRIBUTES) {
-            // create the directory if it does not exist
-            if (::GetLastError() == ERROR_FILE_NOT_FOUND) {
-                ::CreateDirectoryA(userDir.c_str(), NULL);
-                attributes = ::GetFileAttributesA(userDir.c_str());
-            }
-            // make the directory hidden
-            if (attributes != INVALID_FILE_ATTRIBUTES &&
-                (attributes & FILE_ATTRIBUTE_HIDDEN) == 0)
-                ::SetFileAttributesA(userDir.c_str(),
-                                     attributes | FILE_ATTRIBUTE_HIDDEN);
-        }
-    }
-    return userDir;
+	env = L"CHEWING_USER_PATH=";
+	env += userPath;
+	_wputenv(env.c_str());
+
+	env = L"CHEWING_PATH=";
+	// prepend user dir path to program path, so user-specific files, if they exist,
+	// can take precedence over built-in ones. (for ex: symbols.dat)
+	env += userPath;
+	// add ; to separate two dir paths
+	env += ';';
+	// add program dir after user profile dir
+	env += chewingPath;
+	env += L"\\Dictionary";
+	_wputenv(env.c_str());
 }
-
-std::string TextService::programDirA() {
-    char path[MAX_PATH];
-    HRESULT result;
-    // get the program data directory
-    // try C:\program files (x86) first
-    result = ::SHGetFolderPathA(NULL, CSIDL_PROGRAM_FILESX86, NULL, 0, path);
-    if (result != S_OK)  // failed, fall back to C:\program files
-        result = ::SHGetFolderPathA(NULL, CSIDL_PROGRAM_FILES, NULL, 0, path);
-    if (result == S_OK) {  // program files folder is found
-        std::string programDir = path;
-        programDir += "\\ChewingTextService";
-        return programDir;
-    }
-    return std::string();
-}
-
 
 } // namespace Chewing

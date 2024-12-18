@@ -112,9 +112,7 @@ private:
 
 	std::wstring userDir();
     std::wstring programDir();
-
-	std::string userDirA();
-    std::string programDirA();
+	void initChewingEnv();
 
 private:
 	Config config_;
