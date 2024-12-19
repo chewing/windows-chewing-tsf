@@ -29,8 +29,6 @@ add_custom_command(
 
 add_library(libIME_static STATIC
     # Core TSF part
-    ImeModule.cpp
-    ImeModule.h
     libIME.cpp
     libIME.h
     TextService.cpp
@@ -39,12 +37,6 @@ add_library(libIME_static STATIC
     KeyEvent.h
     EditSession.cpp
     EditSession.h
-    DisplayAttributeInfo.cpp
-    DisplayAttributeInfo.h
-    DisplayAttributeInfoEnum.cpp
-    DisplayAttributeInfoEnum.h
-    DisplayAttributeProvider.cpp
-    DisplayAttributeProvider.h
     LangBarButton.cpp
     LangBarButton.h
     Utils.cpp

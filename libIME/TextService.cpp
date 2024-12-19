@@ -20,20 +20,28 @@
 #include "TextService.h"
 #include "EditSession.h"
 #include "LangBarButton.h"
-#include "DisplayAttributeInfoEnum.h"
-#include "ImeModule.h"
+#include "libime2.h"
 
 #include <assert.h>
 #include <msctf.h>
 #include <winrt/base.h>
 #include <string>
-#include <algorithm>
 
 using namespace std;
 
+extern HINSTANCE g_hInstance;
+
+// eea32958-dc57-4542-9fc8-33c74f5caaa9
+static const GUID g_inputDisplayAttributeGuid = {
+    0xeea32958,
+    0xdc57,
+    0x4542,
+    {0x9f, 0xc8, 0x33, 0xc7, 0x4f, 0x5c, 0xaa, 0xa9}
+};
+
 namespace Ime {
 
-TextService::TextService(ImeModule* module):
+TextService::TextService():
 	threadMgr_(NULL),
 	clientId_(TF_CLIENTID_NULL),
 	activateFlags_(0),
@@ -46,9 +54,23 @@ TextService::TextService(ImeModule* module):
 	langBarSinkCookie_(TF_INVALID_COOKIE),
 	activateLanguageProfileNotifySinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
+	input_atom_(TF_INVALID_GUIDATOM),
 	refCount_(1) {
-	module_.copy_from(module);
 	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
+
+	// FIXME we should only initialize once
+	LibIME2Init();
+	ImeWindowRegisterClass(g_hInstance);
+
+	TF_DISPLAYATTRIBUTE da = {
+		{TF_CT_NONE, {}},  // text color
+		{TF_CT_NONE, {}},  // background color
+		TF_LS_DOT,         // underline style
+		FALSE,             // underline boldness
+		{TF_CT_NONE, {}},  // underline color
+		TF_ATTR_INPUT      // attribute info
+	};
+	RegisterDisplayAttribute(&g_inputDisplayAttributeGuid, da, &input_atom_);
 }
 
 TextService::~TextService(void) {
@@ -75,10 +97,6 @@ TextService::~TextService(void) {
 }
 
 // public methods
-
-ImeModule* TextService::imeModule() const {
-	return module_.get();
-}
 
 ITfThreadMgr* TextService::threadMgr() const {
 	return threadMgr_.get();
@@ -257,35 +275,22 @@ std::wstring TextService::compositionString(EditSession* session) {
 
 void TextService::setCompositionString(EditSession* session, const wchar_t* str, int len) {
 	ITfContext* context = session->context();
-	if(context) {
+	if (context) {
 		TfEditCookie editCookie = session->editCookie();
-		TF_SELECTION selection;
-		ULONG selectionNum;
-		// get current selection/insertion point
-		if(context->GetSelection(editCookie, TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK) {
-			winrt::com_ptr<ITfRange> compositionRange;
-			if(composition_->GetRange(compositionRange.put()) == S_OK) {
-				bool selPosInComposition = true;
-				// if current insertion point is not covered by composition, we cannot insert text here.
-				if(selPosInComposition) {
-					// replace context of composion area with the new string.
-					compositionRange->SetText(editCookie, TF_ST_CORRECTION, str, len);
+		winrt::com_ptr<ITfRange> compositionRange;
+		if(composition_->GetRange(compositionRange.put()) == S_OK) {
+			// replace context of composion area with the new string.
+			compositionRange->SetText(editCookie, 0, str, len);
 
-					// move the insertion point to end of the composition string
-					selection.range->Collapse(editCookie, TF_ANCHOR_END);
-					context->SetSelection(editCookie, 1, &selection);
-				}
-
-				// set display attribute to the composition range
-				winrt::com_ptr<ITfProperty> dispAttrProp;
-				if(context->GetProperty(GUID_PROP_ATTRIBUTE, dispAttrProp.put()) == S_OK) {
-					VARIANT val;
-					val.vt = VT_I4;
-					val.lVal = module_->inputAttrib()->atom();
-					dispAttrProp->SetValue(editCookie, compositionRange.get(), &val);
-				}
+			// set display attribute to the composition range
+			winrt::com_ptr<ITfProperty> dispAttrProp;
+			if(context->GetProperty(GUID_PROP_ATTRIBUTE, dispAttrProp.put()) == S_OK) {
+				VARIANT var;
+				VariantInit(&var);
+				var.vt = VT_I4;
+				var.lVal = input_atom_;
+				dispAttrProp->SetValue(editCookie, compositionRange.get(), &var);
 			}
-			selection.range->Release();
 		}
 	}
 }
@@ -578,6 +583,18 @@ void TextService::onLangProfileDeactivated(REFGUID guidProfile) {
 
 // IUnknown
 STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
+	// XXX MS document says "The TSF manager obtains an instance of this
+	// interface by calling CoCreateInstance with the class identifier
+	// passed to ITfCategoryMgr::RegisterCategory with GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER
+	// and IID_ITfDisplayAttributeProvider. For more information, see
+	// Providing Display Attributes." However, in practice the DisplayAttributeMgr
+	// directly queries the text service object for the interface, so we need
+	// to handle the query interface here.
+	if (IsEqualIID(riid, IID_ITfDisplayAttributeProvider)) {
+        CreateDisplayAttributeProvider(ppvObj);
+		return S_OK;
+	}
+
     if (ppvObj == NULL)
         return E_INVALIDARG;
 	if(IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_ITfTextInputProcessor))
@@ -617,8 +634,6 @@ STDMETHODIMP_(ULONG) TextService::Release(void) {
 	assert(refCount_ > 0);
 	const ULONG newCount = --refCount_;
 	if(0 == refCount_) {
-		// ImeModule needs to do some clean up before deleting the TextService object.
-		module_->removeTextService(this);
 		delete this;
 	}
 	return newCount;
@@ -1005,7 +1020,7 @@ STDMETHODIMP TextService::GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, R
 STDMETHODIMP TextService::OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL fActivated) {
 	// we only support one text service, so clsid must be the same as that of our text service.
 	// otherwise it's not the notification for our text service, just ignore the event.
-	if(clsid == module_->textServiceClsid()) {
+	if(clsid == this->clsid()) {
 		if(fActivated)
 			onLangProfileActivated(guidProfile);
 		else

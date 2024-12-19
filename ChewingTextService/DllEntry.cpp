@@ -1,31 +1,38 @@
-#include <Windows.h>
-#include <VersionHelpers.h>
+#include <combaseapi.h>
+#include <debugapi.h>
+#include <minwindef.h>
+#include <objbase.h>
+#include <unknwn.h>
+#include <windows.h>
+#include <winerror.h>
+#include <winnt.h>
 
-#include "ChewingImeModule.h"
-#include "resource.h"
+#include "CClassFactory.h"
 
-Chewing::ImeModule* g_imeModule = NULL;
+// DLL module handle
+HINSTANCE g_hInstance = nullptr;
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-	switch (ul_reason_for_call) {
-	case DLL_PROCESS_ATTACH:
-		::DisableThreadLibraryCalls(hModule); // disable DllMain calls due to new thread creation
-		g_imeModule = new Chewing::ImeModule(hModule);
-		break;
-	case DLL_PROCESS_DETACH:
-		if(g_imeModule) {
-			g_imeModule->Release();
-			g_imeModule = NULL;
-		}
-		break;
-	}
-	return TRUE;
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
+                      LPVOID lpReserved) {
+    OutputDebugStringW(L"DllMain called\n");
+    switch (ul_reason_for_call) {
+        case DLL_PROCESS_ATTACH:
+            g_hInstance = HINSTANCE(hModule);
+            // disable DllMain calls due to new thread creation
+            DisableThreadLibraryCalls(g_hInstance);
+            OutputDebugStringW(L"DllMain attached to process\n");
+            break;
+    }
+    return TRUE;
 }
 
-STDAPI DllCanUnloadNow(void) {
-	return g_imeModule->canUnloadNow();
-}
+STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppvObj) {
+    OutputDebugStringW(L"DllGetClassObject Called\n");
 
-STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppvObj) {
-	return g_imeModule->getClassObject(rclsid, riid, ppvObj);
+    Chewing::CClassFactory* pFactory = new Chewing::CClassFactory();
+
+    HRESULT hr = pFactory->QueryInterface(riid, ppvObj);
+    pFactory->Release();
+
+    return hr;
 }

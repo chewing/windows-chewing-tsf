@@ -6,12 +6,12 @@ include_directories(
 
 add_library(ChewingTextService SHARED
     # core IME implementation
-    ${PROJECT_SOURCE_DIR}/ChewingImeModule.cpp
-    ${PROJECT_SOURCE_DIR}/ChewingImeModule.h
     ${PROJECT_SOURCE_DIR}/ChewingTextService.cpp
     ${PROJECT_SOURCE_DIR}/ChewingTextService.def
     ${PROJECT_SOURCE_DIR}/ChewingTextService.h
     ${PROJECT_SOURCE_DIR}/DllEntry.cpp
+    ${PROJECT_SOURCE_DIR}/CClassFactory.cpp
+    ${PROJECT_SOURCE_DIR}/CClassFactory.h
     ${PROJECT_SOURCE_DIR}/ChewingConfig.cpp
     ${PROJECT_SOURCE_DIR}/ChewingConfig.h
     # resources
