@@ -69,3 +69,5 @@ interface IMessageWindow : IWindow
 [local] void CreateCandidateWindow(HWND parent, [in] LPCWSTR image_path, [out] void **candidatewindow);
 [local] IWindow *ImeWindowFromHwnd(HWND hwnd);
 [local] boolean ImeWindowRegisterClass(HINSTANCE hinstance);
+[local] void CreateDisplayAttributeProvider([out] void **provider);
+[local] HRESULT RegisterDisplayAttribute([in] const GUID *guid, [in] TF_DISPLAYATTRIBUTE da, [out] UINT32 *atom);

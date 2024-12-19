@@ -26,11 +26,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
     return TRUE;
 }
 
-STDAPI DllCanUnloadNow(void) {
-    // FIXME: implement component tracking
-    return S_FALSE;
-}
-
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppvObj) {
     OutputDebugStringW(L"DllGetClassObject Called\n");
 

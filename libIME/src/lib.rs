@@ -1,3 +1,4 @@
+mod display_attribute;
 mod gfx;
 mod window;
 

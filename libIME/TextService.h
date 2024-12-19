@@ -24,7 +24,6 @@
 #include <msctf.h>
 #include "EditSession.h"
 #include "KeyEvent.h"
-#include "DisplayAttributeInfo.h"
 
 #include <vector>
 #include <list>
@@ -295,6 +294,8 @@ private:
 	TfClientId clientId_;
 	DWORD activateFlags_;
 	bool isKeyboardOpened_;
+
+	uint32_t input_atom_;
 
 	// event sink cookies
 	DWORD threadMgrEventSinkCookie_;

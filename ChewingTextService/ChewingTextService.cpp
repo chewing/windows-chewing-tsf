@@ -73,7 +73,6 @@ static const GUID g_configChangedGuid =
 static const GUID _GUID_LBI_INPUTMODE =
 { 0x2C77A81E, 0x41CC, 0x4178, { 0xA3, 0xA7, 0x5F, 0x8A, 0x98, 0x75, 0x68, 0xE6 } };
 
-
 // CLSID of our Text service
 // {13F2EF08-575C-4D8C-88E0-F67BB8052B84}
 const CLSID g_textServiceClsid =
@@ -96,10 +95,6 @@ TextService::TextService():
 	config_.load();
 
 	OutputDebugStringW(L"Config loaded\n");
-
-	// FIXME we should only initialize once
-	LibIME2Init();
-	ImeWindowRegisterClass(g_hInstance);
 
 	// add preserved keys
 	addPreservedKey(VK_SPACE, TF_MOD_SHIFT, g_shiftSpaceGuid); // shift + space
@@ -431,6 +426,7 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 
 	// has something in composition buffer
 	if(!compositionBuf.empty()) {
+		// FIXME there's no need to start a new edit session
 		if(!isComposing()) { // start the composition
 			startComposition(session->context());
 		}

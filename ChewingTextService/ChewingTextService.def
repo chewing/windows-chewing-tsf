@@ -2,4 +2,3 @@ LIBRARY ChewingTextService.dll
 
 EXPORTS
     DllGetClassObject               PRIVATE
-    DllCanUnloadNow                 PRIVATE
