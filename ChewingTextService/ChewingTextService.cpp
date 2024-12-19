@@ -24,7 +24,6 @@
 
 #include <Shellapi.h>
 #include <assert.h>
-#include <debugapi.h>
 #include <libIME/LangBarButton.h>
 #include <libIME/Utils.h>
 #include <minwindef.h>
@@ -90,11 +89,7 @@ TextService::TextService():
 	symbolsFileTime_(0),
 	chewingContext_(NULL) {
 
-	OutputDebugStringW(L"TextService Ctor\n");
-
 	config_.load();
-
-	OutputDebugStringW(L"Config loaded\n");
 
 	// add preserved keys
 	addPreservedKey(VK_SPACE, TF_MOD_SHIFT, g_shiftSpaceGuid); // shift + space
@@ -133,8 +128,6 @@ TextService::TextService():
 
 	// global compartment stuff
 	addCompartmentMonitor(g_configChangedGuid, true);
-
-	OutputDebugStringW(L"TextService Initialized\n");
 }
 
 TextService::~TextService(void) {
@@ -160,14 +153,12 @@ CLSID TextService::clsid() {
 
 // virtual
 void TextService::onActivate() {
-	OutputDebugStringW(L"begin onActivate\n");
 	DWORD configStamp = globalCompartmentValue(g_configChangedGuid);
 	config().reloadIfNeeded(configStamp);
 	initChewingContext();
 	updateLangButtons();
 	if(imeModeIcon_) // windows 8 IME mode icon
 		imeModeIcon_->setEnabled(isKeyboardOpened());
-	OutputDebugStringW(L"end onActivate\n");
 }
 
 // virtual
