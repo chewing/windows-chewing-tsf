@@ -35,11 +35,11 @@ jobs:
         with:
           tag_name: nightly
           prerelease: true
-          name: 最新開發版 $$
+          name: 最新測試版 $$
           body: |
-            This is a nightly build of Windows Chewing TSF.
+            這是測試中的版本，可能較不穩定。若不確定，請使用正式釋出版。
 
-            windows-chewing-tsf changes:
+            最近更新:
             ```
             TBD
             ```
