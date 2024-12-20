@@ -40,6 +40,11 @@ fn register(icon_path: String) -> Result<()> {
 
         category_manager.RegisterCategory(
             &CHEWING_TSF_CLSID,
+            &GUID_TFCAT_TIPCAP_LOCALSERVER,
+            &CHEWING_TSF_CLSID,
+        )?;
+        category_manager.RegisterCategory(
+            &CHEWING_TSF_CLSID,
             &GUID_TFCAT_TIP_KEYBOARD,
             &CHEWING_TSF_CLSID,
         )?;
@@ -58,7 +63,6 @@ fn register(icon_path: String) -> Result<()> {
             &GUID_TFCAT_TIPCAP_UIELEMENTENABLED,
             &CHEWING_TSF_CLSID,
         )?;
-
         category_manager.RegisterCategory(
             &CHEWING_TSF_CLSID,
             &GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,

@@ -24,6 +24,7 @@
 
 #include <assert.h>
 #include <msctf.h>
+#include <winnt.h>
 #include <winrt/base.h>
 #include <string>
 
@@ -37,6 +38,13 @@ static const GUID g_inputDisplayAttributeGuid = {
     0xdc57,
     0x4542,
     {0x9f, 0xc8, 0x33, 0xc7, 0x4f, 0x5c, 0xaa, 0xa9}
+};
+
+static const GUID g_ImeServerGuid = {
+	0xDB6E4E9B,
+	0xE989,
+	0x4781,
+	{ 0xB7, 0xBB, 0x96, 0x0E, 0xEE, 0x67, 0x00, 0x6E }
 };
 
 namespace Ime {
@@ -126,6 +134,7 @@ void TextService::addButton(LangBarButton* button) {
 		if(isActivated()) {
 			winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
 			if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
+				OutputDebugStringW(L"TextService::addButton");
 				langBarItemMgr->AddItem(button);
 			}
 		}
@@ -262,7 +271,7 @@ std::wstring TextService::compositionString(EditSession* session) {
 			// So, just use a huge buffer and assume that it's enough. :-(
 			// this should be quite enough for most of the IME on the earth as most composition strings
 			// only contain dozens of characters.
-			wchar_t buf[4096];  
+			wchar_t buf[4096];
 			ULONG len = 0;
 			if (compositionRange->GetText(editCookie, 0, buf, 4096, &len) == S_OK) {
 				buf[len] = '\0';
@@ -583,6 +592,15 @@ void TextService::onLangProfileDeactivated(REFGUID guidProfile) {
 
 // IUnknown
 STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
+
+    OutputDebugStringW(L"TextService::QueryIntrerface Called\n");
+
+    LPOLESTR str;
+    StringFromIID(riid, &str);
+    OutputDebugStringW(str);
+    OutputDebugStringW(L"\n");
+    CoTaskMemFree(str);
+
 	// XXX MS document says "The TSF manager obtains an instance of this
 	// interface by calling CoCreateInstance with the class identifier
 	// passed to ITfCategoryMgr::RegisterCategory with GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER
@@ -618,6 +636,11 @@ STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
 	else
 		*ppvObj = NULL;
 
+	if (IsEqualIID(riid, g_ImeServerGuid)) {
+	      *ppvObj = (ITfTextInputProcessor*)this;
+	}
+
+
 	if(*ppvObj) {
 		AddRef();
 		return S_OK;
@@ -652,7 +675,7 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	}
 
 	// advice event sinks (set up event listeners)
-	
+
 	// ITfThreadMgrEventSink, ITfActiveLanguageProfileNotifySink
 	winrt::com_ptr<ITfSource> source = threadMgr_.as<ITfSource>();
 	if(source) {
@@ -958,7 +981,7 @@ STDMETHODIMP TextService::OnPreservedKey(ITfContext *pContext, REFGUID rguid, BO
 // ITfCompositionSink
 STDMETHODIMP TextService::OnCompositionTerminated(TfEditCookie ecWrite, ITfComposition *pComposition) {
 	// This is called by TSF when our composition is terminated by others.
-	// For example, when the user click on another text editor and the input focus is 
+	// For example, when the user click on another text editor and the input focus is
 	// grabbed by others, we're ``forced'' to terminate current composition.
 	// If we end the composition by calling ITfComposition::EndComposition() ourselves,
 	// this event is not triggered.
@@ -989,7 +1012,7 @@ STDMETHODIMP TextService::OnChange(REFGUID rguid) {
 	return S_OK;
 }
 
-// ITfLangBarEventSink 
+// ITfLangBarEventSink
 STDMETHODIMP TextService::OnSetFocus(DWORD dwThreadId) {
 	return E_NOTIMPL;
 }

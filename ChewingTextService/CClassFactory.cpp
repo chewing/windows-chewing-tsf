@@ -44,6 +44,14 @@ STDMETHODIMP CClassFactory::CreateInstance(IUnknown *pUnkOuter, REFIID riid,
                                            void **ppvObj) {
     *ppvObj = nullptr;
 
+    OutputDebugStringW(L"CClassFactory::CreateInstance Called\n");
+
+    LPOLESTR str;
+    StringFromIID(riid, &str);
+    OutputDebugStringW(str);
+    OutputDebugStringW(L"\n");
+    CoTaskMemFree(str);
+
     TextService *service = new TextService();
     service->QueryInterface(riid, ppvObj);
     service->Release();

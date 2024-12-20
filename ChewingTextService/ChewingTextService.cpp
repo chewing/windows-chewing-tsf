@@ -24,6 +24,7 @@
 
 #include <Shellapi.h>
 #include <assert.h>
+#include <debugapi.h>
 #include <libIME/LangBarButton.h>
 #include <libIME/Utils.h>
 #include <minwindef.h>
@@ -153,6 +154,7 @@ CLSID TextService::clsid() {
 
 // virtual
 void TextService::onActivate() {
+	OutputDebugStringW(L"TextService::onActivate");
 	DWORD configStamp = globalCompartmentValue(g_configChangedGuid);
 	config().reloadIfNeeded(configStamp);
 	initChewingContext();
@@ -163,6 +165,7 @@ void TextService::onActivate() {
 
 // virtual
 void TextService::onDeactivate() {
+	OutputDebugStringW(L"TextService::onDeactivate");
 	lastKeyDownCode_ = 0;
 	freeChewingContext();
 
@@ -685,6 +688,7 @@ void TextService::onCompositionTerminated(bool forced) {
 
 void TextService::initChewingContext() {
 	if (!chewingContext_) {
+		OutputDebugStringW(L"TextService::initChewingContext");
 		initChewingEnv();
 		chewingContext_ = ::chewing_new();
 		::chewing_set_maxChiSymbolLen(chewingContext_, 50);
@@ -927,6 +931,7 @@ bool TextService::isLightTheme() {
 }
 
 void TextService::updateLangButtons() {
+	OutputDebugStringW(L"TextService::updateLangButtons");
 	if(!chewingContext_)
 		return;
 
@@ -1012,6 +1017,7 @@ void TextService::initChewingEnv() {
 
 	env = L"CHEWING_USER_PATH=";
 	env += userPath;
+	OutputDebugStringW(env.c_str());
 	_wputenv(env.c_str());
 
 	env = L"CHEWING_PATH=";
@@ -1023,6 +1029,7 @@ void TextService::initChewingEnv() {
 	// add program dir after user profile dir
 	env += chewingPath;
 	env += L"\\Dictionary";
+	OutputDebugStringW(env.c_str());
 	_wputenv(env.c_str());
 }
 

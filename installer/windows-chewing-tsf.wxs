@@ -26,9 +26,11 @@
                 <!-- <File Source="x86\chewing-msvc.dll" Bitness="always32" /> -->
                 <Component Bitness="always32">
                     <File Source="x86\ChewingTextService.dll">
-                        <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                            Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                            ThreadingModel="apartment" />
+                        <AppId Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" DllSurrogate="" RunAsInteractiveUser="yes">
+                            <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
+                                Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
+                                ThreadingModel="apartment" />
+                        </AppId>
                     </File>
                     <!-- Remove NSIS Uninstaller -->
                     <RemoveFile Name="Uninstall.exe" On="install" />
@@ -43,9 +45,11 @@
                 <!-- <File Source="x64\chewing-msvc.dll" /> -->
                 <Component Bitness="always64">
                     <File Source="x64\ChewingTextService.dll">
-                        <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                            Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                            ThreadingModel="apartment" />
+                        <AppId Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" DllSurrogate="" RunAsInteractiveUser="yes">
+                            <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
+                                Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
+                                ThreadingModel="apartment" />
+                        </AppId>
                     </File>
                     <!-- Remove NSIS Uninstaller -->
                     <RemoveFile Name="Uninstall.exe" On="install" />
