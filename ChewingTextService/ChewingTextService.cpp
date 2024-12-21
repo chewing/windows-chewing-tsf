@@ -466,11 +466,16 @@ bool TextService::onKeyDown(Ime::KeyEvent& keyEvent, Ime::EditSession* session) 
 
 // virtual
 bool TextService::filterKeyUp(Ime::KeyEvent& keyEvent) {
-	if(config().switchLangWithShift) {
+	if (config().switchLangWithShift) {
 		if (lastKeyDownCode_ == VK_SHIFT && keyEvent.keyCode() == VK_SHIFT) {
 			// last key down event is also shift key
 			// a <Shift> key down + key up pair was detected
 			// switch language
+			return true;
+		}
+	}
+	if (config().enableCapsLock) {
+		if (lastKeyDownCode_ == VK_CAPITAL && keyEvent.keyCode() == VK_CAPITAL && langMode_ == CHINESE_MODE) {
 			return true;
 		}
 	}
@@ -486,6 +491,20 @@ bool TextService::onKeyUp(Ime::KeyEvent& keyEvent, Ime::EditSession* session) {
 			std::wstring msg;
 			if (chewing_get_ChiEngMode(chewingContext_) == SYMBOL_MODE) {
 				msg += L"英數模式";
+			} else {
+				msg += L"中文模式";
+				if (config().enableCapsLock && keyEvent.isKeyToggled(VK_CAPITAL)) {
+					msg = L"英數模式 (CapsLock)";
+				}
+			}
+			showMessage(session, msg, 2);
+		}
+	}
+	if (config().enableCapsLock) {
+		if (lastKeyDownCode_ == VK_CAPITAL && keyEvent.keyCode() == VK_CAPITAL && langMode_ == CHINESE_MODE) {
+			std::wstring msg;
+			if (keyEvent.isKeyToggled(VK_CAPITAL)) {
+				msg += L"英數模式 (CapsLock)";
 			} else {
 				msg += L"中文模式";
 			}
