@@ -20,6 +20,15 @@
 #include <Aclapi.h>
 #include <Windows.h>
 #include <VersionHelpers.h>
+#include <debugapi.h>
+#include <handleapi.h>
+#include <minwindef.h>
+#include <synchapi.h>
+#include <winbase.h>
+#include <winnt.h>
+#include <winreg.h>
+#include <cassert>
+#include <cstddef>
 
 #include "ChewingConfig.h"
 
@@ -57,7 +66,9 @@ const wchar_t* Config::convEngines[]={
 #define SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE 0x00000001L
 #endif
 
-Config::Config() {
+Config::Config():
+	hChangeEvent(NULL),
+	monitorHkey(NULL) {
 	// Configuration
 	keyboardLayout = 0;
 	candPerRow = 3;
@@ -86,6 +97,12 @@ Config::Config() {
 }
 
 Config::~Config(void) {
+	if (hChangeEvent) {
+		CloseHandle(hChangeEvent);
+	}
+	if (monitorHkey) {
+		RegCloseKey(monitorHkey);
+	}
 }
 
 void Config::load() {
@@ -186,6 +203,51 @@ void Config::reloadIfNeeded(DWORD timestamp) {
 	if(stamp != timestamp) {
 		load();
 		stamp = timestamp;
+	}
+}
+
+bool Config::reloadIfNeeded() {
+	if (hChangeEvent) {
+		DWORD result = WaitForSingleObject(hChangeEvent, 0);
+		if (WAIT_OBJECT_0 == result) {
+			load();
+			watchChanges();
+			return true;
+		}
+		if (WAIT_FAILED == result) {
+			CloseHandle(hChangeEvent);
+			hChangeEvent = NULL;
+			watchChanges();
+		}
+	}
+	return false;
+}
+
+void Config::watchChanges() {
+	if (hChangeEvent == NULL) {
+		hChangeEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+		if (hChangeEvent == NULL) {
+			OutputDebugStringW(L"Unable to create change event handle\n");
+			return;
+		}
+	} else {
+		ResetEvent(hChangeEvent);
+	}
+
+	// ensure that we always access 64 bit registry if running under WOW64
+	if (monitorHkey == NULL){
+		HANDLE process = ::GetCurrentProcess();
+		BOOL isWow64 = FALSE;
+		::IsWow64Process(process, &isWow64);
+		DWORD regFlags = isWow64 ? KEY_WOW64_64KEY : 0;
+		if (ERROR_SUCCESS != ::RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\ChewingTextService", 0, regFlags|KEY_NOTIFY, &monitorHkey)) {
+			OutputDebugStringW(L"Unable to open HKEY handle\n");
+			return;
+		}
+	}
+	DWORD  dwFilter = REG_NOTIFY_CHANGE_LAST_SET | REG_NOTIFY_THREAD_AGNOSTIC;
+	if (ERROR_SUCCESS != RegNotifyChangeKeyValue(monitorHkey, TRUE, dwFilter, hChangeEvent, TRUE)) {
+		OutputDebugStringW(L"Unable to register notify for registry change\n");
 	}
 }
 

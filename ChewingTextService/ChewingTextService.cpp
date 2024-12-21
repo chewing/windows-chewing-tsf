@@ -24,6 +24,7 @@
 
 #include <Shellapi.h>
 #include <assert.h>
+#include <debugapi.h>
 #include <libIME/LangBarButton.h>
 #include <libIME/Utils.h>
 #include <minwindef.h>
@@ -90,6 +91,7 @@ TextService::TextService():
 	chewingContext_(NULL) {
 
 	config_.load();
+	config_.watchChanges();
 
 	// add preserved keys
 	addPreservedKey(VK_SPACE, TF_MOD_SHIFT, g_shiftSpaceGuid); // shift + space
@@ -191,6 +193,9 @@ void TextService::onKillFocus() {
 // virtual
 bool TextService::filterKeyDown(Ime::KeyEvent& keyEvent) {
 	Config& cfg = config();
+	if (cfg.reloadIfNeeded()) {
+		applyConfig();
+	}
 	lastKeyDownCode_ = keyEvent.keyCode();
 	// return false if we don't need this key
 	assert(chewingContext_);
@@ -729,11 +734,6 @@ void TextService::initChewingContext() {
 			symbolsFileTime_ = stbuf.st_mtime;
 	}
 
-	outputSimpChinese_ = config().outputSimpChinese;
-	// update popup menu to check/uncheck the simplified Chinese item
-	DWORD checkFlags = outputSimpChinese_ ?  MF_CHECKED : MF_UNCHECKED;
-	::CheckMenuItem(popupMenu_, ID_OUTPUT_SIMP_CHINESE, MF_BYCOMMAND|checkFlags);
-
 	applyConfig();
 }
 
@@ -780,6 +780,11 @@ void TextService::applyConfig() {
 
 		chewing_config_set_int(chewingContext_, "chewing.conversion_engine", cfg.convEngine);
 	}
+
+	outputSimpChinese_ = cfg.outputSimpChinese;
+	// update popup menu to check/uncheck the simplified Chinese item
+	DWORD checkFlags = outputSimpChinese_ ?  MF_CHECKED : MF_UNCHECKED;
+	::CheckMenuItem(popupMenu_, ID_OUTPUT_SIMP_CHINESE, MF_BYCOMMAND|checkFlags);
 
 	if(messageWindow_) {
 		messageWindow_->setFontSize(cfg.fontSize);
@@ -982,7 +987,6 @@ void TextService::updateLangButtons() {
 		shapeMode_ = shapeMode;
 		switchShapeButton_->setIcon(shapeMode == FULLSHAPE_MODE ? IDI_FULL_SHAPE : IDI_HALF_SHAPE);
 	}
-
 }
 
 std::wstring TextService::userDir() {

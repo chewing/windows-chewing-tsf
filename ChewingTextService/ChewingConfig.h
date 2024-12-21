@@ -22,6 +22,7 @@
 
 #include <Windows.h>
 #include <AccCtrl.h>
+#include <ocidl.h>
 
 namespace Chewing {
 
@@ -35,6 +36,9 @@ public:
 
 	// reload configurations if changes are detected (if timestamp is different from this->stamp)
 	void reloadIfNeeded(DWORD timestamp);
+	// Returns true if config was reloaded
+	bool reloadIfNeeded();
+	void watchChanges();
 
 	static bool grantAppContainerAccess(const wchar_t* object, SE_OBJECT_TYPE type, DWORD access);
 
@@ -75,6 +79,8 @@ public:
 
 private:
 	DWORD stamp; // timestamp used to check if the config values are up to date
+	HANDLE hChangeEvent;
+	HKEY monitorHkey;
 };
 
 }
