@@ -8,6 +8,8 @@ on:
 jobs:
   release-build:
     uses: ./.github/workflows/ci.yml
+    with:
+      nightly: false
   code-signing:
     needs: [release-build]
     uses: ./.github/workflows/code-signing.yml
