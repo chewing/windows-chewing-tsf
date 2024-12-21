@@ -57,7 +57,7 @@ jobs:
 
       - name: Generate nightly version info
         if: ${{ inputs.nightly }} || github.event_name == 'pull_request'
-        run: cargo xtask -y 24 -m 10 -r 0 --nightly
+        run: cargo xtask update-version -y 24 -m 10 -r 0 --nightly
 
       - name: Build
         shell: cmd
