@@ -73,7 +73,11 @@ fn main() -> anyhow::Result<()> {
             let month = now.month();
             let day = now.day();
             let day_of_year = now.day_of_year() as u32;
-            let sec = Timestamp::now().as_second() - epoch.as_second();
+            let sec = if update_version.nightly {
+                Timestamp::now().as_second() - epoch.as_second()
+            } else {
+                0
+            };
             let yy = update_version.year;
             let mm = update_version.month;
             let rv = if update_version.nightly {
