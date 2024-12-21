@@ -1,0 +1,10 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+indoc = "2.0.5"
+jiff = "0.1.15"
+xflags = "0.3.2"

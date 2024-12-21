@@ -11,7 +11,7 @@ on:
     inputs:
       nightly:
         description: "Update all submodules to build nightly build"
-        default: false
+        default: true
         required: false
         type: boolean
     outputs:
@@ -54,7 +54,15 @@ jobs:
           set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
           vcpkg install --triplet x86-windows-static sqlite3
           vcpkg install --triplet x64-windows-static sqlite3
-          
+
+      - name: Generate nightly version info
+        if: ${{ inputs.nightly }} || github.event_name == 'pull_request'
+        run: |
+          cargo xtask update-version -y 24 -m 10 -r 0 --nightly
+          type version.rc
+          type installer/version.wxi
+
+
       - name: Build
         shell: cmd
         run: |

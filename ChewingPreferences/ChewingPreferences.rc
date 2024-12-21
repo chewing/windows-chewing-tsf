@@ -42,6 +42,7 @@ END
 
 #endif    // APSTUDIO_INVOKED
 
+#include "../version.rc"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -58,8 +59,8 @@ IDI_ICON                ICON                    "../ChewingTextService/im.chewin
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 24,10,314,0
- PRODUCTVERSION 24,10,314,0
+ FILEVERSION VER_FILEVERSION
+ PRODUCTVERSION VER_PRODUCTVERSION
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -76,12 +77,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Chewing"
             VALUE "FileDescription", "新酷音輸入法設定"
-            VALUE "FileVersion", "24.10.349.0"
+            VALUE "FileVersion", VER_FILEVERSION_STR
             VALUE "InternalName", "ChewingPreferences.exe"
             VALUE "LegalCopyright", "Copyright (C) 2024"
-            VALUE "OriginalFilename", "ChewingConfig.rc"
+            VALUE "OriginalFilename", "ChewingPreferences.exe"
             VALUE "ProductName", "新酷音輸入法設定"
-            VALUE "ProductVersion", "24.10.349.0"
+            VALUE "ProductVersion", VER_PRODUCTVERSION_STR
         END
     END
     BLOCK "VarFileInfo"
@@ -194,15 +195,15 @@ END
 
 IDD_ABOUT DIALOGEX 0, 0, 218, 200
 STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "關於新酷音輸入法"
+CAPTION ABOUT_CAPTION_WITH_VER
 FONT 9, "MS Shell Dlg", 400, 0, 0x88
 BEGIN
     CONTROL         IDB_COOL,IDC_STATIC,"Static",SS_BITMAP,7,7,69,74
     LTEXT           "題字：翁政銓",IDC_STATIC,7,85,49,8
     PUSHBUTTON      "確定 (&O)",IDOK,83,178,50,14
     LTEXT           "新酷音 － 智慧型注音輸入法",IDC_STATIC,84,7,92,8
-    LTEXT           "版本：24.10.349.0",IDC_VERSION,84,20,92,8
-    LTEXT           "發行日期：2024 年 11 月 09 日",IDC_RELEASE_DATE,84,33,100,8
+    LTEXT           ABOUT_VERSION_STR,IDC_VERSION,84,20,92,8
+    LTEXT           ABOUT_RELEASE_DATE_STR,IDC_RELEASE_DATE,84,33,100,8
     LTEXT           "授權方式：",IDC_STATIC,84,59,35,8
     LTEXT           "專案首頁：",IDC_STATIC,84,72,35,8
     LTEXT           "軟體開發者：libchewing 開發團隊",IDC_STATIC,84,46,104,8
@@ -382,7 +383,7 @@ BEGIN
     IDS_SWITCH_SHAPE        "全形/半形切換"
     IDS_SWITCH_LANG         "中文/英文切換"
     IDS_SETTINGS            "設定/工具選單"
-    IDS_CONFIG_TITLE        "設定新酷音輸入法"
+    IDS_CONFIG_TITLE        PREFS_TITLE_WITH_VER
 END
 
 #endif    // Chinese (Traditional, Taiwan) resources
