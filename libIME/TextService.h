@@ -113,7 +113,7 @@ public:
 
 	// is keyboard disabled for the context (NULL means current context)
 	bool isKeyboardDisabled(ITfContext* context = NULL);
-	
+
 	// is keyboard opened for the whole thread
 	bool isKeyboardOpened();
 	void setKeyboardOpen(bool open);
@@ -130,6 +130,7 @@ public:
 	void setCompositionCursor(EditSession* session, int pos);
 
 	// compartment handling
+	// XXX if registry monitor works well we can stop using compartments for RPC
 	winrt::com_ptr<ITfCompartment> globalCompartment(const GUID& key);
 	winrt::com_ptr<ITfCompartment> threadCompartment(const GUID& key);
 	winrt::com_ptr<ITfCompartment> contextCompartment(const GUID& key, ITfContext* context = NULL);
@@ -157,7 +158,7 @@ public:
 
 	virtual bool filterKeyDown(KeyEvent& keyEvent);
 	virtual bool onKeyDown(KeyEvent& keyEvent, EditSession* session);
-	
+
 	virtual bool filterKeyUp(KeyEvent& keyEvent);
 	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session);
 
@@ -226,7 +227,7 @@ public:
 	// ITfCompartmentEventSink
 	STDMETHODIMP OnChange(REFGUID rguid);
 
-	// ITfLangBarEventSink 
+	// ITfLangBarEventSink
     STDMETHODIMP OnSetFocus(DWORD dwThreadId);
     STDMETHODIMP OnThreadTerminate(DWORD dwThreadId);
     STDMETHODIMP OnThreadItemChange(DWORD dwThreadId);
