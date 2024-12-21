@@ -940,23 +940,26 @@ void TextService::hideMessage() {
 }
 
 bool TextService::isLightTheme() {
-	DWORD value = 0;
-	DWORD len = sizeof(value);
-	LSTATUS st = RegGetValueW(
-		HKEY_CURRENT_USER,
-		L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-		L"AppsUseLightTheme",
-		RRF_RT_REG_DWORD,
-		nullptr,
-		&value,
-		&len
-	);
-	if (st != ERROR_SUCCESS) {
-		// assume light theme
-		return true;
-	}
+    DWORD value = 1;
+    DWORD dataSize = sizeof(value);
+
+    LSTATUS result = RegGetValueW(
+        HKEY_CURRENT_USER,
+        L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+        L"AppsUseLightTheme",
+        RRF_RT_DWORD,
+        nullptr,
+        &value,
+        &dataSize
+    );
+
+    if (result != ERROR_SUCCESS) {
+        OutputDebugStringW(L"Determine isLightTheme failed, fallback to light theme");
+        return true;
+    }
+
 	// 0 = dark theme, 1 = light theme
-	return value > 0;
+    return value > 0;
 }
 
 void TextService::updateLangButtons() {
