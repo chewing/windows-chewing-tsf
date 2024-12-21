@@ -55,8 +55,8 @@ jobs:
           vcpkg install --triplet x86-windows-static sqlite3
           vcpkg install --triplet x64-windows-static sqlite3
 
-      - name: Generate nightly version.rs
-        if: ${{ inputs.nightly }}
+      - name: Generate nightly version info
+        if: ${{ inputs.nightly }} || github.event_name == 'pull_request'
         run: cargo xtask -y 24 -m 10 -r 0 --nightly
 
       - name: Build
