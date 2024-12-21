@@ -601,8 +601,8 @@ STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
 		*ppvObj = (ITfTextInputProcessor*)this;
 	else if(IsEqualIID(riid, IID_ITfTextInputProcessorEx))
 		*ppvObj = (ITfTextInputProcessorEx*)this;
-	//else if(IsEqualIID(riid, IID_ITfThreadMgrEventSink))
-	//	*ppvObj = (ITfThreadMgrEventSink*)this;
+	else if(IsEqualIID(riid, IID_ITfThreadMgrEventSink))
+		*ppvObj = (ITfThreadMgrEventSink*)this;
 	else if(IsEqualIID(riid, IID_ITfTextEditSink))
 		*ppvObj = (ITfTextEditSink*)this;
 	else if(IsEqualIID(riid, IID_ITfKeyEventSink))
@@ -820,6 +820,11 @@ STDMETHODIMP TextService::OnUninitDocumentMgr(ITfDocumentMgr *pDocMgr) {
 }
 
 STDMETHODIMP TextService::OnSetFocus(ITfDocumentMgr *pDocMgrFocus, ITfDocumentMgr *pDocMgrPrevFocus) {
+	if(pDocMgrFocus != nullptr) {
+		onSetFocus();
+	} else {
+		onKillFocus();
+	}
 	return S_OK;
 }
 
@@ -876,10 +881,6 @@ STDMETHODIMP TextService::OnEndEdit(ITfContext *pContext, TfEditCookie ecReadOnl
 
 // ITfKeyEventSink
 STDMETHODIMP TextService::OnSetFocus(BOOL fForeground) {
-	if(fForeground)
-		onSetFocus();
-	else
-		onKillFocus();
 	return S_OK;
 }
 

@@ -167,15 +167,25 @@ void TextService::onDeactivate() {
 	freeChewingContext();
 
 	hideMessage();
-
-	if(candidateWindow_) {
-		showingCandidates_ = false;
-		candidateWindow_ = nullptr;
-	}
+	hideCandidates();
 }
 
 // virtual
 void TextService::onFocus() {
+}
+
+// virtual
+void TextService::onKillFocus() {
+	if (isComposing()) {
+		// end current composition if needed
+		ITfContext* context = currentContext();
+		if (context) {
+			endComposition(context);
+			context->Release();
+		}
+	}
+	hideCandidates();
+	hideMessage();
 }
 
 // virtual
@@ -647,8 +657,7 @@ void TextService::onKeyboardStatusChanged(bool opened) {
 				context->Release();
 			}
 		}
-		if(showingCandidates()) // disable candidate window if it's opened
-			hideCandidates();
+		hideCandidates();
 		hideMessage(); // hide message window, if there's any
 		freeChewingContext(); // IME is closed, chewingContext is not needed
 	}
@@ -862,8 +871,8 @@ void TextService::showCandidates(Ime::EditSession* session) {
 
 // hide candidate list window
 void TextService::hideCandidates() {
-	assert(candidateWindow_);
 	if(candidateWindow_) {
+		candidateWindow_->hide();
 		candidateWindow_ = nullptr;
 	}
 	showingCandidates_ = false;
