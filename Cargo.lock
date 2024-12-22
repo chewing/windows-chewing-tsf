@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "libime2"
-version = "24.10.349"
+version = "24.10.1"
 dependencies = [
  "log",
  "nine_patch_drawable",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "tsfreg"
-version = "24.10.349"
+version = "24.10.1"
 dependencies = [
  "windows",
 ]

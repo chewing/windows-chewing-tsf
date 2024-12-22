@@ -1,6 +1,6 @@
 [package]
 name = "libime2"
-version = "24.10.349"
+version = "24.10.1"
 edition = "2021"
 
 [lib]
