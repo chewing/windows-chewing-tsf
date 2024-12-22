@@ -1,5 +1,10 @@
 name: CI
 
+env:
+  VER_MAJOR: 24
+  VER_MINOR: 10
+  VER_PATCH: 0
+
 on:
   push:
     branches: ["master"]
@@ -58,10 +63,9 @@ jobs:
       - name: Generate nightly version info
         if: ${{ inputs.nightly }} || github.event_name == 'pull_request'
         run: |
-          cargo xtask update-version -y 24 -m 10 -r 0 --nightly
+          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_ID
           type version.rc
           type installer/version.wxi
-
 
       - name: Build
         shell: cmd

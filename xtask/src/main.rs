@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 
-use jiff::{Timestamp, Zoned};
+use jiff::Zoned;
 
 mod flags {
     xflags::xflags! {
@@ -11,14 +11,14 @@ mod flags {
         cmd xtask {
             /// Update the version.rc file.
             cmd update-version {
-                /// The year of the release. (u32)
-                required -y, --year YY: u32
-                /// The month of the release. (u32)
-                required -m, --month MM: u32
-                /// The revision of the release. (u32)
-                required -r, --rev REV: u32
-                /// Generating release version, or nightly version.
-                optional --nightly
+                /// The major version of the release. (u32)
+                required --major MAJOR: u32
+                /// The minor version of the release. (u32)
+                required --minor MINOR: u32
+                /// The patch version of the release. (u32)
+                required --patch PATCH: u32
+                /// Optional build number (u32)
+                optional -b, --build BUILD_NUMBER: u32
             }
         }
     }
@@ -37,10 +37,10 @@ mod flags {
 
     #[derive(Debug)]
     pub struct UpdateVersion {
-        pub year: u32,
-        pub month: u32,
-        pub rev: u32,
-        pub nightly: bool,
+        pub major: u32,
+        pub minor: u32,
+        pub patch: u32,
+        pub build: Option<u32>,
     }
 
     impl Xtask {
@@ -68,35 +68,25 @@ fn main() -> anyhow::Result<()> {
     match flags.subcommand {
         flags::XtaskCmd::UpdateVersion(update_version) => {
             let now = Zoned::now();
-            let epoch: Timestamp = now.start_of_day()?.timestamp();
             let year = now.year();
             let month = now.month();
             let day = now.day();
-            let day_of_year = now.day_of_year() as u32;
-            let sec = if update_version.nightly {
-                Timestamp::now().as_second() - epoch.as_second()
-            } else {
-                0
-            };
-            let yy = update_version.year;
-            let mm = update_version.month;
-            let rv = if update_version.nightly {
-                10_000 * update_version.rev + 9_000 + day_of_year
-            } else {
-                10_000 * update_version.rev + day_of_year
-            };
+            let yy = update_version.major;
+            let mm = update_version.minor;
+            let rv = update_version.patch;
+            let bn = update_version.build.unwrap_or_default();
             let mut version_rc = File::create("version.rc")?;
             indoc::writedoc!(
                 version_rc,
                 r#"
-                    #define VER_FILEVERSION             {yy},{mm},{rv},{sec}
-                    #define VER_FILEVERSION_STR         "{yy}.{mm}.{rv}.{sec}\0"
-                    #define VER_PRODUCTVERSION          {yy},{mm},{rv},{sec}
-                    #define VER_PRODUCTVERSION_STR      "{yy}.{mm}.{rv}.{sec}\0"
-                    #define ABOUT_CAPTION_WITH_VER      "關於新酷音輸入法 ({yy}.{mm}.{rv}.{sec})\0"
-                    #define ABOUT_VERSION_STR           "版本：24.{mm}.{rv}.{sec}\0"
+                    #define VER_FILEVERSION             {yy},{mm},{rv},{bn}
+                    #define VER_FILEVERSION_STR         "{yy}.{mm}.{rv}.{bn}\0"
+                    #define VER_PRODUCTVERSION          {yy},{mm},{rv},{bn}
+                    #define VER_PRODUCTVERSION_STR      "{yy}.{mm}.{rv}.{bn}\0"
+                    #define ABOUT_CAPTION_WITH_VER      "關於新酷音輸入法 ({yy}.{mm}.{rv}.{bn})\0"
+                    #define ABOUT_VERSION_STR           "版本：{yy}.{mm}.{rv}.{bn}\0"
                     #define ABOUT_RELEASE_DATE_STR      "發行日期：{year} 年 {month:02} 月 {day:02} 日\0"
-                    #define PREFS_TITLE_WITH_VER        "設定新酷音輸入法 ({yy}.{mm}.{rv}.{sec})\0"
+                    #define PREFS_TITLE_WITH_VER        "設定新酷音輸入法 ({yy}.{mm}.{rv}.{bn})\0"
                 "#
             )?;
 
@@ -106,7 +96,7 @@ fn main() -> anyhow::Result<()> {
                 r#"
                     <?xml version="1.0" encoding="UTF-8"?>
                     <Include>
-                        <?define Version = "{yy}.{mm}.{rv}.{sec}"?>
+                        <?define Version = "{yy}.{mm}.{rv}.{bn}"?>
                     </Include>
                 "#
             )?;
