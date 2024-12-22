@@ -61,9 +61,18 @@ jobs:
           vcpkg install --triplet x64-windows-static sqlite3
 
       - name: Generate nightly version info
-        if: ${{ inputs.nightly }} || github.event_name == 'pull_request'
+        if: ${{ inputs.nightly }}
         run: |
           cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
+          type version.rc
+          type installer/version.wxi
+
+      - name: Generate pull_request version info
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          cargo xtask update-version --major 0 --minor 0 --patch $env:PR_NUMBER -b $env:GITHUB_RUN_NUMBER
           type version.rc
           type installer/version.wxi
 
