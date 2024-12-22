@@ -59,7 +59,7 @@ jobs:
         with:
           tag_name: nightly
           prerelease: true
-          name: 每日測試版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_id}}
+          name: 每日測試版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
           body: |
             這是開發中的版本，可能較不穩定。若不確定，請使用最新的穩定版。
           files: |
