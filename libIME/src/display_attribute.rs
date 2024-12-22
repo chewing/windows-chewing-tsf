@@ -21,12 +21,10 @@ struct DisplayAttributeProvider;
 
 impl ITfDisplayAttributeProvider_Impl for DisplayAttributeProvider_Impl {
     fn EnumDisplayAttributeInfo(&self) -> Result<IEnumTfDisplayAttributeInfo> {
-        log::debug!("EnumDisplayAttributeInfo");
         Ok(EnumTfDisplayAttributeInfo::default().into())
     }
 
     fn GetDisplayAttributeInfo(&self, guid: *const GUID) -> Result<ITfDisplayAttributeInfo> {
-        log::debug!("GetDisplayAttributeInfo");
         if guid.is_null() {
             return Err(E_INVALIDARG.into());
         }
@@ -58,7 +56,6 @@ fn register_display_attribute(
         } else {
             return Err(E_FAIL.into());
         }
-        log::debug!("Registered atom = {}", atom);
         atom_out.write(atom);
     }
     Ok(())
@@ -70,7 +67,6 @@ unsafe extern "C" fn RegisterDisplayAttribute(
     da: TF_DISPLAYATTRIBUTE,
     atom_out: *mut u32,
 ) -> HRESULT {
-    log::debug!("RegisterDisplayAttribute called");
     match register_display_attribute(guid, da, atom_out) {
         Ok(_) => S_OK,
         Err(e) => e.into(),
@@ -79,7 +75,6 @@ unsafe extern "C" fn RegisterDisplayAttribute(
 
 #[no_mangle]
 unsafe extern "C" fn CreateDisplayAttributeProvider(ret: *mut *mut c_void) {
-    log::debug!("Creating DisplayAttributeProvider");
     ret.write(
         DisplayAttributeProvider
             .into_object()
@@ -108,7 +103,6 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumTfDisplayAttributeInfo_Impl {
         rginfo: *mut Option<ITfDisplayAttributeInfo>,
         pcfetched: *mut u32,
     ) -> Result<()> {
-        log::debug!("EnumTfDisplayAttributeInfo::Next");
         let mut count = 0;
         let mut rginfo_ptr = rginfo;
         if let Ok(attrs) = ATTRS.read() {
