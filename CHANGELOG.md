@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [24.10.1] - 2024-12-22
+
+### 🚀 Features
+
+- Show chi/eng mode toast after toggle capslock
+- Add version number to dialog title
+- Listen to registry change event
+
+### 🐛 Bug Fixes
+
+- Remove init code from DllMain and static link libchewing
+- Setting CHEWING_USER_PATH
+- Correctly provide display attribute
+- End composition and hide windows on blur
+- Attempt to fix incorrect light theme detection
+
+### 🚜 Refactor
+
+- Remove debug log
+- Remove debug log from display attribute provider
+
+### 🎨 Styling
+
+- Update icon
+
+### ⚙️ Miscellaneous Tasks
+
+- Update nightly build description in nightly.yml
+- Automatically generate version info
+- Trigger version info generation in PR context
+- Fix cargo xtask command argument
+- Log generated version info
+- Only generate build revision in nightly mode
+- Simplify version number scheme
+- Use github_run_number
+- Use different version for PR and nightly
+- Fix version mentioned in nightly title
+
 ## [24.10] - 2024-12-15
 
 ### 🚀 Features
