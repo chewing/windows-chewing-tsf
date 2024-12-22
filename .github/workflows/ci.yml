@@ -63,7 +63,7 @@ jobs:
       - name: Generate nightly version info
         if: ${{ inputs.nightly }} || github.event_name == 'pull_request'
         run: |
-          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_ID
+          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
           type version.rc
           type installer/version.wxi
 
