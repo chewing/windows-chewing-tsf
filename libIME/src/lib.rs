@@ -1,5 +1,6 @@
 mod display_attribute;
 mod gfx;
+mod lang_bar;
 mod window;
 
 #[no_mangle]

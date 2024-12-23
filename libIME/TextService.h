@@ -20,7 +20,6 @@
 #ifndef IME_TEXT_SERVICE_H
 #define IME_TEXT_SERVICE_H
 
-#include "libIME.h"
 #include <msctf.h>
 #include "EditSession.h"
 #include "KeyEvent.h"
