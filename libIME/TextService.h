@@ -169,8 +169,6 @@ public:
 	// called when a value in the global or thread compartment changed.
 	virtual void onCompartmentChanged(const GUID& key);
 
-	virtual void onLangBarStatusChanged(int newStatus);
-
 	// called when the keyboard is opened or closed
 	virtual void onKeyboardStatusChanged(bool opened);
 
@@ -179,12 +177,6 @@ public:
 	// the input focus is grabbed by another application.
 	// if forced is false, the composition is terminated gracefully by endComposition().
 	virtual void onCompositionTerminated(bool forced);
-
-	// called when a language profile is activated (only useful for text services that supports multiple language profiles)
-	virtual void onLangProfileActivated(REFGUID guidProfile);
-
-	// called when a language profile is deactivated
-	virtual void onLangProfileDeactivated(REFGUID guidProfile);
 
 	// COM related stuff
 public:

@@ -24,6 +24,7 @@
 
 #include <assert.h>
 #include <msctf.h>
+#include <winerror.h>
 #include <winrt/base.h>
 #include <string>
 
@@ -554,10 +555,6 @@ void TextService::onCompartmentChanged(const GUID& key) {
 	}
 }
 
-// virtual
-void TextService::onLangBarStatusChanged(int newStatus) {
-}
-
 // called when the keyboard is opened or closed
 // virtual
 void TextService::onKeyboardStatusChanged(bool opened) {
@@ -570,15 +567,6 @@ void TextService::onKeyboardStatusChanged(bool opened) {
 // virtual
 void TextService::onCompositionTerminated(bool forced) {
 }
-
-// called when a language profile is activated (only useful for text services that supports multiple language profiles)
-void TextService::onLangProfileActivated(REFGUID guidProfile) {
-}
-
-// called when a language profile is deactivated
-void TextService::onLangProfileDeactivated(REFGUID guidProfile) {
-}
-
 // COM stuff
 
 // IUnknown
@@ -1008,7 +996,6 @@ STDMETHODIMP TextService::OnModalInput(DWORD dwThreadId, UINT uMsg, WPARAM wPara
 }
 
 STDMETHODIMP TextService::ShowFloating(DWORD dwFlags) {
-	onLangBarStatusChanged(dwFlags);
 	return S_OK;
 }
 
@@ -1019,15 +1006,7 @@ STDMETHODIMP TextService::GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, R
 
 // ITfActiveLanguageProfileNotifySink
 STDMETHODIMP TextService::OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL fActivated) {
-	// we only support one text service, so clsid must be the same as that of our text service.
-	// otherwise it's not the notification for our text service, just ignore the event.
-	if(clsid == this->clsid()) {
-		if(fActivated)
-			onLangProfileActivated(guidProfile);
-		else
-			onLangProfileDeactivated(guidProfile);
-	}
-	return S_OK;
+	return E_NOTIMPL;
 }
 
 // edit session handling
