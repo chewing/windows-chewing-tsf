@@ -3,7 +3,7 @@ name: CI
 env:
   VER_MAJOR: 24
   VER_MINOR: 10
-  VER_PATCH: 0
+  VER_PATCH: 1
 
 on:
   push:
@@ -45,7 +45,7 @@ jobs:
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
-      
+
       # - name: Start SSH session
       #   uses: luchihoratiu/debug-via-ssh@main
       #   with:
