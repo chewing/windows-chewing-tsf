@@ -14,6 +14,8 @@ add_library(ChewingTextService SHARED
     ${PROJECT_SOURCE_DIR}/CClassFactory.h
     ${PROJECT_SOURCE_DIR}/ChewingConfig.cpp
     ${PROJECT_SOURCE_DIR}/ChewingConfig.h
+    ${PROJECT_SOURCE_DIR}/Utils.cpp
+    ${PROJECT_SOURCE_DIR}/Utils.h
     # resources
     ${PROJECT_SOURCE_DIR}/ChewingTextService.rc
     ${PROJECT_SOURCE_DIR}/mainicon.ico

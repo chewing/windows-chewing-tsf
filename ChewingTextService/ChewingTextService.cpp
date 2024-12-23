@@ -26,7 +26,6 @@
 #include <assert.h>
 #include <debugapi.h>
 #include <libIME/LangBarButton.h>
-#include <libIME/Utils.h>
 #include <minwindef.h>
 #include <shlobj_core.h>
 #include <sys/stat.h>
@@ -38,6 +37,7 @@
 #include <cstddef>
 #include <string>
 
+#include "Utils.h"
 #include "resource.h"
 #include "libime2.h"
 

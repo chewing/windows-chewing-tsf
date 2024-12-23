@@ -37,8 +37,6 @@ add_library(libIME_static STATIC
     EditSession.h
     LangBarButton.cpp
     LangBarButton.h
-    Utils.cpp
-    Utils.h
     # Rust interop
     dlldata.c
     libime2.h
