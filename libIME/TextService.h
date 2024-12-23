@@ -49,9 +49,7 @@ class TextService:
 	public ITfTextEditSink,
 	public ITfKeyEventSink,
 	public ITfCompositionSink,
-	public ITfCompartmentEventSink,
-	public ITfLangBarEventSink,
-	public ITfActiveLanguageProfileNotifySink {
+	public ITfCompartmentEventSink {
 public:
 
 	enum CommandType { // used in onCommand()
@@ -217,17 +215,6 @@ public:
 
 	// ITfCompartmentEventSink
 	STDMETHODIMP OnChange(REFGUID rguid);
-
-	// ITfLangBarEventSink
-    STDMETHODIMP OnSetFocus(DWORD dwThreadId);
-    STDMETHODIMP OnThreadTerminate(DWORD dwThreadId);
-    STDMETHODIMP OnThreadItemChange(DWORD dwThreadId);
-    STDMETHODIMP OnModalInput(DWORD dwThreadId, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    STDMETHODIMP ShowFloating(DWORD dwFlags);
-    STDMETHODIMP GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, RECT *prc);
-
-	// ITfActiveLanguageProfileNotifySink
-	STDMETHODIMP OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL fActivated);
 
 protected:
 	// edit session classes, used with TSF

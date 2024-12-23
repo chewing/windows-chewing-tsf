@@ -599,10 +599,6 @@ STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
 		*ppvObj = (ITfCompositionSink*)this;
 	else if(IsEqualIID(riid, IID_ITfCompartmentEventSink))
 		*ppvObj = (ITfCompartmentEventSink*)this;
-	else if(IsEqualIID(riid, IID_ITfLangBarEventSink))
-		*ppvObj = (ITfLangBarEventSink*)this;
-	else if(IsEqualIID(riid, IID_ITfActiveLanguageProfileNotifySink))
-		*ppvObj = (ITfActiveLanguageProfileNotifySink*)this;
 	else
 		*ppvObj = NULL;
 
@@ -641,11 +637,10 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 
 	// advice event sinks (set up event listeners)
 	
-	// ITfThreadMgrEventSink, ITfActiveLanguageProfileNotifySink
+	// ITfThreadMgrEventSink
 	winrt::com_ptr<ITfSource> source = threadMgr_.as<ITfSource>();
 	if(source) {
 		source->AdviseSink(IID_ITfThreadMgrEventSink, (ITfThreadMgrEventSink *)this, &threadMgrEventSinkCookie_);
-		source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, (ITfActiveLanguageProfileNotifySink *)this, &activateLanguageProfileNotifySinkCookie_);
 	}
 
 	// ITfTextEditSink,
@@ -690,9 +685,6 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	// initialize language bar
 	::CoCreateInstance(CLSID_TF_LangBarMgr, NULL, CLSCTX_INPROC_SERVER,
                       IID_ITfLangBarMgr, (void**)&langBarMgr_);
-	if(langBarMgr_) {
-		langBarMgr_->AdviseEventSink(this, NULL, 0, &langBarSinkCookie_);
-	}
 	// Note: language bar has no effects in Win 8 immersive mode
 	if(!langBarButtons_.empty()) {
 		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
@@ -976,37 +968,6 @@ STDMETHODIMP TextService::OnChange(REFGUID rguid) {
 
 	onCompartmentChanged(rguid);
 	return S_OK;
-}
-
-// ITfLangBarEventSink 
-STDMETHODIMP TextService::OnSetFocus(DWORD dwThreadId) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::OnThreadTerminate(DWORD dwThreadId) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::OnThreadItemChange(DWORD dwThreadId) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::OnModalInput(DWORD dwThreadId, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::ShowFloating(DWORD dwFlags) {
-	return S_OK;
-}
-
-STDMETHODIMP TextService::GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, RECT *prc) {
-	return E_NOTIMPL;
-}
-
-
-// ITfActiveLanguageProfileNotifySink
-STDMETHODIMP TextService::OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL fActivated) {
-	return E_NOTIMPL;
 }
 
 // edit session handling
