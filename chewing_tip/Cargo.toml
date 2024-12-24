@@ -13,7 +13,6 @@ log = "0.4.22"
 nine_patch_drawable = "0.1.0"
 win_dbg_logger = "0.1.0"
 windows-core = "0.58.0"
-rusqlite = { version = "*", features = ["bundled"] }
 chewing_capi = { version = "0.9.1", features = ["sqlite"] }
 windows = { version = "0.58.0", features = [
     "implement",
