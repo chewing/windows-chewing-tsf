@@ -38,5 +38,23 @@ fn main() -> anyhow::Result<()> {
         .include("../libchewing/include")
         .include(&out_dir)
         .compile("chewing_tip");
+
+    println!("cargo::rerun-if-changed=CClassFactory.cpp");
+    println!("cargo::rerun-if-changed=CClassFactory.h");
+    println!("cargo::rerun-if-changed=ChewingConfig.cpp");
+    println!("cargo::rerun-if-changed=ChewingConfig.h");
+    println!("cargo::rerun-if-changed=ChewingTextService.cpp");
+    println!("cargo::rerun-if-changed=ChewingTextService.h");
+    println!("cargo::rerun-if-changed=DllEntry.cpp");
+    println!("cargo::rerun-if-changed=EditSession.cpp");
+    println!("cargo::rerun-if-changed=EditSession.h");
+    println!("cargo::rerun-if-changed=KeyEvent.cpp");
+    println!("cargo::rerun-if-changed=KeyEvent.h");
+    println!("cargo::rerun-if-changed=LangBarButton.cpp");
+    println!("cargo::rerun-if-changed=LangBarButton.h");
+    println!("cargo::rerun-if-changed=TextService.cpp");
+    println!("cargo::rerun-if-changed=TextService.h");
+    println!("cargo::rerun-if-changed=Utils.cpp");
+    println!("cargo::rerun-if-changed=Utils.h");
     Ok(())
 }
