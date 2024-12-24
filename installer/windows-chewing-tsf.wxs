@@ -25,9 +25,8 @@
                     <File Source="assets\bubble.9.png" Bitness="always32" />
                     <File Source="assets\msg.9.png" Bitness="always32" />
                 </Directory>
-                <!-- <File Source="x86\chewing-msvc.dll" Bitness="always32" /> -->
                 <Component Bitness="always32">
-                    <File Source="x86\ChewingTextService.dll">
+                    <File Source="x86\chewing_tip.dll">
                         <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
                             Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
                             ThreadingModel="apartment" />
@@ -42,9 +41,8 @@
         </StandardDirectory>
         <StandardDirectory Id="ProgramFiles64Folder">
             <Directory Id="INSTALLFOLDER64" Name="ChewingTextService">
-                <!-- <File Source="x64\chewing-msvc.dll" /> -->
                 <Component Bitness="always64">
-                    <File Source="x64\ChewingTextService.dll">
+                    <File Source="x64\chewing_tip.dll">
                         <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
                             Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
                             ThreadingModel="apartment" />

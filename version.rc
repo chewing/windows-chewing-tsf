@@ -4,5 +4,5 @@
 #define VER_PRODUCTVERSION_STR      "24.10.1.0\0"
 #define ABOUT_CAPTION_WITH_VER      "關於新酷音輸入法 (24.10.1.0)\0"
 #define ABOUT_VERSION_STR           "版本：24.10.1.0\0"
-#define ABOUT_RELEASE_DATE_STR      "發行日期：2024 年 12 月 22 日\0"
+#define ABOUT_RELEASE_DATE_STR      "發行日期：2024 年 12 月 24 日\0"
 #define PREFS_TITLE_WITH_VER        "設定新酷音輸入法 (24.10.1.0)\0"

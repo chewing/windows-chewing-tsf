@@ -92,8 +92,6 @@ Config::Config():
 	easySymbolsWithShift = 1;
 	easySymbolsWithCtrl = 0;
 	upperCaseWithShift = 0;
-
-	stamp = INVALID_TIMESTAMP;
 }
 
 Config::~Config(void) {
@@ -163,33 +161,35 @@ void Config::save() {
 	BOOL isWow64 = FALSE;
 	::IsWow64Process(process, &isWow64);
 	DWORD regFlags = isWow64 ? KEY_WOW64_64KEY : 0;
+	DWORD timestamp = GetTickCount();
 
 	HKEY hk = NULL;
 	LSTATUS ret = ::RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\ChewingTextService", 0, 
 						NULL, 0, regFlags|KEY_READ|KEY_WRITE , NULL, &hk, NULL);
 	if(ERROR_SUCCESS == ret) {
-		::RegSetValueEx(hk, L"KeyboardLayout", 0, REG_DWORD, (LPBYTE)&keyboardLayout, sizeof(DWORD));
-		::RegSetValueEx(hk, L"CandPerRow", 0, REG_DWORD, (LPBYTE)&candPerRow, sizeof(DWORD));
-		::RegSetValueEx(hk, L"DefaultEnglish", 0, REG_DWORD, (LPBYTE)&defaultEnglish, sizeof(DWORD));
-		::RegSetValueEx(hk, L"DefaultFullSpace", 0, REG_DWORD, (LPBYTE)&defaultFullSpace, sizeof(DWORD));
-		::RegSetValueEx(hk, L"ShowCandWithSpaceKey", 0, REG_DWORD, (LPBYTE)&showCandWithSpaceKey, sizeof(DWORD));
-		::RegSetValueEx(hk, L"SwitchLangWithShift", 0, REG_DWORD, (LPBYTE)&switchLangWithShift, sizeof(DWORD));
-		::RegSetValueEx(hk, L"OutputSimpChinese", 0, REG_DWORD, (LPBYTE)&outputSimpChinese, sizeof(DWORD));
-		::RegSetValueEx(hk, L"AddPhraseForward", 0, REG_DWORD, (LPBYTE)&addPhraseForward, sizeof(DWORD));
-		::RegSetValueEx(hk, L"ColorCandWnd", 0, REG_DWORD, (LPBYTE)&colorCandWnd, sizeof(DWORD));
-		::RegSetValueEx(hk, L"AdvanceAfterSelection", 0, REG_DWORD, (LPBYTE)&advanceAfterSelection, sizeof(DWORD));
-		::RegSetValueEx(hk, L"DefFontSize", 0, REG_DWORD, (LPBYTE)&fontSize, sizeof(DWORD));
-		::RegSetValueEx(hk, L"SelKeyType", 0, REG_DWORD, (LPBYTE)&selKeyType, sizeof(DWORD));
-		::RegSetValueEx(hk, L"ConvEngine", 0, REG_DWORD, (LPBYTE)&convEngine, sizeof(DWORD));
-		::RegSetValueEx(hk, L"SelAreaLen", 0, REG_DWORD, (LPBYTE)&candPerPage, sizeof(DWORD));
-		::RegSetValueEx(hk, L"CursorCandList", 0, REG_DWORD, (LPBYTE)&cursorCandList, sizeof(DWORD));
-		::RegSetValueEx(hk, L"EnableCapsLock", 0, REG_DWORD, (LPBYTE)&enableCapsLock, sizeof(DWORD));
-		::RegSetValueEx(hk, L"FullShapeSymbols", 0, REG_DWORD, (LPBYTE)&fullShapeSymbols, sizeof(DWORD));
-		::RegSetValueEx(hk, L"PhraseMark", 0, REG_DWORD, (LPBYTE)&phraseMark, sizeof(DWORD));
-		::RegSetValueEx(hk, L"EscCleanAllBuf", 0, REG_DWORD, (LPBYTE)&escCleanAllBuf, sizeof(DWORD));
-		::RegSetValueEx(hk, L"EasySymbolsWithShift", 0, REG_DWORD, (LPBYTE)&easySymbolsWithShift, sizeof(DWORD));
-		::RegSetValueEx(hk, L"EasySymbolsWithCtrl", 0, REG_DWORD, (LPBYTE)&easySymbolsWithCtrl, sizeof(DWORD));
-		::RegSetValueEx(hk, L"UpperCaseWithShift", 0, REG_DWORD, (LPBYTE)&upperCaseWithShift, sizeof(DWORD));
+		::RegSetValueExW(hk, L"KeyboardLayout", 0, REG_DWORD, (LPBYTE)&keyboardLayout, sizeof(DWORD));
+		::RegSetValueExW(hk, L"CandPerRow", 0, REG_DWORD, (LPBYTE)&candPerRow, sizeof(DWORD));
+		::RegSetValueExW(hk, L"DefaultEnglish", 0, REG_DWORD, (LPBYTE)&defaultEnglish, sizeof(DWORD));
+		::RegSetValueExW(hk, L"DefaultFullSpace", 0, REG_DWORD, (LPBYTE)&defaultFullSpace, sizeof(DWORD));
+		::RegSetValueExW(hk, L"ShowCandWithSpaceKey", 0, REG_DWORD, (LPBYTE)&showCandWithSpaceKey, sizeof(DWORD));
+		::RegSetValueExW(hk, L"SwitchLangWithShift", 0, REG_DWORD, (LPBYTE)&switchLangWithShift, sizeof(DWORD));
+		::RegSetValueExW(hk, L"OutputSimpChinese", 0, REG_DWORD, (LPBYTE)&outputSimpChinese, sizeof(DWORD));
+		::RegSetValueExW(hk, L"AddPhraseForward", 0, REG_DWORD, (LPBYTE)&addPhraseForward, sizeof(DWORD));
+		::RegSetValueExW(hk, L"ColorCandWnd", 0, REG_DWORD, (LPBYTE)&colorCandWnd, sizeof(DWORD));
+		::RegSetValueExW(hk, L"AdvanceAfterSelection", 0, REG_DWORD, (LPBYTE)&advanceAfterSelection, sizeof(DWORD));
+		::RegSetValueExW(hk, L"DefFontSize", 0, REG_DWORD, (LPBYTE)&fontSize, sizeof(DWORD));
+		::RegSetValueExW(hk, L"SelKeyType", 0, REG_DWORD, (LPBYTE)&selKeyType, sizeof(DWORD));
+		::RegSetValueExW(hk, L"ConvEngine", 0, REG_DWORD, (LPBYTE)&convEngine, sizeof(DWORD));
+		::RegSetValueExW(hk, L"SelAreaLen", 0, REG_DWORD, (LPBYTE)&candPerPage, sizeof(DWORD));
+		::RegSetValueExW(hk, L"CursorCandList", 0, REG_DWORD, (LPBYTE)&cursorCandList, sizeof(DWORD));
+		::RegSetValueExW(hk, L"EnableCapsLock", 0, REG_DWORD, (LPBYTE)&enableCapsLock, sizeof(DWORD));
+		::RegSetValueExW(hk, L"FullShapeSymbols", 0, REG_DWORD, (LPBYTE)&fullShapeSymbols, sizeof(DWORD));
+		::RegSetValueExW(hk, L"PhraseMark", 0, REG_DWORD, (LPBYTE)&phraseMark, sizeof(DWORD));
+		::RegSetValueExW(hk, L"EscCleanAllBuf", 0, REG_DWORD, (LPBYTE)&escCleanAllBuf, sizeof(DWORD));
+		::RegSetValueExW(hk, L"EasySymbolsWithShift", 0, REG_DWORD, (LPBYTE)&easySymbolsWithShift, sizeof(DWORD));
+		::RegSetValueExW(hk, L"EasySymbolsWithCtrl", 0, REG_DWORD, (LPBYTE)&easySymbolsWithCtrl, sizeof(DWORD));
+		::RegSetValueExW(hk, L"UpperCaseWithShift", 0, REG_DWORD, (LPBYTE)&upperCaseWithShift, sizeof(DWORD));
+		::RegSetValueExW(hk, L"ModifiedTimestamp", 0, REG_DWORD, (LPBYTE)&timestamp, sizeof(DWORD));
 
 		::RegCloseKey(hk);
 
@@ -199,17 +199,11 @@ void Config::save() {
 	}
 }
 
-void Config::reloadIfNeeded(DWORD timestamp) {
-	if(stamp != timestamp) {
-		load();
-		stamp = timestamp;
-	}
-}
-
 bool Config::reloadIfNeeded() {
 	if (hChangeEvent) {
 		DWORD result = WaitForSingleObject(hChangeEvent, 0);
 		if (WAIT_OBJECT_0 == result) {
+			OutputDebugStringW(L"[chewing] config change detected, reload.\n");
 			load();
 			watchChanges();
 			return true;

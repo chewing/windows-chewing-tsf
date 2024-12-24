@@ -20,7 +20,6 @@
 #ifndef IME_TEXT_SERVICE_H
 #define IME_TEXT_SERVICE_H
 
-#include "libIME.h"
 #include <msctf.h>
 #include "EditSession.h"
 #include "KeyEvent.h"
@@ -50,9 +49,7 @@ class TextService:
 	public ITfTextEditSink,
 	public ITfKeyEventSink,
 	public ITfCompositionSink,
-	public ITfCompartmentEventSink,
-	public ITfLangBarEventSink,
-	public ITfActiveLanguageProfileNotifySink {
+	public ITfCompartmentEventSink {
 public:
 
 	enum CommandType { // used in onCommand()
@@ -130,62 +127,49 @@ public:
 	void setCompositionCursor(EditSession* session, int pos);
 
 	// compartment handling
-	// XXX if registry monitor works well we can stop using compartments for RPC
-	winrt::com_ptr<ITfCompartment> globalCompartment(const GUID& key);
 	winrt::com_ptr<ITfCompartment> threadCompartment(const GUID& key);
 	winrt::com_ptr<ITfCompartment> contextCompartment(const GUID& key, ITfContext* context = NULL);
 
-	DWORD globalCompartmentValue(const GUID& key);
 	DWORD threadCompartmentValue(const GUID& key);
 	DWORD contextCompartmentValue(const GUID& key, ITfContext* context = NULL);
 
-	void setGlobalCompartmentValue(const GUID& key, DWORD value);
 	void setThreadCompartmentValue(const GUID& key, DWORD value);
-	void setContextCompartmentValue(const GUID& key, DWORD value, ITfContext* context = NULL);
 
 	// manage sinks to global or thread compartment (context specific compartment is not used)
-	void addCompartmentMonitor(const GUID key, bool isGlobal = false);
+	void addCompartmentMonitor(const GUID key);
 	void removeCompartmentMonitor(const GUID key);
 
 	// virtual functions that IME implementors may need to override
 	virtual CLSID clsid() = 0;
 
-	virtual void onActivate();
-	virtual void onDeactivate();
+	virtual void onActivate() {}
+	virtual void onDeactivate() {}
 
-	virtual void onSetFocus();
-	virtual void onKillFocus();
+	virtual void onSetFocus() {}
+	virtual void onKillFocus() {}
 
-	virtual bool filterKeyDown(KeyEvent& keyEvent);
-	virtual bool onKeyDown(KeyEvent& keyEvent, EditSession* session);
+	virtual bool filterKeyDown(KeyEvent& keyEvent) { return false; }
+	virtual bool onKeyDown(KeyEvent& keyEvent, EditSession* session) { return false; }
 
-	virtual bool filterKeyUp(KeyEvent& keyEvent);
-	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session);
+	virtual bool filterKeyUp(KeyEvent& keyEvent) { return false; }
+	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session) { return false; }
 
-	virtual bool onPreservedKey(const GUID& guid);
+	virtual bool onPreservedKey(const GUID& guid) { return false; }
 
 	// called when a language button or menu item is clicked
-	virtual bool onCommand(UINT id, CommandType type);
+	virtual bool onCommand(UINT id, CommandType type) { return false; }
 
 	// called when a value in the global or thread compartment changed.
 	virtual void onCompartmentChanged(const GUID& key);
 
-	virtual void onLangBarStatusChanged(int newStatus);
-
 	// called when the keyboard is opened or closed
-	virtual void onKeyboardStatusChanged(bool opened);
+	virtual void onKeyboardStatusChanged(bool opened) {}
 
 	// called just before current composition is terminated for doing cleanup.
 	// if forced is true, the composition is terminated by others, such as
 	// the input focus is grabbed by another application.
 	// if forced is false, the composition is terminated gracefully by endComposition().
-	virtual void onCompositionTerminated(bool forced);
-
-	// called when a language profile is activated (only useful for text services that supports multiple language profiles)
-	virtual void onLangProfileActivated(REFGUID guidProfile);
-
-	// called when a language profile is deactivated
-	virtual void onLangProfileDeactivated(REFGUID guidProfile);
+	virtual void onCompositionTerminated(bool forced) {}
 
 	// COM related stuff
 public:
@@ -226,17 +210,6 @@ public:
 
 	// ITfCompartmentEventSink
 	STDMETHODIMP OnChange(REFGUID rguid);
-
-	// ITfLangBarEventSink
-    STDMETHODIMP OnSetFocus(DWORD dwThreadId);
-    STDMETHODIMP OnThreadTerminate(DWORD dwThreadId);
-    STDMETHODIMP OnThreadItemChange(DWORD dwThreadId);
-    STDMETHODIMP OnModalInput(DWORD dwThreadId, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    STDMETHODIMP ShowFloating(DWORD dwFlags);
-    STDMETHODIMP GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, RECT *prc);
-
-	// ITfActiveLanguageProfileNotifySink
-	STDMETHODIMP OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL fActivated);
 
 protected:
 	// edit session classes, used with TSF
@@ -280,7 +253,6 @@ protected:
 	struct CompartmentMonitor {
 		GUID guid;
 		DWORD cookie;
-		bool isGlobal;
 
 		bool operator == (const GUID& other) const {
 			return bool(::IsEqualGUID(guid, other));
@@ -303,7 +275,6 @@ private:
 	DWORD textEditSinkCookie_;
 	DWORD compositionSinkCookie_;
 	DWORD keyboardOpenEventSinkCookie_;
-	DWORD globalCompartmentEventSinkCookie_;
 	DWORD langBarSinkCookie_;
 	DWORD activateLanguageProfileNotifySinkCookie_;
 

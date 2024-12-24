@@ -1,15 +1,25 @@
+cmake_minimum_required(VERSION 3.24.0)
 project(ChewingPreferences LANGUAGES CXX)
 
-include_directories(
-    ${CMAKE_SOURCE_DIR}
+# http://www.utf8everywhere.org/
+add_definitions(
+	/D_UNICODE=1 /DUNICODE=1 # do Unicode build
+	/D_CRT_SECURE_NO_WARNINGS # disable warnings about old libc functions
 )
+if (MSVC)
+	add_compile_options(/utf-8)
+endif()
+
+# Static link MSVC runtime
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 add_executable(ChewingPreferences WIN32
     # Entry point
     ${PROJECT_SOURCE_DIR}/ChewingPreferences.cpp
     # Configurations
-    ${CMAKE_SOURCE_DIR}/ChewingTextService/ChewingConfig.cpp
-    ${CMAKE_SOURCE_DIR}/ChewingTextService/ChewingConfig.h
+    ../chewing_tip/ChewingConfig.cpp
+    ../chewing_tip/ChewingConfig.h
     # Configuration dialog
     ${PROJECT_SOURCE_DIR}/Dialog.cpp
     ${PROJECT_SOURCE_DIR}/Dialog.h
@@ -31,8 +41,11 @@ add_executable(ChewingPreferences WIN32
     # resources
     ${PROJECT_SOURCE_DIR}/ChewingPreferences.rc
 	${PROJECT_SOURCE_DIR}/ChewingPreferences.exe.manifest
-    ${CMAKE_SOURCE_DIR}/ChewingTextService/mainicon.ico
-    ${CMAKE_SOURCE_DIR}/ChewingTextService/logo.bmp
+    ../chewing_tip/mainicon.ico
+    ../chewing_tip/logo.bmp
+)
+target_include_directories(ChewingPreferences
+    PRIVATE ../chewing_tip
 )
 target_link_libraries(ChewingPreferences
 	comctl32.lib

@@ -12,8 +12,8 @@
 // DLL module handle
 HINSTANCE g_hInstance = nullptr;
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
-                      LPVOID lpReserved) {
+extern "C" BOOL DllMain_cpp(HMODULE hModule, DWORD ul_reason_for_call,
+                            LPVOID lpReserved) {
     OutputDebugStringW(L"DllMain called\n");
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH:
@@ -26,7 +26,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
     return TRUE;
 }
 
-STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppvObj) {
+extern "C" HRESULT DllGetClassObject_cpp(REFCLSID rclsid, REFIID riid,
+                                         void** ppvObj) {
     OutputDebugStringW(L"DllGetClassObject Called\n");
 
     Chewing::CClassFactory* pFactory = new Chewing::CClassFactory();
