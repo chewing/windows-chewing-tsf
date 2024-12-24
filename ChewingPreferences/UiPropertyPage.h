@@ -22,7 +22,7 @@
 #pragma once
 
 #include "PropertyPage.h"
-#include <ChewingTextService/ChewingConfig.h>
+#include "ChewingConfig.h"
 
 namespace Chewing {
 

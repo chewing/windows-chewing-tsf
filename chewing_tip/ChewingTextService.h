@@ -20,15 +20,15 @@
 #ifndef CHEWING_TEXT_SERVICE_H
 #define CHEWING_TEXT_SERVICE_H
 
-#include <LibIME/TextService.h>
-#include <LibIME/EditSession.h>
-#include <LibIME/LangBarButton.h>
-#include <chewing.h>
-#include "ChewingConfig.h"
-#include <sys/types.h>
-
 #include <Unknwn.h>
 #include <winrt/base.h>
+#include <chewing.h>
+#include <sys/types.h>
+
+#include "TextService.h"
+#include "EditSession.h"
+#include "LangBarButton.h"
+#include "ChewingConfig.h"
 
 #include "libime2.h"
 
