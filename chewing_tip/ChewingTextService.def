@@ -1,4 +1,0 @@
-LIBRARY ChewingTextService.dll
-
-EXPORTS
-    DllGetClassObject               PRIVATE
