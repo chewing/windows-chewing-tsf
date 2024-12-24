@@ -127,21 +127,16 @@ public:
 	void setCompositionCursor(EditSession* session, int pos);
 
 	// compartment handling
-	// XXX if registry monitor works well we can stop using compartments for RPC
-	winrt::com_ptr<ITfCompartment> globalCompartment(const GUID& key);
 	winrt::com_ptr<ITfCompartment> threadCompartment(const GUID& key);
 	winrt::com_ptr<ITfCompartment> contextCompartment(const GUID& key, ITfContext* context = NULL);
 
-	DWORD globalCompartmentValue(const GUID& key);
 	DWORD threadCompartmentValue(const GUID& key);
 	DWORD contextCompartmentValue(const GUID& key, ITfContext* context = NULL);
 
-	void setGlobalCompartmentValue(const GUID& key, DWORD value);
 	void setThreadCompartmentValue(const GUID& key, DWORD value);
-	void setContextCompartmentValue(const GUID& key, DWORD value, ITfContext* context = NULL);
 
 	// manage sinks to global or thread compartment (context specific compartment is not used)
-	void addCompartmentMonitor(const GUID key, bool isGlobal = false);
+	void addCompartmentMonitor(const GUID key);
 	void removeCompartmentMonitor(const GUID key);
 
 	// virtual functions that IME implementors may need to override
@@ -258,7 +253,6 @@ protected:
 	struct CompartmentMonitor {
 		GUID guid;
 		DWORD cookie;
-		bool isGlobal;
 
 		bool operator == (const GUID& other) const {
 			return bool(::IsEqualGUID(guid, other));
@@ -281,7 +275,6 @@ private:
 	DWORD textEditSinkCookie_;
 	DWORD compositionSinkCookie_;
 	DWORD keyboardOpenEventSinkCookie_;
-	DWORD globalCompartmentEventSinkCookie_;
 	DWORD langBarSinkCookie_;
 	DWORD activateLanguageProfileNotifySinkCookie_;
 

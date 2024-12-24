@@ -64,10 +64,6 @@ static const GUID g_settingsButtonGuid = // settings button/menu
 static const GUID g_shiftSpaceGuid = // shift + space
 { 0xc77a44f5, 0xdb21, 0x474e, { 0xa2, 0xa2, 0xa1, 0x72, 0x42, 0x21, 0x7a, 0xb3 } };
 
-// {F4D1E543-FB2C-48D7-B78D-20394F355381} // global compartment GUID for config change notification
-static const GUID g_configChangedGuid = 
-{ 0xf4d1e543, 0xfb2c, 0x48d7, { 0xb7, 0x8d, 0x20, 0x39, 0x4f, 0x35, 0x53, 0x81 } };
-
 // this is the GUID of the IME mode icon in Windows 8
 // the value is not available in older SDK versions, so let's define it ourselves.
 static const GUID _GUID_LBI_INPUTMODE =
@@ -90,6 +86,7 @@ TextService::TextService():
 	symbolsFileTime_(0),
 	chewingContext_(NULL) {
 
+	OutputDebugStringW(L"[chewing] Load config and start watching changes\n");
 	config_.load();
 	config_.watchChanges();
 
@@ -127,9 +124,6 @@ TextService::TextService():
 		}
 		addButton(imeModeIcon_);
 	}
-
-	// global compartment stuff
-	addCompartmentMonitor(g_configChangedGuid, true);
 }
 
 TextService::~TextService(void) {
@@ -155,8 +149,7 @@ CLSID TextService::clsid() {
 
 // virtual
 void TextService::onActivate() {
-	DWORD configStamp = globalCompartmentValue(g_configChangedGuid);
-	config().reloadIfNeeded(configStamp);
+	config().reloadIfNeeded();
 	initChewingContext();
 	updateLangButtons();
 	if(imeModeIcon_) // windows 8 IME mode icon
@@ -194,7 +187,24 @@ void TextService::onKillFocus() {
 bool TextService::filterKeyDown(Ime::KeyEvent& keyEvent) {
 	Config& cfg = config();
 	if (cfg.reloadIfNeeded()) {
-		applyConfig();
+		// check if chewing context needs to be reloaded
+		bool chewingNeedsReload = false;
+		// check if symbols.dat file is changed
+		// get last mtime of symbols.dat file
+		std::wstring file = userDir() + L"\\symbols.dat";
+		struct _stat64 stbuf;
+		if(_wstat64(file.c_str(), &stbuf) == 0 && symbolsFileTime_ != stbuf.st_mtime) {
+			symbolsFileTime_ = stbuf.st_mtime;
+			chewingNeedsReload = true;
+		}
+		// re-create a new chewing context if needed
+		if(chewingNeedsReload && chewingContext_) {
+			freeChewingContext();
+			initChewingContext();
+		}
+		else {
+			applyConfig(); // apply the latest config
+		}
 	}
 	lastKeyDownCode_ = keyEvent.keyCode();
 	// return false if we don't need this key
@@ -632,37 +642,6 @@ bool TextService::onCommand(UINT id, CommandType type) {
 		}
 	}
 	return true;
-}
-
-// virtual
-void TextService::onCompartmentChanged(const GUID& key) {
-	if(::IsEqualGUID(key, g_configChangedGuid)) {
-		// changes of configuration are detected
-		DWORD stamp = globalCompartmentValue(g_configChangedGuid);
-		config().reloadIfNeeded(stamp);
-
-		// check if chewing context needs to be reloaded
-		bool chewingNeedsReload = false;
-		// check if symbols.dat file is changed
-		// get last mtime of symbols.dat file
-		std::wstring file = userDir() + L"\\symbols.dat";
-		struct _stat64 stbuf;
-		if(_wstat64(file.c_str(), &stbuf) == 0 && symbolsFileTime_ != stbuf.st_mtime) {
-			symbolsFileTime_ = stbuf.st_mtime;
-			chewingNeedsReload = true;
-		}
-
-		// re-create a new chewing context if needed
-		if(chewingNeedsReload && chewingContext_) {
-			freeChewingContext();
-			initChewingContext();
-		}
-		else {
-			applyConfig(); // apply the latest config
-		}
-		return;
-	}
-	Ime::TextService::onCompartmentChanged(key);
 }
 
 // called when the keyboard is opened or closed

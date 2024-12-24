@@ -21,7 +21,6 @@
 #include "UiPropertyPage.h"
 #include "KeyboardPropertyPage.h"
 #include "SymbolsPropertyPage.h"
-#include "Dialog.h"
 #include "PropertyDialog.h"
 #include "AboutDialog.h"
 #include "resource.h"
@@ -32,10 +31,6 @@
 #include <winrt/base.h>
 
 namespace Chewing {
-
-// {F4D1E543-FB2C-48D7-B78D-20394F355381} // global compartment GUID for config change notification
-static const GUID g_configChangedGuid = 
-{ 0xf4d1e543, 0xfb2c, 0x48d7, { 0xb7, 0x8d, 0x20, 0x39, 0x4f, 0x35, 0x53, 0x81 } };
 
 static void initControls() {
 	INITCOMMONCONTROLSEX ic;
@@ -65,35 +60,7 @@ static void configDialog(HINSTANCE hInstance) {
 	dlg.addPage(symbolsPage);
 	INT_PTR ret = dlg.showModal(hInstance, (LPCTSTR)IDS_CONFIG_TITLE, 0, HWND_DESKTOP);
 	if(ret) { // the user clicks OK button
-		// get current time stamp and set the value to global compartment to notify all
-		// text service instances to reload their config.
-		// TextService::onCompartmentChanged() of all other instances will be triggered.
 		config.save();
-
-		DWORD stamp = ::GetTickCount();
-		if(stamp == Config::INVALID_TIMESTAMP) // this is almost impossible
-			stamp = 0;
-		// set global compartment value to notify existing ChewingTextService instances
-		::CoInitialize(NULL); // initialize COM
-		winrt::com_ptr<ITfThreadMgr> threadMgr;
-		if(CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, threadMgr.put_void()) == S_OK) {
-			TfClientId clientId = 0;
-			if(threadMgr->Activate(&clientId) == S_OK) {
-				winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
-				if(threadMgr->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
-					winrt::com_ptr<ITfCompartment> compartment;
-					if(compartmentMgr->GetCompartment(g_configChangedGuid, compartment.put()) == S_OK) {
-						VARIANT var;
-						VariantInit(&var);
-						var.vt = VT_I4;
-						var.lVal = ::GetTickCount(); // set current timestamp
-						compartment->SetValue(clientId, &var);
-					}
-				}
-				threadMgr->Deactivate();
-			}
-		}
-		::CoUninitialize();
 	}
 }
 

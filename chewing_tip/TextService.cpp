@@ -51,13 +51,12 @@ TextService::TextService():
 	textEditSinkCookie_(TF_INVALID_COOKIE),
 	compositionSinkCookie_(TF_INVALID_COOKIE),
 	keyboardOpenEventSinkCookie_(TF_INVALID_COOKIE),
-	globalCompartmentEventSinkCookie_(TF_INVALID_COOKIE),
 	langBarSinkCookie_(TF_INVALID_COOKIE),
 	activateLanguageProfileNotifySinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
 	input_atom_(TF_INVALID_GUIDATOM),
 	refCount_(1) {
-	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
+	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
 
 	// FIXME we should only initialize once
 	LibIME2Init();
@@ -80,11 +79,7 @@ TextService::~TextService(void) {
 	if(!compartmentMonitors_.empty()) {
 		vector<CompartmentMonitor>::iterator it;
 		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> source;
-			if(it->isGlobal)
-				source = globalCompartment(it->guid).as<ITfSource>();
-			else
-				source = threadCompartment(it->guid).as<ITfSource>();
+			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
 			if (source) {
 				source->UnadviseSink(it->cookie);
 			}
@@ -322,18 +317,6 @@ void TextService::setCompositionCursor(EditSession* session, int pos) {
 }
 
 // compartment handling
-winrt::com_ptr<ITfCompartment> TextService::globalCompartment(const GUID& key) {
-	if(threadMgr_) {
-		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
-		if(threadMgr_->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
-			winrt::com_ptr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, compartment.put());
-			return compartment;
-		}
-	}
-	return NULL;
-}
-
 winrt::com_ptr<ITfCompartment> TextService::threadCompartment(const GUID& key) {
 	if(threadMgr_) {
 		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr = threadMgr_.as<ITfCompartmentMgr>();
@@ -361,21 +344,7 @@ winrt::com_ptr<ITfCompartment> TextService::contextCompartment(const GUID& key, 
 			return compartment;
 		}
 	}
-	if(curContext)
-		curContext->Release();
 	return NULL;
-}
-
-
-DWORD TextService::globalCompartmentValue(const GUID& key) {
-	winrt::com_ptr<ITfCompartment> compartment = globalCompartment(key);
-	if(compartment) {
-		VARIANT var;
-		if(compartment->GetValue(&var) == S_OK && var.vt == VT_I4) {
-			return (DWORD)var.lVal;
-		}
-	}
-	return 0;
 }
 
 DWORD TextService::threadCompartmentValue(const GUID& key) {
@@ -403,43 +372,6 @@ DWORD TextService::contextCompartmentValue(const GUID& key, ITfContext* context)
 	return 0;
 }
 
-void TextService::setGlobalCompartmentValue(const GUID& key, DWORD value) {
-	if(threadMgr_) {
-		winrt::com_ptr<ITfCompartment> compartment = globalCompartment(key);
-		if(compartment) {
-			VARIANT var;
-			::VariantInit(&var);
-			var.vt = VT_I4;
-			var.lVal = value;
-			compartment->SetValue(clientId_, &var);
-		}
-	}
-	else {
-		// if we don't have a thread manager (this is possible when we try to set
-		// a global compartment value while the text service is not activated)
-		winrt::com_ptr<ITfThreadMgr> threadMgr;
-		if(::CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, threadMgr.put_void()) == S_OK) {
-			if(threadMgr) {
-				winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
-				if(threadMgr->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
-					winrt::com_ptr<ITfCompartment> compartment;
-					if(compartmentMgr->GetCompartment(key, compartment.put()) == S_OK && compartment) {
-						TfClientId id;
-						if(threadMgr->Activate(&id) == S_OK) {
-							VARIANT var;
-							::VariantInit(&var);
-							var.vt = VT_I4;
-							var.lVal = value;
-							compartment->SetValue(id, &var);
-							threadMgr->Deactivate();
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
 	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(key);
 	if(compartment) {
@@ -451,30 +383,13 @@ void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
 	}
 }
 
-void TextService::setContextCompartmentValue(const GUID& key, DWORD value, ITfContext* context) {
-	winrt::com_ptr<ITfCompartment> compartment = contextCompartment(key, context);
-	if(compartment) {
-		VARIANT var;
-		::VariantInit(&var);
-		var.vt = VT_I4;
-		var.lVal = value;
-		compartment->SetValue(clientId_, &var);
-	}
-}
-
-
-void TextService::addCompartmentMonitor(const GUID key, bool isGlobal) {
+void TextService::addCompartmentMonitor(const GUID key) {
 	CompartmentMonitor monitor;
 	monitor.guid = key;
 	monitor.cookie = 0;
-	monitor.isGlobal = isGlobal;
 	// if the text service is activated
 	if(threadMgr_) {
-		winrt::com_ptr<ITfSource> source;
-		if(isGlobal)
-			source = globalCompartment(key).as<ITfSource>();
-		else
-			source = threadCompartment(key).as<ITfSource>();
+		winrt::com_ptr<ITfSource> source = threadCompartment(key).as<ITfSource>();
 		if(source) {
 			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &monitor.cookie);
 		}
@@ -487,11 +402,7 @@ void TextService::removeCompartmentMonitor(const GUID key) {
 	it = find(compartmentMonitors_.begin(), compartmentMonitors_.end(), key);
 	if(it != compartmentMonitors_.end()) {
 		if(threadMgr_) {
-			winrt::com_ptr<ITfSource> source;
-			if(it->isGlobal)
-				source = globalCompartment(key).as<ITfSource>();
-			else
-				source = threadCompartment(key).as<ITfSource>();
+			winrt::com_ptr<ITfSource> source = threadCompartment(key).as<ITfSource>();
 			source->UnadviseSink(it->cookie);
 		}
 		compartmentMonitors_.erase(it);
@@ -608,12 +519,8 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	if(!compartmentMonitors_.empty()) {
 		vector<CompartmentMonitor>::iterator it;
 		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> compartmentSource;
-			if(it->isGlobal)	// global compartment
-				compartmentSource = globalCompartment(it->guid).as<ITfSource>();
-			else 	// thread specific compartment
-				compartmentSource = threadCompartment(it->guid).as<ITfSource>();
-			compartmentSource->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
+			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
+			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
 		}
 	}
 	isKeyboardOpened_ = threadCompartmentValue(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE) != 0;
@@ -708,17 +615,6 @@ STDMETHODIMP TextService::Deactivate() {
 			compartmentSource->UnadviseSink(keyboardOpenEventSinkCookie_);
 		keyboardOpenEventSinkCookie_ = TF_INVALID_COOKIE;
 	}
-
-/*
-	// global compartment
-	compartment = globalCompartment(XXX_GUID);
-	if(compartment) {
-		ComQIPtr<ITfSource> compartmentSource = compartment;
-		if(compartmentSource)
-			compartmentSource->UnadviseSink(globalCompartmentEventSinkCookie_);
-		globalCompartmentEventSinkCookie_ = TF_INVALID_COOKIE;
-	}
-*/
 
 	threadMgr_ = NULL;
 	clientId_ = TF_CLIENTID_NULL;

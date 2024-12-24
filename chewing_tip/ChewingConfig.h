@@ -34,8 +34,6 @@ public:
 	void load();
 	void save();
 
-	// reload configurations if changes are detected (if timestamp is different from this->stamp)
-	void reloadIfNeeded(DWORD timestamp);
 	// Returns true if config was reloaded
 	bool reloadIfNeeded();
 	void watchChanges();
@@ -46,10 +44,6 @@ private:
 	static bool createSecurityDesc(SECURITY_DESCRIPTOR& sd);
 
 public:
-	enum {
-		INVALID_TIMESTAMP = (DWORD)-1
-	};
-
 	// Configuration
 	DWORD keyboardLayout; // keyboard type
 	DWORD candPerRow; // candidate string per row (not supported yet)
@@ -78,7 +72,6 @@ public:
 	static const wchar_t* convEngines[];
 
 private:
-	DWORD stamp; // timestamp used to check if the config values are up to date
 	HANDLE hChangeEvent;
 	HKEY monitorHkey;
 };

@@ -57,9 +57,6 @@ public:
 
 	virtual bool onCommand(UINT id, CommandType type);
 
-	// called when a compartment value is changed
-	virtual void onCompartmentChanged(const GUID& key);
-
 	// called when the keyboard is opened or closed
 	virtual void onKeyboardStatusChanged(bool opened);
 
