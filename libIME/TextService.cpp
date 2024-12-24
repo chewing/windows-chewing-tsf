@@ -498,52 +498,6 @@ void TextService::removeCompartmentMonitor(const GUID key) {
 	}
 }
 
-
-// virtual
-void TextService::onActivate() {
-}
-
-// virtual
-void TextService::onDeactivate() {
-}
-
-// virtual
-bool TextService::filterKeyDown(KeyEvent& keyEvent) {
-	return false;
-}
-
-// virtual
-bool TextService::onKeyDown(KeyEvent& keyEvent, EditSession* session) {
-	return false;
-}
-
-// virtual
-bool TextService::filterKeyUp(KeyEvent& keyEvent) {
-	return false;
-}
-
-// virtual
-bool TextService::onKeyUp(KeyEvent& keyEvent, EditSession* session) {
-	return false;
-}
-
-// virtual
-bool TextService::onPreservedKey(const GUID& guid) {
-	return false;
-}
-
-// virtual
-void TextService::onSetFocus() {
-}
-
-// virtual
-void TextService::onKillFocus() {
-}
-
-bool TextService::onCommand(UINT id, CommandType type) {
-	return false;
-}
-
 // virtual
 void TextService::onCompartmentChanged(const GUID& key) {
 	// keyboard status changed, this is threadMgr specific
@@ -555,18 +509,6 @@ void TextService::onCompartmentChanged(const GUID& key) {
 	}
 }
 
-// called when the keyboard is opened or closed
-// virtual
-void TextService::onKeyboardStatusChanged(bool opened) {
-}
-
-// called just before current composition is terminated for doing cleanup.
-// if forced is true, the composition is terminated by others, such as
-// the input focus is grabbed by another application.
-// if forced is false, the composition is terminated gracefully by endComposition().
-// virtual
-void TextService::onCompositionTerminated(bool forced) {
-}
 // COM stuff
 
 // IUnknown

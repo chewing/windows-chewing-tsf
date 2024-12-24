@@ -147,34 +147,34 @@ public:
 	// virtual functions that IME implementors may need to override
 	virtual CLSID clsid() = 0;
 
-	virtual void onActivate();
-	virtual void onDeactivate();
+	virtual void onActivate() {}
+	virtual void onDeactivate() {}
 
-	virtual void onSetFocus();
-	virtual void onKillFocus();
+	virtual void onSetFocus() {}
+	virtual void onKillFocus() {}
 
-	virtual bool filterKeyDown(KeyEvent& keyEvent);
-	virtual bool onKeyDown(KeyEvent& keyEvent, EditSession* session);
+	virtual bool filterKeyDown(KeyEvent& keyEvent) { return false; }
+	virtual bool onKeyDown(KeyEvent& keyEvent, EditSession* session) { return false; }
 
-	virtual bool filterKeyUp(KeyEvent& keyEvent);
-	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session);
+	virtual bool filterKeyUp(KeyEvent& keyEvent) { return false; }
+	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session) { return false; }
 
-	virtual bool onPreservedKey(const GUID& guid);
+	virtual bool onPreservedKey(const GUID& guid) { return false; }
 
 	// called when a language button or menu item is clicked
-	virtual bool onCommand(UINT id, CommandType type);
+	virtual bool onCommand(UINT id, CommandType type) { return false; }
 
 	// called when a value in the global or thread compartment changed.
 	virtual void onCompartmentChanged(const GUID& key);
 
 	// called when the keyboard is opened or closed
-	virtual void onKeyboardStatusChanged(bool opened);
+	virtual void onKeyboardStatusChanged(bool opened) {}
 
 	// called just before current composition is terminated for doing cleanup.
 	// if forced is true, the composition is terminated by others, such as
 	// the input focus is grabbed by another application.
 	// if forced is false, the composition is terminated gracefully by endComposition().
-	virtual void onCompositionTerminated(bool forced);
+	virtual void onCompositionTerminated(bool forced) {}
 
 	// COM related stuff
 public:
