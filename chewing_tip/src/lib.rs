@@ -11,7 +11,7 @@ use chewing_capi::setup::chewing_new;
 
 #[no_mangle]
 unsafe extern "C" fn LibIME2Init() {
-    win_dbg_logger::rust_win_dbg_logger_init_debug();
+    win_dbg_logger::rust_win_dbg_logger_init_info();
     log::debug!("libIME2 initialized");
 }
 
