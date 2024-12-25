@@ -40,7 +40,6 @@ pub(crate) unsafe trait ILangBarButton: ITfLangBarItemButton {
     fn set_enabled(&self, enabled: bool) -> Result<()>;
 }
 
-#[derive(Debug)]
 #[implement(ITfLangBarItem, ITfLangBarItemButton, ITfSource, ILangBarButton)]
 struct LangBarButton {
     info: TF_LANGBARITEMINFO,
@@ -69,9 +68,13 @@ unsafe extern "C" fn CreateLangBarButton(
     icon: HICON,
     menu: HMENU,
     command_id: u32,
-    run_command: IRunCommand,
+    run_command: *mut IRunCommand,
     ret: *mut *mut c_void,
 ) {
+    let binding = run_command.cast();
+    let run_command_ref =
+        IRunCommand::from_raw_borrowed(&binding).expect("invalid IRunCommand pointer");
+    let run_command: IRunCommand = run_command_ref.cast().expect("invalid IRunCommand pointer");
     let lang_bar_btn = LangBarButton {
         info,
         status: Cell::new(0),

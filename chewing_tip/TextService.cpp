@@ -99,6 +99,23 @@ void TextService::addButton(ITfLangBarItemButton* button) {
 	}
 }
 
+void TextService::removeButton(ITfLangBarItemButton* button) {
+	if(button) {
+		winrt::com_ptr<ITfLangBarItemButton> btn;
+		btn.copy_from(button);
+		auto it = find(langBarButtons_.begin(), langBarButtons_.end(), btn);
+		if(it != langBarButtons_.end()) {
+			if (threadMgr_) {
+				winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
+				if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
+					langBarItemMgr->RemoveItem(button);
+				}
+			}
+			langBarButtons_.erase(it);
+		}
+	}
+}
+
 // preserved key
 void TextService::addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid) {
 	PreservedKey preservedKey;

@@ -64,6 +64,7 @@ public:
 
 	// language bar buttons
 	void addButton(ITfLangBarItemButton* button);
+	void removeButton(ITfLangBarItemButton* button);
 
 	// preserved keys
 	void addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid);

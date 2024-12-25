@@ -96,7 +96,21 @@ TextService::TextService():
 
 	// add preserved keys
 	addPreservedKey(VK_SPACE, TF_MOD_SHIFT, g_shiftSpaceGuid); // shift + space
+}
 
+TextService::~TextService(void) {
+	if(popupMenu_)
+		::DestroyMenu(popupMenu_);
+
+	if(messageWindow_)
+		hideMessage();
+
+	freeChewingContext();
+	OutputDebugStringW(L"[chewing] Unloaded\n");
+}
+
+// virtual
+void TextService::onActivate() {
 	// add language bar buttons
 	// siwtch Chinese/English modes
 	TF_LANGBARITEMINFO info = {
@@ -171,20 +185,7 @@ TextService::TextService():
 		);
 		addButton(imeModeIcon_.get());
 	}
-}
 
-TextService::~TextService(void) {
-	if(popupMenu_)
-		::DestroyMenu(popupMenu_);
-
-	if(messageWindow_)
-		hideMessage();
-
-	freeChewingContext();
-}
-
-// virtual
-void TextService::onActivate() {
 	config().reloadIfNeeded();
 	initChewingContext();
 	updateLangButtons();
@@ -195,6 +196,18 @@ void TextService::onActivate() {
 
 // virtual
 void TextService::onDeactivate() {
+	// Remove all buttons to avoid reference cycles
+	removeButton(switchLangButton_.get());
+	switchLangButton_ = nullptr;
+	removeButton(switchShapeButton_.get());
+	switchShapeButton_ = nullptr;
+	removeButton(settingsMenuButton_.get());
+	settingsMenuButton_ = nullptr;
+	if (imeModeIcon_) {
+		removeButton(imeModeIcon_.get());
+		imeModeIcon_ = nullptr;
+	}
+
 	lastKeyDownCode_ = 0;
 	freeChewingContext();
 
