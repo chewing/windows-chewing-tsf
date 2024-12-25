@@ -63,6 +63,33 @@ interface IMessageWindow : IWindow
   void setText(LPCWSTR text);
 }
 
+enum CommandType {
+  COMMAND_LEFT_CLICK,
+  COMMAND_RIGHT_CLICK,
+  COMMAND_MENU,
+};
+
+[
+object,
+uuid(f320f835-b95d-4d3f-89d5-fd4ab7b9d7bb),
+local
+]
+interface IRunCommand : IUnknown
+{
+  HRESULT onCommand(UINT id, enum CommandType cmdType);
+}
+
+[
+object,
+uuid(4db963b1-ced3-42b7-8f87-937534740e7a),
+local
+]
+interface ILangBarButton : ITfLangBarItemButton
+{
+  HRESULT setIcon(HICON icon);
+  HRESULT setEnabled(boolean enabled);
+}
+
 [local] void LibIME2Init();
 [local] void CreateImeWindow([out] void **window);
 [local] void CreateMessageWindow(HWND parent, [in] LPCWSTR image_path, [out] void **messagewindow);
@@ -71,3 +98,12 @@ interface IMessageWindow : IWindow
 [local] boolean ImeWindowRegisterClass(HINSTANCE hinstance);
 [local] void CreateDisplayAttributeProvider([out] void **provider);
 [local] HRESULT RegisterDisplayAttribute([in] const GUID *guid, [in] TF_DISPLAYATTRIBUTE da, [out] UINT32 *atom);
+[local] void CreateLangBarButton(
+        TF_LANGBARITEMINFO info,
+  [in]  BSTR tooltip,
+  [in]  HICON icon,
+  [in]  HMENU menu,
+        DWORD commandId,
+  [in]  IRunCommand *pRunCommand,
+  [out] void **ppLangBarButton
+);

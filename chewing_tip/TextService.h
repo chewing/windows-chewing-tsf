@@ -20,6 +20,7 @@
 #ifndef IME_TEXT_SERVICE_H
 #define IME_TEXT_SERVICE_H
 
+#include <ctfutb.h>
 #include <msctf.h>
 #include "EditSession.h"
 #include "KeyEvent.h"
@@ -51,12 +52,6 @@ class TextService:
 	public ITfCompositionSink,
 	public ITfCompartmentEventSink {
 public:
-
-	enum CommandType { // used in onCommand()
-		COMMAND_LEFT_CLICK,
-		COMMAND_RIGHT_CLICK,
-		COMMAND_MENU
-	};
 
 	TextService();
 
@@ -98,8 +93,7 @@ public:
 	DWORD langBarStatus() const;
 
 	// language bar buttons
-	void addButton(LangBarButton* button);
-	void removeButton(LangBarButton* button);
+	void addButton(ITfLangBarItemButton* button);
 
 	// preserved keys
 	void addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid);
@@ -155,9 +149,6 @@ public:
 	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session) { return false; }
 
 	virtual bool onPreservedKey(const GUID& guid) { return false; }
-
-	// called when a language button or menu item is clicked
-	virtual bool onCommand(UINT id, CommandType type) { return false; }
 
 	// called when a value in the global or thread compartment changed.
 	virtual void onCompartmentChanged(const GUID& key);
@@ -280,7 +271,7 @@ private:
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
 	winrt::com_ptr<ITfLangBarMgr> langBarMgr_;
-	std::vector<winrt::com_ptr<LangBarButton>> langBarButtons_;
+	std::vector<winrt::com_ptr<ITfLangBarItemButton>> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
 	std::vector<CompartmentMonitor> compartmentMonitors_;
 

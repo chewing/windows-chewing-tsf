@@ -1,4 +1,4 @@
-use std::{env, process::Command};
+use std::{env, path::PathBuf, process::Command};
 
 fn main() -> anyhow::Result<()> {
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -16,11 +16,12 @@ fn main() -> anyhow::Result<()> {
         .arg(&out_dir)
         .arg("idl/libime2.idl")
         .status()?;
+    let idl_client = PathBuf::from(&out_dir).join("libime2_i.c");
 
     embed_resource::compile("ChewingTextService.rc", embed_resource::NONE).manifest_required()?;
     cc::Build::new()
         .cpp(true)
-        .std("c++17")
+        .std("c++20")
         .define("_UNICODE", "1")
         .define("UNICODE", "1")
         .define("_CRT_SECURE_NO_WARNINGS", "1")
@@ -32,13 +33,14 @@ fn main() -> anyhow::Result<()> {
         .file("DllEntry.cpp")
         .file("EditSession.cpp")
         .file("KeyEvent.cpp")
-        .file("LangBarButton.cpp")
         .file("TextService.cpp")
         .file("Utils.cpp")
+        .file(idl_client)
         .include("../libchewing/include")
         .include(&out_dir)
         .compile("chewing_tip");
 
+    println!("cargo::rerun-if-changed=idl/libime2.idl");
     println!("cargo::rerun-if-changed=CClassFactory.cpp");
     println!("cargo::rerun-if-changed=CClassFactory.h");
     println!("cargo::rerun-if-changed=ChewingConfig.cpp");
@@ -50,8 +52,6 @@ fn main() -> anyhow::Result<()> {
     println!("cargo::rerun-if-changed=EditSession.h");
     println!("cargo::rerun-if-changed=KeyEvent.cpp");
     println!("cargo::rerun-if-changed=KeyEvent.h");
-    println!("cargo::rerun-if-changed=LangBarButton.cpp");
-    println!("cargo::rerun-if-changed=LangBarButton.h");
     println!("cargo::rerun-if-changed=TextService.cpp");
     println!("cargo::rerun-if-changed=TextService.h");
     println!("cargo::rerun-if-changed=Utils.cpp");

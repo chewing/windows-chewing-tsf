@@ -19,10 +19,10 @@
 
 #include "TextService.h"
 #include "EditSession.h"
-#include "LangBarButton.h"
 #include "libime2.h"
 
 #include <assert.h>
+#include <ctfutb.h>
 #include <msctf.h>
 #include <winerror.h>
 #include <winrt/base.h>
@@ -114,33 +114,17 @@ DWORD TextService::langBarStatus() const {
 	return 0;
 }
 
-void TextService::addButton(LangBarButton* button) {
+void TextService::addButton(ITfLangBarItemButton* button) {
 	if(button) {
-		winrt::com_ptr<LangBarButton> btn;
+		winrt::com_ptr<ITfLangBarItemButton> btn;
 		btn.copy_from(button);
+		
 		langBarButtons_.emplace_back(btn);
 		if(isActivated()) {
 			winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
 			if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 				langBarItemMgr->AddItem(button);
 			}
-		}
-	}
-}
-
-void TextService::removeButton(LangBarButton* button) {
-	if(button) {
-		winrt::com_ptr<LangBarButton> btn;
-		btn.copy_from(button);
-		auto it = find(langBarButtons_.begin(), langBarButtons_.end(), btn);
-		if(it != langBarButtons_.end()) {
-			if(isActivated()) {
-				winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
-				if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
-					langBarItemMgr->RemoveItem(button);
-				}
-			}
-			langBarButtons_.erase(it);
 		}
 	}
 }
