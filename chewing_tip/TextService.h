@@ -55,49 +55,18 @@ public:
 
 	TextService();
 
-	// public methods
-	ITfThreadMgr* threadMgr() const;
-
-	TfClientId clientId() const;
-
 	ITfContext* currentContext();
-
-	bool isActivated() const {
-		return (threadMgr() != NULL);
-	}
-
-	DWORD activateFlags() const {
-		return activateFlags_;
-	}
 
 	// running in Windows 8 app mode
 	bool isImmersive() const {
 		return (activateFlags_ & TF_TMF_IMMERSIVEMODE) != 0;
 	}
 
-	// alias of isImmersive()
-	bool isMetroApp() const {
-		return isImmersive();
-	}
-
-	// UI less mode is enabled (for ex: in fullscreen games)
-	bool isUiLess() const {
-		return (activateFlags_ & TF_TMF_UIELEMENTENABLEDONLY) != 0;
-	}
-
-	// is in console mode
-	bool isConsole() const {
-		return (activateFlags_ & TF_TMF_CONSOLE) != 0;
-	}
-
-	DWORD langBarStatus() const;
-
 	// language bar buttons
 	void addButton(ITfLangBarItemButton* button);
 
 	// preserved keys
 	void addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid);
-	void removePreservedKey(const GUID& guid);
 
 	// text composition handling
 	bool isComposing();
@@ -109,14 +78,11 @@ public:
 	bool isKeyboardOpened();
 	void setKeyboardOpen(bool open);
 
-	bool isInsertionAllowed(EditSession* session);
 	void startComposition(ITfContext* context);
 	void endComposition(ITfContext* context);
-	bool compositionRect(EditSession* session, RECT* rect);
 	bool selectionRect(EditSession* session, RECT* rect);
 	HWND compositionWindow(EditSession* session);
 
-	std::wstring compositionString(EditSession* session);
 	void setCompositionString(EditSession* session, const wchar_t* str, int len);
 	void setCompositionCursor(EditSession* session, int pos);
 
@@ -131,7 +97,6 @@ public:
 
 	// manage sinks to global or thread compartment (context specific compartment is not used)
 	void addCompartmentMonitor(const GUID key);
-	void removeCompartmentMonitor(const GUID key);
 
 	// virtual functions that IME implementors may need to override
 	virtual void onActivate() {}
@@ -162,8 +127,6 @@ public:
 
 	// COM related stuff
 public:
-	friend class DisplayAttributeInfoEnum;
-
     // IUnknown
     STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
 	STDMETHODIMP_(ULONG) AddRef(void);
@@ -261,11 +224,6 @@ private:
 
 	// event sink cookies
 	DWORD threadMgrEventSinkCookie_;
-	DWORD textEditSinkCookie_;
-	DWORD compositionSinkCookie_;
-	DWORD keyboardOpenEventSinkCookie_;
-	DWORD langBarSinkCookie_;
-	DWORD activateLanguageProfileNotifySinkCookie_;
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
 	winrt::com_ptr<ITfLangBarMgr> langBarMgr_;
