@@ -134,8 +134,6 @@ public:
 	void removeCompartmentMonitor(const GUID key);
 
 	// virtual functions that IME implementors may need to override
-	virtual CLSID clsid() = 0;
-
 	virtual void onActivate() {}
 	virtual void onDeactivate() {}
 

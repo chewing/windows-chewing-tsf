@@ -43,12 +43,9 @@ public:
 	TextService();
 	virtual ~TextService(void);
 
-	virtual CLSID clsid();
-
 	virtual void onActivate();
 	virtual void onDeactivate();
 
-	virtual void onFocus();
 	virtual void onKillFocus();
 
 	virtual bool filterKeyDown(Ime::KeyEvent& keyEvent);

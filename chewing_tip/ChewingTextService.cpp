@@ -100,7 +100,7 @@ TextService::TextService():
 	// add language bar buttons
 	// siwtch Chinese/English modes
 	TF_LANGBARITEMINFO info = {
-		clsid(),
+		g_textServiceClsid,
 		g_modeButtonGuid,
 		TF_LBI_STYLE_BTN_BUTTON,
 		0,
@@ -183,10 +183,6 @@ TextService::~TextService(void) {
 	freeChewingContext();
 }
 
-CLSID TextService::clsid() {
-	return g_textServiceClsid;
-}
-
 // virtual
 void TextService::onActivate() {
 	config().reloadIfNeeded();
@@ -204,10 +200,6 @@ void TextService::onDeactivate() {
 
 	hideMessage();
 	hideCandidates();
-}
-
-// virtual
-void TextService::onFocus() {
 }
 
 // virtual
