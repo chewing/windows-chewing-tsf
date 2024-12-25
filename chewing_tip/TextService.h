@@ -227,7 +227,6 @@ private:
 	DWORD threadMgrEventSinkCookie_;
 
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
-	winrt::com_ptr<ITfLangBarMgr> langBarMgr_;
 	std::vector<winrt::com_ptr<ITfLangBarItemButton>> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
 	std::vector<CompartmentMonitor> compartmentMonitors_;

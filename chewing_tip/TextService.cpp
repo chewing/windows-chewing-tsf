@@ -80,8 +80,6 @@ TextService::~TextService(void) {
 			}
 		}
 	}
-
-	langBarMgr_ = NULL;
 }
 
 void TextService::addButton(ITfLangBarItemButton* button) {
@@ -95,23 +93,6 @@ void TextService::addButton(ITfLangBarItemButton* button) {
 			if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 				langBarItemMgr->AddItem(button);
 			}
-		}
-	}
-}
-
-void TextService::removeButton(ITfLangBarItemButton* button) {
-	if(button) {
-		winrt::com_ptr<ITfLangBarItemButton> btn;
-		btn.copy_from(button);
-		auto it = find(langBarButtons_.begin(), langBarButtons_.end(), btn);
-		if(it != langBarButtons_.end()) {
-			if (threadMgr_) {
-				winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
-				if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
-					langBarItemMgr->RemoveItem(button);
-				}
-			}
-			langBarButtons_.erase(it);
 		}
 	}
 }
@@ -421,9 +402,6 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	if(!isKeyboardOpened_)
 		setKeyboardOpen(true);
 
-	// initialize language bar
-	::CoCreateInstance(CLSID_TF_LangBarMgr, NULL, CLSCTX_INPROC_SERVER,
-                      IID_ITfLangBarMgr, (void**)&langBarMgr_);
 	// Note: language bar has no effects in Win 8 immersive mode
 	if(!langBarButtons_.empty()) {
 		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
@@ -455,15 +433,13 @@ STDMETHODIMP TextService::Deactivate() {
 	// uninitialize language bar
 	if(!langBarButtons_.empty()) {
 		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
-		if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
-			for(auto& button: langBarButtons_) {
+		if (threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
+			for (auto& button: langBarButtons_) {
 				langBarItemMgr->RemoveItem(button.get());
 			}
 		}
 	}
-	if(langBarMgr_) {
-		langBarMgr_ = NULL;
-	}
+	langBarButtons_.clear();
 
 	// unadvice event sinks
 

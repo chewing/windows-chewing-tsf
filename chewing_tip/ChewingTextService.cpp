@@ -197,16 +197,10 @@ void TextService::onActivate() {
 // virtual
 void TextService::onDeactivate() {
 	// Remove all buttons to avoid reference cycles
-	removeButton(switchLangButton_.get());
 	switchLangButton_ = nullptr;
-	removeButton(switchShapeButton_.get());
 	switchShapeButton_ = nullptr;
-	removeButton(settingsMenuButton_.get());
 	settingsMenuButton_ = nullptr;
-	if (imeModeIcon_) {
-		removeButton(imeModeIcon_.get());
-		imeModeIcon_ = nullptr;
-	}
+	imeModeIcon_ = nullptr;
 
 	lastKeyDownCode_ = 0;
 	freeChewingContext();
