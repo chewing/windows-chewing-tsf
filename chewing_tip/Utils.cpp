@@ -17,17 +17,26 @@
 //	Boston, MA  02110-1301, USA.
 //
 
-#ifndef IME_UTILS_H
-#define IME_UTILS_H
-#pragma once
+#include "Utils.h"
+#include <Windows.h>
+#include <Winnls.h>
 
-#include <string>
+std::wstring utf8ToUtf16(const char* text) {
+	std::wstring wtext;
+	int wlen = ::MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+	if(wlen > 1) { // length includes terminating null
+		wtext.resize(wlen - 1);
+		// well, this is a little bit dirty, but it works!
+		wlen = ::MultiByteToWideChar(CP_UTF8, 0, text, -1, &wtext[0], wlen);
+	}
+	return wtext;
+}
 
-std::wstring utf8ToUtf16(const char* text);
-
-std::string utf16ToUtf8(const wchar_t* wtext);
-
-// convert traditional Chinese to simplified Chinese
-std::wstring tradToSimpChinese(const std::wstring& trad);
-
-#endif
+std::wstring tradToSimpChinese(const std::wstring& trad) {
+	int len = ::LCMapStringW(0x0404, LCMAP_SIMPLIFIED_CHINESE, trad.c_str(), trad.length(), NULL, 0);
+	std::wstring simp;
+	simp.resize(len);
+	if(::LCMapStringW(0x0404, LCMAP_SIMPLIFIED_CHINESE, trad.c_str(), trad.length(), &simp[0], len))
+		return simp;
+	return trad;
+}

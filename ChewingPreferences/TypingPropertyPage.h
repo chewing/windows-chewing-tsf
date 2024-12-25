@@ -21,7 +21,7 @@
 #define CHEWING_TYPING_PROPERTY_PAGE_H
 
 #include "PropertyPage.h"
-#include <ChewingTextService/ChewingConfig.h>
+#include "ChewingConfig.h"
 
 namespace Chewing {
 

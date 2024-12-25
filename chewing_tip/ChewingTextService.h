@@ -20,31 +20,32 @@
 #ifndef CHEWING_TEXT_SERVICE_H
 #define CHEWING_TEXT_SERVICE_H
 
-#include <LibIME/TextService.h>
-#include <LibIME/EditSession.h>
-#include <LibIME/LangBarButton.h>
-#include <chewing.h>
-#include "ChewingConfig.h"
-#include <sys/types.h>
-
 #include <Unknwn.h>
+#include <ctfutb.h>
+#include <winnt.h>
 #include <winrt/base.h>
+#include <chewing.h>
+#include <sys/types.h>
+#include <wtypesbase.h>
+
+#include "TextService.h"
+#include "EditSession.h"
+#include "ChewingConfig.h"
 
 #include "libime2.h"
 
 namespace Chewing {
 
-class TextService: public Ime::TextService {
+class TextService:
+	public IRunCommand,
+	public Ime::TextService {
 public:
 	TextService();
 	virtual ~TextService(void);
 
-	virtual CLSID clsid();
-
 	virtual void onActivate();
 	virtual void onDeactivate();
 
-	virtual void onFocus();
 	virtual void onKillFocus();
 
 	virtual bool filterKeyDown(Ime::KeyEvent& keyEvent);
@@ -54,11 +55,6 @@ public:
 	virtual bool onKeyUp(Ime::KeyEvent& keyEvent, Ime::EditSession* session);
 
 	virtual bool onPreservedKey(const GUID& guid);
-
-	virtual bool onCommand(UINT id, CommandType type);
-
-	// called when a compartment value is changed
-	virtual void onCompartmentChanged(const GUID& key);
 
 	// called when the keyboard is opened or closed
 	virtual void onKeyboardStatusChanged(bool opened);
@@ -76,6 +72,15 @@ public:
 	Config& config() {
 		return config_;
 	}
+
+public:
+	// IRunCommand
+	STDMETHODIMP onCommand(UINT id, CommandType type);
+
+    // IUnknown
+    STDMETHODIMP QueryInterface(REFIID riid, void **ppvObj);
+	STDMETHODIMP_(ULONG) AddRef(void);
+	STDMETHODIMP_(ULONG) Release(void);
 
 private:
 	void initChewingContext(); // initialize chewing context
@@ -123,9 +128,10 @@ private:
 	bool showingCandidates_;
 	UINT messageTimerId_;
 
-	Ime::LangBarButton* switchLangButton_;
-	Ime::LangBarButton* switchShapeButton_;
-	Ime::LangBarButton* imeModeIcon_; // IME mode icon, a special language button (Windows 8 only)
+	winrt::com_ptr<ILangBarButton> switchLangButton_;
+	winrt::com_ptr<ILangBarButton> switchShapeButton_;
+	winrt::com_ptr<ILangBarButton> settingsMenuButton_;
+	winrt::com_ptr<ILangBarButton> imeModeIcon_; // IME mode icon, a special language button (Windows 8 only)
 	HMENU popupMenu_;
 
 	bool outputSimpChinese_; // output simplified Chinese

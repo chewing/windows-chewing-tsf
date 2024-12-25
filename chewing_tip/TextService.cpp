@@ -19,11 +19,12 @@
 
 #include "TextService.h"
 #include "EditSession.h"
-#include "LangBarButton.h"
 #include "libime2.h"
 
 #include <assert.h>
+#include <ctfutb.h>
 #include <msctf.h>
+#include <winerror.h>
 #include <winrt/base.h>
 #include <string>
 
@@ -47,16 +48,10 @@ TextService::TextService():
 	activateFlags_(0),
 	isKeyboardOpened_(false),
 	threadMgrEventSinkCookie_(TF_INVALID_COOKIE),
-	textEditSinkCookie_(TF_INVALID_COOKIE),
-	compositionSinkCookie_(TF_INVALID_COOKIE),
-	keyboardOpenEventSinkCookie_(TF_INVALID_COOKIE),
-	globalCompartmentEventSinkCookie_(TF_INVALID_COOKIE),
-	langBarSinkCookie_(TF_INVALID_COOKIE),
-	activateLanguageProfileNotifySinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
 	input_atom_(TF_INVALID_GUIDATOM),
 	refCount_(1) {
-	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, false);
+	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
 
 	// FIXME we should only initialize once
 	LibIME2Init();
@@ -79,72 +74,25 @@ TextService::~TextService(void) {
 	if(!compartmentMonitors_.empty()) {
 		vector<CompartmentMonitor>::iterator it;
 		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> source;
-			if(it->isGlobal)
-				source = globalCompartment(it->guid).as<ITfSource>();
-			else
-				source = threadCompartment(it->guid).as<ITfSource>();
+			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
 			if (source) {
 				source->UnadviseSink(it->cookie);
 			}
 		}
 	}
-
-	if(langBarMgr_) {
-		langBarMgr_->UnadviseEventSink(langBarSinkCookie_);
-	}
-	langBarMgr_ = NULL;
 }
 
-// public methods
-
-ITfThreadMgr* TextService::threadMgr() const {
-	return threadMgr_.get();
-}
-
-TfClientId TextService::clientId() const {
-	return clientId_;
-}
-
-
-// language bar
-DWORD TextService::langBarStatus() const {
-	if(langBarMgr_) {
-		DWORD status;
-		if(langBarMgr_->GetShowFloatingStatus(&status) == S_OK) {
-			return status;
-		}
-	}
-	return 0;
-}
-
-void TextService::addButton(LangBarButton* button) {
+void TextService::addButton(ITfLangBarItemButton* button) {
 	if(button) {
-		winrt::com_ptr<LangBarButton> btn;
+		winrt::com_ptr<ITfLangBarItemButton> btn;
 		btn.copy_from(button);
+		
 		langBarButtons_.emplace_back(btn);
-		if(isActivated()) {
+		if (threadMgr_) {
 			winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
 			if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
 				langBarItemMgr->AddItem(button);
 			}
-		}
-	}
-}
-
-void TextService::removeButton(LangBarButton* button) {
-	if(button) {
-		winrt::com_ptr<LangBarButton> btn;
-		btn.copy_from(button);
-		auto it = find(langBarButtons_.begin(), langBarButtons_.end(), btn);
-		if(it != langBarButtons_.end()) {
-			if(isActivated()) {
-				winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
-				if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
-					langBarItemMgr->RemoveItem(button);
-				}
-			}
-			langBarButtons_.erase(it);
 		}
 	}
 }
@@ -156,7 +104,7 @@ void TextService::addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid
 	preservedKey.uVKey = keyCode;
 	preservedKey.uModifiers = modifiers;
 	preservedKeys_.push_back(preservedKey);
-	if(threadMgr_) { // our text service is activated
+	if (threadMgr_) { // our text service is activated
 		ITfKeystrokeMgr *keystrokeMgr;
 		if (threadMgr_->QueryInterface(IID_ITfKeystrokeMgr, (void **)&keystrokeMgr) == S_OK) {
 			keystrokeMgr->PreserveKey(clientId_, guid, &preservedKey, NULL, 0);
@@ -164,25 +112,6 @@ void TextService::addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid
 		}
 	}
 }
-
-void TextService::removePreservedKey(const GUID& guid) {
-	vector<PreservedKey>::iterator it;
-	for(it = preservedKeys_.begin(); it != preservedKeys_.end(); ++it) {
-		PreservedKey& preservedKey = *it;
-		if(::IsEqualIID(preservedKey.guid, guid)) {
-			if(threadMgr_) { // our text service is activated
-				ITfKeystrokeMgr *keystrokeMgr;
-				if (threadMgr_->QueryInterface(IID_ITfKeystrokeMgr, (void **)&keystrokeMgr) == S_OK) {
-					keystrokeMgr->UnpreserveKey(preservedKey.guid, &preservedKey);
-					keystrokeMgr->Release();
-				}
-			}
-			preservedKeys_.erase(it);
-			break;
-		}
-	}
-}
-
 
 // text composition
 
@@ -207,35 +136,6 @@ void TextService::setKeyboardOpen(bool open) {
 	}
 }
 
-
-// check if current insertion point is in the range of composition.
-// if not in range, insertion is now allowed
-bool TextService::isInsertionAllowed(EditSession* session) {
-	TfEditCookie cookie = session->editCookie();
-	TF_SELECTION selection;
-	ULONG selectionNum;
-	if(isComposing()) {
-		if(session->context()->GetSelection(cookie, TF_DEFAULT_SELECTION, 1, &selection, &selectionNum) == S_OK) {
-			ITfRange* compositionRange;
-			if(composition_->GetRange(&compositionRange) == S_OK) {
-				bool allowed = false;
-				// check if current selection is covered by composition range
-				LONG compareResult1;
-				LONG compareResult2;
-				if(selection.range->CompareStart(cookie, compositionRange, TF_ANCHOR_START, &compareResult1) == S_OK
-					&& selection.range->CompareStart(cookie, compositionRange, TF_ANCHOR_END, &compareResult2) == S_OK) {
-					if(compareResult1 == -1 && compareResult2 == +1)
-						allowed = true;
-				}
-				compositionRange->Release();
-			}
-			if(selection.range)
-				selection.range->Release();
-		}
-	}
-	return false;
-}
-
 void TextService::startComposition(ITfContext* context) {
 	assert(context);
 	HRESULT sessionResult;
@@ -250,27 +150,6 @@ void TextService::endComposition(ITfContext* context) {
 	EndCompositionEditSession* session = new EndCompositionEditSession(this, context);
 	context->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
 	session->Release();
-}
-
-std::wstring TextService::compositionString(EditSession* session) {
-	if (composition_) {
-		winrt::com_ptr<ITfRange> compositionRange;
-		if (composition_->GetRange(compositionRange.put()) == S_OK) {
-			TfEditCookie editCookie = session->editCookie();
-			// FIXME: the TSF API is really stupid here and it provides no way to know the size of the range.
-			// we cannot even get the actual position of start and end to calculate by ourselves.
-			// So, just use a huge buffer and assume that it's enough. :-(
-			// this should be quite enough for most of the IME on the earth as most composition strings
-			// only contain dozens of characters.
-			wchar_t buf[4096];  
-			ULONG len = 0;
-			if (compositionRange->GetText(editCookie, 0, buf, 4096, &len) == S_OK) {
-				buf[len] = '\0';
-				return std::wstring(buf);
-			}
-		}
-	}
-	return std::wstring();
 }
 
 void TextService::setCompositionString(EditSession* session, const wchar_t* str, int len) {
@@ -321,18 +200,6 @@ void TextService::setCompositionCursor(EditSession* session, int pos) {
 }
 
 // compartment handling
-winrt::com_ptr<ITfCompartment> TextService::globalCompartment(const GUID& key) {
-	if(threadMgr_) {
-		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
-		if(threadMgr_->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
-			winrt::com_ptr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, compartment.put());
-			return compartment;
-		}
-	}
-	return NULL;
-}
-
 winrt::com_ptr<ITfCompartment> TextService::threadCompartment(const GUID& key) {
 	if(threadMgr_) {
 		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr = threadMgr_.as<ITfCompartmentMgr>();
@@ -360,21 +227,7 @@ winrt::com_ptr<ITfCompartment> TextService::contextCompartment(const GUID& key, 
 			return compartment;
 		}
 	}
-	if(curContext)
-		curContext->Release();
 	return NULL;
-}
-
-
-DWORD TextService::globalCompartmentValue(const GUID& key) {
-	winrt::com_ptr<ITfCompartment> compartment = globalCompartment(key);
-	if(compartment) {
-		VARIANT var;
-		if(compartment->GetValue(&var) == S_OK && var.vt == VT_I4) {
-			return (DWORD)var.lVal;
-		}
-	}
-	return 0;
 }
 
 DWORD TextService::threadCompartmentValue(const GUID& key) {
@@ -402,43 +255,6 @@ DWORD TextService::contextCompartmentValue(const GUID& key, ITfContext* context)
 	return 0;
 }
 
-void TextService::setGlobalCompartmentValue(const GUID& key, DWORD value) {
-	if(threadMgr_) {
-		winrt::com_ptr<ITfCompartment> compartment = globalCompartment(key);
-		if(compartment) {
-			VARIANT var;
-			::VariantInit(&var);
-			var.vt = VT_I4;
-			var.lVal = value;
-			compartment->SetValue(clientId_, &var);
-		}
-	}
-	else {
-		// if we don't have a thread manager (this is possible when we try to set
-		// a global compartment value while the text service is not activated)
-		winrt::com_ptr<ITfThreadMgr> threadMgr;
-		if(::CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, threadMgr.put_void()) == S_OK) {
-			if(threadMgr) {
-				winrt::com_ptr<ITfCompartmentMgr> compartmentMgr;
-				if(threadMgr->GetGlobalCompartment(compartmentMgr.put()) == S_OK) {
-					winrt::com_ptr<ITfCompartment> compartment;
-					if(compartmentMgr->GetCompartment(key, compartment.put()) == S_OK && compartment) {
-						TfClientId id;
-						if(threadMgr->Activate(&id) == S_OK) {
-							VARIANT var;
-							::VariantInit(&var);
-							var.vt = VT_I4;
-							var.lVal = value;
-							compartment->SetValue(id, &var);
-							threadMgr->Deactivate();
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
 	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(key);
 	if(compartment) {
@@ -450,97 +266,18 @@ void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
 	}
 }
 
-void TextService::setContextCompartmentValue(const GUID& key, DWORD value, ITfContext* context) {
-	winrt::com_ptr<ITfCompartment> compartment = contextCompartment(key, context);
-	if(compartment) {
-		VARIANT var;
-		::VariantInit(&var);
-		var.vt = VT_I4;
-		var.lVal = value;
-		compartment->SetValue(clientId_, &var);
-	}
-}
-
-
-void TextService::addCompartmentMonitor(const GUID key, bool isGlobal) {
+void TextService::addCompartmentMonitor(const GUID key) {
 	CompartmentMonitor monitor;
 	monitor.guid = key;
 	monitor.cookie = 0;
-	monitor.isGlobal = isGlobal;
 	// if the text service is activated
 	if(threadMgr_) {
-		winrt::com_ptr<ITfSource> source;
-		if(isGlobal)
-			source = globalCompartment(key).as<ITfSource>();
-		else
-			source = threadCompartment(key).as<ITfSource>();
+		winrt::com_ptr<ITfSource> source = threadCompartment(key).as<ITfSource>();
 		if(source) {
 			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &monitor.cookie);
 		}
 	}
 	compartmentMonitors_.push_back(monitor);
-}
-
-void TextService::removeCompartmentMonitor(const GUID key) {
-	vector<CompartmentMonitor>::iterator it;
-	it = find(compartmentMonitors_.begin(), compartmentMonitors_.end(), key);
-	if(it != compartmentMonitors_.end()) {
-		if(threadMgr_) {
-			winrt::com_ptr<ITfSource> source;
-			if(it->isGlobal)
-				source = globalCompartment(key).as<ITfSource>();
-			else
-				source = threadCompartment(key).as<ITfSource>();
-			source->UnadviseSink(it->cookie);
-		}
-		compartmentMonitors_.erase(it);
-	}
-}
-
-
-// virtual
-void TextService::onActivate() {
-}
-
-// virtual
-void TextService::onDeactivate() {
-}
-
-// virtual
-bool TextService::filterKeyDown(KeyEvent& keyEvent) {
-	return false;
-}
-
-// virtual
-bool TextService::onKeyDown(KeyEvent& keyEvent, EditSession* session) {
-	return false;
-}
-
-// virtual
-bool TextService::filterKeyUp(KeyEvent& keyEvent) {
-	return false;
-}
-
-// virtual
-bool TextService::onKeyUp(KeyEvent& keyEvent, EditSession* session) {
-	return false;
-}
-
-// virtual
-bool TextService::onPreservedKey(const GUID& guid) {
-	return false;
-}
-
-// virtual
-void TextService::onSetFocus() {
-}
-
-// virtual
-void TextService::onKillFocus() {
-}
-
-bool TextService::onCommand(UINT id, CommandType type) {
-	return false;
 }
 
 // virtual
@@ -552,31 +289,6 @@ void TextService::onCompartmentChanged(const GUID& key) {
 		isKeyboardOpened_ = threadCompartmentValue(key) ? true : false;
 		onKeyboardStatusChanged(isKeyboardOpened_);
 	}
-}
-
-// virtual
-void TextService::onLangBarStatusChanged(int newStatus) {
-}
-
-// called when the keyboard is opened or closed
-// virtual
-void TextService::onKeyboardStatusChanged(bool opened) {
-}
-
-// called just before current composition is terminated for doing cleanup.
-// if forced is true, the composition is terminated by others, such as
-// the input focus is grabbed by another application.
-// if forced is false, the composition is terminated gracefully by endComposition().
-// virtual
-void TextService::onCompositionTerminated(bool forced) {
-}
-
-// called when a language profile is activated (only useful for text services that supports multiple language profiles)
-void TextService::onLangProfileActivated(REFGUID guidProfile) {
-}
-
-// called when a language profile is deactivated
-void TextService::onLangProfileDeactivated(REFGUID guidProfile) {
 }
 
 // COM stuff
@@ -611,10 +323,6 @@ STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
 		*ppvObj = (ITfCompositionSink*)this;
 	else if(IsEqualIID(riid, IID_ITfCompartmentEventSink))
 		*ppvObj = (ITfCompartmentEventSink*)this;
-	else if(IsEqualIID(riid, IID_ITfLangBarEventSink))
-		*ppvObj = (ITfLangBarEventSink*)this;
-	else if(IsEqualIID(riid, IID_ITfActiveLanguageProfileNotifySink))
-		*ppvObj = (ITfActiveLanguageProfileNotifySink*)this;
 	else
 		*ppvObj = NULL;
 
@@ -653,11 +361,10 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 
 	// advice event sinks (set up event listeners)
 	
-	// ITfThreadMgrEventSink, ITfActiveLanguageProfileNotifySink
+	// ITfThreadMgrEventSink
 	winrt::com_ptr<ITfSource> source = threadMgr_.as<ITfSource>();
 	if(source) {
 		source->AdviseSink(IID_ITfThreadMgrEventSink, (ITfThreadMgrEventSink *)this, &threadMgrEventSinkCookie_);
-		source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, (ITfActiveLanguageProfileNotifySink *)this, &activateLanguageProfileNotifySinkCookie_);
 	}
 
 	// ITfTextEditSink,
@@ -683,12 +390,8 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	if(!compartmentMonitors_.empty()) {
 		vector<CompartmentMonitor>::iterator it;
 		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> compartmentSource;
-			if(it->isGlobal)	// global compartment
-				compartmentSource = globalCompartment(it->guid).as<ITfSource>();
-			else 	// thread specific compartment
-				compartmentSource = threadCompartment(it->guid).as<ITfSource>();
-			compartmentSource->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
+			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
+			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
 		}
 	}
 	isKeyboardOpened_ = threadCompartmentValue(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE) != 0;
@@ -699,12 +402,6 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 	if(!isKeyboardOpened_)
 		setKeyboardOpen(true);
 
-	// initialize language bar
-	::CoCreateInstance(CLSID_TF_LangBarMgr, NULL, CLSCTX_INPROC_SERVER,
-                      IID_ITfLangBarMgr, (void**)&langBarMgr_);
-	if(langBarMgr_) {
-		langBarMgr_->AdviseEventSink(this, NULL, 0, &langBarSinkCookie_);
-	}
 	// Note: language bar has no effects in Win 8 immersive mode
 	if(!langBarButtons_.empty()) {
 		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
@@ -736,17 +433,13 @@ STDMETHODIMP TextService::Deactivate() {
 	// uninitialize language bar
 	if(!langBarButtons_.empty()) {
 		winrt::com_ptr<ITfLangBarItemMgr> langBarItemMgr;
-		if(threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
-			for(auto& button: langBarButtons_) {
+		if (threadMgr_->QueryInterface(IID_ITfLangBarItemMgr, langBarItemMgr.put_void()) == S_OK) {
+			for (auto& button: langBarButtons_) {
 				langBarItemMgr->RemoveItem(button.get());
 			}
 		}
 	}
-	if(langBarMgr_) {
-		langBarMgr_->UnadviseEventSink(langBarSinkCookie_);
-		langBarSinkCookie_ = TF_INVALID_COOKIE;
-		langBarMgr_ = NULL;
-	}
+	langBarButtons_.clear();
 
 	// unadvice event sinks
 
@@ -754,9 +447,7 @@ STDMETHODIMP TextService::Deactivate() {
 	winrt::com_ptr<ITfSource> source = threadMgr_.as<ITfSource>();
 	if(source) {
 		source->UnadviseSink(threadMgrEventSinkCookie_);
-		source->UnadviseSink(activateLanguageProfileNotifySinkCookie_);
 		threadMgrEventSinkCookie_ = TF_INVALID_COOKIE;
-		activateLanguageProfileNotifySinkCookie_ = TF_INVALID_COOKIE;
 	}
 
 	// ITfTextEditSink,
@@ -779,24 +470,13 @@ STDMETHODIMP TextService::Deactivate() {
 
 	// ITfCompartmentEventSink
 	// thread specific compartment
-	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
-	if(compartment) {
-		winrt::com_ptr<ITfSource> compartmentSource = compartment.as<ITfSource>();
-		if(compartmentSource)
-			compartmentSource->UnadviseSink(keyboardOpenEventSinkCookie_);
-		keyboardOpenEventSinkCookie_ = TF_INVALID_COOKIE;
+	if(!compartmentMonitors_.empty()) {
+		vector<CompartmentMonitor>::iterator it;
+		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
+			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
+			source->UnadviseSink(it->cookie);
+		}
 	}
-
-/*
-	// global compartment
-	compartment = globalCompartment(XXX_GUID);
-	if(compartment) {
-		ComQIPtr<ITfSource> compartmentSource = compartment;
-		if(compartmentSource)
-			compartmentSource->UnadviseSink(globalCompartmentEventSinkCookie_);
-		globalCompartmentEventSinkCookie_ = TF_INVALID_COOKIE;
-	}
-*/
 
 	threadMgr_ = NULL;
 	clientId_ = TF_CLIENTID_NULL;
@@ -990,46 +670,6 @@ STDMETHODIMP TextService::OnChange(REFGUID rguid) {
 	return S_OK;
 }
 
-// ITfLangBarEventSink 
-STDMETHODIMP TextService::OnSetFocus(DWORD dwThreadId) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::OnThreadTerminate(DWORD dwThreadId) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::OnThreadItemChange(DWORD dwThreadId) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::OnModalInput(DWORD dwThreadId, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	return E_NOTIMPL;
-}
-
-STDMETHODIMP TextService::ShowFloating(DWORD dwFlags) {
-	onLangBarStatusChanged(dwFlags);
-	return S_OK;
-}
-
-STDMETHODIMP TextService::GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, RECT *prc) {
-	return E_NOTIMPL;
-}
-
-
-// ITfActiveLanguageProfileNotifySink
-STDMETHODIMP TextService::OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL fActivated) {
-	// we only support one text service, so clsid must be the same as that of our text service.
-	// otherwise it's not the notification for our text service, just ignore the event.
-	if(clsid == this->clsid()) {
-		if(fActivated)
-			onLangProfileActivated(guidProfile);
-		else
-			onLangProfileDeactivated(guidProfile);
-	}
-	return S_OK;
-}
-
 // edit session handling
 STDMETHODIMP TextService::KeyEditSession::DoEditSession(TfEditCookie ec) {
 	EditSession::DoEditSession(ec);
@@ -1130,22 +770,6 @@ ITfContext* TextService::currentContext() {
 		docMgr->Release();
 	}
 	return context;
-}
-
-bool TextService::compositionRect(EditSession* session, RECT* rect) {
-	bool ret = false;
-	if(isComposing()) {
-		winrt::com_ptr<ITfContextView> view;
-		if(session->context()->GetActiveView(view.put()) == S_OK) {
-			BOOL clipped;
-			winrt::com_ptr<ITfRange> range;
-			if(composition_->GetRange(range.put()) == S_OK) {
-				if(view->GetTextExt(session->editCookie(), range.get(), rect, &clipped) == S_OK)
-					ret = true;
-			}
-		}
-	}
-	return ret;
 }
 
 bool TextService::selectionRect(EditSession* session, RECT* rect) {

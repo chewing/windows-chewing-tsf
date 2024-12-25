@@ -19,7 +19,7 @@ class CClassFactory : public IClassFactory {
     STDMETHODIMP LockServer(BOOL fLock);
 
    private:
-    ~CClassFactory() {}
+    virtual ~CClassFactory() {}
 
     unsigned long refCount_;
 };

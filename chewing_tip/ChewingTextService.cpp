@@ -24,13 +24,16 @@
 
 #include <Shellapi.h>
 #include <assert.h>
+#include <corecrt_wstring.h>
+#include <ctfutb.h>
 #include <debugapi.h>
-#include <libIME/LangBarButton.h>
-#include <libIME/Utils.h>
+#include <libloaderapi.h>
 #include <minwindef.h>
+#include <oleauto.h>
 #include <shlobj_core.h>
 #include <sys/stat.h>
 #include <winerror.h>
+#include <winnt.h>
 #include <winreg.h>
 #include <winrt/base.h>
 #include <winuser.h>
@@ -38,6 +41,8 @@
 #include <cstddef>
 #include <string>
 
+#include "TextService.h"
+#include "Utils.h"
 #include "resource.h"
 #include "libime2.h"
 
@@ -64,10 +69,6 @@ static const GUID g_settingsButtonGuid = // settings button/menu
 static const GUID g_shiftSpaceGuid = // shift + space
 { 0xc77a44f5, 0xdb21, 0x474e, { 0xa2, 0xa2, 0xa1, 0x72, 0x42, 0x21, 0x7a, 0xb3 } };
 
-// {F4D1E543-FB2C-48D7-B78D-20394F355381} // global compartment GUID for config change notification
-static const GUID g_configChangedGuid = 
-{ 0xf4d1e543, 0xfb2c, 0x48d7, { 0xb7, 0x8d, 0x20, 0x39, 0x4f, 0x35, 0x53, 0x81 } };
-
 // this is the GUID of the IME mode icon in Windows 8
 // the value is not available in older SDK versions, so let's define it ourselves.
 static const GUID _GUID_LBI_INPUTMODE =
@@ -86,50 +87,15 @@ TextService::TextService():
 	outputSimpChinese_(false),
 	lastKeyDownCode_(0),
 	messageTimerId_(0),
-	imeModeIcon_(NULL),
 	symbolsFileTime_(0),
 	chewingContext_(NULL) {
 
+	OutputDebugStringW(L"[chewing] Load config and start watching changes\n");
 	config_.load();
 	config_.watchChanges();
 
 	// add preserved keys
 	addPreservedKey(VK_SPACE, TF_MOD_SHIFT, g_shiftSpaceGuid); // shift + space
-
-	// add language bar buttons
-	// siwtch Chinese/English modes
-	switchLangButton_ = new Ime::LangBarButton(this, g_modeButtonGuid, ID_SWITCH_LANG);
-	switchLangButton_->setTooltip(IDS_SWITCH_LANG);
-	addButton(switchLangButton_);
-
-	// toggle full shape/half shape
-	switchShapeButton_ = new Ime::LangBarButton(this, g_shapeTypeButtonGuid, ID_SWITCH_SHAPE);
-	switchShapeButton_->setTooltip(IDS_SWITCH_SHAPE);
-	addButton(switchShapeButton_);
-
-	// settings and others, may open a popup menu
-	Ime::LangBarButton* button = new Ime::LangBarButton(this, g_settingsButtonGuid);
-	button->setTooltip(IDS_SETTINGS);
-	button->setIcon(IDI_CONFIG);
-	HMENU menu = ::LoadMenuW(g_hInstance, LPCTSTR(IDR_MENU));
-	popupMenu_ = ::GetSubMenu(menu, 0);
-	button->setMenu(popupMenu_);
-	addButton(button);
-	button->Release();
-
-	// Windows 8 systray IME mode icon
-	if(IsWindows8OrGreater()) {
-		imeModeIcon_ = new Ime::LangBarButton(this, _GUID_LBI_INPUTMODE, ID_MODE_ICON);
-		if (isLightTheme()) {
-			imeModeIcon_->setIcon(IDI_ENG);
-		} else {
-			imeModeIcon_->setIcon(IDI_ENG_DARK);
-		}
-		addButton(imeModeIcon_);
-	}
-
-	// global compartment stuff
-	addCompartmentMonitor(g_configChangedGuid, true);
 }
 
 TextService::~TextService(void) {
@@ -139,41 +105,108 @@ TextService::~TextService(void) {
 	if(messageWindow_)
 		hideMessage();
 
-	if(switchLangButton_)
-		switchLangButton_->Release();
-	if(switchShapeButton_)
-		switchShapeButton_->Release();
-	if(imeModeIcon_)
-		imeModeIcon_->Release();
-
 	freeChewingContext();
-}
-
-CLSID TextService::clsid() {
-	return g_textServiceClsid;
+	OutputDebugStringW(L"[chewing] Unloaded\n");
 }
 
 // virtual
 void TextService::onActivate() {
-	DWORD configStamp = globalCompartmentValue(g_configChangedGuid);
-	config().reloadIfNeeded(configStamp);
+	// add language bar buttons
+	// siwtch Chinese/English modes
+	TF_LANGBARITEMINFO info = {
+		g_textServiceClsid,
+		g_modeButtonGuid,
+		TF_LBI_STYLE_BTN_BUTTON,
+		0,
+		{}
+	};
+	LPCWSTR tooltip;
+	int len;
+	len = LoadStringW(g_hInstance, IDS_SWITCH_LANG, (LPWSTR)&tooltip, 0);
+	wcsncpy_s(info.szDescription, sizeof(info.szDescription), tooltip, len);
+	CreateLangBarButton(
+		info,
+		SysAllocStringLen(tooltip, len),
+		LoadIconW(g_hInstance, MAKEINTRESOURCEW(IDI_CHI)),
+		NULL,
+		ID_SWITCH_LANG,
+		this,
+		switchLangButton_.put_void()
+	);
+	addButton(switchLangButton_.get());
+
+	// toggle full shape/half shape
+	len = LoadStringW(g_hInstance, IDS_SWITCH_SHAPE, (LPWSTR)&tooltip, 0);
+	info.guidItem = g_shapeTypeButtonGuid;
+	wcsncpy_s(info.szDescription, sizeof(info.szDescription), tooltip, len);
+	CreateLangBarButton(
+		info,
+		SysAllocStringLen(tooltip, len),
+		LoadIconW(g_hInstance, MAKEINTRESOURCEW(IDI_HALF_SHAPE)),
+		NULL,
+		ID_SWITCH_SHAPE,
+		this,
+		switchShapeButton_.put_void()
+	);
+	addButton(switchShapeButton_.get());
+
+	// settings and others, may open a popup menu
+	len = LoadStringW(g_hInstance, IDS_SETTINGS, (LPWSTR)&tooltip, 0);
+	info.guidItem = g_settingsButtonGuid;
+	info.dwStyle = TF_LBI_STYLE_BTN_MENU;
+	wcsncpy_s(info.szDescription, sizeof(info.szDescription), tooltip, len);
+	HMENU menu = ::LoadMenuW(g_hInstance, MAKEINTRESOURCEW(IDR_MENU));
+	popupMenu_ = ::GetSubMenu(menu, 0);
+	CreateLangBarButton(
+		info,
+		SysAllocStringLen(tooltip, len),
+		LoadIconW(g_hInstance, MAKEINTRESOURCEW(IDI_CONFIG)),
+		popupMenu_,
+		0,
+		this,
+		settingsMenuButton_.put_void()
+	);
+	addButton(settingsMenuButton_.get());
+
+	// Windows 8 systray IME mode icon
+	if(IsWindows8OrGreater()) {
+		len = LoadStringW(g_hInstance, IDS_SWITCH_SHAPE, (LPWSTR)&tooltip, 0);
+		info.guidItem = _GUID_LBI_INPUTMODE;
+		info.dwStyle = TF_LBI_STYLE_BTN_BUTTON;
+		wcsncpy_s(info.szDescription, sizeof(info.szDescription), tooltip, len);
+		CreateLangBarButton(
+			info,
+			SysAllocStringLen(tooltip, len),
+			LoadIconW(g_hInstance, MAKEINTRESOURCEW(isLightTheme() ? IDI_ENG : IDI_ENG_DARK)),
+			NULL,
+			ID_MODE_ICON,
+			this,
+			imeModeIcon_.put_void()
+		);
+		addButton(imeModeIcon_.get());
+	}
+
+	config().reloadIfNeeded();
 	initChewingContext();
 	updateLangButtons();
+
 	if(imeModeIcon_) // windows 8 IME mode icon
 		imeModeIcon_->setEnabled(isKeyboardOpened());
 }
 
 // virtual
 void TextService::onDeactivate() {
+	// Remove all buttons to avoid reference cycles
+	switchLangButton_ = nullptr;
+	switchShapeButton_ = nullptr;
+	settingsMenuButton_ = nullptr;
+	imeModeIcon_ = nullptr;
+
 	lastKeyDownCode_ = 0;
 	freeChewingContext();
 
 	hideMessage();
 	hideCandidates();
-}
-
-// virtual
-void TextService::onFocus() {
 }
 
 // virtual
@@ -194,7 +227,24 @@ void TextService::onKillFocus() {
 bool TextService::filterKeyDown(Ime::KeyEvent& keyEvent) {
 	Config& cfg = config();
 	if (cfg.reloadIfNeeded()) {
-		applyConfig();
+		// check if chewing context needs to be reloaded
+		bool chewingNeedsReload = false;
+		// check if symbols.dat file is changed
+		// get last mtime of symbols.dat file
+		std::wstring file = userDir() + L"\\symbols.dat";
+		struct _stat64 stbuf;
+		if(_wstat64(file.c_str(), &stbuf) == 0 && symbolsFileTime_ != stbuf.st_mtime) {
+			symbolsFileTime_ = stbuf.st_mtime;
+			chewingNeedsReload = true;
+		}
+		// re-create a new chewing context if needed
+		if(chewingNeedsReload && chewingContext_) {
+			freeChewingContext();
+			initChewingContext();
+		}
+		else {
+			applyConfig(); // apply the latest config
+		}
 	}
 	lastKeyDownCode_ = keyEvent.keyCode();
 	// return false if we don't need this key
@@ -540,7 +590,7 @@ bool TextService::onPreservedKey(const GUID& guid) {
 
 
 // virtual
-bool TextService::onCommand(UINT id, CommandType type) {
+STDMETHODIMP TextService::onCommand(UINT id, CommandType type) {
 	assert(chewingContext_);
 	if(type == COMMAND_RIGHT_CLICK) {
 		if(id == ID_MODE_ICON) { // Windows 8 IME mode icon
@@ -564,7 +614,7 @@ bool TextService::onCommand(UINT id, CommandType type) {
 		}
 		else {
 			// we only handle right click in Windows 8 for the IME mode icon
-			return false;
+			return S_FALSE;
 		}
 	}
 	else {
@@ -628,41 +678,27 @@ bool TextService::onCommand(UINT id, CommandType type) {
 			// Need to update the old ChewingIME docs
 			break;
 		default:
-			return false;
+			return S_FALSE;
 		}
 	}
-	return true;
+	return S_OK;
 }
 
-// virtual
-void TextService::onCompartmentChanged(const GUID& key) {
-	if(::IsEqualGUID(key, g_configChangedGuid)) {
-		// changes of configuration are detected
-		DWORD stamp = globalCompartmentValue(g_configChangedGuid);
-		config().reloadIfNeeded(stamp);
-
-		// check if chewing context needs to be reloaded
-		bool chewingNeedsReload = false;
-		// check if symbols.dat file is changed
-		// get last mtime of symbols.dat file
-		std::wstring file = userDir() + L"\\symbols.dat";
-		struct _stat64 stbuf;
-		if(_wstat64(file.c_str(), &stbuf) == 0 && symbolsFileTime_ != stbuf.st_mtime) {
-			symbolsFileTime_ = stbuf.st_mtime;
-			chewingNeedsReload = true;
-		}
-
-		// re-create a new chewing context if needed
-		if(chewingNeedsReload && chewingContext_) {
-			freeChewingContext();
-			initChewingContext();
-		}
-		else {
-			applyConfig(); // apply the latest config
-		}
-		return;
+STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
+	if (IsEqualIID(riid, IID_IRunCommand)) {
+		*ppvObj = (IRunCommand*)this;
+		AddRef();
+		return S_OK;
 	}
-	Ime::TextService::onCompartmentChanged(key);
+	return	Ime::TextService::QueryInterface(riid, ppvObj);
+}
+
+STDMETHODIMP_(ULONG) TextService::AddRef() {
+	return Ime::TextService::AddRef();
+}
+
+STDMETHODIMP_(ULONG) TextService::Release() {
+	return Ime::TextService::Release();
 }
 
 // called when the keyboard is opened or closed
@@ -969,26 +1005,19 @@ void TextService::updateLangButtons() {
 	int langMode = ::chewing_get_ChiEngMode(chewingContext_);
 	if(langMode != langMode_) {
 		langMode_ = langMode;
-		if (isLightTheme()) {
-			switchLangButton_->setIcon(langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG);
-		} else {
-			switchLangButton_->setIcon(langMode == CHINESE_MODE ? IDI_CHI_DARK : IDI_ENG_DARK);
-		}
+		UINT iconId = isLightTheme() ? langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG
+		                             : langMode == CHINESE_MODE ? IDI_CHI_DARK : IDI_ENG_DARK;
+		switchLangButton_->setIcon(LoadIconW(g_hInstance, MAKEINTRESOURCEW(iconId)));
 		if(imeModeIcon_) {
-			// FIXME: we need a better set of icons to meet the 
-			//        WIndows 8 IME guideline and UX guidelines.
-			if (isLightTheme()) {
-				imeModeIcon_->setIcon(langMode == CHINESE_MODE ? IDI_CHI : IDI_ENG);
-			} else {
-				imeModeIcon_->setIcon(langMode == CHINESE_MODE ? IDI_CHI_DARK : IDI_ENG_DARK);
-			}
+			imeModeIcon_->setIcon(LoadIconW(g_hInstance, MAKEINTRESOURCEW(iconId)));
 		}
 	}
 
 	int shapeMode = ::chewing_get_ShapeMode(chewingContext_);
 	if(shapeMode != shapeMode_) {
 		shapeMode_ = shapeMode;
-		switchShapeButton_->setIcon(shapeMode == FULLSHAPE_MODE ? IDI_FULL_SHAPE : IDI_HALF_SHAPE);
+		UINT iconId = shapeMode == FULLSHAPE_MODE ? IDI_FULL_SHAPE : IDI_HALF_SHAPE;
+		switchShapeButton_->setIcon(LoadIconW(g_hInstance, MAKEINTRESOURCEW(iconId)));
 	}
 }
 
