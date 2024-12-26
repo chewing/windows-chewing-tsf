@@ -1,0 +1,17 @@
+[package]
+name = "chewing-preferences"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+slint = "1.8.0"
+
+[dependencies.chewing]
+version = "0.9.1"
+features = ["sqlite"]
+git = "https://github.com/chewing/libchewing"
+branch = "feat-dictionary-mgmt-api"
+
+[build-dependencies]
+slint-build = "1.8.0"
