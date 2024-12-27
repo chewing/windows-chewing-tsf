@@ -7,30 +7,24 @@ use chewing::dictionary::{DictionaryInfo, Phrase};
 use chewing::zhuyin::Syllable;
 use slint::{ComponentHandle, Model, ModelRc, ModelTracker, StandardListViewItem, VecModel};
 
-use crate::DictionaryInfoDialog;
 use crate::EditorWindow;
-use crate::EditEntryDialog;
 
 pub fn run() -> Result<()> {
     let ui = EditorWindow::new()?;
 
     ui.set_dictionaries(dict_list_model()?);
 
+    let ui_handle = ui.as_weak();
     ui.on_info_clicked(move |row: ModelRc<StandardListViewItem>| {
-        let info_dialog = DictionaryInfoDialog::new().unwrap();
+        // let info_dialog = DictionaryInfoDialog::new().unwrap();
         let dict_item = row
             .as_any()
             .downcast_ref::<DictTableItemModel>()
             .expect("row item should be a DictTableItemModel");
         let dict_model = ModelRc::new(DictInfoViewModel::from(dict_item));
 
-        let dialog_handle = info_dialog.as_weak();
-        info_dialog.set_dictionary_info(dict_model);
-        info_dialog.on_ok_clicked(move || {
-            let dialog = dialog_handle.upgrade().unwrap();
-            dialog.window().hide().unwrap();
-        });
-        info_dialog.show().unwrap();
+        let ui = ui_handle.upgrade().unwrap();
+        ui.set_dictionary_info(dict_model.clone());
     });
 
     let ui_handle = ui.as_weak();
@@ -43,14 +37,6 @@ pub fn run() -> Result<()> {
 
         let ui = ui_handle.upgrade().unwrap();
         ui.set_entries(dict_model);
-    });
-
-    ui.on_edit_entry_clicked(|phrase, bopomofo, freq| {
-        let edit_dialog = EditEntryDialog::new().unwrap();
-        edit_dialog.set_phrase(phrase);
-        edit_dialog.set_bopomofo(bopomofo);
-        edit_dialog.set_freq(freq);
-        edit_dialog.show().unwrap();
     });
 
     ui.run()?;
