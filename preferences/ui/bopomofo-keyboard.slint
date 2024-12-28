@@ -5,6 +5,7 @@ export component BopomofoKeyboard inherits VerticalBox {
     callback clicked(text: string);
     // callback backspace-clicked();
     callback clear-clicked();
+    callback done();
 
     property <[[string]]> keys: [
         [
@@ -20,7 +21,7 @@ export component BopomofoKeyboard inherits VerticalBox {
             "ㄢ",
             "ㄦ",
         ],
-        ["ㄆ", "ㄊ", "ㄍ", "ㄐ", "ㄔ", "ㄗ", "一", "ㄛ", "ㄟ", "ㄣ"],
+        ["ㄆ", "ㄊ", "ㄍ", "ㄐ", "ㄔ", "ㄗ", "ㄧ", "ㄛ", "ㄟ", "ㄣ"],
         ["ㄇ", "ㄋ", "ㄎ", "ㄑ", "ㄕ", "ㄘ", "ㄨ", "ㄜ", "ㄠ", "ㄤ"],
         ["ㄈ", "ㄌ", "ㄏ", "ㄒ", "ㄖ", "ㄙ", "ㄩ", "ㄝ", "ㄡ", "ㄥ"]
     ];
@@ -51,8 +52,18 @@ export component BopomofoKeyboard inherits VerticalBox {
     }
     HorizontalLayout {
         Rectangle {
-            width: 100px;
+            width: 40px;
+        }
+
+        Rectangle {
+            width: 70px;
             height: 30px;
+            Button {
+                text: "清空";
+                clicked => {
+                    clear-clicked()
+                }
+            }
         }
 
         Rectangle {
@@ -71,9 +82,9 @@ export component BopomofoKeyboard inherits VerticalBox {
             width: 80px;
             height: 30px;
             Button {
-                text: "清空";
+                text: "確定";
                 clicked => {
-                    clear-clicked()
+                    root.done();
                 }
             }
         }

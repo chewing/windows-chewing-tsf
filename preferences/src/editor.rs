@@ -1,12 +1,19 @@
+use std::iter;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::RwLock;
 
-use anyhow::Result;
-use chewing::dictionary::{Dictionary, SystemDictionaryLoader, UserDictionaryLoader};
+use anyhow::{anyhow, Result};
+use chewing::dictionary::{
+    Dictionary, DictionaryBuilder, SystemDictionaryLoader, TrieBuilder, UserDictionaryLoader,
+};
 use chewing::dictionary::{DictionaryInfo, Phrase};
 use chewing::zhuyin::Syllable;
-use slint::{ComponentHandle, Model, ModelRc, ModelTracker, StandardListViewItem, VecModel};
+use slint::{
+    ComponentHandle, Model, ModelNotify, ModelRc, ModelTracker, StandardListViewItem, VecModel,
+};
 
+use crate::CallbackResult;
 use crate::EditorWindow;
 
 pub fn run() -> Result<()> {
@@ -15,8 +22,14 @@ pub fn run() -> Result<()> {
     ui.set_dictionaries(dict_list_model()?);
 
     let ui_handle = ui.as_weak();
+    ui.on_reload_dict_info(move || {
+        let ui = ui_handle.upgrade().unwrap();
+        // FIXME panic on error
+        ui.set_dictionaries(dict_list_model().expect("unable to load dict info"));
+    });
+
+    let ui_handle = ui.as_weak();
     ui.on_info_clicked(move |row: ModelRc<StandardListViewItem>| {
-        // let info_dialog = DictionaryInfoDialog::new().unwrap();
         let dict_item = row
             .as_any()
             .downcast_ref::<DictTableItemModel>()
@@ -39,6 +52,156 @@ pub fn run() -> Result<()> {
         ui.set_entries(dict_model);
     });
 
+    let ui_handle = ui.as_weak();
+    ui.on_edit_entry_done(move || -> CallbackResult {
+        let ui = ui_handle.upgrade().unwrap();
+        let out_phrase = ui.get_phrase();
+        let out_bopomofo = ui.get_bopomofo();
+        let out_freq = ui.get_freq();
+        let index = ui.get_edit_dict_current_row() as usize;
+        let entries_rc = ui.get_entries();
+        let entry = entries_rc
+            .as_any()
+            .downcast_ref::<DictEditViewModel>()
+            .expect("entries should be a DictEditViewModel");
+        if let Ok(mut cache) = entry.cache.write() {
+            let freq: u32 = match out_freq.parse() {
+                Ok(v) => v,
+                Err(_) => {
+                    return CallbackResult {
+                        ok: false,
+                        err_msg: slint::format!("無法辨認 {out_freq} 為數字"),
+                    }
+                }
+            };
+            let phrase = Phrase::new(out_phrase.as_str(), freq);
+            let syllables = out_bopomofo
+                .replace("␣", " ")
+                // number one vs. bopomofo I
+                .replace("一", "ㄧ")
+                .trim()
+                .split_whitespace()
+                .map(|cluster| Syllable::from_str(&cluster))
+                .collect::<Vec<_>>();
+            for err in syllables.iter() {
+                if err.is_err() {
+                    dbg!(err);
+                }
+            }
+            if syllables.iter().any(|syl| syl.is_err()) {
+                let ellipsis = if out_bopomofo.len() > 20 { 3 } else { 0 };
+                let sample = out_bopomofo
+                    .chars()
+                    .take(20)
+                    .chain(iter::repeat_n('.', ellipsis))
+                    .collect::<String>();
+                return CallbackResult {
+                    ok: false,
+                    err_msg: slint::format!(
+                        "{sample} 不是正確的注音\n注意：字與字之間須有 ␣ 或是空格分開"
+                    ),
+                };
+            }
+            let syllables = syllables
+                .into_iter()
+                .map(|syl| syl.unwrap())
+                .collect::<Vec<_>>();
+            cache[index] = (syllables, phrase);
+        }
+        entry.tracker.row_changed(index);
+        CallbackResult {
+            ok: true,
+            ..Default::default()
+        }
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_edit_entry_new(move || {
+        let ui = ui_handle.upgrade().unwrap();
+        let entries_rc = ui.get_entries();
+        let entry = entries_rc
+            .as_any()
+            .downcast_ref::<DictEditViewModel>()
+            .expect("entries should be a DictEditViewModel");
+        let _ = entry
+            .cache
+            .write()
+            .map(|mut cache| {
+                let phrase = Phrase::new("", 0);
+                cache.push((vec![], phrase));
+                cache.len() - 1
+            })
+            .map(|index| {
+                entry.tracker.row_added(index, 1);
+            });
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_edit_entry_delete(move || {
+        let ui = ui_handle.upgrade().unwrap();
+        let index = ui.get_edit_dict_current_row() as usize;
+        let entries_rc = ui.get_entries();
+        let entry = entries_rc
+            .as_any()
+            .downcast_ref::<DictEditViewModel>()
+            .expect("entries should be a DictEditViewModel");
+        let _ = entry
+            .cache
+            .write()
+            .map(|mut cache| {
+                cache.remove(index);
+            })
+            .map(|_| {
+                entry.tracker.row_removed(index, 1);
+            });
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_edit_dict_save(move || -> CallbackResult {
+        let ui = ui_handle.upgrade().unwrap();
+        let entries_rc = ui.get_entries();
+        let entry = entries_rc
+            .as_any()
+            .downcast_ref::<DictEditViewModel>()
+            .expect("entries should be a DictEditViewModel");
+        entry
+            .cache
+            .read()
+            .map_err(|_| anyhow!("should be able to read cache"))
+            .and_then(|cache| -> Result<()> {
+                entry
+                    .dict
+                    .read()
+                    .map_err(|_| anyhow!("should be able to read dict"))
+                    .and_then(|dict| -> Result<()> {
+                        // FIXME detect original dict format
+                        let path = dict.path().expect("dict should have file path");
+                        let mut builder = TrieBuilder::new();
+                        builder.set_info(DictionaryInfo {
+                            software: format!(
+                                "{} {}",
+                                env!("CARGO_PKG_NAME"),
+                                env!("CARGO_PKG_VERSION")
+                            ),
+                            ..dict.about()
+                        })?;
+                        for (syls, phrase) in cache.iter() {
+                            builder.insert(&syls, phrase.clone())?;
+                        }
+                        builder.build(path)?;
+                        Ok(())
+                    })
+            })
+            .map(|_| CallbackResult {
+                ok: true,
+                ..Default::default()
+            })
+            .unwrap_or_else(|e| CallbackResult {
+                ok: false,
+                err_msg: e.to_string().into(),
+            })
+    });
+
     ui.run()?;
 
     Ok(())
@@ -57,7 +220,7 @@ fn dict_list_model() -> Result<ModelRc<ModelRc<StandardListViewItem>>> {
                 sys_loader
                     .load_extra()?
                     .into_iter()
-                    .map(|dict| ModelRc::new(DictTableItemModel::new("附加", dict))),
+                    .map(|dict| ModelRc::new(DictTableItemModel::new("擴充", dict))),
             )
             .chain(
                 user_loader
@@ -156,8 +319,9 @@ impl Model for DictInfoViewModel {
 }
 
 struct DictEditViewModel {
-    cache: Vec<(Vec<Syllable>, Phrase)>,
+    cache: RwLock<Vec<(Vec<Syllable>, Phrase)>>,
     dict: Rc<RwLock<Box<dyn Dictionary>>>,
+    tracker: ModelNotify,
 }
 
 impl From<&DictTableItemModel> for DictEditViewModel {
@@ -168,8 +332,10 @@ impl From<&DictTableItemModel> for DictEditViewModel {
                 .read()
                 .expect("should not have concurrent writer")
                 .entries()
-                .collect(),
+                .collect::<Vec<_>>()
+                .into(),
             dict: value.1.clone(),
+            tracker: ModelNotify::default(),
         }
     }
 }
@@ -178,30 +344,33 @@ impl Model for DictEditViewModel {
     type Data = ModelRc<StandardListViewItem>;
 
     fn row_count(&self) -> usize {
-        self.cache.len()
+        self.cache.read().expect("no concurrent writer").len()
     }
 
     fn row_data(&self, row: usize) -> Option<Self::Data> {
-        self.cache.get(row).map(|entry| {
-            ModelRc::from([
-                entry.1.as_str().into(),
-                // FIXME
-                entry
-                    .0
-                    .iter()
-                    .map(|syl| syl.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .as_str()
-                    .into(),
-                entry.1.freq().to_string().as_str().into(),
-            ])
-        })
+        self.cache
+            .read()
+            .expect("no concurrent writer")
+            .get(row)
+            .map(|entry| {
+                ModelRc::from([
+                    entry.1.as_str().into(),
+                    // FIXME
+                    entry
+                        .0
+                        .iter()
+                        .map(|syl| syl.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                        .as_str()
+                        .into(),
+                    entry.1.freq().to_string().as_str().into(),
+                ])
+            })
     }
 
     fn model_tracker(&self) -> &dyn ModelTracker {
-        // FIXME
-        &()
+        &self.tracker
     }
 
     fn as_any(&self) -> &dyn core::any::Any {
