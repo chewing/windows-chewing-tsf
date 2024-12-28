@@ -1,4 +1,5 @@
 import { VerticalBox, StandardTableView, Button, TabWidget, HorizontalBox, LineEdit, AboutSlint, StandardButton, GridBox } from "std-widgets.slint";
+import { BopomofoKeyboard } from "bopomofo-keyboard.slint";
 
 export struct DictionaryListItem {
     id: int,
@@ -16,12 +17,10 @@ export component EditorWindow inherits Window {
     default-font-family: "jf open 粉圓 2.0";
     default-font-weight: 500;
     preferred-height: 500px;
-    
     in property <[[StandardListViewItem]]> dictionaries;
     in property <[[StandardListViewItem]]> entries;
     in property <[[StandardListViewItem]]> dictionary-info;
     out property <int> current-row: table.current-row;
-    
     property <bool> show-dict-info;
     property <bool> show-edit-entry;
     property <SidePanel> side-panel;
@@ -60,29 +59,30 @@ export component EditorWindow inherits Window {
                                 tabs.current-index = 1;
                             }
                         }
+
                         Button {
                             text: "新增";
                         }
+
                         Button {
                             text: "匯入";
                         }
+
                         Button {
                             text: "匯出";
                         }
+
                         Button {
                             text: "刪除";
                         }
+
                         Button {
                             text: "重新整理";
                         }
                     }
+
                     table := StandardTableView {
-                        columns: [
-                            { title: "類型", width: 70px },
-                            {
-                                title: "名稱"
-                            }
-                        ];
+                        columns: [{ title: "類型", width: 70px }, { title: "名稱" }];
                         rows: root.dictionaries;
                         current-row-changed(current-row) => {
                             root.info-clicked(root.dictionaries[current-row]);
@@ -90,6 +90,7 @@ export component EditorWindow inherits Window {
                     }
                 }
             }
+
             Tab {
                 title: "編輯";
                 VerticalBox {
@@ -99,42 +100,44 @@ export component EditorWindow inherits Window {
                             text: "新增";
                             enabled: false;
                         }
+
                         Button {
                             text: "刪除";
                             enabled: false;
                         }
+
                         Button {
                             text: "復原";
                             enabled: false;
                         }
+
                         Button {
                             text: "放棄";
                             enabled: false;
                         }
+
                         Button {
                             text: "重新整理";
                             enabled: false;
                         }
+
                         Button {
                             text: "存檔";
                             enabled: false;
                         }
                     }
+
                     HorizontalBox {
                         LineEdit {
-                            text: "搜尋";
+                            placeholder-text: "搜尋";
                             enabled: false;
                         }
                     }
+
                     StandardTableView {
                         columns: [{ title: "字/詞" }, { title: "注音" }, { title: "詞頻" }];
                         rows: entries;
                         current-row-changed(current-row) => {
-                            // root.edit-entry-clicked(
-                            //     root.entries[current-row][0].text,
-                            //     root.entries[current-row][1].text,
-                            //     root.entries[current-row][2].text.to-float()
-                            // )
                             root.phrase = root.entries[current-row][0].text;
                             root.bopomofo = root.entries[current-row][1].text;
                             root.freq = root.entries[current-row][2].text.to-float();
@@ -142,11 +145,13 @@ export component EditorWindow inherits Window {
                     }
                 }
             }
+
             Tab {
                 title: "關於";
-                AboutSlint {}
+                AboutSlint { }
             }
         }
+
         if root.side-panel == SidePanel.dict-info: HorizontalLayout {
             Path {
                 width: 1px;
@@ -157,14 +162,16 @@ export component EditorWindow inherits Window {
                     x: 0;
                     y: 0;
                 }
+
                 LineTo {
                     x: 0;
                     y: 100;
                 }
             }
+
             VerticalBox {
                 StandardTableView {
-                    columns: [ { title: "屬性", width: 100px }, { title: "內容" } ];
+                    columns: [{ title: "屬性", width: 100px }, { title: "內容" } ];
                     rows: root.dictionary-info;
                 }
             }
@@ -179,84 +186,46 @@ export component EditorWindow inherits Window {
                     x: 0;
                     y: 0;
                 }
+
                 LineTo {
                     x: 0;
                     y: 100;
                 }
             }
+
             VerticalBox {
                 alignment: start;
                 Text {
                     text: "字/詞：";
                 }
+
                 LineEdit {
                     text: root.phrase;
                 }
+
                 Text {
                     text: "注音：";
                 }
-                LineEdit {
+
+                bopomofo := LineEdit {
                     text: root.bopomofo;
                 }
+
                 Text {
                     text: "詞頻：";
                 }
+
                 LineEdit {
                     text: root.freq;
                 }
-                GridBox {
-                    spacing: 5px;
-                    Row {
-                        Button { text: "ㄅ"; }
-                        Button { text: "ㄉ"; }
-                        Button { text: "ˇ"; }
-                        Button { text: "ˋ"; }
-                        Button { text: "ㄓ"; }
-                        Button { text: "ˊ"; }
-                        Button { text: "˙"; }
-                        Button { text: "ㄚ"; }
-                        Button { text: "ㄞ"; }
-                        Button { text: "ㄢ"; }
-                        Button { text: "ㄦ"; }
+
+                BopomofoKeyboard {
+                    clicked(text) => {
+                        bopomofo.clear-focus();
+                        bopomofo.text += text;
                     }
-                    Row {
-                        Button { text: "ㄆ"; }
-                        Button { text: "ㄊ"; }
-                        Button { text: "ㄍ"; }
-                        Button { text: "ㄐ"; }
-                        Button { text: "ㄔ"; }
-                        Button { text: "ㄗ"; }
-                        Button { text: "一"; }
-                        Button { text: "ㄛ"; }
-                        Button { text: "ㄟ"; }
-                        Button { text: "ㄣ"; }
-                    }
-                    Row {
-                        Button { text: "ㄇ"; }
-                        Button { text: "ㄋ"; }
-                        Button { text: "ㄎ"; }
-                        Button { text: "ㄑ"; }
-                        Button { text: "ㄕ"; }
-                        Button { text: "ㄘ"; }
-                        Button { text: "ㄨ"; }
-                        Button { text: "ㄜ"; }
-                        Button { text: "ㄠ"; }
-                        Button { text: "ㄤ"; }
-                    }
-                    Row {
-                        Button { text: "ㄈ"; }
-                        Button { text: "ㄌ"; }
-                        Button { text: "ㄏ"; }
-                        Button { text: "ㄒ"; }
-                        Button { text: "ㄖ"; }
-                        Button { text: "ㄙ"; }
-                        Button { text: "ㄩ"; }
-                        Button { text: "ㄝ"; }
-                        Button { text: "ㄡ"; }
-                        Button { text: "ㄥ"; }
-                    }
-                    Row {
-                        Button { text: " "; col: 2; colspan: 6; }
+                    clear-clicked => {
+                        bopomofo.text = "";
                     }
                 }
             }
