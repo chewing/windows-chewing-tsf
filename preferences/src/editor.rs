@@ -14,8 +14,8 @@ use slint::{
 };
 
 use crate::CallbackResult;
-use crate::ErrorKind;
 use crate::EditorWindow;
+use crate::ErrorKind;
 
 pub fn run() -> Result<()> {
     let ui = EditorWindow::new()?;

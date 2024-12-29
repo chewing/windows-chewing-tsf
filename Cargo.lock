@@ -717,6 +717,7 @@ dependencies = [
  "chewing 0.9.1 (git+https://github.com/chewing/libchewing?branch=feat-dictionary-mgmt-api)",
  "slint",
  "slint-build",
+ "windows",
 ]
 
 [[package]]

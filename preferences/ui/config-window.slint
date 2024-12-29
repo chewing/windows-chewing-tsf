@@ -1,0 +1,329 @@
+import { Button, VerticalBox, TabWidget, CheckBox, ComboBox, HorizontalBox, SpinBox, AboutSlint, TextEdit, StandardButton } from "std-widgets.slint";
+
+export component ConfigWindow inherits Window {
+    default-font-family: "jf open 粉圓 2.0";
+    default-font-weight: 500;
+    title: "Chewing Preferences (24.10.1.999)";
+    icon: @image-url("../../icon/48_icon.png");
+    preferred-width: 500px;
+    preferred-height: 400px;
+    max-width: 500px;
+    max-height: 400px;
+
+    in-out property <bool> switch-lang-with-shift;
+    in-out property <bool> enable-caps-lock;
+    in-out property <bool> esc-clean-all-buf;
+    in-out property <bool> full-shape-symbols;
+    in-out property <bool> upper-case-with-shift;
+    in-out property <bool> add-phrase-forward;
+    in-out property <bool> easy-symbols-with-shift: true;
+    in-out property <bool> easy-symbols-with-ctrl: false;
+    in-out property <bool> cursor-cand-list;
+    in-out property <bool> show-cand-with-space-key;
+    in-out property <bool> advance-after-selection;
+    in-out property <bool> default-full-space;
+    in-out property <bool> default-english;
+    in-out property <bool> output-simp-chinese;
+    in-out property <int> sel-key-type;
+    in-out property <int> conv-engine;
+    in-out property <int> cand-per-row;
+    in-out property <int> cand-per-page;
+    in-out property <int> font-size;
+    in-out property <int> keyboard-layout;
+    in-out property <string> symbols-dat;
+
+    callback apply();
+    callback cancel();
+
+    VerticalBox {
+
+        TabWidget {
+            Tab {
+                title: "打字行為";
+                HorizontalLayout {
+                    padding: 20px;
+                    spacing: 20px;
+                    VerticalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        CheckBox {
+                            text: "使用 Shift 快速切換中英文";
+                            checked <=> switch-lang-with-shift;
+                        }
+
+                        CheckBox {
+                            text: "使用 CapsLock 切換中英文";
+                            checked <=> enable-caps-lock;
+                        }
+
+                        CheckBox {
+                            text: "使用 Esc 清空編輯區字串";
+                            checked <=> esc-clean-all-buf;
+                        }
+
+                        CheckBox {
+                            text: "按住 Shift 輸入全形標點符號";
+                            checked <=> full-shape-symbols;
+                        }
+
+                        CheckBox {
+                            text: "按住 Shift 輸入大寫英文字母";
+                            checked <=> upper-case-with-shift;
+                        }
+
+                        CheckBox {
+                            text: "Ctrl + 數字儲存游標前方的詞";
+                            checked <=> add-phrase-forward;
+                        }
+
+                        CheckBox {
+                            text: "按住 Shift 輸入快速符號";
+                            checked <=> easy-symbols-with-shift;
+                            enabled: false;
+                        }
+
+                        CheckBox {
+                            text: "按住 Ctrl 輸入快速符號";
+                            checked <=> easy-symbols-with-ctrl;
+                            enabled: false;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        CheckBox {
+                            text: "使用方向鍵移動游標選字";
+                            checked <=> cursor-cand-list;
+                        }
+
+                        CheckBox {
+                            text: "按空白鍵叫出選字視窗";
+                            checked <=> show-cand-with-space-key;
+                        }
+
+                        CheckBox {
+                            text: "選字完畢自動跳到下一個字";
+                            checked <=> advance-after-selection;
+                        }
+
+                        CheckBox {
+                            text: "預設以全形模式啟動";
+                            checked <=> default-full-space;
+                        }
+
+                        CheckBox {
+                            text: "預設以英文模式啟動";
+                            checked <=> default-english;
+                        }
+
+                        CheckBox {
+                            text: "預設輸出簡體中文";
+                            checked <=> output-simp-chinese;
+                        }
+
+                        Text {
+                            text: "選字鍵：";
+                        }
+
+                        ComboBox {
+                            model: [
+                                "1234567890",
+                                "asdfghjkl;",
+                                "asdfzxcv89",
+                                "asdfjkl789",
+                                "aoeuhtn789",
+                                "1234qweras",
+                            ];
+                            current-index <=> sel-key-type;
+                        }
+
+                        Text {
+                            text: "模式：";
+                        }
+
+                        ComboBox {
+                            model: ["簡單注音", "智慧選詞", "模糊智慧選詞"];
+                            current-index <=> conv-engine;
+                        }
+                    }
+                }
+            }
+
+            Tab {
+                title: "界面外觀";
+                VerticalBox {
+                    alignment: start;
+                    Text {
+                        text: "每列顯示後選字個數";
+                        min-width: 140px;
+                    }
+
+                    SpinBox {
+                        minimum: 1;
+                        maximum: 10;
+                        value <=> cand-per-row;
+                    }
+
+                    Text {
+                        text: "每頁顯示後選字個數";
+                        min-width: 140px;
+                    }
+
+                    SpinBox {
+                        minimum: 1;
+                        maximum: 10;
+                        value <=> cand-per-page;
+                    }
+
+                    Text {
+                        text: "選字及訊息視窗文字大小";
+                        min-width: 140px;
+                    }
+
+                    SpinBox {
+                        minimum: 4;
+                        maximum: 64;
+                        value <=> font-size;
+                    }
+                }
+            }
+
+            Tab {
+                title: "鍵盤設定";
+
+                property <[string]> layout-names: [
+                    "預設",
+                    "許氏鍵盤",
+                    "IBM",
+                    "精業",
+                    "倚天",
+                    "倚天 26 鍵",
+                ];
+                property <[string]> layout-names6: [
+                    "DVORAK",
+                    "DVORAK 許氏",
+                    "漢語拼音",
+                    "台灣華語羅馬拼音",
+                    "注音二式",
+                    "CARPLX",
+                ];
+                property <[string]> layout-names12: [
+                    "Colemak-DH ANSI",
+                    "Colemak DH Orth",
+                    "Workman",
+                ];
+
+                VerticalBox {
+                    alignment: start;
+                    Text {
+                        text: "鍵盤對應";
+                    }
+
+                    HorizontalBox {
+                        VerticalBox {
+                            for layout[index] in layout-names: CheckBox {
+                                text: layout;
+                                property <int> selected <=> keyboard-layout;
+                                init => {
+                                    self.checked = selected == index;
+                                }
+                                changed selected => {
+                                    self.checked = selected == index;
+                                }
+                                toggled => {
+                                    if self.checked {
+                                        keyboard-layout = index;
+                                    } else {
+                                        keyboard-layout = 0;
+                                    }
+                                }
+                            }
+                        }
+
+                        VerticalBox {
+                            for layout[index] in layout-names6: CheckBox {
+                                text: layout;
+                                property <int> selected <=> keyboard-layout;
+                                init => {
+                                    self.checked = selected == index + 6;
+                                }
+                                changed selected => {
+                                    self.checked = selected == index + 6;
+                                }
+                                toggled => {
+                                    if self.checked {
+                                        keyboard-layout = index + 6;
+                                    } else {
+                                        keyboard-layout = 0;
+                                    }
+                                }
+                            }
+                        }
+
+                        VerticalBox {
+                            for layout[index] in layout-names12: CheckBox {
+                                text: layout;
+                                property <int> selected <=> keyboard-layout;
+                                init => {
+                                    self.checked = selected == index + 12;
+                                }
+                                changed selected => {
+                                    self.checked = selected == index + 12;
+                                }
+                                toggled => {
+                                    if self.checked {
+                                        keyboard-layout = index + 12;
+                                    } else {
+                                        keyboard-layout = 0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Tab {
+                title: "特殊符號";
+                VerticalBox {
+                    Text {
+                        text: "輸入中文時，按下 ` 鍵，會顯示下列的符號表：";
+                    }
+
+                    TextEdit {
+                        text <=> symbols-dat;
+                        wrap: no-wrap;
+                    }
+
+                    Text {
+                        text: "以上是符號表的設定檔，語法相當簡單：\n每一行的內容都是：「分類名稱」＝「此分類下的所有符號」\n您也可以一行只放一個符號，則該符號會被放在最上層選單。";
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            Tab {
+                title: "關於";
+                AboutSlint { }
+            }
+        }
+
+        HorizontalBox {
+            alignment: end;
+            Button {
+                text: "確定";
+                clicked => {
+                    root.apply();
+                }
+            }
+
+            Button {
+                text: "取消";
+                clicked => {
+                    root.cancel();
+                }
+            }
+        }
+    }
+}
