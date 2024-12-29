@@ -95,10 +95,10 @@
 
         <CustomAction Id="RemoveNsisInst32" Property="NSISUNINSTALLCMD32"
             ExeCommand="/S _?=[NSISUNINSTALLFOLDER32]"
-            Execute="deferred" Impersonate="no" Return="check" />
+            Execute="deferred" Impersonate="no" Return="ignore" />
         <CustomAction Id="RemoveNsisInst64" Property="NSISUNINSTALLCMD64"
             ExeCommand="/S _?=[NSISUNINSTALLFOLDER64]"
-            Execute="deferred" Impersonate="no" Return="check" />
+            Execute="deferred" Impersonate="no" Return="ignore" />
         <InstallExecuteSequence>
             <Custom Action="RemoveNsisInst32" After="InstallInitialize"
                 Condition='NSISUNINSTALLCMD32&lt;&gt;""' />
