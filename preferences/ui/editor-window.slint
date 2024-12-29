@@ -21,10 +21,11 @@ export component EditorWindow inherits Window {
     default-font-family: "jf open 粉圓 2.0";
     default-font-weight: 500;
     preferred-height: 500px;
+    in property <string> app-version: "0.0.1";
     in property <[[StandardListViewItem]]> dictionaries;
     in property <[[StandardListViewItem]]> entries;
     in property <[[StandardListViewItem]]> dictionary-info;
-    out property <int> edit-dict-current-row;
+    out property <int> edit-dict-current-row: -1;
     out property <string> phrase;
     out property <string> bopomofo;
     out property <string> freq;
@@ -116,6 +117,7 @@ export component EditorWindow inherits Window {
 
                         Button {
                             text: "刪除";
+                            enabled: root.edit-dict-current-row >= 0;
                             clicked => {
                                 root.edit-entry-delete();
                             }
@@ -163,7 +165,51 @@ export component EditorWindow inherits Window {
 
             Tab {
                 title: "關於";
-                AboutSlint { }
+                VerticalBox {
+                    alignment: start;
+                    Text {
+                        text: "新酷音詞庫管理程式";
+                        font-size: 20px;
+                        font-weight: 800;
+                    }
+
+                    Text {
+                        text: "版本 " + root.app-version;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "新酷音詞庫管理程式是一個跨平台的新酷音使用者詞庫管理及編輯工具。它提供了一個簡單的方式來管理使用者詞庫。透過它，使用者可以自訂詞庫以提升輸入效率。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "新酷音詞庫管理程式採用 GNU 通用公眾授權條款第 3.0 版或更新版本授權 (GPL-3.0-or-later)。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "關於新酷音詞庫管理程式的授權詳情，請參閱 https://www.gnu.org/licenses/gpl-3.0.html 網站。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "版權所有© 2024 新酷音開發團隊及 GitHub 貢獻者。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "\n新酷音詞庫管理程式是一個開源專案，開發平台位於 https://github.com/chewing/chewing-editor。\n歡迎在 issues 提供任何建議。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "此版本使用開源專案 Slint 開發：";
+                        wrap: word-wrap;
+                    }
+
+                    AboutSlint { }
+                }
             }
         }
 
