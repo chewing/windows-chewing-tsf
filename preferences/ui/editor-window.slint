@@ -1,8 +1,13 @@
 import { VerticalBox, StandardTableView, Button, TabWidget, HorizontalBox, LineEdit, AboutSlint, StandardButton, GridBox } from "std-widgets.slint";
 import { BopomofoKeyboard } from "bopomofo-keyboard.slint";
 
+export enum ErrorKind {
+    ok,
+    other,
+}
+
 export struct CallbackResult {
-    ok: bool,
+    error: ErrorKind,
     err_msg: string,
 }
 
@@ -24,7 +29,7 @@ export component EditorWindow inherits Window {
     out property <string> bopomofo;
     out property <string> freq;
     property <TabState> tab-state: TabState.dict-info;
-    property <CallbackResult> edit-result: { ok: true };
+    property <CallbackResult> edit-result;
 
     callback reload-dict-info();
     callback info-clicked(row: [StandardListViewItem]);
@@ -120,6 +125,7 @@ export component EditorWindow inherits Window {
                             text: "放棄修改";
                             clicked => {
                                 root.tab-state = TabState.dict-info;
+                                root.edit-result = { }
                             }
                         }
 
@@ -127,7 +133,7 @@ export component EditorWindow inherits Window {
                             text: "存檔";
                             clicked => {
                                 root.edit-result = root.edit-dict-save();
-                                if (root.edit-result.ok) {
+                                if (root.edit-result.error == ErrorKind.ok) {
                                     root.reload-dict-info();
                                     root.tab-state = TabState.dict-info;
                                 }
@@ -186,7 +192,7 @@ export component EditorWindow inherits Window {
             }
         }
         if tab-state == TabState.edit-entry: VerticalBox {
-            if !root.edit-result.ok: Rectangle {
+            if root.edit-result.error != ErrorKind.ok: Rectangle {
                 height: 40px;
                 border-radius: 5px;
                 border-width: 1px;

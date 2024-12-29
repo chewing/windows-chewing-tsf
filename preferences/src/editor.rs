@@ -14,6 +14,7 @@ use slint::{
 };
 
 use crate::CallbackResult;
+use crate::ErrorKind;
 use crate::EditorWindow;
 
 pub fn run() -> Result<()> {
@@ -69,7 +70,7 @@ pub fn run() -> Result<()> {
                 Ok(v) => v,
                 Err(_) => {
                     return CallbackResult {
-                        ok: false,
+                        error: ErrorKind::Other,
                         err_msg: slint::format!("無法辨認 {out_freq} 為數字"),
                     }
                 }
@@ -96,7 +97,7 @@ pub fn run() -> Result<()> {
                     .chain(iter::repeat_n('.', ellipsis))
                     .collect::<String>();
                 return CallbackResult {
-                    ok: false,
+                    error: ErrorKind::Other,
                     err_msg: slint::format!(
                         "{sample} 不是正確的注音\n注意：字與字之間須有 ␣ 或是空格分開"
                     ),
@@ -110,7 +111,7 @@ pub fn run() -> Result<()> {
         }
         entry.tracker.row_changed(index);
         CallbackResult {
-            ok: true,
+            error: ErrorKind::Ok,
             ..Default::default()
         }
     });
@@ -193,12 +194,12 @@ pub fn run() -> Result<()> {
                     })
             })
             .map(|_| CallbackResult {
-                ok: true,
+                error: ErrorKind::Ok,
                 ..Default::default()
             })
-            .unwrap_or_else(|e| CallbackResult {
-                ok: false,
-                err_msg: e.to_string().into(),
+            .unwrap_or_else(|_e| CallbackResult {
+                error: ErrorKind::Other,
+                err_msg: "無法寫入檔案".into(),
             })
     });
 
