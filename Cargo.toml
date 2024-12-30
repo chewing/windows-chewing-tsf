@@ -1,5 +1,5 @@
 [workspace]
-members = ["chewing_tip", "tsfreg", "xtask"]
+members = ["chewing_tip", "preferences", "tsfreg", "xtask"]
 resolver = "2"
 
 [profile.release]

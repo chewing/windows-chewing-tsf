@@ -1,0 +1,26 @@
+[package]
+name = "chewing-preferences"
+version = "24.10.1"
+edition = "2021"
+
+[[bin]]
+name = "ChewingPreferences"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.95"
+slint = "1.8.0"
+windows = { version = "0.58.0", features = [
+    "Win32_Security",
+    "Win32_System_Registry",
+] }
+
+[dependencies.chewing]
+version = "0.9.1"
+features = ["sqlite"]
+git = "https://github.com/chewing/libchewing"
+branch = "feat-dictionary-mgmt-api"
+
+[build-dependencies]
+embed-resource = "3.0.1"
+slint-build = "1.8.0"

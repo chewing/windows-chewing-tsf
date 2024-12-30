@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.24.0)
 project(windows-chewing-tsf LANGUAGES CXX)
 
 add_subdirectory(libchewing)
-add_subdirectory(ChewingPreferences)
 
 set(CPACK_PACKAGE_CHECKSUM SHA256)
 set(CPACK_PACKAGE_VERSION 24.10.1)

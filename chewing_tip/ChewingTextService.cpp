@@ -628,6 +628,13 @@ STDMETHODIMP TextService::onCommand(UINT id, CommandType type) {
 		case ID_MODE_ICON: // Windows 8 IME mode icon
 			toggleLanguageMode(nullptr);
 			break;
+		case ID_HASHED: // show config dialog
+			if(!isImmersive()) { // only do this in desktop app mode
+				std::wstring path = programDir();
+    			path += L"\\ChewingPreferences.exe";
+    			::ShellExecuteW(HWND_DESKTOP, L"open", path.c_str(), L"--edit", NULL, SW_SHOWNORMAL);
+			}
+			break;
 		case ID_CONFIG: // show config dialog
 			if(!isImmersive()) { // only do this in desktop app mode
 				std::wstring path = programDir();
@@ -643,7 +650,7 @@ STDMETHODIMP TextService::onCommand(UINT id, CommandType type) {
 				// show about dialog
 				std::wstring path = programDir();
 				path += L"\\ChewingPreferences.exe";
-				::ShellExecuteW(NULL, L"open", path.c_str(), L"/about", NULL, SW_SHOWNORMAL);
+				::ShellExecuteW(NULL, L"open", path.c_str(), L"--about", NULL, SW_SHOWNORMAL);
 			}
 			break;
 		case ID_WEBSITE: // visit chewing website

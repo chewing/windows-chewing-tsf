@@ -118,7 +118,7 @@ BEGIN
         MENUITEM "注音及選字選詞錯誤回報 (&P)",            ID_DICT_BUGREPORT
         MENUITEM SEPARATOR
         MENUITEM "新酷音使用說明 (&H)",                ID_CHEWING_HELP, INACTIVE
-        MENUITEM "編輯使用者詞庫 (&E)",                ID_HASHED, INACTIVE
+        MENUITEM "編輯使用者詞庫 (&E)",                 ID_HASHED
         MENUITEM "設定新酷音輸入法(&C)",                ID_CONFIG
         MENUITEM SEPARATOR
         POPUP "網路辭典 (&D)"
