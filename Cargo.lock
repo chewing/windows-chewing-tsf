@@ -715,6 +715,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chewing 0.9.1 (git+https://github.com/chewing/libchewing?branch=feat-dictionary-mgmt-api)",
+ "embed-resource",
  "slint",
  "slint-build",
  "windows",

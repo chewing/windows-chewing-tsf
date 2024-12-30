@@ -1,4 +1,5 @@
 import { VerticalBox, StandardTableView, Button, TabWidget, HorizontalBox, LineEdit, AboutSlint, StandardButton, GridBox } from "std-widgets.slint";
+import { Assets, Version } from "globals.slint";
 import { BopomofoKeyboard } from "bopomofo-keyboard.slint";
 
 export enum ErrorKind {
@@ -18,10 +19,9 @@ enum TabState {
 }
 
 export component EditorWindow inherits Window {
-    default-font-family: "jf open 粉圓 2.0";
-    default-font-weight: 500;
     preferred-height: 500px;
-    in property <string> app-version: "0.0.1";
+    title: "新酷音詞庫管理程式 (" + Version.product-version + ")";
+    icon: Assets.icon;
     in property <[[StandardListViewItem]]> dictionaries;
     in property <[[StandardListViewItem]]> entries;
     in property <[[StandardListViewItem]]> dictionary-info;
@@ -174,12 +174,17 @@ export component EditorWindow inherits Window {
                     }
 
                     Text {
-                        text: "版本 " + root.app-version;
+                        text: "版本：" + Version.product-version;
                         wrap: word-wrap;
                     }
 
                     Text {
-                        text: "新酷音詞庫管理程式是一個跨平台的新酷音使用者詞庫管理及編輯工具。它提供了一個簡單的方式來管理使用者詞庫。透過它，使用者可以自訂詞庫以提升輸入效率。";
+                        text: "發行日期：" + Version.build-date;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "新酷音詞庫管理程式是一個跨平台的新酷音詞庫管理及編輯工具。它提供了一個簡單的方式來管理使用者詞庫。透過它，使用者可以自訂詞庫以提升輸入效率。";
                         wrap: word-wrap;
                     }
 
@@ -199,7 +204,12 @@ export component EditorWindow inherits Window {
                     }
 
                     Text {
-                        text: "\n新酷音詞庫管理程式是一個開源專案，開發平台位於 https://github.com/chewing/chewing-editor。\n歡迎在 issues 提供任何建議。";
+                        text: "新酷音詞庫管理程式是一個開源專案，開發平台位於 https://github.com/chewing/chewing-editor。歡迎在 issues 提供任何建議。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "特別感謝：";
                         wrap: word-wrap;
                     }
 

@@ -20,7 +20,6 @@ use crate::ErrorKind;
 pub fn run() -> Result<()> {
     let ui = EditorWindow::new()?;
 
-    ui.set_app_version(env!("CARGO_PKG_VERSION").into());
     ui.set_dictionaries(dict_list_model()?);
 
     let ui_handle = ui.as_weak();

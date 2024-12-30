@@ -3,6 +3,10 @@ name = "chewing-preferences"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "ChewingPreferences"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.95"
 slint = "1.8.0"
@@ -18,4 +22,5 @@ git = "https://github.com/chewing/libchewing"
 branch = "feat-dictionary-mgmt-api"
 
 [build-dependencies]
+embed-resource = "3.0.1"
 slint-build = "1.8.0"

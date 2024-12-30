@@ -90,6 +90,17 @@ fn main() -> anyhow::Result<()> {
                 "#
             )?;
 
+            let mut version_slint = File::create("preferences/ui/version.slint")?;
+            indoc::writedoc!(
+                version_slint,
+                r#"
+                    export global Version {{
+                        out property <string> product-version: "{yy}.{mm}.{rv}.{bn}";
+                        out property <string> build-date: "{year} 年 {month:02} 月 {day:02} 日";
+                    }}
+                "#
+            )?;
+
             let mut version_wxi = File::create("installer/version.wxi")?;
             indoc::writedoc!(
                 version_wxi,
