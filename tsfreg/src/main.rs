@@ -1,5 +1,3 @@
-#![windows_subsystem = "windows"]
-
 use std::{env, process};
 
 use windows::{
@@ -108,7 +106,10 @@ fn main() -> Result<()> {
             let icon_path = env::args().nth(2).expect("缺少 IconPath");
             register(icon_path)?;
         } else {
-            unregister()?;
+            if let Err(err) = unregister() {
+                println!("警告：無法解除輸入法註冊，反安裝可能無法正常完成。");
+                println!("錯誤訊息：{:?}", err);
+            }
         }
     }
 
