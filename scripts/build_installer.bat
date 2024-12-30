@@ -3,10 +3,10 @@ set SQLITE3_STATIC=1
 
 cmake -B build\x86 -A Win32 -DBUILD_TESTING=OFF -DVCPKG_TARGET_TRIPLET=x86-windows-static
 cmake --build build\x86 -t libchewing\data\data --config Release
-cmake --build build\x86 -t ChewingPreferences --config Release
 
 cargo build -p chewing_tip --release --target x86_64-pc-windows-msvc
 cargo build -p chewing_tip --release --target i686-pc-windows-msvc
+cargo build -p chewing-preferences --release --target i686-pc-windows-msvc
 cargo build -p tsfreg --release --target i686-pc-windows-msvc
 
 mkdir dist
@@ -20,7 +20,7 @@ copy libchewing\data\*.dat build\installer\Dictionary\
 copy build\x86\libchewing\data\*.dat build\installer\Dictionary\
 mkdir build\installer\x86
 copy target\i686-pc-windows-msvc\release\chewing_tip.dll build\installer\x86\
-copy build\x86\ChewingPreferences\Release\*.exe build\installer\
+copy target\i686-pc-windows-msvc\release\ChewingPreferences.exe build\installer\
 copy build\x86\libchewing\chewing-cli.exe build\installer\
 mkdir build\installer\x64
 copy target\x86_64-pc-windows-msvc\release\chewing_tip.dll build\installer\x64
