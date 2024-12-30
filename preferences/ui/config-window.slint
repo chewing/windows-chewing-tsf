@@ -305,7 +305,60 @@ export component ConfigWindow inherits Window {
 
             Tab {
                 title: "關於";
-                AboutSlint { }
+                VerticalBox {
+                    HorizontalLayout {
+                        Image {
+                            source: @image-url("logo.png");
+                        }
+
+                        VerticalLayout {
+                            Text {
+                                text: "新酷音 － 智慧型注音輸入法";
+                            }
+                            // FIXME use globals
+                            Text {
+                                text: "版本：24.10.1.0";
+                            }
+
+                            Text {
+                                text: "發行日期：2024 年 12 月 24 日";
+                            }
+
+                            Text {
+                                text: "軟體開發者：libchewing 開發團隊";
+                            }
+
+                            Text {
+                                text: "授權方式：GPL-3.0-or-later";
+                            }
+
+                            Text {
+                                text: "專案首頁：https://chewing.im";
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "題字：翁政銓";
+                    }
+
+                    Text {
+                        text: "新酷音原是 Linux 系統下知名的輸入法，由 gugod, jserv, kanru 等前輩，改良原本由龔律全與陳康本開發的酷音輸入法而來，有多種分支，目前已經能夠支援包括 Mac 在內的多種平台。這個 Windows 版本是由 PCMan, czchen 等人，使用 libchewing 核心，移植出 Windows TSF 版本。";
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "此設定程式使用開源專案 Slint 開發：";
+                        wrap: word-wrap;
+                    }
+
+                    HorizontalLayout {
+                        alignment: start;
+                        AboutSlint {
+                            width: 50%;
+                        }
+                    }
+                }
             }
         }
 
