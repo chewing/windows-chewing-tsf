@@ -41,7 +41,9 @@ jobs:
         run: git submodule update --remote
 
       - name: Setup rustup
-        run: rustup target add i686-pc-windows-msvc
+        run: |
+          rustup install stable
+          rustup target add i686-pc-windows-msvc
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
