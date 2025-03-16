@@ -5,7 +5,6 @@ use std::{
     ops::Deref,
 };
 
-use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -17,6 +16,7 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::TextServices::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::core::*;
 
 use super::{IWindow, IWindow_Impl, IWindow_Vtbl, Window};
 use crate::gfx::*;
@@ -99,12 +99,7 @@ impl CandidateWindow {
                     .GetMetrics(&mut selkey_metrics)?;
 
                 self.dwrite_factory
-                    .CreateTextLayout(
-                        text.as_wide(),
-                        self.text_format.borrow().deref(),
-                        f32::MAX,
-                        f32::MAX,
-                    )?
+                    .CreateTextLayout(&text, self.text_format.borrow().deref(), f32::MAX, f32::MAX)?
                     .GetMetrics(&mut item_metrics)?;
             }
 
@@ -297,7 +292,7 @@ impl CandidateWindow {
             if self.use_cursor.get() && i == self.current_sel.get() {
                 dc.FillRectangle(&text_rect, &text_brush);
                 dc.DrawText(
-                    item.as_wide(),
+                    &item,
                     self.text_format.borrow().deref(),
                     &text_rect,
                     &selected_text_brush,
@@ -306,7 +301,7 @@ impl CandidateWindow {
                 );
             } else {
                 dc.DrawText(
-                    item.as_wide(),
+                    &item,
                     self.text_format.borrow().deref(),
                     &text_rect,
                     &text_brush,
@@ -320,94 +315,101 @@ impl CandidateWindow {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn CreateCandidateWindow(
     parent: HWND,
     image_path: PCWSTR,
     ret: *mut *mut c_void,
 ) {
-    let window = Window::new().into_object();
-    window.create(
-        parent,
-        (WS_POPUP | WS_CLIPCHILDREN).0,
-        (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
-    );
+    unsafe {
+        let window = Window::new().into_object();
+        window.create(
+            parent,
+            (WS_POPUP | WS_CLIPCHILDREN).0,
+            (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
+        );
 
-    let factory: ID2D1Factory1 = D2D1CreateFactory(
-        D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        Some(&D2D1_FACTORY_OPTIONS::default()),
-    )
-    .expect("failed to create Direct2D factory");
-
-    let mut dpi = 0.0;
-    let mut dpiy = 0.0;
-    factory.GetDesktopDpi(&mut dpi, &mut dpiy);
-
-    let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
-    let text_format = dwrite_factory
-        .CreateTextFormat(
-            w!("Segoe UI"),
-            None,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            16.0,
-            w!(""),
+        let factory: ID2D1Factory1 = D2D1CreateFactory(
+            D2D1_FACTORY_TYPE_SINGLE_THREADED,
+            Some(&D2D1_FACTORY_OPTIONS::default()),
         )
-        .unwrap();
+        .expect("failed to create Direct2D factory");
 
-    let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
+        let mut dpi = 0.0;
+        let mut dpiy = 0.0;
+        factory.GetDesktopDpi(&mut dpi, &mut dpiy);
 
-    let candidate_window = CandidateWindow {
-        items: RefCell::new(vec![]),
-        sel_keys: RefCell::new(vec![]),
-        current_sel: Cell::new(0),
-        has_result: Cell::new(false),
-        cand_per_row: Cell::new(10),
-        use_cursor: Cell::new(true),
-        selkey_width: Cell::new(0.0),
-        text_width: Cell::new(0.0),
-        item_height: Cell::new(0.0),
-        factory,
-        dwrite_factory,
-        text_format: RefCell::new(text_format),
-        dcomptarget: None.into(),
-        target: None.into(),
-        swapchain: None.into(),
-        brush: None.into(),
-        nine_patch_bitmap,
-        dpi,
-        window,
+        let dwrite_factory: IDWriteFactory1 =
+            DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
+        let text_format = dwrite_factory
+            .CreateTextFormat(
+                w!("Segoe UI"),
+                None,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                16.0,
+                w!(""),
+            )
+            .unwrap();
+
+        let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
+
+        let candidate_window = CandidateWindow {
+            items: RefCell::new(vec![]),
+            sel_keys: RefCell::new(vec![]),
+            current_sel: Cell::new(0),
+            has_result: Cell::new(false),
+            cand_per_row: Cell::new(10),
+            use_cursor: Cell::new(true),
+            selkey_width: Cell::new(0.0),
+            text_width: Cell::new(0.0),
+            item_height: Cell::new(0.0),
+            factory,
+            dwrite_factory,
+            text_format: RefCell::new(text_format),
+            dcomptarget: None.into(),
+            target: None.into(),
+            swapchain: None.into(),
+            brush: None.into(),
+            nine_patch_bitmap,
+            dpi,
+            window,
+        }
+        .into_object();
+        Window::register_hwnd(candidate_window.hwnd(), candidate_window.to_interface());
+        ret.write(
+            candidate_window
+                .into_interface::<ICandidateWindow>()
+                .into_raw(),
+        )
     }
-    .into_object();
-    Window::register_hwnd(candidate_window.hwnd(), candidate_window.to_interface());
-    ret.write(
-        candidate_window
-            .into_interface::<ICandidateWindow>()
-            .into_raw(),
-    )
 }
 
 impl ICandidateWindow_Impl for CandidateWindow_Impl {
     unsafe fn set_font_size(&self, font_size: u32) {
-        self.text_format.replace(
-            self.dwrite_factory
-                .CreateTextFormat(
-                    w!("Segoe UI"),
-                    None,
-                    DWRITE_FONT_WEIGHT_NORMAL,
-                    DWRITE_FONT_STYLE_NORMAL,
-                    DWRITE_FONT_STRETCH_NORMAL,
-                    font_size as f32,
-                    w!(""),
-                )
-                .unwrap(),
-        );
+        unsafe {
+            self.text_format.replace(
+                self.dwrite_factory
+                    .CreateTextFormat(
+                        w!("Segoe UI"),
+                        None,
+                        DWRITE_FONT_WEIGHT_NORMAL,
+                        DWRITE_FONT_STYLE_NORMAL,
+                        DWRITE_FONT_STRETCH_NORMAL,
+                        font_size as f32,
+                        w!(""),
+                    )
+                    .unwrap(),
+            );
+        }
     }
 
     unsafe fn add(&self, item: PCWSTR, sel_key: u16) {
-        self.items.borrow_mut().push(item.to_hstring().unwrap());
-        self.sel_keys.borrow_mut().push(sel_key);
+        unsafe {
+            self.items.borrow_mut().push(item.to_hstring());
+            self.sel_keys.borrow_mut().push(sel_key);
+        }
     }
 
     unsafe fn current_sel_key(&self) -> u16 {
@@ -428,52 +430,56 @@ impl ICandidateWindow_Impl for CandidateWindow_Impl {
     }
 
     unsafe fn set_use_cursor(&self, r#use: bool) {
-        self.use_cursor.set(r#use);
-        if self.is_visible() {
-            self.refresh();
+        unsafe {
+            self.use_cursor.set(r#use);
+            if self.is_visible() {
+                self.refresh();
+            }
         }
     }
 
     unsafe fn filter_key_event(&self, key_code: u16) -> bool {
-        let mut current_sel = self.current_sel.get();
-        let old_sel = self.current_sel.get();
-        let cand_per_row = self.cand_per_row.get();
-        match VIRTUAL_KEY(key_code) {
-            VK_UP => {
-                if current_sel >= cand_per_row {
-                    current_sel -= cand_per_row;
+        unsafe {
+            let mut current_sel = self.current_sel.get();
+            let old_sel = self.current_sel.get();
+            let cand_per_row = self.cand_per_row.get();
+            match VIRTUAL_KEY(key_code) {
+                VK_UP => {
+                    if current_sel >= cand_per_row {
+                        current_sel -= cand_per_row;
+                    }
                 }
-            }
-            VK_DOWN => {
-                if current_sel + cand_per_row < self.items.borrow().len() {
-                    current_sel += cand_per_row;
+                VK_DOWN => {
+                    if current_sel + cand_per_row < self.items.borrow().len() {
+                        current_sel += cand_per_row;
+                    }
                 }
-            }
-            VK_LEFT => {
-                if current_sel >= 1 {
-                    current_sel -= 1;
+                VK_LEFT => {
+                    if current_sel >= 1 {
+                        current_sel -= 1;
+                    }
                 }
-            }
-            VK_RIGHT => {
-                if current_sel < self.items.borrow().len() - 1 {
-                    current_sel += 1;
+                VK_RIGHT => {
+                    if current_sel < self.items.borrow().len() - 1 {
+                        current_sel += 1;
+                    }
                 }
+                VK_RETURN => {
+                    self.has_result.set(true);
+                    self.current_sel.set(current_sel);
+                    return true;
+                }
+                _ => return false,
             }
-            VK_RETURN => {
-                self.has_result.set(true);
-                self.current_sel.set(current_sel);
+
+            self.current_sel.set(current_sel);
+
+            if current_sel != old_sel {
+                self.refresh();
                 return true;
             }
-            _ => return false,
+            false
         }
-
-        self.current_sel.set(current_sel);
-
-        if current_sel != old_sel {
-            self.refresh();
-            return true;
-        }
-        false
     }
 
     unsafe fn has_result(&self) -> bool {
@@ -487,73 +493,75 @@ impl ICandidateWindow_Impl for CandidateWindow_Impl {
 
 impl IWindow_Impl for CandidateWindow_Impl {
     unsafe fn hwnd(&self) -> HWND {
-        self.window.hwnd()
+        unsafe { self.window.hwnd() }
     }
 
     unsafe fn create(&self, parent: HWND, style: u32, ex_style: u32) -> bool {
-        self.window.create(parent, style, ex_style)
+        unsafe { self.window.create(parent, style, ex_style) }
     }
 
     unsafe fn destroy(&self) {
-        self.window.destroy()
+        unsafe { self.window.destroy() }
     }
 
     unsafe fn is_visible(&self) -> bool {
-        self.window.is_visible()
+        unsafe { self.window.is_visible() }
     }
 
     unsafe fn is_window(&self) -> bool {
-        self.window.is_window()
+        unsafe { self.window.is_window() }
     }
 
     unsafe fn r#move(&self, x: c_int, y: c_int) {
-        self.window.r#move(x, y)
+        unsafe { self.window.r#move(x, y) }
     }
 
     unsafe fn size(&self, width: *mut c_int, height: *mut c_int) {
-        self.window.size(width, height)
+        unsafe { self.window.size(width, height) }
     }
 
     unsafe fn resize(&self, width: c_int, height: c_int) {
-        self.window.resize(width, height)
+        unsafe { self.window.resize(width, height) }
     }
 
     unsafe fn client_rect(&self, rect: *mut RECT) {
-        self.window.client_rect(rect)
+        unsafe { self.window.client_rect(rect) }
     }
 
     unsafe fn rect(&self, rect: *mut RECT) {
-        self.window.rect(rect)
+        unsafe { self.window.rect(rect) }
     }
 
     unsafe fn show(&self) {
-        self.window.show()
+        unsafe { self.window.show() }
     }
 
     unsafe fn hide(&self) {
-        self.window.hide()
+        unsafe { self.window.hide() }
     }
 
     unsafe fn refresh(&self) {
-        self.window.refresh()
+        unsafe { self.window.refresh() }
     }
 
     unsafe fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
-        match msg {
-            WM_PAINT => {
-                let mut ps = PAINTSTRUCT::default();
-                BeginPaint(self.hwnd(), &mut ps);
-                let _ = self.on_paint();
-                let _ = EndPaint(self.hwnd(), &ps);
-                LRESULT(0)
+        unsafe {
+            match msg {
+                WM_PAINT => {
+                    let mut ps = PAINTSTRUCT::default();
+                    BeginPaint(self.hwnd(), &mut ps);
+                    let _ = self.on_paint();
+                    let _ = EndPaint(self.hwnd(), &ps);
+                    LRESULT(0)
+                }
+                WM_NCDESTROY => {
+                    self.target.take();
+                    self.swapchain.take();
+                    self.brush.take();
+                    LRESULT(0)
+                }
+                _ => self.window.wnd_proc(msg, wp, lp),
             }
-            WM_NCDESTROY => {
-                self.target.take();
-                self.swapchain.take();
-                self.brush.take();
-                LRESULT(0)
-            }
-            _ => self.window.wnd_proc(msg, wp, lp),
         }
     }
 }
@@ -616,9 +624,9 @@ impl ITfCandidateListUIElement_Impl for CandidateWindow_Impl {
         self.items
             .borrow()
             .get(uindex as usize)
-            .map(|hstr| hstr.as_wide())
+            .map(|hstr| hstr.as_ref())
             .map(BSTR::from_wide)
-            .ok_or(Error::empty())?
+            .ok_or(Error::empty())
     }
 
     fn GetPageIndex(&self, pindex: *mut u32, usize: u32, pupagecnt: *mut u32) -> Result<()> {

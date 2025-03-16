@@ -1,25 +1,26 @@
 use std::{cell::Cell, collections::BTreeMap, ffi::c_void, sync::RwLock};
 
 use windows::Win32::{
-    Foundation::{BOOL, E_FAIL, E_INVALIDARG, POINT, RECT},
+    Foundation::{E_FAIL, E_INVALIDARG, POINT, RECT},
+    Graphics::Gdi::HBITMAP,
     UI::{
         TextServices::{
-            ITfLangBarItem, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
-            ITfLangBarItemButton_Vtbl, ITfLangBarItemSink, ITfLangBarItem_Impl, ITfMenu, ITfSource,
-            ITfSource_Impl, TfLBIClick, TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON,
-            TF_LBI_STATUS, TF_LBI_STATUS_DISABLED, TF_LBI_STATUS_HIDDEN, TF_LBMENUF_CHECKED,
-            TF_LBMENUF_GRAYED, TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU,
+            ITfLangBarItem, ITfLangBarItem_Impl, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
+            ITfLangBarItemButton_Vtbl, ITfLangBarItemSink, ITfMenu, ITfSource, ITfSource_Impl,
+            TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON, TF_LBI_STATUS,
+            TF_LBI_STATUS_DISABLED, TF_LBI_STATUS_HIDDEN, TF_LBMENUF_CHECKED, TF_LBMENUF_GRAYED,
+            TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU, TfLBIClick,
         },
         WindowsAndMessaging::{
-            CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU, MENUITEMINFOW,
-            MENU_ITEM_STATE, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR, MFT_STRING,
-            MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
+            CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU,
+            MENU_ITEM_STATE, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR,
+            MFT_STRING, MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
         },
     },
 };
 use windows_core::{
-    implement, interface, ComObjectInner, IUnknown, IUnknown_Vtbl, Interface, Result, BSTR, GUID,
-    PWSTR,
+    BOOL, BSTR, ComObjectInner, GUID, IUnknown, IUnknown_Vtbl, Interface, PWSTR, Ref, Result,
+    implement, interface,
 };
 
 #[repr(C)]
@@ -61,7 +62,7 @@ impl Drop for LangBarButton {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn CreateLangBarButton(
     info: TF_LANGBARITEMINFO,
     tooltip: BSTR,
@@ -73,7 +74,7 @@ unsafe extern "C" fn CreateLangBarButton(
 ) {
     let binding = run_command.cast();
     let run_command_ref =
-        IRunCommand::from_raw_borrowed(&binding).expect("invalid IRunCommand pointer");
+        unsafe { IRunCommand::from_raw_borrowed(&binding).expect("invalid IRunCommand pointer") };
     let run_command: IRunCommand = run_command_ref.cast().expect("invalid IRunCommand pointer");
     let lang_bar_btn = LangBarButton {
         info,
@@ -86,13 +87,13 @@ unsafe extern "C" fn CreateLangBarButton(
         sinks: RwLock::new(BTreeMap::new()),
     }
     .into_object();
-    ret.write(lang_bar_btn.into_interface::<ILangBarButton>().into_raw());
+    unsafe { ret.write(lang_bar_btn.into_interface::<ILangBarButton>().into_raw()) };
 }
 
 impl ILangBarButton_Impl for LangBarButton_Impl {
     unsafe fn set_icon(&self, icon: HICON) -> Result<()> {
         if !self.icon.get().is_invalid() {
-            DestroyIcon(self.icon.get())?;
+            unsafe { DestroyIcon(self.icon.get()) }?;
         }
         self.icon.set(icon);
         self.update_sinks(TF_LBI_ICON)?;
@@ -151,12 +152,12 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
         Ok(())
     }
 
-    fn InitMenu(&self, pmenu: Option<&ITfMenu>) -> Result<()> {
+    fn InitMenu(&self, pmenu: Ref<ITfMenu>) -> Result<()> {
         if self.menu.is_invalid() {
             return Err(E_FAIL.into());
         }
-        if let Some(menu) = pmenu {
-            build_menu(menu, self.menu)
+        if pmenu.is_some() {
+            build_menu(pmenu.unwrap(), self.menu)
         } else {
             Err(E_FAIL.into())
         }
@@ -172,21 +173,19 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
     }
 
     fn GetText(&self) -> Result<BSTR> {
-        BSTR::from_wide(&self.info.szDescription)
+        Ok(BSTR::from_wide(&self.info.szDescription))
     }
 }
 
 impl ITfSource_Impl for LangBarButton_Impl {
-    fn AdviseSink(&self, riid: *const GUID, punk: Option<&IUnknown>) -> Result<u32> {
+    fn AdviseSink(&self, riid: *const GUID, punk: Ref<IUnknown>) -> Result<u32> {
         if riid.is_null() || punk.is_none() {
             return Err(E_INVALIDARG.into());
         }
         if unsafe { *riid == ITfLangBarItemSink::IID } {
-            let mut cookie = [0; 4];
-            if let Err(_) = getrandom::getrandom(&mut cookie) {
+            let Ok(cookie) = getrandom::u32() else {
                 return Err(E_FAIL.into());
-            }
-            let cookie = u32::from_ne_bytes(cookie);
+            };
             let sink: ITfLangBarItemSink = punk.unwrap().cast()?;
             if let Ok(mut sinks) = self.sinks.write() {
                 sinks.insert(cookie, sink);
@@ -217,7 +216,7 @@ impl LangBarButton {
 }
 
 fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
-    for i in 0..unsafe { GetMenuItemCount(hmenu) } {
+    for i in 0..unsafe { GetMenuItemCount(Some(hmenu)) } {
         let mut text_buffer = [0_u16; 256];
         let mut mi = MENUITEMINFOW {
             cbSize: size_of::<MENUITEMINFOW>() as u32,
@@ -249,9 +248,16 @@ fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
             {
                 flags |= TF_LBMENUF_GRAYED;
             }
-            if let Ok(()) =
-                unsafe { menu.AddMenuItem(mi.wID, flags, None, None, &text_buffer, &mut sub_menu) }
-            {
+            if let Ok(()) = unsafe {
+                menu.AddMenuItem(
+                    mi.wID,
+                    flags,
+                    HBITMAP::default(),
+                    HBITMAP::default(),
+                    &text_buffer,
+                    &mut sub_menu,
+                )
+            } {
                 if let Some(sub_menu) = sub_menu {
                     build_menu(&sub_menu, mi.hSubMenu)?;
                 }

@@ -1,7 +1,7 @@
 [package]
 name = "chewing-preferences"
 version = "24.10.1"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "ChewingPreferences"
@@ -10,7 +10,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0.95"
 slint = "1.8.0"
-windows = { version = "0.58.0", features = [
+windows = { version = "0.60.0", features = [
     "Win32_Security",
     "Win32_System_Registry",
 ] }

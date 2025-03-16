@@ -4,8 +4,6 @@ use std::ptr::null_mut;
 use nine_patch_drawable::NinePatchDrawable;
 use nine_patch_drawable::PatchKind;
 use nine_patch_drawable::Section;
-use windows::core::*;
-use windows::Foundation::Numerics::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -17,6 +15,8 @@ use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Graphics::Imaging::*;
 use windows::Win32::System::Com::*;
+use windows::core::*;
+use windows_numerics::Matrix3x2;
 
 #[derive(Debug)]
 pub(crate) struct NinePatchBitmap {
@@ -160,7 +160,7 @@ pub(crate) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3
         D3D11CreateDevice(
             None,
             drive_type,
-            None,
+            HMODULE::default(),
             flags,
             None,
             D3D11_SDK_VERSION,
