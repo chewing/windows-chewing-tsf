@@ -4,7 +4,6 @@ use std::{
     ops::Deref,
 };
 
-use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -14,6 +13,7 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::core::*;
 
 use super::{IWindow, IWindow_Impl, IWindow_Vtbl, Window};
 use crate::gfx::*;
@@ -195,159 +195,170 @@ impl MessageWindow {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn CreateMessageWindow(parent: HWND, image_path: PCWSTR, ret: *mut *mut c_void) {
-    let window = Window::new().into_object();
-    window.create(
-        parent,
-        (WS_POPUP | WS_CLIPCHILDREN).0,
-        (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
-    );
+    unsafe {
+        let window = Window::new().into_object();
+        window.create(
+            parent,
+            (WS_POPUP | WS_CLIPCHILDREN).0,
+            (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
+        );
 
-    let factory: ID2D1Factory1 = D2D1CreateFactory(
-        D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        Some(&D2D1_FACTORY_OPTIONS::default()),
-    )
-    .expect("failed to create Direct2D factory");
-
-    let mut dpi = 0.0;
-    let mut dpiy = 0.0;
-    factory.GetDesktopDpi(&mut dpi, &mut dpiy);
-
-    let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
-    let text_format = dwrite_factory
-        .CreateTextFormat(
-            w!("Segoe UI"),
-            None,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            16.0,
-            w!(""),
+        let factory: ID2D1Factory1 = D2D1CreateFactory(
+            D2D1_FACTORY_TYPE_SINGLE_THREADED,
+            Some(&D2D1_FACTORY_OPTIONS::default()),
         )
-        .unwrap();
+        .expect("failed to create Direct2D factory");
 
-    let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
+        let mut dpi = 0.0;
+        let mut dpiy = 0.0;
+        factory.GetDesktopDpi(&mut dpi, &mut dpiy);
 
-    let message_window = MessageWindow {
-        text: RefCell::new(h!("").to_owned()),
-        factory,
-        dwrite_factory,
-        text_format: RefCell::new(text_format),
-        dcomptarget: None.into(),
-        target: None.into(),
-        swapchain: None.into(),
-        brush: None.into(),
-        nine_patch_bitmap,
-        dpi,
-        window,
+        let dwrite_factory: IDWriteFactory1 =
+            DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
+        let text_format = dwrite_factory
+            .CreateTextFormat(
+                w!("Segoe UI"),
+                None,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                16.0,
+                w!(""),
+            )
+            .unwrap();
+
+        let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
+
+        let message_window = MessageWindow {
+            text: RefCell::new(h!("").to_owned()),
+            factory,
+            dwrite_factory,
+            text_format: RefCell::new(text_format),
+            dcomptarget: None.into(),
+            target: None.into(),
+            swapchain: None.into(),
+            brush: None.into(),
+            nine_patch_bitmap,
+            dpi,
+            window,
+        }
+        .into_object();
+        Window::register_hwnd(message_window.hwnd(), message_window.to_interface());
+        ret.write(message_window.into_interface::<IMessageWindow>().into_raw())
     }
-    .into_object();
-    Window::register_hwnd(message_window.hwnd(), message_window.to_interface());
-    ret.write(message_window.into_interface::<IMessageWindow>().into_raw())
 }
 
 impl IWindow_Impl for MessageWindow_Impl {
     unsafe fn hwnd(&self) -> HWND {
-        self.window.hwnd()
+        unsafe { self.window.hwnd() }
     }
 
     unsafe fn create(&self, parent: HWND, style: u32, ex_style: u32) -> bool {
-        self.window.create(parent, style, ex_style)
+        unsafe { self.window.create(parent, style, ex_style) }
     }
 
     unsafe fn destroy(&self) {
-        self.window.destroy()
+        unsafe { self.window.destroy() }
     }
 
     unsafe fn is_visible(&self) -> bool {
-        self.window.is_visible()
+        unsafe { self.window.is_visible() }
     }
 
     unsafe fn is_window(&self) -> bool {
-        self.window.is_window()
+        unsafe { self.window.is_window() }
     }
 
     unsafe fn r#move(&self, x: c_int, y: c_int) {
-        self.window.r#move(x, y);
+        unsafe {
+            self.window.r#move(x, y);
+        }
     }
 
     unsafe fn size(&self, width: *mut c_int, height: *mut c_int) {
-        self.window.size(width, height)
+        unsafe { self.window.size(width, height) }
     }
 
     unsafe fn resize(&self, width: c_int, height: c_int) {
-        self.window.resize(width, height)
+        unsafe { self.window.resize(width, height) }
     }
 
     unsafe fn client_rect(&self, rect: *mut RECT) {
-        self.window.client_rect(rect)
+        unsafe { self.window.client_rect(rect) }
     }
 
     unsafe fn rect(&self, rect: *mut RECT) {
-        self.window.rect(rect)
+        unsafe { self.window.rect(rect) }
     }
 
     unsafe fn show(&self) {
-        self.window.show()
+        unsafe { self.window.show() }
     }
 
     unsafe fn hide(&self) {
-        self.window.hide()
+        unsafe { self.window.hide() }
     }
 
     unsafe fn refresh(&self) {
-        self.window.refresh()
+        unsafe { self.window.refresh() }
     }
 
     unsafe fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
-        match msg {
-            WM_PAINT => {
-                let mut ps = PAINTSTRUCT::default();
-                BeginPaint(self.hwnd(), &mut ps);
-                let _ = self.on_paint();
-                let _ = EndPaint(self.hwnd(), &ps);
-                LRESULT(0)
-            }
-            WM_TIMER => {
-                if wp.0 == ID_TIMEOUT {
-                    self.hide();
-                    KillTimer(Some(self.hwnd()), ID_TIMEOUT).expect("failed to kill timer");
+        unsafe {
+            match msg {
+                WM_PAINT => {
+                    let mut ps = PAINTSTRUCT::default();
+                    BeginPaint(self.hwnd(), &mut ps);
+                    let _ = self.on_paint();
+                    let _ = EndPaint(self.hwnd(), &ps);
+                    LRESULT(0)
                 }
-                LRESULT(0)
+                WM_TIMER => {
+                    if wp.0 == ID_TIMEOUT {
+                        self.hide();
+                        KillTimer(Some(self.hwnd()), ID_TIMEOUT).expect("failed to kill timer");
+                    }
+                    LRESULT(0)
+                }
+                WM_NCDESTROY => {
+                    self.target.take();
+                    self.swapchain.take();
+                    self.brush.take();
+                    LRESULT(0)
+                }
+                _ => self.window.wnd_proc(msg, wp, lp),
             }
-            WM_NCDESTROY => {
-                self.target.take();
-                self.swapchain.take();
-                self.brush.take();
-                LRESULT(0)
-            }
-            _ => self.window.wnd_proc(msg, wp, lp),
         }
     }
 }
 
 impl IMessageWindow_Impl for MessageWindow_Impl {
     unsafe fn set_font_size(&self, font_size: u32) {
-        self.text_format.replace(
-            self.dwrite_factory
-                .CreateTextFormat(
-                    w!("Segoe UI"),
-                    None,
-                    DWRITE_FONT_WEIGHT_NORMAL,
-                    DWRITE_FONT_STYLE_NORMAL,
-                    DWRITE_FONT_STRETCH_NORMAL,
-                    font_size as f32,
-                    w!(""),
-                )
-                .unwrap(),
-        );
+        unsafe {
+            self.text_format.replace(
+                self.dwrite_factory
+                    .CreateTextFormat(
+                        w!("Segoe UI"),
+                        None,
+                        DWRITE_FONT_WEIGHT_NORMAL,
+                        DWRITE_FONT_STYLE_NORMAL,
+                        DWRITE_FONT_STRETCH_NORMAL,
+                        font_size as f32,
+                        w!(""),
+                    )
+                    .unwrap(),
+            );
+        }
     }
     unsafe fn set_text(&self, text: PCWSTR) {
-        self.text.replace(text.to_hstring());
-        self.recalculate_size().unwrap();
-        if self.is_visible() {
-            self.refresh();
+        unsafe {
+            self.text.replace(text.to_hstring());
+            self.recalculate_size().unwrap();
+            if self.is_visible() {
+                self.refresh();
+            }
         }
     }
 }

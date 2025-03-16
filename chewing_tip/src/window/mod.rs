@@ -5,10 +5,10 @@ use std::{
     ptr::null_mut,
 };
 
-use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::core::*;
 
 mod candidate_window;
 mod message_window;
@@ -58,13 +58,13 @@ impl Window {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CreateImeWindow(ret: *mut *mut c_void) {
     let window: IWindow = Window::new().into();
-    ret.write(window.into_raw())
+    unsafe { ret.write(window.into_raw()) }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ImeWindowFromHwnd(hwnd: HWND) -> *mut IWindow {
     HWND_MAP.with_borrow(|hwnd_map| {
         if let Some(window) = hwnd_map.get(&hwnd.0).and_then(Weak::upgrade) {
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn ImeWindowFromHwnd(hwnd: HWND) -> *mut IWindow {
     })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ImeWindowRegisterClass(hinstance: HINSTANCE) -> bool {
     MODULE_HINSTANCE.with(|hinst_cell| {
         let hinst = hinst_cell.get_or_init(|| hinstance);
@@ -86,13 +86,13 @@ pub unsafe extern "C" fn ImeWindowRegisterClass(hinstance: HINSTANCE) -> bool {
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: *hinst,
-            hCursor: LoadCursorW(None, IDC_ARROW).expect("failed to load cursor"),
+            hCursor: unsafe { LoadCursorW(None, IDC_ARROW).expect("failed to load cursor") },
             lpszMenuName: PCWSTR::null(),
             lpszClassName: w!("LibIme2Window"),
             ..Default::default()
         };
 
-        RegisterClassExW(&wc) > 0
+        unsafe { RegisterClassExW(&wc) > 0 }
     })
 }
 
@@ -104,9 +104,9 @@ unsafe extern "system" fn wnd_proc(
 ) -> LRESULT {
     let result = HWND_MAP.with_borrow(|hwnd_map| {
         if let Some(window) = hwnd_map.get(&hwnd.0).and_then(Weak::upgrade) {
-            window.wnd_proc(msg, wparam, lparam)
+            unsafe { window.wnd_proc(msg, wparam, lparam) }
         } else {
-            DefWindowProcW(hwnd, msg, wparam, lparam)
+            unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
         }
     });
     if msg == WM_NCDESTROY {
@@ -126,20 +126,22 @@ impl IWindow_Impl for Window_Impl {
 
     unsafe fn create(&self, parent: HWND, style: u32, ex_style: u32) -> bool {
         MODULE_HINSTANCE.with(|hinst| {
-            let hwnd = CreateWindowExW(
-                WINDOW_EX_STYLE(ex_style),
-                w!("LibIme2Window"),
-                None,
-                WINDOW_STYLE(style),
-                0,
-                0,
-                0,
-                0,
-                Some(parent),
-                None,
-                hinst.get().copied(),
-                None,
-            );
+            let hwnd = unsafe {
+                CreateWindowExW(
+                    WINDOW_EX_STYLE(ex_style),
+                    w!("LibIme2Window"),
+                    None,
+                    WINDOW_STYLE(style),
+                    0,
+                    0,
+                    0,
+                    0,
+                    Some(parent),
+                    None,
+                    hinst.get().copied(),
+                    None,
+                )
+            };
             match hwnd {
                 Ok(hwnd) => {
                     self.hwnd.set(hwnd);
@@ -151,26 +153,26 @@ impl IWindow_Impl for Window_Impl {
     }
 
     unsafe fn destroy(&self) {
-        if !self.hwnd().is_invalid() {
-            unsafe {
+        unsafe {
+            if !self.hwnd().is_invalid() {
                 let _ = DestroyWindow(self.hwnd());
+                self.hwnd.set(HWND::default());
             }
-            self.hwnd.set(HWND::default());
         }
     }
 
     unsafe fn is_visible(&self) -> bool {
-        IsWindowVisible(self.hwnd()).as_bool()
+        unsafe { IsWindowVisible(self.hwnd()).as_bool() }
     }
 
     unsafe fn is_window(&self) -> bool {
-        IsWindow(Some(self.hwnd())).as_bool()
+        unsafe { IsWindow(Some(self.hwnd())).as_bool() }
     }
 
     unsafe fn r#move(&self, mut x: c_int, mut y: c_int) {
         let mut w = 0;
         let mut h = 0;
-        self.size(&mut w, &mut h);
+        unsafe { self.size(&mut w, &mut h) };
 
         let mut rc = RECT {
             left: x,
@@ -180,12 +182,12 @@ impl IWindow_Impl for Window_Impl {
         };
 
         // ensure that the window does not fall outside of the screen.
-        let monitor = MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST);
+        let monitor = unsafe { MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST) };
         let mut mi = MONITORINFO {
             cbSize: size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
-        if GetMonitorInfoW(monitor, &mut mi).as_bool() {
+        if unsafe { GetMonitorInfoW(monitor, &mut mi).as_bool() } {
             rc = mi.rcWork;
         }
 
@@ -201,12 +203,12 @@ impl IWindow_Impl for Window_Impl {
             y = rc.bottom - h;
         }
 
-        let _ = MoveWindow(self.hwnd(), x, y, w, h, true);
+        let _ = unsafe { MoveWindow(self.hwnd(), x, y, w, h, true) };
     }
 
     unsafe fn size(&self, width: *mut c_int, height: *mut c_int) {
         let mut rc = RECT::default();
-        GetWindowRect(self.hwnd(), &mut rc).expect("failed to get window rect");
+        unsafe { GetWindowRect(self.hwnd(), &mut rc).expect("failed to get window rect") };
         unsafe {
             width.write(rc.right - rc.left);
             height.write(rc.bottom - rc.top);
@@ -214,46 +216,56 @@ impl IWindow_Impl for Window_Impl {
     }
 
     unsafe fn resize(&self, width: c_int, height: c_int) {
-        SetWindowPos(
-            self.hwnd(),
-            Some(HWND_TOP),
-            0,
-            0,
-            width,
-            height,
-            SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE,
-        )
-        .expect("failed to resize window");
+        unsafe {
+            SetWindowPos(
+                self.hwnd(),
+                Some(HWND_TOP),
+                0,
+                0,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE,
+            )
+            .expect("failed to resize window")
+        };
     }
 
     unsafe fn client_rect(&self, rect: *mut RECT) {
-        GetClientRect(self.hwnd(), rect).expect("failed to get client area");
+        unsafe { GetClientRect(self.hwnd(), rect).expect("failed to get client area") };
     }
 
     unsafe fn rect(&self, rect: *mut RECT) {
-        GetWindowRect(self.hwnd(), rect).expect("failed to get window rect");
+        unsafe {
+            GetWindowRect(self.hwnd(), rect).expect("failed to get window rect");
+        }
     }
 
     unsafe fn show(&self) {
-        if !self.hwnd().is_invalid() {
-            let _ = ShowWindow(self.hwnd(), SW_SHOWNA);
+        unsafe {
+            if !self.hwnd().is_invalid() {
+                let _ = ShowWindow(self.hwnd(), SW_SHOWNA);
+            }
         }
     }
 
     unsafe fn hide(&self) {
-        if !self.hwnd().is_invalid() {
-            let _ = ShowWindow(self.hwnd(), SW_HIDE);
+        unsafe {
+            if !self.hwnd().is_invalid() {
+                let _ = ShowWindow(self.hwnd(), SW_HIDE);
+            }
         }
     }
 
     unsafe fn refresh(&self) {
-        if !self.hwnd().is_invalid() {
-            let _ = InvalidateRect(Some(self.hwnd()), None, true);
+        unsafe {
+            if !self.hwnd().is_invalid() {
+                let _ = InvalidateRect(Some(self.hwnd()), None, true);
+            }
         }
     }
 
     unsafe fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
-        DefWindowProcW(self.hwnd(), msg, wp, lp)
+        unsafe { DefWindowProcW(self.hwnd(), msg, wp, lp) }
     }
 }
 

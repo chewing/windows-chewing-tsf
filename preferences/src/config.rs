@@ -1,15 +1,15 @@
 use std::{fs, path::PathBuf, time::SystemTime};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chewing::path::data_dir;
 use slint::ComponentHandle;
 use windows::{
-    core::{w, PCWSTR},
     Win32::System::Registry::{
-        RegCloseKey, RegCreateKeyExW, RegGetValueW, RegOpenKeyExW, RegSetValueExW, HKEY,
-        HKEY_CURRENT_USER, KEY_READ, KEY_WOW64_64KEY, KEY_WRITE, REG_DWORD,
-        REG_OPEN_CREATE_OPTIONS, RRF_RT_REG_DWORD,
+        HKEY, HKEY_CURRENT_USER, KEY_READ, KEY_WOW64_64KEY, KEY_WRITE, REG_DWORD,
+        REG_OPEN_CREATE_OPTIONS, RRF_RT_REG_DWORD, RegCloseKey, RegCreateKeyExW, RegGetValueW,
+        RegOpenKeyExW, RegSetValueExW,
     },
+    core::{PCWSTR, w},
 };
 
 use crate::ConfigWindow;

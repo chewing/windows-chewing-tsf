@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::RwLock;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chewing::dictionary::{
     Dictionary, DictionaryBuilder, SystemDictionaryLoader, TrieBuilder, UserDictionaryLoader,
 };
@@ -72,7 +72,7 @@ pub fn run() -> Result<()> {
                     return CallbackResult {
                         error: ErrorKind::Other,
                         err_msg: slint::format!("無法辨認 {out_freq} 為數字"),
-                    }
+                    };
                 }
             };
             let phrase = Phrase::new(out_phrase.as_str(), freq);

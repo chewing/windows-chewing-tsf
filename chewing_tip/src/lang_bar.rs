@@ -1,23 +1,26 @@
 use std::{cell::Cell, collections::BTreeMap, ffi::c_void, sync::RwLock};
 
 use windows::Win32::{
-    Foundation::{E_FAIL, E_INVALIDARG, POINT, RECT}, Graphics::Gdi::HBITMAP, UI::{
+    Foundation::{E_FAIL, E_INVALIDARG, POINT, RECT},
+    Graphics::Gdi::HBITMAP,
+    UI::{
         TextServices::{
-            ITfLangBarItem, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
-            ITfLangBarItemButton_Vtbl, ITfLangBarItemSink, ITfLangBarItem_Impl, ITfMenu, ITfSource,
-            ITfSource_Impl, TfLBIClick, TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON,
-            TF_LBI_STATUS, TF_LBI_STATUS_DISABLED, TF_LBI_STATUS_HIDDEN, TF_LBMENUF_CHECKED,
-            TF_LBMENUF_GRAYED, TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU,
+            ITfLangBarItem, ITfLangBarItem_Impl, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
+            ITfLangBarItemButton_Vtbl, ITfLangBarItemSink, ITfMenu, ITfSource, ITfSource_Impl,
+            TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON, TF_LBI_STATUS,
+            TF_LBI_STATUS_DISABLED, TF_LBI_STATUS_HIDDEN, TF_LBMENUF_CHECKED, TF_LBMENUF_GRAYED,
+            TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU, TfLBIClick,
         },
         WindowsAndMessaging::{
-            CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU, MENUITEMINFOW,
-            MENU_ITEM_STATE, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR, MFT_STRING,
-            MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
+            CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU,
+            MENU_ITEM_STATE, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR,
+            MFT_STRING, MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
         },
-    }
+    },
 };
 use windows_core::{
-    implement, interface, ComObjectInner, IUnknown, IUnknown_Vtbl, Interface, Ref, Result, BOOL, BSTR, GUID, PWSTR
+    BOOL, BSTR, ComObjectInner, GUID, IUnknown, IUnknown_Vtbl, Interface, PWSTR, Ref, Result,
+    implement, interface,
 };
 
 #[repr(C)]
@@ -59,7 +62,7 @@ impl Drop for LangBarButton {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn CreateLangBarButton(
     info: TF_LANGBARITEMINFO,
     tooltip: BSTR,
@@ -71,7 +74,7 @@ unsafe extern "C" fn CreateLangBarButton(
 ) {
     let binding = run_command.cast();
     let run_command_ref =
-        IRunCommand::from_raw_borrowed(&binding).expect("invalid IRunCommand pointer");
+        unsafe { IRunCommand::from_raw_borrowed(&binding).expect("invalid IRunCommand pointer") };
     let run_command: IRunCommand = run_command_ref.cast().expect("invalid IRunCommand pointer");
     let lang_bar_btn = LangBarButton {
         info,
@@ -84,13 +87,13 @@ unsafe extern "C" fn CreateLangBarButton(
         sinks: RwLock::new(BTreeMap::new()),
     }
     .into_object();
-    ret.write(lang_bar_btn.into_interface::<ILangBarButton>().into_raw());
+    unsafe { ret.write(lang_bar_btn.into_interface::<ILangBarButton>().into_raw()) };
 }
 
 impl ILangBarButton_Impl for LangBarButton_Impl {
     unsafe fn set_icon(&self, icon: HICON) -> Result<()> {
         if !self.icon.get().is_invalid() {
-            DestroyIcon(self.icon.get())?;
+            unsafe { DestroyIcon(self.icon.get()) }?;
         }
         self.icon.set(icon);
         self.update_sinks(TF_LBI_ICON)?;
@@ -245,9 +248,16 @@ fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
             {
                 flags |= TF_LBMENUF_GRAYED;
             }
-            if let Ok(()) =
-                unsafe { menu.AddMenuItem(mi.wID, flags, HBITMAP::default(), HBITMAP::default(), &text_buffer, &mut sub_menu) }
-            {
+            if let Ok(()) = unsafe {
+                menu.AddMenuItem(
+                    mi.wID,
+                    flags,
+                    HBITMAP::default(),
+                    HBITMAP::default(),
+                    &text_buffer,
+                    &mut sub_menu,
+                )
+            } {
                 if let Some(sub_menu) = sub_menu {
                     build_menu(&sub_menu, mi.hSubMenu)?;
                 }

@@ -4,7 +4,6 @@ use std::ptr::null_mut;
 use nine_patch_drawable::NinePatchDrawable;
 use nine_patch_drawable::PatchKind;
 use nine_patch_drawable::Section;
-use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -16,6 +15,7 @@ use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Graphics::Imaging::*;
 use windows::Win32::System::Com::*;
+use windows::core::*;
 use windows_numerics::Matrix3x2;
 
 #[derive(Debug)]

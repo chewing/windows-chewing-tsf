@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use std::ffi::c_void;
 use std::sync::RwLock;
 
-use windows::core::{implement, Result, BSTR, GUID, HRESULT};
 use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, E_NOTIMPL, S_FALSE, S_OK};
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
 use windows::Win32::UI::TextServices::{
     CLSID_TF_CategoryMgr, IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl,
     ITfCategoryMgr, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl,
     ITfDisplayAttributeProvider, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE,
 };
+use windows::core::{BSTR, GUID, HRESULT, Result, implement};
 use windows_core::{ComObjectInner, Interface, OutRef};
 
 static ATTRS: RwLock<BTreeMap<u128, TF_DISPLAYATTRIBUTE>> = RwLock::new(BTreeMap::new());
@@ -61,7 +61,7 @@ fn register_display_attribute(
     Ok(())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn RegisterDisplayAttribute(
     guid: *const GUID,
     da: TF_DISPLAYATTRIBUTE,
@@ -73,14 +73,16 @@ unsafe extern "C" fn RegisterDisplayAttribute(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn CreateDisplayAttributeProvider(ret: *mut *mut c_void) {
-    ret.write(
-        DisplayAttributeProvider
-            .into_object()
-            .into_interface::<ITfDisplayAttributeProvider>()
-            .into_raw(),
-    )
+    unsafe {
+        ret.write(
+            DisplayAttributeProvider
+                .into_object()
+                .into_interface::<ITfDisplayAttributeProvider>()
+                .into_raw(),
+        )
+    }
 }
 
 #[derive(Debug, Default)]
@@ -107,7 +109,8 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumTfDisplayAttributeInfo_Impl {
         // FIXME - a bug introduced in windows-rs 0.60.0 broke this interface signature
         // Should be fixed in windows-rs 0.63.0 or after.
         // https://github.com/microsoft/windows-rs/pull/3517
-        let mut rginfo_ptr: *mut Option<ITfDisplayAttributeInfo> = unsafe { std::mem::transmute(rginfo) };
+        let mut rginfo_ptr: *mut Option<ITfDisplayAttributeInfo> =
+            unsafe { std::mem::transmute(rginfo) };
         if let Ok(attrs) = ATTRS.read() {
             for (&guid, &da) in attrs.range(self.cursor.get()..) {
                 if count > ulcount {

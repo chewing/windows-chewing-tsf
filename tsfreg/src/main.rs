@@ -1,8 +1,12 @@
 use std::{env, process};
 
 use windows::{
+    Win32::{
+        Globalization::*,
+        System::Com::*,
+        UI::{Input::KeyboardAndMouse::HKL, TextServices::*},
+    },
     core::*,
-    Win32::{Globalization::*, System::Com::*, UI::{Input::KeyboardAndMouse::HKL, TextServices::*}},
 };
 
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
