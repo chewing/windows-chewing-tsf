@@ -11,7 +11,7 @@ use windows::Win32::UI::TextServices::{
     ITfCategoryMgr, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl,
     ITfDisplayAttributeProvider, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE,
 };
-use windows_core::{ComObjectInner, Interface};
+use windows_core::{ComObjectInner, Interface, OutRef};
 
 static ATTRS: RwLock<BTreeMap<u128, TF_DISPLAYATTRIBUTE>> = RwLock::new(BTreeMap::new());
 
@@ -100,11 +100,14 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumTfDisplayAttributeInfo_Impl {
     fn Next(
         &self,
         ulcount: u32,
-        rginfo: *mut Option<ITfDisplayAttributeInfo>,
+        rginfo: OutRef<ITfDisplayAttributeInfo>,
         pcfetched: *mut u32,
     ) -> Result<()> {
         let mut count = 0;
-        let mut rginfo_ptr = rginfo;
+        // FIXME - a bug introduced in windows-rs 0.60.0 broke this interface signature
+        // Should be fixed in windows-rs 0.63.0 or after.
+        // https://github.com/microsoft/windows-rs/pull/3517
+        let mut rginfo_ptr: *mut Option<ITfDisplayAttributeInfo> = unsafe { std::mem::transmute(rginfo) };
         if let Ok(attrs) = ATTRS.read() {
             for (&guid, &da) in attrs.range(self.cursor.get()..) {
                 if count > ulcount {

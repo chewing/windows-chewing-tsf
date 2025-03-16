@@ -1,6 +1,6 @@
 [workspace]
 members = ["chewing_tip", "preferences", "tsfreg", "xtask"]
-resolver = "2"
+resolver = "3"
 
 [profile.release]
 lto = "thin"

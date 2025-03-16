@@ -135,9 +135,9 @@ impl IWindow_Impl for Window_Impl {
                 0,
                 0,
                 0,
-                parent,
+                Some(parent),
                 None,
-                hinst.get(),
+                hinst.get().copied(),
                 None,
             );
             match hwnd {
@@ -164,7 +164,7 @@ impl IWindow_Impl for Window_Impl {
     }
 
     unsafe fn is_window(&self) -> bool {
-        IsWindow(self.hwnd()).as_bool()
+        IsWindow(Some(self.hwnd())).as_bool()
     }
 
     unsafe fn r#move(&self, mut x: c_int, mut y: c_int) {
@@ -216,7 +216,7 @@ impl IWindow_Impl for Window_Impl {
     unsafe fn resize(&self, width: c_int, height: c_int) {
         SetWindowPos(
             self.hwnd(),
-            HWND_TOP,
+            Some(HWND_TOP),
             0,
             0,
             width,
@@ -248,7 +248,7 @@ impl IWindow_Impl for Window_Impl {
 
     unsafe fn refresh(&self) {
         if !self.hwnd().is_invalid() {
-            let _ = InvalidateRect(self.hwnd(), None, true);
+            let _ = InvalidateRect(Some(self.hwnd()), None, true);
         }
     }
 

@@ -46,7 +46,7 @@ impl MessageWindow {
     fn recalculate_size(&self) -> Result<()> {
         let text_layout = unsafe {
             self.dwrite_factory.CreateTextLayout(
-                self.text.borrow().as_wide(),
+                self.text.borrow().as_ref(),
                 self.text_format.borrow().deref(),
                 f32::MAX,
                 f32::MAX,
@@ -66,7 +66,7 @@ impl MessageWindow {
         unsafe {
             SetWindowPos(
                 self.window.hwnd.get(),
-                HWND_TOPMOST,
+                Some(HWND_TOPMOST),
                 0,
                 0,
                 width as i32,
@@ -163,7 +163,7 @@ impl MessageWindow {
             let margin = self.nine_patch_bitmap.margin();
 
             target.DrawText(
-                self.text.borrow().as_wide(),
+                self.text.borrow().as_ref(),
                 self.text_format.borrow().deref(),
                 &D2D_RECT_F {
                     left: margin,
@@ -312,7 +312,7 @@ impl IWindow_Impl for MessageWindow_Impl {
             WM_TIMER => {
                 if wp.0 == ID_TIMEOUT {
                     self.hide();
-                    KillTimer(self.hwnd(), ID_TIMEOUT).expect("failed to kill timer");
+                    KillTimer(Some(self.hwnd()), ID_TIMEOUT).expect("failed to kill timer");
                 }
                 LRESULT(0)
             }
@@ -344,7 +344,7 @@ impl IMessageWindow_Impl for MessageWindow_Impl {
         );
     }
     unsafe fn set_text(&self, text: PCWSTR) {
-        self.text.replace(text.to_hstring().unwrap());
+        self.text.replace(text.to_hstring());
         self.recalculate_size().unwrap();
         if self.is_visible() {
             self.refresh();

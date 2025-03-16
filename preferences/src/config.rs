@@ -37,7 +37,7 @@ fn reg_open_key_read(hk: &mut HKEY) -> Result<()> {
         RegOpenKeyExW(
             HKEY_CURRENT_USER,
             w!("Software\\ChewingTextService"),
-            0,
+            None,
             KEY_WOW64_64KEY | KEY_READ,
             hk,
         )
@@ -51,7 +51,7 @@ fn reg_open_key_write(hk: &mut HKEY) -> Result<()> {
         RegCreateKeyExW(
             HKEY_CURRENT_USER,
             w!("Software\\ChewingTextService"),
-            0,
+            None,
             None,
             REG_OPEN_CREATE_OPTIONS::default(),
             KEY_WOW64_64KEY | KEY_READ | KEY_WRITE,
@@ -91,7 +91,7 @@ fn reg_get_u32(hk: HKEY, value_name: PCWSTR) -> Result<u32> {
 
 fn reg_set_u32(hk: HKEY, value_name: PCWSTR, value: u32) -> Result<()> {
     unsafe {
-        RegSetValueExW(hk, value_name, 0, REG_DWORD, Some(&value.to_ne_bytes())).ok()?;
+        RegSetValueExW(hk, value_name, None, REG_DWORD, Some(&value.to_ne_bytes())).ok()?;
     }
     Ok(())
 }

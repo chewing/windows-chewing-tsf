@@ -100,7 +100,7 @@ impl CandidateWindow {
 
                 self.dwrite_factory
                     .CreateTextLayout(
-                        text.as_wide(),
+                        &text,
                         self.text_format.borrow().deref(),
                         f32::MAX,
                         f32::MAX,
@@ -297,7 +297,7 @@ impl CandidateWindow {
             if self.use_cursor.get() && i == self.current_sel.get() {
                 dc.FillRectangle(&text_rect, &text_brush);
                 dc.DrawText(
-                    item.as_wide(),
+                    &item,
                     self.text_format.borrow().deref(),
                     &text_rect,
                     &selected_text_brush,
@@ -306,7 +306,7 @@ impl CandidateWindow {
                 );
             } else {
                 dc.DrawText(
-                    item.as_wide(),
+                    &item,
                     self.text_format.borrow().deref(),
                     &text_rect,
                     &text_brush,
@@ -406,7 +406,7 @@ impl ICandidateWindow_Impl for CandidateWindow_Impl {
     }
 
     unsafe fn add(&self, item: PCWSTR, sel_key: u16) {
-        self.items.borrow_mut().push(item.to_hstring().unwrap());
+        self.items.borrow_mut().push(item.to_hstring());
         self.sel_keys.borrow_mut().push(sel_key);
     }
 
@@ -616,9 +616,9 @@ impl ITfCandidateListUIElement_Impl for CandidateWindow_Impl {
         self.items
             .borrow()
             .get(uindex as usize)
-            .map(|hstr| hstr.as_wide())
+            .map(|hstr| hstr.as_ref())
             .map(BSTR::from_wide)
-            .ok_or(Error::empty())?
+            .ok_or(Error::empty())
     }
 
     fn GetPageIndex(&self, pindex: *mut u32, usize: u32, pupagecnt: *mut u32) -> Result<()> {

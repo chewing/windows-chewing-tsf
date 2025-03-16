@@ -1,8 +1,7 @@
 use std::{cell::Cell, collections::BTreeMap, ffi::c_void, sync::RwLock};
 
 use windows::Win32::{
-    Foundation::{BOOL, E_FAIL, E_INVALIDARG, POINT, RECT},
-    UI::{
+    Foundation::{E_FAIL, E_INVALIDARG, POINT, RECT}, Graphics::Gdi::HBITMAP, UI::{
         TextServices::{
             ITfLangBarItem, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
             ITfLangBarItemButton_Vtbl, ITfLangBarItemSink, ITfLangBarItem_Impl, ITfMenu, ITfSource,
@@ -15,11 +14,10 @@ use windows::Win32::{
             MENU_ITEM_STATE, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR, MFT_STRING,
             MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
         },
-    },
+    }
 };
 use windows_core::{
-    implement, interface, ComObjectInner, IUnknown, IUnknown_Vtbl, Interface, Result, BSTR, GUID,
-    PWSTR,
+    implement, interface, ComObjectInner, IUnknown, IUnknown_Vtbl, Interface, Ref, Result, BOOL, BSTR, GUID, PWSTR
 };
 
 #[repr(C)]
@@ -151,12 +149,12 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
         Ok(())
     }
 
-    fn InitMenu(&self, pmenu: Option<&ITfMenu>) -> Result<()> {
+    fn InitMenu(&self, pmenu: Ref<ITfMenu>) -> Result<()> {
         if self.menu.is_invalid() {
             return Err(E_FAIL.into());
         }
-        if let Some(menu) = pmenu {
-            build_menu(menu, self.menu)
+        if pmenu.is_some() {
+            build_menu(pmenu.unwrap(), self.menu)
         } else {
             Err(E_FAIL.into())
         }
@@ -172,21 +170,19 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
     }
 
     fn GetText(&self) -> Result<BSTR> {
-        BSTR::from_wide(&self.info.szDescription)
+        Ok(BSTR::from_wide(&self.info.szDescription))
     }
 }
 
 impl ITfSource_Impl for LangBarButton_Impl {
-    fn AdviseSink(&self, riid: *const GUID, punk: Option<&IUnknown>) -> Result<u32> {
+    fn AdviseSink(&self, riid: *const GUID, punk: Ref<IUnknown>) -> Result<u32> {
         if riid.is_null() || punk.is_none() {
             return Err(E_INVALIDARG.into());
         }
         if unsafe { *riid == ITfLangBarItemSink::IID } {
-            let mut cookie = [0; 4];
-            if let Err(_) = getrandom::getrandom(&mut cookie) {
+            let Ok(cookie) = getrandom::u32() else {
                 return Err(E_FAIL.into());
-            }
-            let cookie = u32::from_ne_bytes(cookie);
+            };
             let sink: ITfLangBarItemSink = punk.unwrap().cast()?;
             if let Ok(mut sinks) = self.sinks.write() {
                 sinks.insert(cookie, sink);
@@ -217,7 +213,7 @@ impl LangBarButton {
 }
 
 fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
-    for i in 0..unsafe { GetMenuItemCount(hmenu) } {
+    for i in 0..unsafe { GetMenuItemCount(Some(hmenu)) } {
         let mut text_buffer = [0_u16; 256];
         let mut mi = MENUITEMINFOW {
             cbSize: size_of::<MENUITEMINFOW>() as u32,
@@ -250,7 +246,7 @@ fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
                 flags |= TF_LBMENUF_GRAYED;
             }
             if let Ok(()) =
-                unsafe { menu.AddMenuItem(mi.wID, flags, None, None, &text_buffer, &mut sub_menu) }
+                unsafe { menu.AddMenuItem(mi.wID, flags, HBITMAP::default(), HBITMAP::default(), &text_buffer, &mut sub_menu) }
             {
                 if let Some(sub_menu) = sub_menu {
                     build_menu(&sub_menu, mi.hSubMenu)?;

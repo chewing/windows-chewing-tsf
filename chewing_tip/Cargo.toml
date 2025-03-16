@@ -9,13 +9,13 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+chewing_capi = { version = "0.9.1", features = ["sqlite"] }
 log = "0.4.22"
 nine_patch_drawable = "0.1.0"
 win_dbg_logger = "0.1.0"
-windows-core = "0.58.0"
-chewing_capi = { version = "0.9.1", features = ["sqlite"] }
-windows = { version = "0.58.0", features = [
-    "implement",
+windows-core = "0.60.0"
+windows-numerics = "0.1.1"
+windows = { version = "0.60.0", features = [
     "Foundation_Numerics",
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_Direct2D",
@@ -32,7 +32,7 @@ windows = { version = "0.58.0", features = [
     "Win32_UI_TextServices",
     "Win32_UI_WindowsAndMessaging",
 ] }
-getrandom = "0.2.15"
+getrandom = "0.3.1"
 
 [build-dependencies]
 anyhow = "1.0.95"
