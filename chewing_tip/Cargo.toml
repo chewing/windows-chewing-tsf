@@ -13,9 +13,9 @@ chewing_capi = { version = "0.9.1", features = ["sqlite"] }
 log = "0.4.22"
 nine_patch_drawable = "0.1.0"
 win_dbg_logger = "0.1.0"
-windows-core = "0.60.0"
-windows-numerics = "0.1.1"
-windows = { version = "0.60.0", features = [
+windows-core = "0.61.0"
+windows-numerics = "0.2.0"
+windows = { version = "0.61.0", features = [
     "Foundation_Numerics",
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_Direct2D",
