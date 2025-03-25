@@ -102,15 +102,11 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumTfDisplayAttributeInfo_Impl {
     fn Next(
         &self,
         ulcount: u32,
-        rginfo: OutRef<ITfDisplayAttributeInfo>,
+        rginfo: *mut Option<ITfDisplayAttributeInfo>,
         pcfetched: *mut u32,
     ) -> Result<()> {
         let mut count = 0;
-        // FIXME - a bug introduced in windows-rs 0.60.0 broke this interface signature
-        // Should be fixed in windows-rs 0.63.0 or after.
-        // https://github.com/microsoft/windows-rs/pull/3517
-        let mut rginfo_ptr: *mut Option<ITfDisplayAttributeInfo> =
-            unsafe { std::mem::transmute(rginfo) };
+        let mut rginfo_ptr = rginfo;
         if let Ok(attrs) = ATTRS.read() {
             for (&guid, &da) in attrs.range(self.cursor.get()..) {
                 if count > ulcount {
