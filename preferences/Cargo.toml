@@ -19,7 +19,6 @@ windows = { version = "0.61.0", features = [
 version = "0.9.1"
 features = ["sqlite"]
 git = "https://github.com/chewing/libchewing"
-branch = "feat-dictionary-mgmt-api"
 
 [build-dependencies]
 embed-resource = "3.0.1"

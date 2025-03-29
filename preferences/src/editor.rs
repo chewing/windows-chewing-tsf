@@ -219,7 +219,7 @@ fn dict_list_model() -> Result<ModelRc<ModelRc<StandardListViewItem>>> {
             .map(|dict| ModelRc::new(DictTableItemModel::new("系統", dict)))
             .chain(
                 sys_loader
-                    .load_extra()?
+                    .load_drop_in()?
                     .into_iter()
                     .map(|dict| ModelRc::new(DictTableItemModel::new("擴充", dict))),
             )
