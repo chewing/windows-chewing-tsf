@@ -13,6 +13,9 @@ use windows::core::*;
 mod candidate_window;
 mod message_window;
 
+pub(crate) use candidate_window::{CandidateWindow, ICandidateWindow_Impl};
+pub(crate) use message_window::{IMessageWindow_Impl, MessageWindow};
+
 thread_local! {
     static MODULE_HINSTANCE: OnceCell<HINSTANCE> = const { OnceCell::new() };
     static HWND_MAP: RefCell<HashMap<*mut c_void, Weak<IWindow>>> = RefCell::new(HashMap::new());
@@ -43,7 +46,7 @@ pub(crate) struct Window {
 }
 
 impl Window {
-    fn new() -> Window {
+    pub(crate) fn new() -> Window {
         Window {
             hwnd: Cell::new(HWND::default()),
         }
@@ -72,6 +75,26 @@ pub unsafe extern "C" fn ImeWindowFromHwnd(hwnd: HWND) -> *mut IWindow {
         } else {
             null_mut()
         }
+    })
+}
+
+pub(crate) fn window_register_class(hinstance: HINSTANCE) -> bool {
+    MODULE_HINSTANCE.with(|hinst_cell| {
+        let hinst = hinst_cell.get_or_init(|| hinstance);
+        let wc = WNDCLASSEXW {
+            cbSize: size_of::<WNDCLASSEXW>() as u32,
+            style: CS_IME,
+            lpfnWndProc: Some(wnd_proc),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: *hinst,
+            hCursor: unsafe { LoadCursorW(None, IDC_ARROW).expect("failed to load cursor") },
+            lpszMenuName: PCWSTR::null(),
+            lpszClassName: w!("LibIme2Window"),
+            ..Default::default()
+        };
+
+        unsafe { RegisterClassExW(&wc) > 0 }
     })
 }
 

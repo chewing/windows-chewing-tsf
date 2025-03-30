@@ -5,13 +5,13 @@ use std::sync::RwLock;
 
 use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, E_NOTIMPL, S_FALSE, S_OK};
 use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
+use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
     CLSID_TF_CategoryMgr, IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl,
     ITfCategoryMgr, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl,
     ITfDisplayAttributeProvider, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE,
 };
-use windows::core::{BSTR, GUID, HRESULT, Result, implement};
-use windows_core::{ComObjectInner, Interface, OutRef};
+use windows_core::{BSTR, ComObjectInner, GUID, HRESULT, Interface, Result, implement};
 
 static ATTRS: RwLock<BTreeMap<u128, TF_DISPLAYATTRIBUTE>> = RwLock::new(BTreeMap::new());
 
@@ -39,7 +39,37 @@ impl ITfDisplayAttributeProvider_Impl for DisplayAttributeProvider_Impl {
     }
 }
 
-fn register_display_attribute(
+pub(super) fn register_display_attribute(guid: &GUID, da: TF_DISPLAYATTRIBUTE) -> Result<VARIANT> {
+    unsafe {
+        let category_manager: ITfCategoryMgr =
+            CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+        // XXX Although RegisterGUID returns a DWORD (u32), all display
+        // attributes are TfGuidAtoms and TfGuidAtoms are VT_I4.
+        let atom = VARIANT::from(category_manager.RegisterGUID(guid)? as i32);
+        if let Ok(mut attrs) = ATTRS.write() {
+            attrs.insert((*guid).to_u128(), da);
+        } else {
+            return Err(E_FAIL.into());
+        }
+        Ok(atom)
+    }
+}
+
+pub(super) fn get_display_attribute_info(guid: *const GUID) -> Result<ITfDisplayAttributeInfo> {
+    if guid.is_null() {
+        return Err(E_INVALIDARG.into());
+    }
+    let guid = unsafe { guid.as_ref().unwrap() };
+    let guid_u128 = guid.to_u128();
+    if let Ok(attrs) = ATTRS.read() {
+        if let Some(da) = attrs.get(&guid_u128) {
+            return Ok(DisplayAttributeInfo::new(*guid, *da).into());
+        }
+    }
+    Err(E_FAIL.into())
+}
+
+fn ffi_register_display_attribute(
     guid: *const GUID,
     da: TF_DISPLAYATTRIBUTE,
     atom_out: *mut u32,
@@ -67,7 +97,7 @@ unsafe extern "C" fn RegisterDisplayAttribute(
     da: TF_DISPLAYATTRIBUTE,
     atom_out: *mut u32,
 ) -> HRESULT {
-    match register_display_attribute(guid, da, atom_out) {
+    match ffi_register_display_attribute(guid, da, atom_out) {
         Ok(_) => S_OK,
         Err(e) => e.into(),
     }
@@ -87,7 +117,7 @@ unsafe extern "C" fn CreateDisplayAttributeProvider(ret: *mut *mut c_void) {
 
 #[derive(Debug, Default)]
 #[implement(IEnumTfDisplayAttributeInfo)]
-struct EnumTfDisplayAttributeInfo {
+pub(super) struct EnumTfDisplayAttributeInfo {
     cursor: Cell<u128>,
 }
 
