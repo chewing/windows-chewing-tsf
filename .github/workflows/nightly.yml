@@ -48,6 +48,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     needs: [code-signing]
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: Signed Installer
@@ -65,3 +66,4 @@ jobs:
           files: |
             dist/windows-chewing-tsf.msi
             dist/windows-chewing-tsf.msi.sha256
+            installer/windows-chewing-tsf-debug.bat
