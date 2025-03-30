@@ -170,7 +170,7 @@ void TextService::onActivate() {
 
 	// Windows 8 systray IME mode icon
 	if(IsWindows8OrGreater()) {
-		len = LoadStringW(g_hInstance, IDS_SWITCH_SHAPE, (LPWSTR)&tooltip, 0);
+		len = LoadStringW(g_hInstance, IDS_SWITCH_LANG, (LPWSTR)&tooltip, 0);
 		info.guidItem = _GUID_LBI_INPUTMODE;
 		info.dwStyle = TF_LBI_STYLE_BTN_BUTTON;
 		wcsncpy_s(info.szDescription, sizeof(info.szDescription), tooltip, len);
@@ -931,7 +931,7 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	CreateMessageWindow(parent, bitmap_path.c_str(), messageWindow_.put_void());
 	messageWindow_->setFontSize(config().fontSize);
 	messageWindow_->setText(message.c_str());
-	
+
 	int x = 0, y = 0;
 	RECT rc;
 	if(selectionRect(session, &rc)) {
