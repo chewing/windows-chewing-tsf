@@ -191,7 +191,7 @@ void TextService::onActivate() {
 	updateLangButtons();
 
 	if(imeModeIcon_) // windows 8 IME mode icon
-		imeModeIcon_->setEnabled(isKeyboardOpened());
+		imeModeIcon_->setEnabled(true);
 }
 
 // virtual
@@ -706,32 +706,6 @@ STDMETHODIMP_(ULONG) TextService::AddRef() {
 
 STDMETHODIMP_(ULONG) TextService::Release() {
 	return Ime::TextService::Release();
-}
-
-// called when the keyboard is opened or closed
-// virtual
-void TextService::onKeyboardStatusChanged(bool opened) {
-	Ime::TextService::onKeyboardStatusChanged(opened);
-	if(opened) { // keyboard is opened
-		initChewingContext();
-	}
-	else { // keyboard is closed
-		if(isComposing()) {
-			// end current composition if needed
-			ITfContext* context = currentContext();
-			if(context) {
-				endComposition(context);
-				context->Release();
-			}
-		}
-		hideCandidates();
-		hideMessage(); // hide message window, if there's any
-		freeChewingContext(); // IME is closed, chewingContext is not needed
-	}
-
-	if(imeModeIcon_)
-		imeModeIcon_->setEnabled(opened);
-	// FIXME: should we also disable other language bar buttons as well?
 }
 
 // called just before current composition is terminated for doing cleanup.

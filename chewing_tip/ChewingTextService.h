@@ -56,9 +56,6 @@ public:
 
 	virtual bool onPreservedKey(const GUID& guid);
 
-	// called when the keyboard is opened or closed
-	virtual void onKeyboardStatusChanged(bool opened);
-
 	// called just before current composition is terminated for doing cleanup.
 	// if forced is true, the composition is terminated by others, such as
 	// the input focus is grabbed by another application.

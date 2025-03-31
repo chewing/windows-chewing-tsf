@@ -49,8 +49,7 @@ class TextService:
 	public ITfThreadMgrEventSink,
 	public ITfTextEditSink,
 	public ITfKeyEventSink,
-	public ITfCompositionSink,
-	public ITfCompartmentEventSink {
+	public ITfCompositionSink {
 public:
 
 	TextService();
@@ -72,13 +71,6 @@ public:
 	// text composition handling
 	bool isComposing();
 
-	// is keyboard disabled for the context (NULL means current context)
-	bool isKeyboardDisabled(ITfContext* context = NULL);
-
-	// is keyboard opened for the whole thread
-	bool isKeyboardOpened();
-	void setKeyboardOpen(bool open);
-
 	void startComposition(ITfContext* context);
 	void endComposition(ITfContext* context);
 	bool selectionRect(EditSession* session, RECT* rect);
@@ -86,18 +78,6 @@ public:
 
 	void setCompositionString(EditSession* session, const wchar_t* str, int len);
 	void setCompositionCursor(EditSession* session, int pos);
-
-	// compartment handling
-	winrt::com_ptr<ITfCompartment> threadCompartment(const GUID& key);
-	winrt::com_ptr<ITfCompartment> contextCompartment(const GUID& key, ITfContext* context = NULL);
-
-	DWORD threadCompartmentValue(const GUID& key);
-	DWORD contextCompartmentValue(const GUID& key, ITfContext* context = NULL);
-
-	void setThreadCompartmentValue(const GUID& key, DWORD value);
-
-	// manage sinks to global or thread compartment (context specific compartment is not used)
-	void addCompartmentMonitor(const GUID key);
 
 	// virtual functions that IME implementors may need to override
 	virtual void onActivate() {}
@@ -113,9 +93,6 @@ public:
 	virtual bool onKeyUp(KeyEvent& keyEvent, EditSession* session) { return false; }
 
 	virtual bool onPreservedKey(const GUID& guid) { return false; }
-
-	// called when a value in the global or thread compartment changed.
-	virtual void onCompartmentChanged(const GUID& key);
 
 	// called when the keyboard is opened or closed
 	virtual void onKeyboardStatusChanged(bool opened) {}
@@ -161,9 +138,6 @@ public:
     // ITfCompositionSink
     STDMETHODIMP OnCompositionTerminated(TfEditCookie ecWrite, ITfComposition *pComposition);
 
-	// ITfCompartmentEventSink
-	STDMETHODIMP OnChange(REFGUID rguid);
-
 protected:
 	// edit session classes, used with TSF
 	class KeyEditSession: public EditSession {
@@ -203,15 +177,6 @@ protected:
 		GUID guid;
 	};
 
-	struct CompartmentMonitor {
-		GUID guid;
-		DWORD cookie;
-
-		bool operator == (const GUID& other) const {
-			return bool(::IsEqualGUID(guid, other));
-		}
-	};
-
 protected: // COM object should not be deleted directly. calling Release() instead.
 	virtual ~TextService(void);
 
@@ -219,7 +184,6 @@ private:
 	winrt::com_ptr<ITfThreadMgr> threadMgr_;
 	TfClientId clientId_;
 	DWORD activateFlags_;
-	bool isKeyboardOpened_;
 
 	uint32_t input_atom_;
 
@@ -229,7 +193,6 @@ private:
 	ITfComposition* composition_; // acquired when starting composition, released when ending composition
 	std::vector<winrt::com_ptr<ITfLangBarItemButton>> langBarButtons_;
 	std::vector<PreservedKey> preservedKeys_;
-	std::vector<CompartmentMonitor> compartmentMonitors_;
 
 	long refCount_; // reference counting
 };
