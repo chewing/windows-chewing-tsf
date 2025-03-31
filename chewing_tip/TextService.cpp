@@ -46,12 +46,10 @@ TextService::TextService():
 	threadMgr_(NULL),
 	clientId_(TF_CLIENTID_NULL),
 	activateFlags_(0),
-	isKeyboardOpened_(false),
 	threadMgrEventSinkCookie_(TF_INVALID_COOKIE),
 	composition_(NULL),
 	input_atom_(TF_INVALID_GUIDATOM),
 	refCount_(1) {
-	addCompartmentMonitor(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
 
 	// FIXME we should only initialize once
 	LibIME2Init();
@@ -69,17 +67,6 @@ TextService::TextService():
 }
 
 TextService::~TextService(void) {
-
-	// This should only happen in rare cases
-	if(!compartmentMonitors_.empty()) {
-		vector<CompartmentMonitor>::iterator it;
-		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
-			if (source) {
-				source->UnadviseSink(it->cookie);
-			}
-		}
-	}
 }
 
 void TextService::addButton(ITfLangBarItemButton* button) {
@@ -117,23 +104,6 @@ void TextService::addPreservedKey(UINT keyCode, UINT modifiers, const GUID& guid
 
 bool TextService::isComposing() {
 	return (composition_ != NULL);
-}
-
-// is keyboard disabled for the context (NULL means current context)
-bool TextService::isKeyboardDisabled(ITfContext* context) {
-	return (contextCompartmentValue(GUID_COMPARTMENT_KEYBOARD_DISABLED, context)
-		|| contextCompartmentValue(GUID_COMPARTMENT_EMPTYCONTEXT, context));
-}
-
-// is keyboard opened for the whole thread
-bool TextService::isKeyboardOpened() {
-	return isKeyboardOpened_;
-}
-
-void TextService::setKeyboardOpen(bool open) {
-	if(open != isKeyboardOpened_) {
-		setThreadCompartmentValue(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, (DWORD)open);
-	}
 }
 
 void TextService::startComposition(ITfContext* context) {
@@ -199,98 +169,6 @@ void TextService::setCompositionCursor(EditSession* session, int pos) {
 	}
 }
 
-// compartment handling
-winrt::com_ptr<ITfCompartment> TextService::threadCompartment(const GUID& key) {
-	if(threadMgr_) {
-		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr = threadMgr_.as<ITfCompartmentMgr>();
-		if(compartmentMgr) {
-			winrt::com_ptr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, compartment.put());
-			return compartment;
-		}
-	}
-	return NULL;
-}
-
-winrt::com_ptr<ITfCompartment> TextService::contextCompartment(const GUID& key, ITfContext* context) {
-	winrt::com_ptr<ITfContext> curContext;
-	if(!context) {
-		curContext.attach(currentContext());
-	} else {
-		curContext.copy_from(context);
-	}
-	if(context) {
-		winrt::com_ptr<ITfCompartmentMgr> compartmentMgr = curContext.as<ITfCompartmentMgr>();
-		if(compartmentMgr) {
-			winrt::com_ptr<ITfCompartment> compartment;
-			compartmentMgr->GetCompartment(key, compartment.put());
-			return compartment;
-		}
-	}
-	return NULL;
-}
-
-DWORD TextService::threadCompartmentValue(const GUID& key) {
-	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(key);
-	if(compartment) {
-		VARIANT var;
-		::VariantInit(&var);
-		HRESULT r = compartment->GetValue(&var);
-		if(r == S_OK) {
-			if(var.vt == VT_I4)
-				return (DWORD)var.lVal;
-		}
-	}
-	return 0;
-}
-
-DWORD TextService::contextCompartmentValue(const GUID& key, ITfContext* context) {
-	winrt::com_ptr<ITfCompartment> compartment = contextCompartment(key, context);
-	if(compartment) {
-		VARIANT var;
-		if(compartment->GetValue(&var) == S_OK && var.vt == VT_I4) {
-			return (DWORD)var.lVal;
-		}
-	}
-	return 0;
-}
-
-void TextService::setThreadCompartmentValue(const GUID& key, DWORD value) {
-	winrt::com_ptr<ITfCompartment> compartment = threadCompartment(key);
-	if(compartment) {
-		VARIANT var;
-		::VariantInit(&var);
-		var.vt = VT_I4;
-		var.lVal = value;
-		compartment->SetValue(clientId_, &var);
-	}
-}
-
-void TextService::addCompartmentMonitor(const GUID key) {
-	CompartmentMonitor monitor;
-	monitor.guid = key;
-	monitor.cookie = 0;
-	// if the text service is activated
-	if(threadMgr_) {
-		winrt::com_ptr<ITfSource> source = threadCompartment(key).as<ITfSource>();
-		if(source) {
-			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &monitor.cookie);
-		}
-	}
-	compartmentMonitors_.push_back(monitor);
-}
-
-// virtual
-void TextService::onCompartmentChanged(const GUID& key) {
-	// keyboard status changed, this is threadMgr specific
-	// See explanations on TSF aware blog:
-	// http://blogs.msdn.com/b/tsfaware/archive/2007/05/30/what-is-a-keyboard.aspx
-	if(::IsEqualGUID(key, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)) {
-		isKeyboardOpened_ = threadCompartmentValue(key) ? true : false;
-		onKeyboardStatusChanged(isKeyboardOpened_);
-	}
-}
-
 // COM stuff
 
 // IUnknown
@@ -321,8 +199,6 @@ STDMETHODIMP TextService::QueryInterface(REFIID riid, void **ppvObj) {
 		*ppvObj = (ITfKeyEventSink*)this;
 	else if(IsEqualIID(riid, IID_ITfCompositionSink))
 		*ppvObj = (ITfCompositionSink*)this;
-	else if(IsEqualIID(riid, IID_ITfCompartmentEventSink))
-		*ppvObj = (ITfCompartmentEventSink*)this;
 	else
 		*ppvObj = NULL;
 
@@ -382,25 +258,6 @@ STDMETHODIMP TextService::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClient
 			keystrokeMgr->PreserveKey(clientId_, preservedKey.guid, &preservedKey, NULL, 0);
 		}
 	}
-
-	// ITfCompositionSink
-
-	// ITfCompartmentEventSink
-	// get current keyboard state
-	if(!compartmentMonitors_.empty()) {
-		vector<CompartmentMonitor>::iterator it;
-		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
-			source->AdviseSink(IID_ITfCompartmentEventSink, (ITfCompartmentEventSink*)this, &it->cookie);
-		}
-	}
-	isKeyboardOpened_ = threadCompartmentValue(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE) != 0;
-
-	// FIXME: under Windows 7, it seems that the keyboard is closed every time
-	// our text service is activated. The value in the compartment is always empty. :-(
-	// So, we open the keyboard manually here, but I'm not sure if this is the correct behavior.
-	if(!isKeyboardOpened_)
-		setKeyboardOpen(true);
 
 	// Note: language bar has no effects in Win 8 immersive mode
 	if(!langBarButtons_.empty()) {
@@ -463,18 +320,6 @@ STDMETHODIMP TextService::Deactivate() {
 				PreservedKey& preservedKey = *it;
 				keystrokeMgr->UnpreserveKey(preservedKey.guid, &preservedKey);
 			}
-		}
-	}
-
-	// ITfCompositionSink
-
-	// ITfCompartmentEventSink
-	// thread specific compartment
-	if(!compartmentMonitors_.empty()) {
-		vector<CompartmentMonitor>::iterator it;
-		for(it = compartmentMonitors_.begin(); it != compartmentMonitors_.end(); ++it) {
-			winrt::com_ptr<ITfSource> source = threadCompartment(it->guid).as<ITfSource>();
-			source->UnadviseSink(it->cookie);
 		}
 	}
 
@@ -565,67 +410,51 @@ STDMETHODIMP TextService::OnSetFocus(BOOL fForeground) {
 }
 
 STDMETHODIMP TextService::OnTestKeyDown(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-	if(isKeyboardDisabled(pContext) || !isKeyboardOpened())
-		*pfEaten = FALSE;
-	else {
-		KeyEvent keyEvent(WM_KEYDOWN, wParam, lParam);
-		*pfEaten = (BOOL)filterKeyDown(keyEvent);
-	}
+	KeyEvent keyEvent(WM_KEYDOWN, wParam, lParam);
+	*pfEaten = (BOOL)filterKeyDown(keyEvent);
 	return S_OK;
 }
 
 STDMETHODIMP TextService::OnKeyDown(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
 	// Some applications do not trigger OnTestKeyDown()
 	// So we need to test it again here! Windows TSF sucks!
-	if(isKeyboardDisabled(pContext) || !isKeyboardOpened())
-		*pfEaten = FALSE;
-	else {
-		KeyEvent keyEvent(WM_KEYDOWN, wParam, lParam);
-		*pfEaten = (BOOL)filterKeyDown(keyEvent);
-		if(*pfEaten) { // we want to eat the key
-			HRESULT sessionResult;
-			// ask TSF for an edit session. If editing is approved by TSF,
-			// KeyEditSession::DoEditSession will be called, which in turns
-			// call back to TextService::doKeyEditSession().
-			// So the real key handling is relayed to TextService::doKeyEditSession().
-			KeyEditSession* session = new KeyEditSession(this, pContext, keyEvent);
+	KeyEvent keyEvent(WM_KEYDOWN, wParam, lParam);
+	*pfEaten = (BOOL)filterKeyDown(keyEvent);
+	if(*pfEaten) { // we want to eat the key
+		HRESULT sessionResult;
+		// ask TSF for an edit session. If editing is approved by TSF,
+		// KeyEditSession::DoEditSession will be called, which in turns
+		// call back to TextService::doKeyEditSession().
+		// So the real key handling is relayed to TextService::doKeyEditSession().
+		KeyEditSession* session = new KeyEditSession(this, pContext, keyEvent);
 
-			// We use TF_ES_SYNC here, so the request becomes synchronus and blocking.
-			// KeyEditSession::DoEditSession() and TextService::doKeyEditSession() will be
-			// called before RequestEditSession() returns.
-			pContext->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
-			*pfEaten = session->result_; // tell TSF if we handled the key
-			session->Release();
-		}
+		// We use TF_ES_SYNC here, so the request becomes synchronus and blocking.
+		// KeyEditSession::DoEditSession() and TextService::doKeyEditSession() will be
+		// called before RequestEditSession() returns.
+		pContext->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
+		*pfEaten = session->result_; // tell TSF if we handled the key
+		session->Release();
 	}
 	return S_OK;
 }
 
 STDMETHODIMP TextService::OnTestKeyUp(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-	if(isKeyboardDisabled(pContext) || !isKeyboardOpened())
-		*pfEaten = FALSE;
-	else {
-		KeyEvent keyEvent(WM_KEYDOWN, wParam, lParam);
-		*pfEaten = (BOOL)filterKeyUp(keyEvent);
-	}
+	KeyEvent keyEvent(WM_KEYDOWN, wParam, lParam);
+	*pfEaten = (BOOL)filterKeyUp(keyEvent);
 	return S_OK;
 }
 
 STDMETHODIMP TextService::OnKeyUp(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
 	// Some applications do not trigger OnTestKeyDown()
 	// So we need to test it again here! Windows TSF sucks!
-	if(isKeyboardDisabled(pContext) || !isKeyboardOpened())
-		*pfEaten = FALSE;
-	else {
-		KeyEvent keyEvent(WM_KEYUP, wParam, lParam);
-		*pfEaten = (BOOL)filterKeyUp(keyEvent);
-		if(*pfEaten) {
-			HRESULT sessionResult;
-			KeyEditSession* session = new KeyEditSession(this, pContext, keyEvent);
-			pContext->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
-			*pfEaten = session->result_; // tell TSF if we handled the key
-			session->Release();
-		}
+	KeyEvent keyEvent(WM_KEYUP, wParam, lParam);
+	*pfEaten = (BOOL)filterKeyUp(keyEvent);
+	if(*pfEaten) {
+		HRESULT sessionResult;
+		KeyEditSession* session = new KeyEditSession(this, pContext, keyEvent);
+		pContext->RequestEditSession(clientId_, session, TF_ES_SYNC|TF_ES_READWRITE, &sessionResult);
+		*pfEaten = session->result_; // tell TSF if we handled the key
+		session->Release();
 	}
 	return S_OK;
 }
@@ -649,24 +478,6 @@ STDMETHODIMP TextService::OnCompositionTerminated(TfEditCookie ecWrite, ITfCompo
 		composition_->Release();
 		composition_ = NULL;
 	}
-	return S_OK;
-}
-
-// ITfCompartmentEventSink
-STDMETHODIMP TextService::OnChange(REFGUID rguid) {
-	// The TSF ITfCompartment is kind of key-value storage
-	// It uses GUIDs as keys and stores integer and string values.
-	// Global compartment is a storage for cross-process key-value pairs.
-	// However, it only handles integers. String values cannot be stored.
-	// The thread manager specific compartment, however, handles strings.
-	// Every value stored in the storage has an key, which is a GUID.
-	// global keyboard states and some other values are in the compartments
-	// So we need to monitor for their changes and do some handling.
-
-	// For more detailed introduction, see TSF aware blog:
-	// http://blogs.msdn.com/b/tsfaware/archive/2007/05/30/what-is-a-keyboard.aspx
-
-	onCompartmentChanged(rguid);
 	return S_OK;
 }
 
