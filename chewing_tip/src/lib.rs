@@ -1,13 +1,11 @@
-use std::ffi::{c_int, c_long, c_void};
+use std::{ffi::{c_int, c_long, c_void}, sync::{atomic::{AtomicUsize, Ordering}, Mutex}};
 
-mod display_attribute;
 mod gfx;
-mod lang_bar;
+mod ts;
 mod window;
+mod lang_bar;
 
-// Force linking chewing_capi
-#[allow(unused_imports)]
-use chewing_capi::setup::chewing_new;
+static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn LibIME2Init() {
@@ -34,6 +32,7 @@ pub unsafe extern "stdcall" fn DllMain(
     ul_reason_for_call: u32,
     reserved: *const c_void,
 ) -> c_int {
+    G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
     unsafe { DllMain_cpp(hmodule, ul_reason_for_call, reserved) }
 }
 

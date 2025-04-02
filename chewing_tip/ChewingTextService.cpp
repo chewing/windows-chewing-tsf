@@ -170,7 +170,7 @@ void TextService::onActivate() {
 
 	// Windows 8 systray IME mode icon
 	if(IsWindows8OrGreater()) {
-		len = LoadStringW(g_hInstance, IDS_SWITCH_SHAPE, (LPWSTR)&tooltip, 0);
+		len = LoadStringW(g_hInstance, IDS_SWITCH_LANG, (LPWSTR)&tooltip, 0);
 		info.guidItem = _GUID_LBI_INPUTMODE;
 		info.dwStyle = TF_LBI_STYLE_BTN_BUTTON;
 		wcsncpy_s(info.szDescription, sizeof(info.szDescription), tooltip, len);
@@ -191,7 +191,7 @@ void TextService::onActivate() {
 	updateLangButtons();
 
 	if(imeModeIcon_) // windows 8 IME mode icon
-		imeModeIcon_->setEnabled(isKeyboardOpened());
+		imeModeIcon_->setEnabled(true);
 }
 
 // virtual
@@ -708,32 +708,6 @@ STDMETHODIMP_(ULONG) TextService::Release() {
 	return Ime::TextService::Release();
 }
 
-// called when the keyboard is opened or closed
-// virtual
-void TextService::onKeyboardStatusChanged(bool opened) {
-	Ime::TextService::onKeyboardStatusChanged(opened);
-	if(opened) { // keyboard is opened
-		initChewingContext();
-	}
-	else { // keyboard is closed
-		if(isComposing()) {
-			// end current composition if needed
-			ITfContext* context = currentContext();
-			if(context) {
-				endComposition(context);
-				context->Release();
-			}
-		}
-		hideCandidates();
-		hideMessage(); // hide message window, if there's any
-		freeChewingContext(); // IME is closed, chewingContext is not needed
-	}
-
-	if(imeModeIcon_)
-		imeModeIcon_->setEnabled(opened);
-	// FIXME: should we also disable other language bar buttons as well?
-}
-
 // called just before current composition is terminated for doing cleanup.
 // if forced is true, the composition is terminated by others, such as
 // the input focus is grabbed by another application.
@@ -957,7 +931,7 @@ void TextService::showMessage(Ime::EditSession* session, std::wstring message, i
 	CreateMessageWindow(parent, bitmap_path.c_str(), messageWindow_.put_void());
 	messageWindow_->setFontSize(config().fontSize);
 	messageWindow_->setText(message.c_str());
-	
+
 	int x = 0, y = 0;
 	RECT rc;
 	if(selectionRect(session, &rc)) {
