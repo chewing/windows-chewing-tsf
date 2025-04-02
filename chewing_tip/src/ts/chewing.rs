@@ -1,6 +1,7 @@
 use std::ffi::{CStr, c_void};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
+use std::simd::i32x8;
 use std::sync::atomic::Ordering;
 use std::time::UNIX_EPOCH;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -11,16 +12,23 @@ use chewing_capi::globals::{
     chewing_set_autoShiftCur, chewing_set_escCleanAllBuf, chewing_set_maxChiSymbolLen,
     chewing_set_spaceAsSelection,
 };
+use chewing_capi::input::{
+    chewing_handle_Backspace, chewing_handle_CtrlNum, chewing_handle_Default, chewing_handle_Del, chewing_handle_Down, chewing_handle_End, chewing_handle_Enter, chewing_handle_Esc, chewing_handle_Home, chewing_handle_Left, chewing_handle_Numlock, chewing_handle_PageDown, chewing_handle_PageUp, chewing_handle_Right, chewing_handle_Space, chewing_handle_Tab, chewing_handle_Up
+};
 use chewing_capi::layout::chewing_set_KBType;
 use chewing_capi::modes::{
-    CHINESE_MODE, FULLSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode, chewing_get_ShapeMode,
-    chewing_set_ChiEngMode, chewing_set_ShapeMode,
+    CHINESE_MODE, FULLSHAPE_MODE, HALFSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode,
+    chewing_get_ShapeMode, chewing_set_ChiEngMode, chewing_set_ShapeMode,
 };
+use chewing_capi::output::chewing_keystroke_CheckIgnore;
 use chewing_capi::setup::{ChewingContext, chewing_new};
 use log::{error, info};
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
+};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE, VK_HOME, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP
 };
 use windows::Win32::UI::TextServices::{
     GUID_LBI_INPUTMODE, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU,
@@ -74,6 +82,7 @@ pub(super) struct ChewingTextService {
     last_keydown_code: i32,
     message_timer_id: i32,
     symbols_file_mtime: u64,
+    cfg: Config,
     chewing_context: Option<*mut ChewingContext>,
 
     preserved_keys: BTreeMap<u128, TF_PRESERVEDKEY>,
@@ -97,7 +106,8 @@ impl ChewingTextService {
         self.add_preserved_key(VK_SPACE.0 as u32, TF_MOD_SHIFT, GUID_SHIFT_SPACE)?;
 
         info!("Load config and start watching changes");
-        // TODO load config and watch change
+        self.cfg.load().unwrap();
+        // TODO watch change
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
 
@@ -224,6 +234,7 @@ impl ChewingTextService {
         self.free_chewing_context();
         self.switch_lang_button = None;
         self.switch_shape_button = None;
+        self.ime_mode_button = None;
         // TODO hide message window
         // TODO hide candidate window
 
@@ -246,6 +257,175 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_keydown(&mut self, ev: KeyEvent, dry_run: bool) -> bool {
+        // TODO detect changes
+        if let Err(error) = self.apply_config() {
+            error!("unable to apply config {error}");
+        }
+        if self.chewing_context.is_none() {
+            error!("on_keydown but chewing context is null");
+            return false;
+        }
+        let last_keydown_code = ev.vk;
+        if !self.is_composing() {
+            // don't do further handling in English + half shape mode
+            if self.lang_mode == SYMBOL_MODE && self.shape_mode == HALFSHAPE_MODE {
+                return false;
+            }
+
+            if ev.is_key_down(VK_CONTROL) || ev.is_key_down(VK_MENU) {
+                // bypass IME. This might be a shortcut key used in the application
+                // FIXME: we only need Ctrl in composition mode for adding user phrases.
+                // However, if we turn on easy symbol input with Ctrl support later,
+                // we'll need th Ctrl key then.
+                return false;
+            }
+
+            // we always need further processing in full shape mode since all English chars,
+            // numbers, and symbols need to be converted to full shape Chinese chars.
+            if self.shape_mode != FULLSHAPE_MODE {
+                // Caps lock is on => English mode
+                if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
+                    // We only need to handle printable keys because we need to
+                    // convert them to upper case.
+                    if !ev.is_a2z() {
+                        return false;
+                    }
+                }
+                // NumLock is on
+                if ev.is_key_toggled(VK_NUMLOCK) && ev.is_num_pad() {
+                    return false;
+                }
+            }
+            if !ev.is_printable() {
+                return false;
+            }
+        }
+
+        if dry_run {
+            return true;
+        }
+
+        let ctx = self.chewing_context.unwrap();
+        if ev.is_printable() {
+            let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
+            let mut momentary_english_mode = false;
+            let mut invert_case = false;
+            // If caps lock is on, temprarily change to English mode
+            if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
+                momentary_english_mode = true;
+                invert_case = true;
+            }
+            // If shift is pressed, but we don't want to enter full shape symbols
+            if ev.is_key_down(VK_SHIFT) && (!self.cfg.full_shape_symbols || ev.is_a2z()) {
+                momentary_english_mode = true;
+                if !self.cfg.upper_case_with_shift {
+                    invert_case = true;
+                }
+            }
+            if self.lang_mode == SYMBOL_MODE {
+                unsafe {
+                    chewing_handle_Default(ctx, ev.code as i32);
+                }
+            } else if momentary_english_mode {
+                unsafe {
+                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
+                }
+                let code = if invert_case {
+                    if ev.code.is_ascii_uppercase() {
+                        ev.code.to_ascii_lowercase()
+                    } else {
+                        ev.code.to_ascii_uppercase()
+                    }
+                } else {
+                    ev.code
+                };
+                unsafe {
+                    chewing_handle_Default(ctx, code as i32);
+                    chewing_set_ChiEngMode(ctx, old_lang_mode);
+                }
+            } else {
+                if ev.is_a2z() {
+                    unsafe {
+                        chewing_handle_Default(ctx, ev.code.to_ascii_lowercase() as i32);
+                    }
+                } else if ev.vk == VK_SPACE.0 {
+                    unsafe {
+                        chewing_handle_Space(ctx);
+                    }
+                } else if ev.is_key_down(VK_CONTROL) && ev.code.is_ascii_digit() {
+                    unsafe {
+                        chewing_handle_CtrlNum(ctx, ev.code as i32);
+                    }
+                } else if ev.is_key_toggled(VK_NUMLOCK) && ev.is_num_pad() {
+                    unsafe {
+                        chewing_handle_Numlock(ctx, ev.code as i32);
+                    }
+                } else {
+                    unsafe {
+                        chewing_handle_Default(ctx, ev.code as i32);
+                    }
+                }
+            }
+        } else {
+            let mut key_handled = false;
+            if self.cfg.cursor_cand_list && self.is_showing_candidates {
+                // TODO
+            }
+
+            if !key_handled {
+                match VIRTUAL_KEY(ev.vk) {
+                    VK_ESCAPE => unsafe {
+                        chewing_handle_Esc(ctx);
+                    },
+                    VK_RETURN => unsafe {
+                        chewing_handle_Enter(ctx);
+                    },
+                    VK_TAB => unsafe {
+                        chewing_handle_Tab(ctx);
+                    },
+                    VK_DELETE => unsafe {
+                        chewing_handle_Del(ctx);
+                    },
+                    VK_BACK => unsafe {
+                        chewing_handle_Backspace(ctx);
+                    },
+                    VK_UP => unsafe {
+                        chewing_handle_Up(ctx);
+                    },
+                    VK_DOWN => unsafe {
+                        chewing_handle_Down(ctx);
+                    },
+                    VK_LEFT => unsafe {
+                        chewing_handle_Left(ctx);
+                    },
+                    VK_RIGHT => unsafe {
+                        chewing_handle_Right(ctx);
+                    },
+                    VK_HOME => unsafe {
+                        chewing_handle_Home(ctx);
+                    },
+                    VK_END => unsafe {
+                        chewing_handle_End(ctx);
+                    },
+                    VK_PRIOR => unsafe {
+                        chewing_handle_PageUp(ctx);
+                    },
+                    VK_NEXT => unsafe {
+                        chewing_handle_PageDown(ctx);
+                    }
+                    _ => return false,
+                }
+            }
+        }
+
+        if let Err(error) = self.update_lang_buttons() {
+            error!("unable to update lang bar button: {error}")
+        }
+
+        if unsafe { chewing_keystroke_CheckIgnore(ctx) } == 1 {
+            return false;
+        }
+
         true
     }
 
@@ -306,8 +486,8 @@ impl ChewingTextService {
     fn free_chewing_context(&mut self) {}
 
     fn apply_config(&mut self) -> anyhow::Result<()> {
-        let mut cfg = Config::default();
-        cfg.load()?;
+        self.cfg.reload_if_needed()?;
+        let cfg = &self.cfg;
 
         if let Some(ctx) = &self.chewing_context {
             unsafe {

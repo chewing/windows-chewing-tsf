@@ -174,28 +174,28 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::down(wparam.0, lparam.0);
+        let ev = KeyEvent::down(wparam.0 as u16, lparam.0);
         let should_handle = ts.on_keydown(ev, true);
         Ok(should_handle.into())
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::up(wparam.0, lparam.0);
+        let ev = KeyEvent::up(wparam.0 as u16, lparam.0);
         let should_handle = ts.on_keyup(ev, true);
         Ok(should_handle.into())
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::down(wparam.0, lparam.0);
+        let ev = KeyEvent::down(wparam.0 as u16, lparam.0);
         let handled = ts.on_keydown(ev, false);
         Ok(handled.into())
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::up(wparam.0, lparam.0);
+        let ev = KeyEvent::up(wparam.0 as u16, lparam.0);
         let handled = ts.on_keyup(ev, false);
         Ok(handled.into())
     }
