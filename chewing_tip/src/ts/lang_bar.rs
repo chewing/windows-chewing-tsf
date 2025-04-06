@@ -30,6 +30,7 @@ pub(super) struct LangBarButton {
     status: Cell<u32>,
     tooltip: BSTR,
     icon: Cell<HICON>,
+    // FIXME now we are pure rust we can model the lifetime properly
     /// borrowed - we don't own this menu
     menu: HMENU,
     command_id: u32,

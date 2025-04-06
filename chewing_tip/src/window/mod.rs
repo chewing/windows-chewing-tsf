@@ -2,7 +2,6 @@ use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::HashMap,
     ffi::{c_int, c_uint, c_void},
-    ptr::null_mut,
 };
 
 use windows::Win32::Foundation::*;
@@ -61,45 +60,7 @@ impl Window {
     }
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn CreateImeWindow(ret: *mut *mut c_void) {
-    let window: IWindow = Window::new().into();
-    unsafe { ret.write(window.into_raw()) }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn ImeWindowFromHwnd(hwnd: HWND) -> *mut IWindow {
-    HWND_MAP.with_borrow(|hwnd_map| {
-        if let Some(window) = hwnd_map.get(&hwnd.0).and_then(Weak::upgrade) {
-            window.clone().into_raw().cast()
-        } else {
-            null_mut()
-        }
-    })
-}
-
 pub(crate) fn window_register_class(hinstance: HINSTANCE) -> bool {
-    MODULE_HINSTANCE.with(|hinst_cell| {
-        let hinst = hinst_cell.get_or_init(|| hinstance);
-        let wc = WNDCLASSEXW {
-            cbSize: size_of::<WNDCLASSEXW>() as u32,
-            style: CS_IME,
-            lpfnWndProc: Some(wnd_proc),
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hInstance: *hinst,
-            hCursor: unsafe { LoadCursorW(None, IDC_ARROW).expect("failed to load cursor") },
-            lpszMenuName: PCWSTR::null(),
-            lpszClassName: w!("LibIme2Window"),
-            ..Default::default()
-        };
-
-        unsafe { RegisterClassExW(&wc) > 0 }
-    })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn ImeWindowRegisterClass(hinstance: HINSTANCE) -> bool {
     MODULE_HINSTANCE.with(|hinst_cell| {
         let hinst = hinst_cell.get_or_init(|| hinstance);
         let wc = WNDCLASSEXW {

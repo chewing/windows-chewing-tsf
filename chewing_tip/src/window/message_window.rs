@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    ffi::{c_int, c_uint, c_void},
+    ffi::{c_int, c_uint},
     ops::Deref,
     path::Path,
 };
@@ -99,29 +99,6 @@ impl MessageWindow {
             message_window
         }
     }
-
-    // pub(crate) fn set_font_size(&self, font_size: i32) {
-    //     unsafe {
-    //         self.text_format.replace(
-    //             self.dwrite_factory
-    //                 .CreateTextFormat(
-    //                     w!("Segoe UI"),
-    //                     None,
-    //                     DWRITE_FONT_WEIGHT_NORMAL,
-    //                     DWRITE_FONT_STYLE_NORMAL,
-    //                     DWRITE_FONT_STRETCH_NORMAL,
-    //                     font_size as f32,
-    //                     w!(""),
-    //                 )
-    //                 .unwrap(),
-    //         );
-    //     }
-    // }
-
-    // pub(crate) fn set_text(&self, text: HSTRING) {
-    //     self.text.replace(text);
-    //     self.recalculate_size().unwrap();
-    // }
 
     fn recalculate_size(&self) -> Result<()> {
         let text_layout = unsafe {
@@ -272,61 +249,6 @@ impl MessageWindow {
         }
 
         Ok(())
-    }
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn CreateMessageWindow(parent: HWND, image_path: PCWSTR, ret: *mut *mut c_void) {
-    unsafe {
-        let window = Window::new().into_object();
-        window.create(
-            parent,
-            (WS_POPUP | WS_CLIPCHILDREN).0,
-            (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
-        );
-
-        let factory: ID2D1Factory1 = D2D1CreateFactory(
-            D2D1_FACTORY_TYPE_SINGLE_THREADED,
-            Some(&D2D1_FACTORY_OPTIONS::default()),
-        )
-        .expect("failed to create Direct2D factory");
-
-        let mut dpi = 0.0;
-        let mut dpiy = 0.0;
-        factory.GetDesktopDpi(&mut dpi, &mut dpiy);
-
-        let dwrite_factory: IDWriteFactory1 =
-            DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
-        let text_format = dwrite_factory
-            .CreateTextFormat(
-                w!("Segoe UI"),
-                None,
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                16.0,
-                w!(""),
-            )
-            .unwrap();
-
-        let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
-
-        let message_window = MessageWindow {
-            text: RefCell::new(h!("").to_owned()),
-            factory,
-            dwrite_factory,
-            text_format: RefCell::new(text_format),
-            dcomptarget: None.into(),
-            target: None.into(),
-            swapchain: None.into(),
-            brush: None.into(),
-            nine_patch_bitmap,
-            dpi,
-            window,
-        }
-        .into_object();
-        Window::register_hwnd(message_window.hwnd(), message_window.to_interface());
-        ret.write(message_window.into_interface::<IMessageWindow>().into_raw())
     }
 }
 

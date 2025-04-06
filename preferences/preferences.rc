@@ -11,7 +11,7 @@
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON                ICON                    "../chewing_tip/im.chewing.Chewing.ico"
+IDI_ICON                ICON                    "../chewing_tip/rc/im.chewing.Chewing.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //

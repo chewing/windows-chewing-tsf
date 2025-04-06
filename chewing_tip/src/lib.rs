@@ -9,7 +9,6 @@ use windows_core::{ComObjectInner, GUID, HRESULT, IUnknown, Interface};
 
 mod com;
 mod gfx;
-mod lang_bar;
 mod ts;
 mod window;
 
