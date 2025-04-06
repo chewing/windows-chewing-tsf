@@ -3,6 +3,7 @@ use std::{
     cell::{Cell, RefCell},
     ffi::{c_int, c_uint, c_void},
     ops::Deref,
+    path::Path,
 };
 
 use windows::Win32::Foundation::*;
@@ -22,9 +23,9 @@ use super::{IWindow, IWindow_Impl, IWindow_Vtbl, Window};
 use crate::gfx::*;
 
 #[interface("d4eee9d6-60a0-4169-b3b8-d99f66ebe61a")]
-unsafe trait ICandidateWindow: IWindow {
-    fn set_font_size(&self, font_size: u32);
-    fn add(&self, item: PCWSTR, sel_key: u16);
+pub(crate) unsafe trait ICandidateWindow: IWindow {
+    fn set_font_size(&self, font_size: i32);
+    fn add(&self, item: HSTRING, sel_key: u16);
     fn current_sel_key(&self) -> u16;
     fn clear(&self);
     fn set_cand_per_row(&self, n: c_int);
@@ -36,7 +37,7 @@ unsafe trait ICandidateWindow: IWindow {
 
 #[derive(Debug)]
 #[implement(ICandidateWindow, IWindow, ITfUIElement, ITfCandidateListUIElement)]
-struct CandidateWindow {
+pub(crate) struct CandidateWindow {
     items: RefCell<Vec<HSTRING>>,
     sel_keys: RefCell<Vec<u16>>,
     current_sel: Cell<usize>,
@@ -62,6 +63,68 @@ const ROW_SPACING: u32 = 4;
 const COL_SPACING: u32 = 8;
 
 impl CandidateWindow {
+    pub(crate) fn new(parent: HWND, image_path: &Path) -> ComObject<CandidateWindow> {
+        unsafe {
+            let window = Window::new().into_object();
+            window.create(
+                parent,
+                (WS_POPUP | WS_CLIPCHILDREN).0,
+                (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
+            );
+
+            let factory: ID2D1Factory1 = D2D1CreateFactory(
+                D2D1_FACTORY_TYPE_SINGLE_THREADED,
+                Some(&D2D1_FACTORY_OPTIONS::default()),
+            )
+            .expect("failed to create Direct2D factory");
+
+            let mut dpi = 0.0;
+            let mut dpiy = 0.0;
+            factory.GetDesktopDpi(&mut dpi, &mut dpiy);
+
+            let dwrite_factory: IDWriteFactory1 =
+                DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
+            let text_format = dwrite_factory
+                .CreateTextFormat(
+                    w!("Segoe UI"),
+                    None,
+                    DWRITE_FONT_WEIGHT_NORMAL,
+                    DWRITE_FONT_STYLE_NORMAL,
+                    DWRITE_FONT_STRETCH_NORMAL,
+                    16.0,
+                    w!(""),
+                )
+                .unwrap();
+
+            let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
+            let nine_patch_bitmap = NinePatchBitmap::new(&image_path).unwrap();
+
+            let candidate_window = CandidateWindow {
+                items: RefCell::new(vec![]),
+                sel_keys: RefCell::new(vec![]),
+                current_sel: Cell::new(0),
+                has_result: Cell::new(false),
+                cand_per_row: Cell::new(10),
+                use_cursor: Cell::new(true),
+                selkey_width: Cell::new(0.0),
+                text_width: Cell::new(0.0),
+                item_height: Cell::new(0.0),
+                factory,
+                dwrite_factory,
+                text_format: RefCell::new(text_format),
+                dcomptarget: None.into(),
+                target: None.into(),
+                swapchain: None.into(),
+                brush: None.into(),
+                nine_patch_bitmap,
+                dpi,
+                window,
+            }
+            .into_object();
+            Window::register_hwnd(candidate_window.hwnd(), candidate_window.to_interface());
+            candidate_window
+        }
+    }
     fn recalculate_size(&self) -> Result<()> {
         let margin = self.nine_patch_bitmap.margin().ceil();
         if self.items.borrow().is_empty() {
@@ -99,7 +162,7 @@ impl CandidateWindow {
                     .GetMetrics(&mut selkey_metrics)?;
 
                 self.dwrite_factory
-                    .CreateTextLayout(&text, self.text_format.borrow().deref(), f32::MAX, f32::MAX)?
+                    .CreateTextLayout(text, self.text_format.borrow().deref(), f32::MAX, f32::MAX)?
                     .GetMetrics(&mut item_metrics)?;
             }
 
@@ -292,7 +355,7 @@ impl CandidateWindow {
             if self.use_cursor.get() && i == self.current_sel.get() {
                 dc.FillRectangle(&text_rect, &text_brush);
                 dc.DrawText(
-                    &item,
+                    item,
                     self.text_format.borrow().deref(),
                     &text_rect,
                     &selected_text_brush,
@@ -301,7 +364,7 @@ impl CandidateWindow {
                 );
             } else {
                 dc.DrawText(
-                    &item,
+                    item,
                     self.text_format.borrow().deref(),
                     &text_rect,
                     &text_brush,
@@ -387,7 +450,7 @@ unsafe extern "C" fn CreateCandidateWindow(
 }
 
 impl ICandidateWindow_Impl for CandidateWindow_Impl {
-    unsafe fn set_font_size(&self, font_size: u32) {
+    unsafe fn set_font_size(&self, font_size: i32) {
         unsafe {
             self.text_format.replace(
                 self.dwrite_factory
@@ -405,11 +468,9 @@ impl ICandidateWindow_Impl for CandidateWindow_Impl {
         }
     }
 
-    unsafe fn add(&self, item: PCWSTR, sel_key: u16) {
-        unsafe {
-            self.items.borrow_mut().push(item.to_hstring());
-            self.sel_keys.borrow_mut().push(sel_key);
-        }
+    unsafe fn add(&self, item: HSTRING, sel_key: u16) {
+        self.items.borrow_mut().push(item);
+        self.sel_keys.borrow_mut().push(sel_key);
     }
 
     unsafe fn current_sel_key(&self) -> u16 {

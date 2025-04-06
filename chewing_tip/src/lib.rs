@@ -1,47 +1,43 @@
-use std::ffi::{c_int, c_long, c_void};
+use std::{
+    ffi::{c_int, c_void},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
-mod display_attribute;
+use com::CClassFactory;
+use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTACH};
+use windows_core::{ComObjectInner, GUID, HRESULT, IUnknown, Interface};
+
+mod com;
 mod gfx;
 mod lang_bar;
+mod ts;
 mod window;
 
-// Force linking chewing_capi
-#[allow(unused_imports)]
-use chewing_capi::setup::chewing_new;
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn LibIME2Init() {
-    win_dbg_logger::rust_win_dbg_logger_init_info();
-    log::debug!("libIME2 initialized");
-}
-
-unsafe extern "C" {
-    unsafe fn DllMain_cpp(
-        hmodule: *const c_void,
-        ul_reason_for_call: u32,
-        reserved: *const c_void,
-    ) -> c_int;
-    unsafe fn DllGetClassObject_cpp(
-        rclsid: *const c_void,
-        riid: *const c_void,
-        ppv_obj: *mut *mut c_void,
-    ) -> c_long;
-}
+static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
 pub unsafe extern "stdcall" fn DllMain(
-    hmodule: *const c_void,
+    hmodule: *mut c_void,
     ul_reason_for_call: u32,
-    reserved: *const c_void,
+    _reserved: *const c_void,
 ) -> c_int {
-    unsafe { DllMain_cpp(hmodule, ul_reason_for_call, reserved) }
+    if let DLL_PROCESS_ATTACH = ul_reason_for_call {
+        let g_hinstance = G_HINSTANCE.load(Ordering::Relaxed);
+        if g_hinstance == 0 {
+            G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
+            win_dbg_logger::rust_win_dbg_logger_init_info();
+            log::info!("chewing_tip initialized");
+        }
+    }
+    TRUE.0
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "stdcall" fn DllGetClassObject(
-    rclsid: *const c_void,
-    riid: *const c_void,
+    _rclsid: *const c_void,
+    riid: *const GUID,
     ppv_obj: *mut *mut c_void,
-) -> c_long {
-    unsafe { DllGetClassObject_cpp(rclsid, riid, ppv_obj) }
+) -> HRESULT {
+    let factory: IUnknown = CClassFactory::new().into_object().into_interface();
+    unsafe { factory.query(riid, ppv_obj) }
 }

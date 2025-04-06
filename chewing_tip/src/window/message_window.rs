@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     ffi::{c_int, c_uint, c_void},
     ops::Deref,
+    path::Path,
 };
 
 use windows::Win32::Foundation::*;
@@ -21,14 +22,14 @@ use crate::gfx::*;
 const ID_TIMEOUT: usize = 1;
 
 #[interface("7375ef7b-4564-46eb-b8d1-e27228428623")]
-unsafe trait IMessageWindow: IWindow {
-    fn set_font_size(&self, font_size: u32);
-    fn set_text(&self, text: PCWSTR);
+pub(crate) unsafe trait IMessageWindow: IWindow {
+    fn set_font_size(&self, font_size: i32);
+    fn set_text(&self, text: HSTRING);
 }
 
 #[derive(Debug)]
 #[implement(IMessageWindow, IWindow)]
-struct MessageWindow {
+pub(crate) struct MessageWindow {
     text: RefCell<HSTRING>,
     factory: ID2D1Factory1,
     dwrite_factory: IDWriteFactory1,
@@ -43,6 +44,85 @@ struct MessageWindow {
 }
 
 impl MessageWindow {
+    pub(crate) fn new(parent: HWND, image_path: &Path) -> ComObject<MessageWindow> {
+        unsafe {
+            let window = Window::new().into_object();
+            window.create(
+                parent,
+                (WS_POPUP | WS_CLIPCHILDREN).0,
+                (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
+            );
+
+            let factory: ID2D1Factory1 = D2D1CreateFactory(
+                D2D1_FACTORY_TYPE_SINGLE_THREADED,
+                Some(&D2D1_FACTORY_OPTIONS::default()),
+            )
+            // FIXME dont panic
+            .expect("failed to create Direct2D factory");
+
+            let mut dpi = 0.0;
+            let mut dpiy = 0.0;
+            factory.GetDesktopDpi(&mut dpi, &mut dpiy);
+
+            let dwrite_factory: IDWriteFactory1 =
+                DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
+            let text_format = dwrite_factory
+                .CreateTextFormat(
+                    w!("Segoe UI"),
+                    None,
+                    DWRITE_FONT_WEIGHT_NORMAL,
+                    DWRITE_FONT_STYLE_NORMAL,
+                    DWRITE_FONT_STRETCH_NORMAL,
+                    16.0,
+                    w!(""),
+                )
+                .unwrap();
+
+            let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
+            let nine_patch_bitmap = NinePatchBitmap::new(&image_path).unwrap();
+
+            let message_window = MessageWindow {
+                text: RefCell::new(h!("").to_owned()),
+                factory,
+                dwrite_factory,
+                text_format: RefCell::new(text_format),
+                dcomptarget: None.into(),
+                target: None.into(),
+                swapchain: None.into(),
+                brush: None.into(),
+                nine_patch_bitmap,
+                dpi,
+                window,
+            }
+            .into_object();
+            Window::register_hwnd(message_window.hwnd(), message_window.to_interface());
+            message_window
+        }
+    }
+
+    // pub(crate) fn set_font_size(&self, font_size: i32) {
+    //     unsafe {
+    //         self.text_format.replace(
+    //             self.dwrite_factory
+    //                 .CreateTextFormat(
+    //                     w!("Segoe UI"),
+    //                     None,
+    //                     DWRITE_FONT_WEIGHT_NORMAL,
+    //                     DWRITE_FONT_STYLE_NORMAL,
+    //                     DWRITE_FONT_STRETCH_NORMAL,
+    //                     font_size as f32,
+    //                     w!(""),
+    //                 )
+    //                 .unwrap(),
+    //         );
+    //     }
+    // }
+
+    // pub(crate) fn set_text(&self, text: HSTRING) {
+    //     self.text.replace(text);
+    //     self.recalculate_size().unwrap();
+    // }
+
     fn recalculate_size(&self) -> Result<()> {
         let text_layout = unsafe {
             self.dwrite_factory.CreateTextLayout(
@@ -335,7 +415,7 @@ impl IWindow_Impl for MessageWindow_Impl {
 }
 
 impl IMessageWindow_Impl for MessageWindow_Impl {
-    unsafe fn set_font_size(&self, font_size: u32) {
+    unsafe fn set_font_size(&self, font_size: i32) {
         unsafe {
             self.text_format.replace(
                 self.dwrite_factory
@@ -352,9 +432,9 @@ impl IMessageWindow_Impl for MessageWindow_Impl {
             );
         }
     }
-    unsafe fn set_text(&self, text: PCWSTR) {
+    unsafe fn set_text(&self, text: HSTRING) {
         unsafe {
-            self.text.replace(text.to_hstring());
+            self.text.replace(text);
             self.recalculate_size().unwrap();
             if self.is_visible() {
                 self.refresh();

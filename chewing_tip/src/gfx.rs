@@ -25,7 +25,10 @@ pub(crate) struct NinePatchBitmap {
 }
 
 impl NinePatchBitmap {
-    pub(crate) fn new(image_path: PCWSTR) -> Result<NinePatchBitmap> {
+    pub(crate) fn new<P0>(image_path: P0) -> Result<NinePatchBitmap>
+    where
+        P0: Param<PCWSTR>,
+    {
         unsafe {
             let wicfactory: IWICImagingFactory =
                 CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)?;
