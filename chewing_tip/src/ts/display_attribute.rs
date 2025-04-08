@@ -1,9 +1,8 @@
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::ffi::c_void;
 use std::sync::RwLock;
 
-use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, E_NOTIMPL, S_FALSE, S_OK};
+use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, E_NOTIMPL, S_FALSE};
 use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
@@ -11,7 +10,7 @@ use windows::Win32::UI::TextServices::{
     ITfCategoryMgr, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl,
     ITfDisplayAttributeProvider, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE,
 };
-use windows_core::{BSTR, ComObjectInner, GUID, HRESULT, Interface, Result, implement};
+use windows_core::{BSTR, GUID, Result, implement};
 
 static ATTRS: RwLock<BTreeMap<u128, TF_DISPLAYATTRIBUTE>> = RwLock::new(BTreeMap::new());
 
@@ -67,52 +66,6 @@ pub(super) fn get_display_attribute_info(guid: *const GUID) -> Result<ITfDisplay
         }
     }
     Err(E_FAIL.into())
-}
-
-fn ffi_register_display_attribute(
-    guid: *const GUID,
-    da: TF_DISPLAYATTRIBUTE,
-    atom_out: *mut u32,
-) -> Result<()> {
-    if guid.is_null() || atom_out.is_null() {
-        return Err(E_INVALIDARG.into());
-    }
-    unsafe {
-        let category_manager: ITfCategoryMgr =
-            CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-        let atom = category_manager.RegisterGUID(guid)?;
-        if let Ok(mut attrs) = ATTRS.write() {
-            attrs.insert((*guid).to_u128(), da);
-        } else {
-            return Err(E_FAIL.into());
-        }
-        atom_out.write(atom);
-    }
-    Ok(())
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn RegisterDisplayAttribute(
-    guid: *const GUID,
-    da: TF_DISPLAYATTRIBUTE,
-    atom_out: *mut u32,
-) -> HRESULT {
-    match ffi_register_display_attribute(guid, da, atom_out) {
-        Ok(_) => S_OK,
-        Err(e) => e.into(),
-    }
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn CreateDisplayAttributeProvider(ret: *mut *mut c_void) {
-    unsafe {
-        ret.write(
-            DisplayAttributeProvider
-                .into_object()
-                .into_interface::<ITfDisplayAttributeProvider>()
-                .into_raw(),
-        )
-    }
 }
 
 #[derive(Debug, Default)]

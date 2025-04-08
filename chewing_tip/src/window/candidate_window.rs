@@ -1,7 +1,7 @@
 use core::f32;
 use std::{
     cell::{Cell, RefCell},
-    ffi::{c_int, c_uint, c_void},
+    ffi::{c_int, c_uint},
     ops::Deref,
     path::Path,
 };
@@ -375,77 +375,6 @@ impl CandidateWindow {
         }
 
         Ok(())
-    }
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn CreateCandidateWindow(
-    parent: HWND,
-    image_path: PCWSTR,
-    ret: *mut *mut c_void,
-) {
-    unsafe {
-        let window = Window::new().into_object();
-        window.create(
-            parent,
-            (WS_POPUP | WS_CLIPCHILDREN).0,
-            (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
-        );
-
-        let factory: ID2D1Factory1 = D2D1CreateFactory(
-            D2D1_FACTORY_TYPE_SINGLE_THREADED,
-            Some(&D2D1_FACTORY_OPTIONS::default()),
-        )
-        .expect("failed to create Direct2D factory");
-
-        let mut dpi = 0.0;
-        let mut dpiy = 0.0;
-        factory.GetDesktopDpi(&mut dpi, &mut dpiy);
-
-        let dwrite_factory: IDWriteFactory1 =
-            DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
-        let text_format = dwrite_factory
-            .CreateTextFormat(
-                w!("Segoe UI"),
-                None,
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                16.0,
-                w!(""),
-            )
-            .unwrap();
-
-        let nine_patch_bitmap = NinePatchBitmap::new(image_path).unwrap();
-
-        let candidate_window = CandidateWindow {
-            items: RefCell::new(vec![]),
-            sel_keys: RefCell::new(vec![]),
-            current_sel: Cell::new(0),
-            has_result: Cell::new(false),
-            cand_per_row: Cell::new(10),
-            use_cursor: Cell::new(true),
-            selkey_width: Cell::new(0.0),
-            text_width: Cell::new(0.0),
-            item_height: Cell::new(0.0),
-            factory,
-            dwrite_factory,
-            text_format: RefCell::new(text_format),
-            dcomptarget: None.into(),
-            target: None.into(),
-            swapchain: None.into(),
-            brush: None.into(),
-            nine_patch_bitmap,
-            dpi,
-            window,
-        }
-        .into_object();
-        Window::register_hwnd(candidate_window.hwnd(), candidate_window.to_interface());
-        ret.write(
-            candidate_window
-                .into_interface::<ICandidateWindow>()
-                .into_raw(),
-        )
     }
 }
 

@@ -14,7 +14,7 @@ mkdir build\installer
 mkdir build\installer\assets
 copy assets\* build\installer\assets\
 copy installer\* build\installer\
-copy chewing_tip\im.chewing.Chewing.ico build\installer\chewing.ico
+copy chewing_tip\rc\im.chewing.Chewing.ico build\installer\chewing.ico
 mkdir build\installer\Dictionary
 copy libchewing\data\*.dat build\installer\Dictionary\
 copy build\x86\libchewing\data\*.dat build\installer\Dictionary\

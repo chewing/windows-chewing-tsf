@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24.0)
 
-project(windows-chewing-tsf LANGUAGES CXX)
+project(windows-chewing-tsf)
 
 add_subdirectory(libchewing)
 

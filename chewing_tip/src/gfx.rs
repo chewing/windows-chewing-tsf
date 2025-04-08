@@ -19,13 +19,13 @@ use windows::core::*;
 use windows_numerics::Matrix3x2;
 
 #[derive(Debug)]
-pub(crate) struct NinePatchBitmap {
+pub(super) struct NinePatchBitmap {
     bitmap: IWICBitmap,
     nine_patch: NinePatchDrawable,
 }
 
 impl NinePatchBitmap {
-    pub(crate) fn new<P0>(image_path: P0) -> Result<NinePatchBitmap>
+    pub(super) fn new<P0>(image_path: P0) -> Result<NinePatchBitmap>
     where
         P0: Param<PCWSTR>,
     {
@@ -95,7 +95,7 @@ impl NinePatchBitmap {
             Ok(NinePatchBitmap { bitmap, nine_patch })
         }
     }
-    pub(crate) fn draw_bitmap(&self, dc: &ID2D1DeviceContext, rect: D2D_RECT_F) -> Result<()> {
+    pub(super) fn draw_bitmap(&self, dc: &ID2D1DeviceContext, rect: D2D_RECT_F) -> Result<()> {
         unsafe {
             let bitmap = dc.CreateBitmapFromWicBitmap(&self.bitmap, None)?;
             let patches = self.nine_patch.scale_to(
@@ -127,12 +127,12 @@ impl NinePatchBitmap {
             Ok(())
         }
     }
-    pub(crate) fn margin(&self) -> f32 {
+    pub(super) fn margin(&self) -> f32 {
         self.nine_patch.margin_top
     }
 }
 
-pub(crate) fn create_color(gdi_color_index: SYS_COLOR_INDEX) -> D2D1_COLOR_F {
+pub(super) fn create_color(gdi_color_index: SYS_COLOR_INDEX) -> D2D1_COLOR_F {
     let color = unsafe { GetSysColor(gdi_color_index) };
     D2D1_COLOR_F {
         r: (color & 0xFF) as f32 / 255.0,
@@ -142,7 +142,7 @@ pub(crate) fn create_color(gdi_color_index: SYS_COLOR_INDEX) -> D2D1_COLOR_F {
     }
 }
 
-pub(crate) fn create_brush(
+pub(super) fn create_brush(
     target: &ID2D1DeviceContext,
     color: D2D1_COLOR_F,
 ) -> Result<ID2D1SolidColorBrush> {
@@ -154,7 +154,7 @@ pub(crate) fn create_brush(
     unsafe { target.CreateSolidColorBrush(&color, Some(&properties)) }
 }
 
-pub(crate) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
+pub(super) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
     let flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
     let mut device = None;
@@ -175,7 +175,7 @@ pub(crate) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3
     }
 }
 
-pub(crate) fn create_device() -> Result<ID3D11Device> {
+pub(super) fn create_device() -> Result<ID3D11Device> {
     let mut result = create_device_with_type(D3D_DRIVER_TYPE_HARDWARE);
 
     if let Err(err) = &result {
@@ -187,7 +187,7 @@ pub(crate) fn create_device() -> Result<ID3D11Device> {
     result
 }
 
-pub(crate) fn create_render_target(
+pub(super) fn create_render_target(
     factory: &ID2D1Factory1,
     device: &ID3D11Device,
 ) -> Result<ID2D1DeviceContext> {
@@ -202,12 +202,12 @@ pub(crate) fn create_render_target(
     }
 }
 
-pub(crate) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
+pub(super) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
     let dxdevice = device.cast::<IDXGIDevice>()?;
     unsafe { dxdevice.GetAdapter()?.GetParent() }
 }
 
-pub(crate) fn create_swapchain_bitmap(
+pub(super) fn create_swapchain_bitmap(
     swapchain: &IDXGISwapChain1,
     target: &ID2D1DeviceContext,
     dpi: f32,
@@ -233,7 +233,7 @@ pub(crate) fn create_swapchain_bitmap(
     Ok(())
 }
 
-pub(crate) fn create_swapchain(
+pub(super) fn create_swapchain(
     device: &ID3D11Device,
     width: u32,
     height: u32,
@@ -258,7 +258,7 @@ pub(crate) fn create_swapchain(
     unsafe { factory.CreateSwapChainForComposition(device, &props, None) }
 }
 
-pub(crate) fn setup_direct_composition(
+pub(super) fn setup_direct_composition(
     device: &ID3D11Device,
     window: HWND,
     swapchain: &IDXGISwapChain,

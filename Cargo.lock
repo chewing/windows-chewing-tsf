@@ -797,10 +797,9 @@ dependencies = [
 [[package]]
 name = "chewing"
 version = "0.9.1"
-source = "git+https://github.com/chewing/libchewing?branch=feat-dictionary-mgmt-api#95f6eeb9e4133de6e4900f47174edfd04e564b45"
+source = "git+https://github.com/chewing/libchewing#84cd5828a3ba97cddb42e317504fe5cfbdfb208c"
 dependencies = [
  "der",
- "directories",
  "log",
  "rusqlite",
 ]
@@ -810,7 +809,7 @@ name = "chewing-preferences"
 version = "24.10.1"
 dependencies = [
  "anyhow",
- "chewing 0.9.1 (git+https://github.com/chewing/libchewing?branch=feat-dictionary-mgmt-api)",
+ "chewing 0.9.1 (git+https://github.com/chewing/libchewing)",
  "embed-resource",
  "slint",
  "slint-build",
