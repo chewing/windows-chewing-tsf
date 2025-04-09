@@ -3,6 +3,7 @@ use std::{
     ffi::{c_int, c_uint},
     ops::Deref,
     path::Path,
+    rc::Rc,
 };
 
 use windows::Win32::Foundation::*;
@@ -16,19 +17,12 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::*;
 
-use super::{IWindow, IWindow_Impl, IWindow_Vtbl, Window};
+use super::{Window, WndProc};
 use crate::gfx::*;
 
 const ID_TIMEOUT: usize = 1;
 
-#[interface("7375ef7b-4564-46eb-b8d1-e27228428623")]
-pub(crate) unsafe trait IMessageWindow: IWindow {
-    fn set_font_size(&self, font_size: i32);
-    fn set_text(&self, text: HSTRING);
-}
-
 #[derive(Debug)]
-#[implement(IMessageWindow, IWindow)]
 pub(crate) struct MessageWindow {
     text: RefCell<HSTRING>,
     factory: ID2D1Factory1,
@@ -40,13 +34,13 @@ pub(crate) struct MessageWindow {
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
     nine_patch_bitmap: NinePatchBitmap,
     dpi: f32,
-    window: ComObject<Window>,
+    window: Window,
 }
 
 impl MessageWindow {
-    pub(crate) fn new(parent: HWND, image_path: &Path) -> ComObject<MessageWindow> {
+    pub(crate) fn new(parent: HWND, image_path: &Path) -> Rc<MessageWindow> {
         unsafe {
-            let window = Window::new().into_object();
+            let window = Window::new();
             window.create(
                 parent,
                 (WS_POPUP | WS_CLIPCHILDREN).0,
@@ -81,7 +75,7 @@ impl MessageWindow {
             let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
             let nine_patch_bitmap = NinePatchBitmap::new(&image_path).unwrap();
 
-            let message_window = MessageWindow {
+            let message_window = Rc::new(MessageWindow {
                 text: RefCell::new(h!("").to_owned()),
                 factory,
                 dwrite_factory,
@@ -93,11 +87,25 @@ impl MessageWindow {
                 nine_patch_bitmap,
                 dpi,
                 window,
-            }
-            .into_object();
-            Window::register_hwnd(message_window.hwnd(), message_window.to_interface());
+            });
+            Window::register_hwnd(
+                message_window.hwnd(),
+                Rc::clone(&message_window) as Rc<dyn WndProc>,
+            );
             message_window
         }
+    }
+
+    pub(crate) fn r#move(&self, x: c_int, y: c_int) {
+        self.window.r#move(x, y);
+    }
+
+    pub(crate) fn hwnd(&self) -> HWND {
+        self.window.hwnd()
+    }
+
+    pub(crate) fn show(&self) {
+        self.window.show()
     }
 
     fn recalculate_size(&self) -> Result<()> {
@@ -250,94 +258,7 @@ impl MessageWindow {
 
         Ok(())
     }
-}
-
-impl IWindow_Impl for MessageWindow_Impl {
-    unsafe fn hwnd(&self) -> HWND {
-        unsafe { self.window.hwnd() }
-    }
-
-    unsafe fn create(&self, parent: HWND, style: u32, ex_style: u32) -> bool {
-        unsafe { self.window.create(parent, style, ex_style) }
-    }
-
-    unsafe fn destroy(&self) {
-        unsafe { self.window.destroy() }
-    }
-
-    unsafe fn is_visible(&self) -> bool {
-        unsafe { self.window.is_visible() }
-    }
-
-    unsafe fn is_window(&self) -> bool {
-        unsafe { self.window.is_window() }
-    }
-
-    unsafe fn r#move(&self, x: c_int, y: c_int) {
-        unsafe {
-            self.window.r#move(x, y);
-        }
-    }
-
-    unsafe fn size(&self, width: *mut c_int, height: *mut c_int) {
-        unsafe { self.window.size(width, height) }
-    }
-
-    unsafe fn resize(&self, width: c_int, height: c_int) {
-        unsafe { self.window.resize(width, height) }
-    }
-
-    unsafe fn client_rect(&self, rect: *mut RECT) {
-        unsafe { self.window.client_rect(rect) }
-    }
-
-    unsafe fn rect(&self, rect: *mut RECT) {
-        unsafe { self.window.rect(rect) }
-    }
-
-    unsafe fn show(&self) {
-        unsafe { self.window.show() }
-    }
-
-    unsafe fn hide(&self) {
-        unsafe { self.window.hide() }
-    }
-
-    unsafe fn refresh(&self) {
-        unsafe { self.window.refresh() }
-    }
-
-    unsafe fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
-        unsafe {
-            match msg {
-                WM_PAINT => {
-                    let mut ps = PAINTSTRUCT::default();
-                    BeginPaint(self.hwnd(), &mut ps);
-                    let _ = self.on_paint();
-                    let _ = EndPaint(self.hwnd(), &ps);
-                    LRESULT(0)
-                }
-                WM_TIMER => {
-                    if wp.0 == ID_TIMEOUT {
-                        self.hide();
-                        KillTimer(Some(self.hwnd()), ID_TIMEOUT).expect("failed to kill timer");
-                    }
-                    LRESULT(0)
-                }
-                WM_NCDESTROY => {
-                    self.target.take();
-                    self.swapchain.take();
-                    self.brush.take();
-                    LRESULT(0)
-                }
-                _ => self.window.wnd_proc(msg, wp, lp),
-            }
-        }
-    }
-}
-
-impl IMessageWindow_Impl for MessageWindow_Impl {
-    unsafe fn set_font_size(&self, font_size: i32) {
+    pub(crate) fn set_font_size(&self, font_size: i32) {
         unsafe {
             self.text_format.replace(
                 self.dwrite_factory
@@ -354,12 +275,40 @@ impl IMessageWindow_Impl for MessageWindow_Impl {
             );
         }
     }
-    unsafe fn set_text(&self, text: HSTRING) {
+    pub(crate) fn set_text(&self, text: HSTRING) {
+        self.text.replace(text);
+        self.recalculate_size().unwrap();
+        if self.window.is_visible() {
+            self.window.refresh();
+        }
+    }
+}
+
+impl WndProc for MessageWindow {
+    fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
         unsafe {
-            self.text.replace(text);
-            self.recalculate_size().unwrap();
-            if self.is_visible() {
-                self.refresh();
+            match msg {
+                WM_PAINT => {
+                    let mut ps = PAINTSTRUCT::default();
+                    BeginPaint(self.hwnd(), &mut ps);
+                    let _ = self.on_paint();
+                    let _ = EndPaint(self.hwnd(), &ps);
+                    LRESULT(0)
+                }
+                WM_TIMER => {
+                    if wp.0 == ID_TIMEOUT {
+                        self.window.hide();
+                        KillTimer(Some(self.hwnd()), ID_TIMEOUT).expect("failed to kill timer");
+                    }
+                    LRESULT(0)
+                }
+                WM_NCDESTROY => {
+                    self.target.take();
+                    self.swapchain.take();
+                    self.brush.take();
+                    LRESULT(0)
+                }
+                _ => self.window.wnd_proc(msg, wp, lp),
             }
         }
     }

@@ -4,6 +4,7 @@ use std::{
     ffi::{c_int, c_uint},
     ops::Deref,
     path::Path,
+    rc::Rc,
 };
 
 use windows::Win32::Foundation::*;
@@ -15,28 +16,13 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
-use windows::Win32::UI::TextServices::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::*;
 
-use super::{IWindow, IWindow_Impl, IWindow_Vtbl, Window};
+use super::{Window, WndProc};
 use crate::gfx::*;
 
-#[interface("d4eee9d6-60a0-4169-b3b8-d99f66ebe61a")]
-pub(crate) unsafe trait ICandidateWindow: IWindow {
-    fn set_font_size(&self, font_size: i32);
-    fn add(&self, item: HSTRING, sel_key: u16);
-    fn current_sel_key(&self) -> u16;
-    fn clear(&self);
-    fn set_cand_per_row(&self, n: c_int);
-    fn set_use_cursor(&self, r#use: bool);
-    fn filter_key_event(&self, key_event: u16) -> bool;
-    fn has_result(&self) -> bool;
-    fn recalculate_size(&self);
-}
-
 #[derive(Debug)]
-#[implement(ICandidateWindow, IWindow, ITfUIElement, ITfCandidateListUIElement)]
 pub(crate) struct CandidateWindow {
     items: RefCell<Vec<HSTRING>>,
     sel_keys: RefCell<Vec<u16>>,
@@ -56,16 +42,16 @@ pub(crate) struct CandidateWindow {
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
     nine_patch_bitmap: NinePatchBitmap,
     dpi: f32,
-    window: ComObject<Window>,
+    window: Window,
 }
 
 const ROW_SPACING: u32 = 4;
 const COL_SPACING: u32 = 8;
 
 impl CandidateWindow {
-    pub(crate) fn new(parent: HWND, image_path: &Path) -> ComObject<CandidateWindow> {
+    pub(crate) fn new(parent: HWND, image_path: &Path) -> Rc<CandidateWindow> {
         unsafe {
-            let window = Window::new().into_object();
+            let window = Window::new();
             window.create(
                 parent,
                 (WS_POPUP | WS_CLIPCHILDREN).0,
@@ -99,7 +85,7 @@ impl CandidateWindow {
             let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
             let nine_patch_bitmap = NinePatchBitmap::new(&image_path).unwrap();
 
-            let candidate_window = CandidateWindow {
+            let candidate_window = Rc::new(CandidateWindow {
                 items: RefCell::new(vec![]),
                 sel_keys: RefCell::new(vec![]),
                 current_sel: Cell::new(0),
@@ -119,20 +105,22 @@ impl CandidateWindow {
                 nine_patch_bitmap,
                 dpi,
                 window,
-            }
-            .into_object();
-            Window::register_hwnd(candidate_window.hwnd(), candidate_window.to_interface());
+            });
+            Window::register_hwnd(
+                candidate_window.window.hwnd(),
+                Rc::clone(&candidate_window) as Rc<dyn WndProc>,
+            );
             candidate_window
         }
     }
-    fn recalculate_size(&self) -> Result<()> {
+    pub(crate) fn recalculate_size(&self) -> Result<()> {
         let margin = self.nine_patch_bitmap.margin().ceil();
         if self.items.borrow().is_empty() {
             // Convert to HW pixels
             let width = 2.0 * margin * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
             let height = 2.0 * margin * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
 
-            unsafe { self.window.resize(width as i32, height as i32) };
+            self.window.resize(width as i32, height as i32);
             self.resize_swap_chain(width as u32, height as u32)?;
         }
 
@@ -188,7 +176,7 @@ impl CandidateWindow {
         let width = width * self.dpi as u32 / USER_DEFAULT_SCREEN_DPI;
         let height = height * self.dpi as u32 / USER_DEFAULT_SCREEN_DPI;
 
-        unsafe { self.window.resize(width as i32, height as i32) };
+        self.window.resize(width as i32, height as i32);
         self.resize_swap_chain(width, height)?;
 
         Ok(())
@@ -376,10 +364,7 @@ impl CandidateWindow {
 
         Ok(())
     }
-}
-
-impl ICandidateWindow_Impl for CandidateWindow_Impl {
-    unsafe fn set_font_size(&self, font_size: i32) {
+    pub(crate) fn set_font_size(&self, font_size: i32) {
         unsafe {
             self.text_format.replace(
                 self.dwrite_factory
@@ -397,151 +382,103 @@ impl ICandidateWindow_Impl for CandidateWindow_Impl {
         }
     }
 
-    unsafe fn add(&self, item: HSTRING, sel_key: u16) {
+    pub(crate) fn add(&self, item: HSTRING, sel_key: u16) {
         self.items.borrow_mut().push(item);
         self.sel_keys.borrow_mut().push(sel_key);
     }
 
-    unsafe fn current_sel_key(&self) -> u16 {
+    pub(crate) fn current_sel_key(&self) -> u16 {
         *self.sel_keys.borrow().get(self.current_sel.get()).unwrap()
     }
 
-    unsafe fn clear(&self) {
+    pub(crate) fn clear(&self) {
         self.items.borrow_mut().clear();
         self.sel_keys.borrow_mut().clear();
         self.current_sel.set(0);
         self.has_result.set(false);
     }
 
-    unsafe fn set_cand_per_row(&self, n: c_int) {
+    pub(crate) fn set_cand_per_row(&self, n: c_int) {
         if n as usize != self.cand_per_row.get() {
             self.cand_per_row.set(n as usize);
         }
     }
 
-    unsafe fn set_use_cursor(&self, r#use: bool) {
-        unsafe {
-            self.use_cursor.set(r#use);
-            if self.is_visible() {
-                self.refresh();
-            }
+    pub(crate) fn set_use_cursor(&self, r#use: bool) {
+        self.use_cursor.set(r#use);
+        if self.window.is_visible() {
+            self.window.refresh();
         }
     }
 
-    unsafe fn filter_key_event(&self, key_code: u16) -> bool {
-        unsafe {
-            let mut current_sel = self.current_sel.get();
-            let old_sel = self.current_sel.get();
-            let cand_per_row = self.cand_per_row.get();
-            match VIRTUAL_KEY(key_code) {
-                VK_UP => {
-                    if current_sel >= cand_per_row {
-                        current_sel -= cand_per_row;
-                    }
+    pub(crate) fn filter_key_event(&self, key_code: u16) -> bool {
+        let mut current_sel = self.current_sel.get();
+        let old_sel = self.current_sel.get();
+        let cand_per_row = self.cand_per_row.get();
+        match VIRTUAL_KEY(key_code) {
+            VK_UP => {
+                if current_sel >= cand_per_row {
+                    current_sel -= cand_per_row;
                 }
-                VK_DOWN => {
-                    if current_sel + cand_per_row < self.items.borrow().len() {
-                        current_sel += cand_per_row;
-                    }
-                }
-                VK_LEFT => {
-                    if current_sel >= 1 {
-                        current_sel -= 1;
-                    }
-                }
-                VK_RIGHT => {
-                    if current_sel < self.items.borrow().len() - 1 {
-                        current_sel += 1;
-                    }
-                }
-                VK_RETURN => {
-                    self.has_result.set(true);
-                    self.current_sel.set(current_sel);
-                    return true;
-                }
-                _ => return false,
             }
-
-            self.current_sel.set(current_sel);
-
-            if current_sel != old_sel {
-                self.refresh();
+            VK_DOWN => {
+                if current_sel + cand_per_row < self.items.borrow().len() {
+                    current_sel += cand_per_row;
+                }
+            }
+            VK_LEFT => {
+                if current_sel >= 1 {
+                    current_sel -= 1;
+                }
+            }
+            VK_RIGHT => {
+                if current_sel < self.items.borrow().len() - 1 {
+                    current_sel += 1;
+                }
+            }
+            VK_RETURN => {
+                self.has_result.set(true);
+                self.current_sel.set(current_sel);
                 return true;
             }
-            false
+            _ => return false,
         }
+
+        self.current_sel.set(current_sel);
+
+        if current_sel != old_sel {
+            self.window.refresh();
+            return true;
+        }
+        false
     }
 
-    unsafe fn has_result(&self) -> bool {
+    pub(crate) fn has_result(&self) -> bool {
         self.has_result.get()
     }
 
-    unsafe fn recalculate_size(&self) {
-        let _ = self.this.recalculate_size();
+    pub(crate) fn show(&self) {
+        self.window.show()
+    }
+
+    pub(crate) fn refresh(&self) {
+        self.window.refresh()
+    }
+
+    pub(crate) fn r#move(&self, x: c_int, y: c_int) {
+        self.window.r#move(x, y)
     }
 }
 
-impl IWindow_Impl for CandidateWindow_Impl {
-    unsafe fn hwnd(&self) -> HWND {
-        unsafe { self.window.hwnd() }
-    }
-
-    unsafe fn create(&self, parent: HWND, style: u32, ex_style: u32) -> bool {
-        unsafe { self.window.create(parent, style, ex_style) }
-    }
-
-    unsafe fn destroy(&self) {
-        unsafe { self.window.destroy() }
-    }
-
-    unsafe fn is_visible(&self) -> bool {
-        unsafe { self.window.is_visible() }
-    }
-
-    unsafe fn is_window(&self) -> bool {
-        unsafe { self.window.is_window() }
-    }
-
-    unsafe fn r#move(&self, x: c_int, y: c_int) {
-        unsafe { self.window.r#move(x, y) }
-    }
-
-    unsafe fn size(&self, width: *mut c_int, height: *mut c_int) {
-        unsafe { self.window.size(width, height) }
-    }
-
-    unsafe fn resize(&self, width: c_int, height: c_int) {
-        unsafe { self.window.resize(width, height) }
-    }
-
-    unsafe fn client_rect(&self, rect: *mut RECT) {
-        unsafe { self.window.client_rect(rect) }
-    }
-
-    unsafe fn rect(&self, rect: *mut RECT) {
-        unsafe { self.window.rect(rect) }
-    }
-
-    unsafe fn show(&self) {
-        unsafe { self.window.show() }
-    }
-
-    unsafe fn hide(&self) {
-        unsafe { self.window.hide() }
-    }
-
-    unsafe fn refresh(&self) {
-        unsafe { self.window.refresh() }
-    }
-
-    unsafe fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
+impl WndProc for CandidateWindow {
+    fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
         unsafe {
             match msg {
                 WM_PAINT => {
                     let mut ps = PAINTSTRUCT::default();
-                    BeginPaint(self.hwnd(), &mut ps);
+                    BeginPaint(self.window.hwnd(), &mut ps);
                     let _ = self.on_paint();
-                    let _ = EndPaint(self.hwnd(), &ps);
+                    let _ = EndPaint(self.window.hwnd(), &ps);
                     LRESULT(0)
                 }
                 WM_NCDESTROY => {
@@ -553,87 +490,5 @@ impl IWindow_Impl for CandidateWindow_Impl {
                 _ => self.window.wnd_proc(msg, wp, lp),
             }
         }
-    }
-}
-
-impl ITfUIElement_Impl for CandidateWindow_Impl {
-    fn GetDescription(&self) -> Result<BSTR> {
-        Ok("Candidate window~".into())
-    }
-
-    fn GetGUID(&self) -> Result<GUID> {
-        Ok(GUID::from_values(
-            0xBD7CCC94,
-            0x57CD,
-            0x41D3,
-            [0xA7, 0x89, 0xAF, 0x47, 0x89, 0xC, 0xEB, 0x29],
-        ))
-    }
-
-    fn Show(&self, bshow: BOOL) -> Result<()> {
-        unsafe {
-            if bshow.as_bool() {
-                self.show();
-            } else {
-                self.hide();
-            }
-        }
-        Ok(())
-    }
-
-    fn IsShown(&self) -> Result<BOOL> {
-        unsafe { Ok(self.is_visible().into()) }
-    }
-}
-
-impl ITfCandidateListUIElement_Impl for CandidateWindow_Impl {
-    fn GetUpdatedFlags(&self) -> Result<u32> {
-        // Update all
-        Ok(TF_CLUIE_DOCUMENTMGR
-            | TF_CLUIE_COUNT
-            | TF_CLUIE_SELECTION
-            | TF_CLUIE_STRING
-            | TF_CLUIE_PAGEINDEX
-            | TF_CLUIE_CURRENTPAGE)
-    }
-
-    fn GetDocumentMgr(&self) -> Result<ITfDocumentMgr> {
-        // TODO
-        Err(Error::empty())
-    }
-
-    fn GetCount(&self) -> Result<u32> {
-        Ok(self.items.borrow().len().min(10) as u32)
-    }
-
-    fn GetSelection(&self) -> Result<u32> {
-        Ok(self.current_sel.get() as u32)
-    }
-
-    fn GetString(&self, uindex: u32) -> Result<BSTR> {
-        self.items
-            .borrow()
-            .get(uindex as usize)
-            .map(|hstr| hstr.as_ref())
-            .map(BSTR::from_wide)
-            .ok_or(Error::empty())
-    }
-
-    fn GetPageIndex(&self, pindex: *mut u32, usize: u32, pupagecnt: *mut u32) -> Result<()> {
-        unsafe {
-            pupagecnt.write(1);
-            if usize > 0 {
-                pindex.write(0);
-            }
-        }
-        Ok(())
-    }
-
-    fn SetPageIndex(&self, _pindex: *const u32, _upagecnt: u32) -> Result<()> {
-        Ok(())
-    }
-
-    fn GetCurrentPage(&self) -> Result<u32> {
-        Ok(0)
     }
 }

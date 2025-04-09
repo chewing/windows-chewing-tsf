@@ -15,7 +15,7 @@ mod window;
 static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
-pub unsafe extern "stdcall" fn DllMain(
+extern "stdcall" fn DllMain(
     hmodule: *mut c_void,
     ul_reason_for_call: u32,
     _reserved: *const c_void,
@@ -32,7 +32,7 @@ pub unsafe extern "stdcall" fn DllMain(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "stdcall" fn DllGetClassObject(
+extern "stdcall" fn DllGetClassObject(
     _rclsid: *const c_void,
     riid: *const GUID,
     ppv_obj: *mut *mut c_void,
