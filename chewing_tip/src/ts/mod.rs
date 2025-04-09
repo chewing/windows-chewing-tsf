@@ -121,7 +121,8 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         self.tid.set(tid);
         let mut ts = self.lock();
         let thread_mgr = ptim.ok()?;
-        ts.activate(thread_mgr, tid)?;
+        let composition_sink = self.as_interface_ref();
+        ts.activate(thread_mgr, tid, composition_sink)?;
 
         let punk: InterfaceRef<IUnknown> = self.as_interface_ref();
         // Set up event sinks
@@ -259,8 +260,8 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // grabbed by others, we're ``forced'' to terminate current composition.
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
-        //
-        // TODO
+        let mut ts = self.lock();
+        ts.on_composition_terminated();
         Ok(())
     }
 }
