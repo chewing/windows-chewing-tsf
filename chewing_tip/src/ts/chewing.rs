@@ -10,7 +10,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
-    chewing_cand_TotalChoice, chewing_cand_hasNext, chewing_get_selKey, chewing_set_candPerPage,
+    chewing_cand_TotalChoice, chewing_cand_close, chewing_cand_hasNext, chewing_get_selKey,
+    chewing_set_candPerPage,
 };
 use chewing_capi::globals::{
     chewing_config_set_int, chewing_config_set_str, chewing_set_addPhraseDirection,
@@ -32,8 +33,8 @@ use chewing_capi::modes::{
 use chewing_capi::output::{
     chewing_ack, chewing_aux_Check, chewing_aux_String, chewing_bopomofo_Check,
     chewing_bopomofo_String_static, chewing_buffer_Check, chewing_buffer_String,
-    chewing_commit_Check, chewing_commit_String, chewing_cursor_Current,
-    chewing_keystroke_CheckIgnore,
+    chewing_clean_bopomofo_buf, chewing_commit_Check, chewing_commit_String,
+    chewing_commit_preedit_buf, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info, warn};
@@ -50,8 +51,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
-    GUID_LBI_INPUTMODE, ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ,
-    TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
+    GUID_LBI_INPUTMODE, ITfCompositionSink, ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE,
+    TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU,
+    TF_LS_DOT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, GetSubMenu, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadMenuW,
@@ -66,7 +68,8 @@ use windows::Win32::UI::{
     },
 };
 use windows_core::{
-    BSTR, ComObject, ComObjectInner, Error, GUID, HSTRING, Interface, PCWSTR, PWSTR, Result, w,
+    BSTR, ComObject, ComObjectInner, Error, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR,
+    Result, w,
 };
 use windows_version::OsVersion;
 
@@ -120,6 +123,7 @@ pub(super) struct ChewingTextService {
     candidate_window: Option<Rc<CandidateWindow>>,
     thread_mgr: Option<ITfThreadMgr>,
     composition: Option<ITfComposition>,
+    composition_sink: Option<ITfCompositionSink>,
     input_da_atom: VARIANT,
     popup_menu: HMENU,
     tid: u32,
@@ -130,9 +134,15 @@ impl ChewingTextService {
         Default::default()
     }
 
-    pub(super) fn activate(&mut self, thread_mgr: &ITfThreadMgr, tid: u32) -> Result<()> {
+    pub(super) fn activate(
+        &mut self,
+        thread_mgr: &ITfThreadMgr,
+        tid: u32,
+        composition_sink: InterfaceRef<ITfCompositionSink>,
+    ) -> Result<()> {
         self.thread_mgr = Some(thread_mgr.clone());
         self.tid = tid;
+        self.composition_sink = Some(composition_sink.to_owned());
         self.add_preserved_key(VK_SPACE.0 as u32, TF_MOD_SHIFT, GUID_SHIFT_SPACE)?;
         let da = TF_DISPLAYATTRIBUTE {
             lsStyle: TF_LS_DOT,
@@ -651,6 +661,28 @@ impl ChewingTextService {
         Ok(false)
     }
 
+    pub(super) fn on_composition_terminated(&mut self) {
+        if let Some(ctx) = self.chewing_context {
+            if self.candidate_window.is_some() {
+                self.hide_candidates();
+                unsafe {
+                    chewing_cand_close(ctx);
+                }
+            }
+            if unsafe { chewing_bopomofo_Check(ctx) } == 1 {
+                unsafe {
+                    chewing_clean_bopomofo_buf(ctx);
+                }
+            }
+            if unsafe { chewing_buffer_Check(ctx) } == 1 {
+                unsafe {
+                    chewing_commit_preedit_buf(ctx);
+                }
+            }
+        }
+        self.composition = None;
+    }
+
     pub(super) fn on_preserved_key(&mut self, guid: &GUID) -> bool {
         if guid == &GUID_SHIFT_SPACE && self.toggle_shape_mode().is_ok() {
             return true;
@@ -784,17 +816,19 @@ impl ChewingTextService {
 
     fn start_composition(&mut self, context: &ITfContext) -> Result<()> {
         debug!("going to request start composition");
-        let session = StartComposition::new(context.clone()).into_object();
-        unsafe {
-            context
-                .RequestEditSession(
-                    self.tid,
-                    session.as_interface(),
-                    TF_ES_SYNC | TF_ES_READWRITE,
-                )?
-                .ok()?;
-            debug!("requested start composition");
-            self.composition = session.composition().cloned();
+        if let Some(sink) = &self.composition_sink {
+            let session = StartComposition::new(context.clone(), sink.clone()).into_object();
+            unsafe {
+                context
+                    .RequestEditSession(
+                        self.tid,
+                        session.as_interface(),
+                        TF_ES_SYNC | TF_ES_READWRITE,
+                    )?
+                    .ok()?;
+                debug!("requested start composition");
+                self.composition = session.composition().cloned();
+            }
         }
         Ok(())
     }

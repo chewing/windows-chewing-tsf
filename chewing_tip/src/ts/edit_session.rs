@@ -6,35 +6,27 @@ use log::{debug, error};
 use windows::Win32::Foundation::RECT;
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
-    GUID_PROP_ATTRIBUTE, ITfComposition, ITfCompositionSink, ITfCompositionSink_Impl, ITfContext,
-    ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
-    TF_ANCHOR_END, TF_ANCHOR_START, TF_DEFAULT_SELECTION, TF_IAS_QUERYONLY, TF_SELECTION,
+    GUID_PROP_ATTRIBUTE, ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition,
+    ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, TF_ANCHOR_END, TF_ANCHOR_START,
+    TF_DEFAULT_SELECTION, TF_IAS_QUERYONLY, TF_SELECTION,
 };
-use windows_core::{BOOL, ComObjectInner, HSTRING, Interface, Ref, Result, implement};
-
-#[implement(ITfCompositionSink)]
-struct DummyCompositionSink;
-
-impl ITfCompositionSink_Impl for DummyCompositionSink_Impl {
-    fn OnCompositionTerminated(
-        &self,
-        _ecwrite: u32,
-        _pcomposition: Ref<'_, ITfComposition>,
-    ) -> Result<()> {
-        Ok(())
-    }
-}
+use windows_core::{BOOL, HSTRING, Interface, Result, implement};
 
 #[implement(ITfEditSession)]
 pub(super) struct StartComposition {
     context: ITfContext,
+    composition_sink: ITfCompositionSink,
     composition: OnceCell<ITfComposition>,
 }
 
 impl StartComposition {
-    pub(super) fn new(context: ITfContext) -> StartComposition {
+    pub(super) fn new(
+        context: ITfContext,
+        composition_sink: ITfCompositionSink,
+    ) -> StartComposition {
         Self {
             context,
+            composition_sink,
             composition: OnceCell::new(),
         }
     }
@@ -52,12 +44,12 @@ impl ITfEditSession_Impl for StartComposition_Impl {
         };
 
         debug!("range = {range:?}");
-        let sink = DummyCompositionSink.into_object();
 
         unsafe {
             // XXX even though MS document says pSink is optional,
             // StartComposition fails if NULL is passed.
-            let composition = context_composition.StartComposition(ec, &range, sink.as_interface());
+            let composition =
+                context_composition.StartComposition(ec, &range, &self.composition_sink);
             if let Err(error) = &composition {
                 error!("unable to start composition: {error}");
             }
