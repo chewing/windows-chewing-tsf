@@ -88,7 +88,7 @@ BEGIN
             VALUE "FileDescription", "新酷音輸入法"
             VALUE "FileVersion", VER_FILEVERSION_STR
             VALUE "InternalName", "ChewingTextService.dll"
-            VALUE "LegalCopyright", "Copyright (C) 2013"
+            VALUE "LegalCopyright", "Copyright (C) 2013-2025"
             VALUE "OriginalFilename", "ChewingTextService.dll"
             VALUE "ProductName", "新酷音輸入法"
             VALUE "ProductVersion", VER_PRODUCTVERSION_STR
@@ -117,7 +117,7 @@ BEGIN
         MENUITEM "軟體本身的建議及錯誤回報(&B)",            ID_BUGREPORT
         MENUITEM "注音及選字選詞錯誤回報 (&P)",            ID_DICT_BUGREPORT
         MENUITEM SEPARATOR
-        MENUITEM "新酷音使用說明 (&H)",                ID_CHEWING_HELP, INACTIVE
+        MENUITEM "新酷音使用說明 (&H)",                ID_CHEWING_HELP
         MENUITEM "編輯使用者詞庫 (&E)",                 ID_HASHED
         MENUITEM "設定新酷音輸入法(&C)",                ID_CONFIG
         MENUITEM SEPARATOR

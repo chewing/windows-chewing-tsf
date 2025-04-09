@@ -780,7 +780,7 @@ impl ChewingTextService {
                 ID_SIMPDICT => open_url("https://dict.concised.moe.edu.tw/"),
                 ID_LITTLEDICT => open_url("https://dict.mini.moe.edu.tw/"),
                 ID_PROVERBDICT => open_url("https://dict.idioms.moe.edu.tw/"),
-                ID_CHEWING_HELP => {}
+                ID_CHEWING_HELP => open_url("https://chewing.im/features.html"),
                 _ => {}
             }
         }
