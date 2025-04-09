@@ -3,6 +3,7 @@ use std::ffi::{CStr, c_void};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::ptr;
+use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -72,10 +73,7 @@ use windows_version::OsVersion;
 use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
-use crate::window::{
-    CandidateWindow, ICandidateWindow_Impl, IMessageWindow_Impl, IWindow_Impl, MessageWindow,
-    Window, window_register_class,
-};
+use crate::window::{CandidateWindow, MessageWindow, Window, window_register_class};
 
 use super::CommandType;
 use super::config::Config;
@@ -118,8 +116,8 @@ pub(super) struct ChewingTextService {
     switch_lang_button: Option<ComObject<LangBarButton>>,
     switch_shape_button: Option<ComObject<LangBarButton>>,
     ime_mode_button: Option<ComObject<LangBarButton>>,
-    message_window: Option<ComObject<MessageWindow>>,
-    candidate_window: Option<ComObject<CandidateWindow>>,
+    message_window: Option<Rc<MessageWindow>>,
+    candidate_window: Option<Rc<CandidateWindow>>,
     thread_mgr: Option<ITfThreadMgr>,
     composition: Option<ITfComposition>,
     input_da_atom: VARIANT,
@@ -151,7 +149,7 @@ impl ChewingTextService {
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
 
-        window_register_class(g_hinstance);
+        window_register_class();
 
         info!("Add language bar buttons to switch Chinese/English modes");
         unsafe {
@@ -449,9 +447,9 @@ impl ChewingTextService {
             let mut key_handled = false;
             if self.cfg.cursor_cand_list {
                 if let Some(candidate_window) = &self.candidate_window {
-                    if unsafe { candidate_window.filter_key_event(ev.vk) } {
-                        if unsafe { candidate_window.has_result() } {
-                            let sel_key = unsafe { candidate_window.current_sel_key() };
+                    if candidate_window.filter_key_event(ev.vk) {
+                        if candidate_window.has_result() {
+                            let sel_key = candidate_window.current_sel_key();
                             unsafe {
                                 chewing_handle_Default(ctx, sel_key as i32);
                             }
@@ -664,10 +662,8 @@ impl ChewingTextService {
         if matches!(cmd_type, CommandType::RightClick) {
             if id == ID_MODE_ICON {
                 // TrackPopupMenu requires a window to work, so let's build a transient one.
-                let window = Window::new().into_object();
-                unsafe {
-                    window.create(HWND_DESKTOP, 0, 0);
-                }
+                let window = Window::new();
+                window.create(HWND_DESKTOP, 0, 0);
                 let mut pos = POINT::default();
                 unsafe {
                     let _ = GetCursorPos(&mut pos);
@@ -963,7 +959,7 @@ impl ChewingTextService {
                     candidate_window.add(text, *item as u16);
                 }
 
-                candidate_window.recalculate_size();
+                candidate_window.recalculate_size()?;
                 candidate_window.refresh();
                 candidate_window.show();
 
@@ -1077,14 +1073,10 @@ impl ChewingTextService {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
         if let Some(message_window) = &self.message_window {
-            unsafe {
-                message_window.set_font_size(self.cfg.font_size);
-            }
+            message_window.set_font_size(self.cfg.font_size);
         }
         if let Some(candidate_window) = &self.candidate_window {
-            unsafe {
-                candidate_window.set_font_size(self.cfg.font_size);
-            }
+            candidate_window.set_font_size(self.cfg.font_size);
         }
 
         Ok(())
