@@ -1,8 +1,9 @@
 # windows-chewing-tsf
 
 Implement chewing in Windows via Text Services Framework:
-*   LibIME contains a library which aims to be a simple wrapper for Windows Text Service Framework (TSF).
-*   ChewingTextService contains an implementation of Windows text service for libchewing using libIME.
+*   chewing_tip contains an implementation of Windows text service for libchewing.
+*   tsfreg contains TSF registration helper used in the installer.
+*   preferences contains the user preference and phrase editor GUI.
 
 All parts are licensed under GNU LGPL v2.1 license.
 
@@ -10,9 +11,21 @@ All parts are licensed under GNU LGPL v2.1 license.
 
 ## Tool Requirements
 
+**Build natively on Windows using MSVC**
+
 * [CMake](http://www.cmake.org/) >= 3.24.0
 * [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
 * [vcpkg](https://vcpkg.io/)
+* [Rust](https://rustup.rs/)
+
+**Cross compile on Windows using MinGW-W64**
+
+* [MSYS2](https://www.msys2.org/)
+* [Rust](https://rustup.rs/)
+
+**Cross compile on Fedora using MinGW-W64**
+
+* [Rust](https://rustup.rs/)
 
 ## How to Build
 * Get source from github

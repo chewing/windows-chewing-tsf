@@ -25,13 +25,22 @@ on:
         value: ${{ jobs.build.outputs.unsigned-artifact-id }}
 
 jobs:
-  build:
-    runs-on: windows-latest
-    name: Build
-    outputs:
-      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
-
+  cross-build:
+    runs-on: ubuntu-latest
+    container: quay.io/fedora/fedora:42
+    name: Cross Build
     steps:
+      - name: Install build dependencies
+        run: |
+          sudo dnf -y install clang sqlite-devel rustup git
+          sudo dnf -y install mingw32-binutils mingw32-gcc mingw32-sqlite-static mingw32-zlib-static
+          sudo dnf -y install mingw64-binutils mingw64-gcc mingw64-sqlite-static mingw64-zlib-static
+          rustup-init -y
+          source "$HOME/.cargo/env"
+          rustup set auto-self-update disable
+          rustup target add i686-pc-windows-gnu
+          rustup target add x86_64-pc-windows-gnu
+
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -40,10 +49,43 @@ jobs:
         if: ${{ inputs.nightly }}
         run: git submodule update --remote
 
-      - name: Setup rustup
+      - name: Generate nightly version info
+        if: ${{ inputs.nightly }}
         run: |
-          rustup install stable
-          rustup target add i686-pc-windows-msvc
+          source "$HOME/.cargo/env"
+          cargo xtask update-version --major $VER_MAJOR --minor $VER_MINOR --patch $VER_PATCH -b $GITHUB_RUN_NUMBER
+          cat version.rc
+          cat installer/version.wxi
+
+      - name: Generate pull_request version info
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          source "$HOME/.cargo/env"
+          cargo xtask update-version --major 0 --minor 0 --patch $PR_NUMBER -b $GITHUB_RUN_NUMBER
+          cat version.rc
+          cat installer/version.wxi
+
+      - name: Build
+        run: |
+          source "$HOME/.cargo/env"
+          sh scripts/cross_build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Installer Artifact
+          path: build/installer
+
+  build:
+    runs-on: windows-latest
+    name: Package
+    outputs:
+      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+    needs: [cross-build]
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
@@ -55,36 +97,16 @@ jobs:
       #     SSH_PASS: ${{ secrets.SSH_PASS }}
       #     NGROK_REGION: jp
 
-      - name: Setup vcpkg
+      - name: Download Installer Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Installer Artifact
+          path: build/installer
+
+      - name: Build Package
         shell: cmd
         run: |
-          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
-          vcpkg install --triplet x86-windows-static sqlite3
-          vcpkg install --triplet x64-windows-static sqlite3
-
-      - name: Generate nightly version info
-        if: ${{ inputs.nightly }}
-        run: |
-          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
-          type version.rc
-          type installer/version.wxi
-
-      - name: Generate pull_request version info
-        if: github.event_name == 'pull_request'
-        env:
-          PR_NUMBER: ${{ github.event.number }}
-        run: |
-          cargo xtask update-version --major 0 --minor 0 --patch $env:PR_NUMBER -b $env:GITHUB_RUN_NUMBER
-          type version.rc
-          type installer/version.wxi
-
-      - name: Build
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\vsdevcmd.bat"
-          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
-          set CMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
-          scripts/build_installer.bat
+          scripts/package_installer.bat
 
       - id: upload-unsigned
         uses: actions/upload-artifact@v4
