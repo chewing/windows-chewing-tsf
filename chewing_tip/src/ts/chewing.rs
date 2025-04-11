@@ -369,7 +369,7 @@ impl ChewingTextService {
                 if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
                     // We only need to handle printable keys because we need to
                     // convert them to upper case.
-                    if !ev.is_a2z() {
+                    if !ev.is_alphabet() {
                         debug!("key not handled - Capslock key toggled");
                         return Ok(false);
                     }
@@ -405,7 +405,7 @@ impl ChewingTextService {
                 invert_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols
-            if ev.is_key_down(VK_SHIFT) && (!self.cfg.full_shape_symbols || ev.is_a2z()) {
+            if ev.is_key_down(VK_SHIFT) && (!self.cfg.full_shape_symbols || ev.is_alphabet()) {
                 momentary_english_mode = true;
                 if !self.cfg.upper_case_with_shift {
                     invert_case = true;
@@ -432,7 +432,7 @@ impl ChewingTextService {
                     chewing_handle_Default(ctx, code as i32);
                     chewing_set_ChiEngMode(ctx, old_lang_mode);
                 }
-            } else if ev.is_a2z() {
+            } else if ev.is_alphabet() {
                 unsafe {
                     chewing_handle_Default(ctx, ev.code.to_ascii_lowercase() as i32);
                 }

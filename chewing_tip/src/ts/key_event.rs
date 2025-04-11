@@ -9,13 +9,7 @@ pub(super) struct KeyEvent {
 }
 
 impl KeyEvent {
-    pub(super) fn down(vk: u16, lparam: isize) -> KeyEvent {
-        Self::new(vk, lparam)
-    }
-    pub(super) fn up(vk: u16, lparam: isize) -> KeyEvent {
-        Self::new(vk, lparam)
-    }
-    fn new(vk: u16, lparam: isize) -> KeyEvent {
+    pub fn new(vk: u16, lparam: isize) -> KeyEvent {
         let scan_code = lparam & 0xff0000;
         let mut key_state = [0u8; 256];
         let mut code = 0;
@@ -40,7 +34,7 @@ impl KeyEvent {
             key_state,
         }
     }
-    pub(super) fn is_a2z(&self) -> bool {
+    pub(super) fn is_alphabet(&self) -> bool {
         self.vk >= VK_A.0 && self.vk <= VK_Z.0
     }
     pub(super) fn is_num_pad(&self) -> bool {
