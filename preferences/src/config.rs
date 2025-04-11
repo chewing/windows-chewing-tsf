@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, time::SystemTime};
+use std::{env, fs, path::PathBuf, time::SystemTime};
 
 use anyhow::{Result, bail};
 use chewing::path::data_dir;
@@ -113,14 +113,16 @@ fn reg_set_bool(hk: HKEY, value_name: PCWSTR, value: bool) -> Result<()> {
 }
 
 fn default_user_symbols_dat_path() -> PathBuf {
-    let user_data_dir = PathBuf::from(env!("USERPROFILE")).join("ChewingTextService");
+    let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
+    let user_data_dir = PathBuf::from(user_profile).join("ChewingTextService");
     let user_symbols_dat = data_dir().unwrap_or(user_data_dir).join("symbols.dat");
     user_symbols_dat
 }
 
 // FIXME: provide path info from libchewing
 fn user_symbols_dat_path() -> Result<PathBuf> {
-    let user_data_dir = PathBuf::from(env!("USERPROFILE")).join("ChewingTextService");
+    let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
+    let user_data_dir = PathBuf::from(user_profile).join("ChewingTextService");
     let user_symbols_dat = data_dir().unwrap_or(user_data_dir).join("symbols.dat");
     if user_symbols_dat.exists() {
         return Ok(user_symbols_dat);
@@ -130,15 +132,17 @@ fn user_symbols_dat_path() -> Result<PathBuf> {
 
 // FIXME: provide path info from libchewing
 fn system_symbols_dat_path() -> Result<PathBuf> {
-    let prog_files_x86 = PathBuf::from(env!("ProgramFiles(x86)"))
-        .join("ChewingTextService\\Dictionary\\symbols.dat");
-    let prog_files =
-        PathBuf::from(env!("ProgramFiles")).join("ChewingTextService\\Dictionary\\symbols.dat");
-    if prog_files_x86.exists() {
-        return Ok(prog_files_x86);
+    let progfiles_x86 =
+        env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files(x86)".into());
+    let progfiles = env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".into());
+    let symbols_x86 =
+        PathBuf::from(progfiles_x86).join("ChewingTextService\\Dictionary\\symbols.dat");
+    let symbols = PathBuf::from(progfiles).join("ChewingTextService\\Dictionary\\symbols.dat");
+    if symbols_x86.exists() {
+        return Ok(symbols_x86);
     }
-    if prog_files.exists() {
-        return Ok(prog_files);
+    if symbols.exists() {
+        return Ok(symbols);
     }
     bail!("系統詞庫不存在")
 }
