@@ -4,6 +4,7 @@ mod display_attribute;
 mod edit_session;
 mod key_event;
 mod lang_bar;
+mod menu;
 mod resources;
 
 use std::{
@@ -213,28 +214,28 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::down(wparam.0 as u16, lparam.0);
+        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = ts.on_keydown(pic.ok()?, ev, true)?;
         Ok(should_handle.into())
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::up(wparam.0 as u16, lparam.0);
+        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = ts.on_keyup(pic.ok()?, ev, true)?;
         Ok(should_handle.into())
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::down(wparam.0 as u16, lparam.0);
+        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = ts.on_keydown(pic.ok()?, ev, false)?;
         Ok(handled.into())
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
-        let ev = KeyEvent::up(wparam.0 as u16, lparam.0);
+        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = ts.on_keyup(pic.ok()?, ev, false)?;
         Ok(handled.into())
     }

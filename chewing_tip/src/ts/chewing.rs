@@ -56,9 +56,9 @@ use windows::Win32::UI::TextServices::{
     TF_LS_DOT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, GetCursorPos, GetSubMenu, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadMenuW,
-    LoadStringW, MF_BYCOMMAND, MF_CHECKED, MF_UNCHECKED, SW_SHOWNORMAL, SetTimer, TPM_BOTTOMALIGN,
-    TPM_LEFTALIGN, TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
+    CheckMenuItem, GetCursorPos, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW, MF_BYCOMMAND,
+    MF_CHECKED, MF_UNCHECKED, SW_SHOWNORMAL, SetTimer, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
+    TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
@@ -76,6 +76,7 @@ use windows_version::OsVersion;
 use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
+use crate::ts::menu::{Menu, MenuRef};
 use crate::window::{CandidateWindow, MessageWindow, Window, window_register_class};
 
 use super::CommandType;
@@ -125,7 +126,7 @@ pub(super) struct ChewingTextService {
     composition: Option<ITfComposition>,
     composition_sink: Option<ITfCompositionSink>,
     input_da_atom: VARIANT,
-    popup_menu: HMENU,
+    menu: Menu,
     tid: u32,
 }
 
@@ -180,7 +181,7 @@ impl ChewingTextService {
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
                 LoadIconW(Some(g_hinstance), PCWSTR::from_raw(IDI_CHI as *const u16))?,
-                HMENU::default(),
+                MenuRef::default(),
                 ID_SWITCH_LANG,
                 thread_mgr.clone(),
             )
@@ -211,7 +212,7 @@ impl ChewingTextService {
                     Some(g_hinstance),
                     PCWSTR::from_raw(IDI_HALF_SHAPE as *const u16),
                 )?,
-                HMENU::default(),
+                MenuRef::default(),
                 ID_SWITCH_SHAPE,
                 thread_mgr.clone(),
             )
@@ -235,8 +236,9 @@ impl ChewingTextService {
                 tooltip,
                 info.szDescription.len() as i32,
             );
-            let menu = LoadMenuW(Some(g_hinstance), PCWSTR::from_raw(IDR_MENU as *const u16))?;
-            self.popup_menu = GetSubMenu(menu, 0);
+            // TODO we can define the menu in code
+            self.menu = Menu::load(g_hinstance, IDR_MENU);
+            let popup_menu = self.menu.sub_menu(0);
             let button = LangBarButton::new(
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
@@ -244,7 +246,7 @@ impl ChewingTextService {
                     Some(g_hinstance),
                     PCWSTR::from_raw(IDI_CONFIG as *const u16),
                 )?,
-                self.popup_menu,
+                popup_menu,
                 0,
                 thread_mgr.clone(),
             )
@@ -278,7 +280,7 @@ impl ChewingTextService {
                     info,
                     BSTR::from_wide(tooltip.as_wide()),
                     LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?,
-                    HMENU::default(),
+                    MenuRef::default(),
                     ID_MODE_ICON,
                     thread_mgr.clone(),
                 )
@@ -369,7 +371,7 @@ impl ChewingTextService {
                 if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
                     // We only need to handle printable keys because we need to
                     // convert them to upper case.
-                    if !ev.is_a2z() {
+                    if !ev.is_alphabet() {
                         debug!("key not handled - Capslock key toggled");
                         return Ok(false);
                     }
@@ -405,7 +407,7 @@ impl ChewingTextService {
                 invert_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols
-            if ev.is_key_down(VK_SHIFT) && (!self.cfg.full_shape_symbols || ev.is_a2z()) {
+            if ev.is_key_down(VK_SHIFT) && (!self.cfg.full_shape_symbols || ev.is_alphabet()) {
                 momentary_english_mode = true;
                 if !self.cfg.upper_case_with_shift {
                     invert_case = true;
@@ -432,7 +434,7 @@ impl ChewingTextService {
                     chewing_handle_Default(ctx, code as i32);
                     chewing_set_ChiEngMode(ctx, old_lang_mode);
                 }
-            } else if ev.is_a2z() {
+            } else if ev.is_alphabet() {
                 unsafe {
                     chewing_handle_Default(ctx, ev.code.to_ascii_lowercase() as i32);
                 }
@@ -700,9 +702,10 @@ impl ChewingTextService {
                 unsafe {
                     let _ = GetCursorPos(&mut pos);
                 }
+                let popup_menu = self.menu.sub_menu(0);
                 let ret = unsafe {
                     TrackPopupMenu(
-                        self.popup_menu,
+                        *popup_menu,
                         TPM_NONOTIFY | TPM_RETURNCMD | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
                         pos.x,
                         pos.y,
@@ -776,7 +779,7 @@ impl ChewingTextService {
                         MF_BYCOMMAND | MF_UNCHECKED
                     };
                     unsafe {
-                        CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+                        CheckMenuItem(*self.menu.sub_menu(0), ID_OUTPUT_SIMP_CHINESE, check_flag.0);
                     }
                 }
                 ID_ABOUT => {
@@ -1104,7 +1107,7 @@ impl ChewingTextService {
             MF_BYCOMMAND | MF_UNCHECKED
         };
         unsafe {
-            CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+            CheckMenuItem(*self.menu.sub_menu(0), ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
         if let Some(message_window) = &self.message_window {
             message_window.set_font_size(self.cfg.font_size);
