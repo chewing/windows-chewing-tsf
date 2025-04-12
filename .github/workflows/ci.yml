@@ -47,7 +47,9 @@ jobs:
 
       - name: Update Submodules
         if: ${{ inputs.nightly }}
-        run: git submodule update --remote
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git submodule update --remote
 
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}
