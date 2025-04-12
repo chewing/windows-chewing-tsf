@@ -4,6 +4,7 @@ mod display_attribute;
 mod edit_session;
 mod key_event;
 mod lang_bar;
+mod menu;
 mod resources;
 
 use std::{

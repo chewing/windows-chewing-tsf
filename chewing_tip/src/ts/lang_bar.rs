@@ -22,7 +22,7 @@ use windows_core::{BOOL, BSTR, GUID, IUnknown, Interface, PWSTR, Ref, Result, im
 
 use crate::ts::CHEWING_TSF_CLSID;
 
-use super::{CommandType, IFnRunCommand};
+use super::{CommandType, IFnRunCommand, menu::MenuRef};
 
 #[implement(ITfLangBarItem, ITfLangBarItemButton, ITfSource)]
 pub(super) struct LangBarButton {
@@ -30,9 +30,7 @@ pub(super) struct LangBarButton {
     status: Cell<u32>,
     tooltip: BSTR,
     icon: Cell<HICON>,
-    // FIXME now we are pure rust we can model the lifetime properly
-    /// borrowed - we don't own this menu
-    menu: HMENU,
+    menu: MenuRef,
     command_id: u32,
     thread_mgr: ITfThreadMgr,
     sinks: RwLock<BTreeMap<u32, ITfLangBarItemSink>>,
@@ -51,7 +49,7 @@ impl LangBarButton {
         info: TF_LANGBARITEMINFO,
         tooltip: BSTR,
         icon: HICON,
-        menu: HMENU,
+        menu: MenuRef,
         command_id: u32,
         thread_mgr: ITfThreadMgr,
     ) -> LangBarButton {
@@ -138,7 +136,7 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
             return Err(E_FAIL.into());
         }
         if pmenu.is_some() {
-            build_menu(pmenu.unwrap(), self.menu)
+            build_menu(pmenu.unwrap(), *self.menu)
         } else {
             Err(E_FAIL.into())
         }
