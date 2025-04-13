@@ -135,11 +135,10 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
         if self.menu.is_invalid() {
             return Err(E_FAIL.into());
         }
-        if pmenu.is_some() {
-            build_menu(pmenu.unwrap(), *self.menu)
-        } else {
-            Err(E_FAIL.into())
+        if let Some(pmenu) = pmenu.as_ref() {
+            return build_menu(pmenu, *self.menu);
         }
+        Err(E_FAIL.into())
     }
 
     fn OnMenuSelect(&self, wid: u32) -> Result<()> {
