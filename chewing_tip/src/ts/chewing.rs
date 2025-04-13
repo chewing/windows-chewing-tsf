@@ -318,10 +318,7 @@ impl ChewingTextService {
         // TSF doc: The corresponding ITfTextInputProcessor::Deactivate
         // method that shuts down the text service must release all references
         // to the ptim parameter.
-        Ok(self
-            .thread_mgr
-            .take()
-            .expect("chewing_tip must have an active thread_mgr"))
+        self.thread_mgr.take().ok_or(E_FAIL.into())
     }
 
     pub(super) fn on_kill_focus(&mut self) -> Result<()> {
@@ -913,9 +910,9 @@ impl ChewingTextService {
                 return Ok(());
             };
             let bitmap_path = program_dir.join("Assets").join("msg.9.png");
-            let message_window = MessageWindow::new(hwnd, &bitmap_path);
+            let message_window = MessageWindow::new(hwnd, &bitmap_path)?;
             message_window.set_font_size(self.cfg.font_size);
-            message_window.set_text(text.clone());
+            message_window.set_text(text.clone())?;
 
             let rect = self.get_selection_rect(context)?;
             message_window.r#move(rect.left, rect.bottom);
@@ -970,7 +967,7 @@ impl ChewingTextService {
                 return Ok(());
             };
             let bitmap_path = program_dir.join("Assets").join("bubble.9.png");
-            let candidate_window = CandidateWindow::new(hwnd, &bitmap_path);
+            let candidate_window = CandidateWindow::new(hwnd, &bitmap_path)?;
             self.candidate_window = Some(candidate_window);
         }
 
@@ -1060,7 +1057,7 @@ impl ChewingTextService {
             self.symbols_file_mtime = metadata
                 .modified()?
                 .duration_since(UNIX_EPOCH)
-                .expect("mtime should be positive")
+                .unwrap_or_default()
                 .as_secs();
         }
 

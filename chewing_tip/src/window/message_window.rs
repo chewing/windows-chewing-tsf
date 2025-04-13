@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use log::error;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -15,7 +16,7 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
-use windows::core::*;
+use windows_core::*;
 
 use super::{Window, WndProc};
 use crate::gfx::*;
@@ -38,7 +39,7 @@ pub(crate) struct MessageWindow {
 }
 
 impl MessageWindow {
-    pub(crate) fn new(parent: HWND, image_path: &Path) -> Rc<MessageWindow> {
+    pub(crate) fn new(parent: HWND, image_path: &Path) -> Result<Rc<MessageWindow>> {
         unsafe {
             let window = Window::new();
             window.create(
@@ -50,30 +51,25 @@ impl MessageWindow {
             let factory: ID2D1Factory1 = D2D1CreateFactory(
                 D2D1_FACTORY_TYPE_SINGLE_THREADED,
                 Some(&D2D1_FACTORY_OPTIONS::default()),
-            )
-            // FIXME dont panic
-            .expect("failed to create Direct2D factory");
+            )?;
 
             let mut dpi = 0.0;
             let mut dpiy = 0.0;
             factory.GetDesktopDpi(&mut dpi, &mut dpiy);
 
-            let dwrite_factory: IDWriteFactory1 =
-                DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).unwrap();
-            let text_format = dwrite_factory
-                .CreateTextFormat(
-                    w!("Segoe UI"),
-                    None,
-                    DWRITE_FONT_WEIGHT_NORMAL,
-                    DWRITE_FONT_STYLE_NORMAL,
-                    DWRITE_FONT_STRETCH_NORMAL,
-                    16.0,
-                    w!(""),
-                )
-                .unwrap();
+            let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
+            let text_format = dwrite_factory.CreateTextFormat(
+                w!("Segoe UI"),
+                None,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                16.0,
+                w!(""),
+            )?;
 
             let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
-            let nine_patch_bitmap = NinePatchBitmap::new(&image_path).unwrap();
+            let nine_patch_bitmap = NinePatchBitmap::new(&image_path)?;
 
             let message_window = Rc::new(MessageWindow {
                 text: RefCell::new(h!("").to_owned()),
@@ -92,7 +88,7 @@ impl MessageWindow {
                 message_window.hwnd(),
                 Rc::clone(&message_window) as Rc<dyn WndProc>,
             );
-            message_window
+            Ok(message_window)
         }
     }
 
@@ -118,7 +114,7 @@ impl MessageWindow {
             )?
         };
         let mut metrics = DWRITE_TEXT_METRICS::default();
-        unsafe { text_layout.GetMetrics(&mut metrics).unwrap() };
+        unsafe { text_layout.GetMetrics(&mut metrics)? };
 
         let margin = self.nine_patch_bitmap.margin();
         let width = metrics.width + margin * 2.0;
@@ -129,7 +125,7 @@ impl MessageWindow {
         let height = height * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
 
         unsafe {
-            SetWindowPos(
+            let _ = SetWindowPos(
                 self.window.hwnd.get(),
                 Some(HWND_TOPMOST),
                 0,
@@ -137,8 +133,8 @@ impl MessageWindow {
                 width as i32,
                 height as i32,
                 SWP_NOACTIVATE | SWP_NOMOVE,
-            )?
-        };
+            );
+        }
         self.resize_swap_chain(width as u32, height as u32)?;
 
         Ok(())
@@ -148,38 +144,36 @@ impl MessageWindow {
         let target = self.target.borrow();
         let swapchain = self.swapchain.borrow();
 
-        if target.is_some() {
-            let target = target.as_ref().unwrap();
-            let swapchain = swapchain.as_ref().unwrap();
-            unsafe { target.SetTarget(None) };
+        if let Some(target) = target.as_ref() {
+            if let Some(swapchain) = swapchain.as_ref() {
+                unsafe { target.SetTarget(None) };
 
-            if unsafe {
-                swapchain
-                    .ResizeBuffers(
+                if let Err(error) = unsafe {
+                    swapchain.ResizeBuffers(
                         0,
                         width,
                         height,
                         DXGI_FORMAT_UNKNOWN,
                         DXGI_SWAP_CHAIN_FLAG(0),
                     )
-                    .is_ok()
-            } {
-                create_swapchain_bitmap(swapchain, target, self.dpi)?;
-            } else {
-                self.target.take();
-                self.swapchain.take();
-                self.brush.take();
-            }
+                } {
+                    error!("unable to resize swapchain: {error}");
+                    self.target.take();
+                    self.swapchain.take();
+                    self.brush.take();
+                } else {
+                    create_swapchain_bitmap(swapchain, target, self.dpi)?;
+                }
 
-            self.on_paint()?;
+                self.on_paint()?;
+            }
         }
 
         Ok(())
     }
 
     fn create_target(&self) -> Result<()> {
-        let create_target = self.target.borrow().is_none();
-        if create_target {
+        if self.target.borrow().is_none() {
             let device = create_device()?;
             let target = create_render_target(&self.factory, &device)?;
             unsafe { target.SetDpi(self.dpi, self.dpi) };
@@ -211,76 +205,76 @@ impl MessageWindow {
 
         let target = self.target.borrow();
         let swapchain = self.swapchain.borrow();
-        let target = target.as_ref().unwrap();
-        unsafe {
-            let mut rc = RECT::default();
-            GetClientRect(self.window.hwnd.get(), &mut rc)?;
+        if let Some(target) = target.as_ref() {
+            unsafe {
+                let mut rc = RECT::default();
+                GetClientRect(self.window.hwnd.get(), &mut rc)?;
 
-            target.BeginDraw();
-            let rect = D2D_RECT_F {
-                top: 0.0,
-                left: 0.0,
-                // Convert to DIPs
-                right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
-                bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
-            };
-            self.nine_patch_bitmap.draw_bitmap(target, rect)?;
-            let margin = self.nine_patch_bitmap.margin();
+                target.BeginDraw();
+                let rect = D2D_RECT_F {
+                    top: 0.0,
+                    left: 0.0,
+                    // Convert to DIPs
+                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
+                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
+                };
+                self.nine_patch_bitmap.draw_bitmap(target, rect)?;
+                let margin = self.nine_patch_bitmap.margin();
 
-            target.DrawText(
-                self.text.borrow().as_ref(),
-                self.text_format.borrow().deref(),
-                &D2D_RECT_F {
-                    left: margin,
-                    top: margin,
-                    right: f32::MAX,
-                    bottom: f32::MAX,
-                },
-                self.brush.borrow().as_ref().unwrap(),
-                D2D1_DRAW_TEXT_OPTIONS_NONE,
-                DWRITE_MEASURING_MODE_NATURAL,
-            );
-            target.EndDraw(None, None)?;
+                if let Some(brush) = self.brush.borrow().as_ref() {
+                    target.DrawText(
+                        self.text.borrow().as_ref(),
+                        self.text_format.borrow().deref(),
+                        &D2D_RECT_F {
+                            left: margin,
+                            top: margin,
+                            right: f32::MAX,
+                            bottom: f32::MAX,
+                        },
+                        brush,
+                        D2D1_DRAW_TEXT_OPTIONS_NONE,
+                        DWRITE_MEASURING_MODE_NATURAL,
+                    );
+                }
+                target.EndDraw(None, None)?;
 
-            if swapchain
-                .as_ref()
-                .unwrap()
-                .Present(1, DXGI_PRESENT(0))
-                .is_err()
-            {
-                _ = target;
-                _ = swapchain;
-                self.target.take();
-                self.swapchain.take();
-                self.brush.take();
+                if let Some(swapchain) = swapchain.as_ref() {
+                    if let Err(error) = swapchain.Present(1, DXGI_PRESENT(0)).ok() {
+                        error!("unable to present buffer: {error}");
+                        _ = target;
+                        _ = swapchain;
+                        self.target.take();
+                        self.swapchain.take();
+                        self.brush.take();
+                    }
+                }
             }
         }
 
         Ok(())
     }
     pub(crate) fn set_font_size(&self, font_size: i32) {
-        unsafe {
-            self.text_format.replace(
-                self.dwrite_factory
-                    .CreateTextFormat(
-                        w!("Segoe UI"),
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        font_size as f32,
-                        w!(""),
-                    )
-                    .unwrap(),
-            );
+        if let Ok(text_format) = unsafe {
+            self.dwrite_factory.CreateTextFormat(
+                w!("Segoe UI"),
+                None,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                font_size as f32,
+                w!(""),
+            )
+        } {
+            self.text_format.replace(text_format);
         }
     }
-    pub(crate) fn set_text(&self, text: HSTRING) {
+    pub(crate) fn set_text(&self, text: HSTRING) -> Result<()> {
         self.text.replace(text);
-        self.recalculate_size().unwrap();
+        self.recalculate_size()?;
         if self.window.is_visible() {
             self.window.refresh();
         }
+        Ok(())
     }
 }
 
@@ -298,7 +292,7 @@ impl WndProc for MessageWindow {
                 WM_TIMER => {
                     if wp.0 == ID_TIMEOUT {
                         self.window.hide();
-                        KillTimer(Some(self.hwnd()), ID_TIMEOUT).expect("failed to kill timer");
+                        let _ = KillTimer(Some(self.hwnd()), ID_TIMEOUT);
                     }
                     LRESULT(0)
                 }

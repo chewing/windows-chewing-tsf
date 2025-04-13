@@ -241,12 +241,13 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
-        if rguid.is_null() {
-            return Ok(FALSE);
+        if let Some(rguid) = unsafe { rguid.as_ref() } {
+            let mut ts = self.lock();
+            let handled = ts.on_preserved_key(rguid);
+            Ok(handled.into())
+        } else {
+            Ok(FALSE)
         }
-        let mut ts = self.lock();
-        let handled = ts.on_preserved_key(unsafe { rguid.as_ref() }.unwrap());
-        Ok(handled.into())
     }
 }
 

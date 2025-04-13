@@ -55,10 +55,9 @@ pub(super) fn register_display_attribute(guid: &GUID, da: TF_DISPLAYATTRIBUTE) -
 }
 
 pub(super) fn get_display_attribute_info(guid: *const GUID) -> Result<ITfDisplayAttributeInfo> {
-    if guid.is_null() {
+    let Some(guid) = (unsafe { guid.as_ref() }) else {
         return Err(E_INVALIDARG.into());
-    }
-    let guid = unsafe { guid.as_ref().unwrap() };
+    };
     let guid_u128 = guid.to_u128();
     if let Ok(attrs) = ATTRS.read() {
         if let Some(da) = attrs.get(&guid_u128) {

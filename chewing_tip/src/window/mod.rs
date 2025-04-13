@@ -55,9 +55,9 @@ pub(crate) fn window_register_class() -> bool {
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: hinst,
-        hCursor: unsafe { LoadCursorW(None, IDC_ARROW).expect("failed to load cursor") },
+        hCursor: unsafe { LoadCursorW(None, IDC_ARROW).unwrap_or_default() },
         lpszMenuName: PCWSTR::null(),
-        lpszClassName: w!("LibIme2Window"),
+        lpszClassName: w!("chewing_tip"),
         ..Default::default()
     };
 
@@ -92,7 +92,7 @@ impl Window {
         let hwnd = unsafe {
             CreateWindowExW(
                 WINDOW_EX_STYLE(ex_style),
-                w!("LibIme2Window"),
+                w!("chewing_tip"),
                 None,
                 WINDOW_STYLE(style),
                 0,
@@ -157,8 +157,8 @@ impl Window {
 
     pub(crate) fn size(&self, width: *mut c_int, height: *mut c_int) {
         let mut rc = RECT::default();
-        unsafe { GetWindowRect(self.hwnd(), &mut rc).expect("failed to get window rect") };
         unsafe {
+            let _ = GetWindowRect(self.hwnd(), &mut rc);
             width.write(rc.right - rc.left);
             height.write(rc.bottom - rc.top);
         }
@@ -166,7 +166,7 @@ impl Window {
 
     pub(crate) fn resize(&self, width: c_int, height: c_int) {
         unsafe {
-            SetWindowPos(
+            let _ = SetWindowPos(
                 self.hwnd(),
                 Some(HWND_TOP),
                 0,
@@ -174,9 +174,8 @@ impl Window {
                 width,
                 height,
                 SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE,
-            )
-            .expect("failed to resize window")
-        };
+            );
+        }
     }
 
     pub(crate) fn show(&self) {
