@@ -38,8 +38,8 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info, warn};
-use windows::Win32::Foundation::{E_FAIL, HINSTANCE, POINT, RECT};
-use windows::Win32::Globalization::{LCMAP_SIMPLIFIED_CHINESE, LCMapStringW};
+use windows::Win32::Foundation::{E_FAIL, HINSTANCE, LPARAM, POINT, RECT};
+use windows::Win32::Globalization::{LCMapStringEx, LCMapStringW, LCMAP_SIMPLIFIED_CHINESE};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
@@ -56,7 +56,7 @@ use windows::Win32::UI::TextServices::{
     TF_LS_DOT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, GetCursorPos, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW, MF_BYCOMMAND,
+    CheckMenuItem, GetCursorPos, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
     MF_CHECKED, MF_UNCHECKED, SW_SHOWNORMAL, SetTimer, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
     TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
 };
@@ -769,11 +769,12 @@ impl ChewingTextService {
                     }
                 }
                 ID_OUTPUT_SIMP_CHINESE => {
-                    self.cfg.output_simp_chinese = !self.cfg.output_simp_chinese;
+                    self.output_simp_chinese = !self.output_simp_chinese;
+                    debug!("toggle output simplified chinese: {}", self.output_simp_chinese);
                     let check_flag = if self.output_simp_chinese {
-                        MF_BYCOMMAND | MF_CHECKED
+                        MF_CHECKED
                     } else {
-                        MF_BYCOMMAND | MF_UNCHECKED
+                        MF_UNCHECKED
                     };
                     unsafe {
                         CheckMenuItem(*self.menu.sub_menu(0), ID_OUTPUT_SIMP_CHINESE, check_flag.0);
@@ -1097,11 +1098,11 @@ impl ChewingTextService {
                 );
             }
         }
-
+        self.output_simp_chinese = cfg.output_simp_chinese;
         let check_flag = if self.output_simp_chinese {
-            MF_BYCOMMAND | MF_CHECKED
+            MF_CHECKED
         } else {
-            MF_BYCOMMAND | MF_UNCHECKED
+            MF_UNCHECKED
         };
         unsafe {
             CheckMenuItem(*self.menu.sub_menu(0), ID_OUTPUT_SIMP_CHINESE, check_flag.0);
@@ -1307,10 +1308,10 @@ fn open_url(url: &str) {
 
 fn t2s_convert(text: HSTRING) -> HSTRING {
     unsafe {
-        let len = LCMapStringW(0x0404, LCMAP_SIMPLIFIED_CHINESE, &text, None, 0);
-        let dest = PWSTR::from_raw(vec![0u16; len as usize].as_mut_ptr());
-        if LCMapStringW(0x0404, LCMAP_SIMPLIFIED_CHINESE, &text, Some(dest), len) > 0 {
-            return dest.to_hstring();
+        let len = LCMapStringEx(w!("zh-TW"), LCMAP_SIMPLIFIED_CHINESE, &text, None, None, None, LPARAM(0));
+        let mut dest = vec![0u16; len as usize];
+        if LCMapStringEx(w!("zh-TW"), LCMAP_SIMPLIFIED_CHINESE, &text, Some(&mut dest), None, None, LPARAM(0)) > 0 {
+            return HSTRING::from_wide(&dest);
         }
         text
     }
