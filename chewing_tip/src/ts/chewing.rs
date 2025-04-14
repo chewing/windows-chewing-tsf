@@ -38,8 +38,7 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info, warn};
-use windows::Win32::Foundation::{E_FAIL, HINSTANCE, LPARAM, POINT, RECT};
-use windows::Win32::Globalization::{LCMapStringEx, LCMapStringW, LCMAP_SIMPLIFIED_CHINESE};
+use windows::Win32::Foundation::{E_FAIL, HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
@@ -72,6 +71,7 @@ use windows_core::{
     Result, w,
 };
 use windows_version::OsVersion;
+use zhconv::{zhconv, Variant};
 
 use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
@@ -538,16 +538,16 @@ impl ChewingTextService {
         if unsafe { chewing_commit_Check(ctx) } == 1 {
             let ptr = unsafe { chewing_commit_String(ctx) };
             let cstr = unsafe { CStr::from_ptr(ptr) };
-            let mut text = HSTRING::from(cstr.to_string_lossy().as_ref());
+            let mut text = cstr.to_string_lossy().into_owned();
             unsafe {
                 chewing_free(ptr.cast());
                 chewing_ack(ctx);
             }
             if self.output_simp_chinese {
-                text = t2s_convert(text);
+                text = zhconv(&text, Variant::ZhHans);
             }
             debug!("commit string {}", &text);
-            self.set_composition_string(context, &text)?;
+            self.set_composition_string(context, &text.into())?;
             self.end_composition(context)?;
             debug!("commit string ok");
         }
@@ -1303,16 +1303,5 @@ fn is_light_theme() -> bool {
 fn open_url(url: &str) {
     unsafe {
         ShellExecuteW(None, None, &HSTRING::from(url), None, None, SW_SHOWNORMAL);
-    }
-}
-
-fn t2s_convert(text: HSTRING) -> HSTRING {
-    unsafe {
-        let len = LCMapStringEx(w!("zh-TW"), LCMAP_SIMPLIFIED_CHINESE, &text, None, None, None, LPARAM(0));
-        let mut dest = vec![0u16; len as usize];
-        if LCMapStringEx(w!("zh-TW"), LCMAP_SIMPLIFIED_CHINESE, &text, Some(&mut dest), None, None, LPARAM(0)) > 0 {
-            return HSTRING::from_wide(&dest);
-        }
-        text
     }
 }
