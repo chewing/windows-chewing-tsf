@@ -1,15 +1,8 @@
-use std::ops::Deref;
-
 use windows::Win32::{Foundation::HINSTANCE, UI::WindowsAndMessaging::*};
 use windows_core::PCWSTR;
 
 #[derive(Default)]
 pub(super) struct Menu {
-    hmenu: HMENU,
-}
-
-#[derive(Default)]
-pub(super) struct MenuRef {
     hmenu: HMENU,
 }
 
@@ -25,22 +18,11 @@ impl Menu {
             };
         Menu { hmenu }
     }
-    pub(super) fn sub_menu(&self, npos: i32) -> MenuRef {
+    pub(super) fn sub_menu(&self, npos: i32) -> HMENU {
         if self.hmenu.is_invalid() {
-            return MenuRef {
-                hmenu: HMENU::default(),
-            };
+            return HMENU::default();
         }
-        let hmenu = unsafe { GetSubMenu(self.hmenu, npos) };
-        MenuRef { hmenu }
-    }
-}
-
-impl Deref for MenuRef {
-    type Target = HMENU;
-
-    fn deref(&self) -> &Self::Target {
-        &self.hmenu
+        unsafe { GetSubMenu(self.hmenu, npos) }
     }
 }
 

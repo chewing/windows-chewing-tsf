@@ -22,7 +22,7 @@ use windows_core::{BOOL, BSTR, GUID, IUnknown, Interface, PWSTR, Ref, Result, im
 
 use crate::ts::CHEWING_TSF_CLSID;
 
-use super::{CommandType, IFnRunCommand, menu::MenuRef};
+use super::{CommandType, IFnRunCommand};
 
 #[implement(ITfLangBarItem, ITfLangBarItemButton, ITfSource)]
 pub(super) struct LangBarButton {
@@ -30,7 +30,7 @@ pub(super) struct LangBarButton {
     status: Cell<u32>,
     tooltip: BSTR,
     icon: Cell<HICON>,
-    menu: MenuRef,
+    menu: HMENU,
     command_id: u32,
     thread_mgr: ITfThreadMgr,
     sinks: RwLock<BTreeMap<u32, ITfLangBarItemSink>>,
@@ -49,7 +49,7 @@ impl LangBarButton {
         info: TF_LANGBARITEMINFO,
         tooltip: BSTR,
         icon: HICON,
-        menu: MenuRef,
+        menu: HMENU,
         command_id: u32,
         thread_mgr: ITfThreadMgr,
     ) -> LangBarButton {
@@ -136,7 +136,7 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
             return Err(E_FAIL.into());
         }
         if let Some(pmenu) = pmenu.as_ref() {
-            return build_menu(pmenu, *self.menu);
+            return build_menu(pmenu, self.menu);
         }
         Err(E_FAIL.into())
     }
