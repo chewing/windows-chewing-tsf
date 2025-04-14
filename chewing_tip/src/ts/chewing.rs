@@ -55,7 +55,7 @@ use windows::Win32::UI::TextServices::{
     TF_LS_DOT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, GetCursorPos, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
+    CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
     MF_CHECKED, MF_UNCHECKED, SW_SHOWNORMAL, SetTimer, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
     TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
 };
@@ -71,12 +71,12 @@ use windows_core::{
     Result, w,
 };
 use windows_version::OsVersion;
-use zhconv::{zhconv, Variant};
+use zhconv::{Variant, zhconv};
 
 use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
-use crate::ts::menu::{Menu, MenuRef};
+use crate::ts::menu::Menu;
 use crate::window::{CandidateWindow, MessageWindow, Window, window_register_class};
 
 use super::CommandType;
@@ -127,6 +127,7 @@ pub(super) struct ChewingTextService {
     composition_sink: Option<ITfCompositionSink>,
     input_da_atom: VARIANT,
     menu: Menu,
+    popup_menu: HMENU,
     tid: u32,
 }
 
@@ -181,7 +182,7 @@ impl ChewingTextService {
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
                 LoadIconW(Some(g_hinstance), PCWSTR::from_raw(IDI_CHI as *const u16))?,
-                MenuRef::default(),
+                HMENU::default(),
                 ID_SWITCH_LANG,
                 thread_mgr.clone(),
             )
@@ -212,7 +213,7 @@ impl ChewingTextService {
                     Some(g_hinstance),
                     PCWSTR::from_raw(IDI_HALF_SHAPE as *const u16),
                 )?,
-                MenuRef::default(),
+                HMENU::default(),
                 ID_SWITCH_SHAPE,
                 thread_mgr.clone(),
             )
@@ -238,7 +239,7 @@ impl ChewingTextService {
             );
             // TODO we can define the menu in code
             self.menu = Menu::load(g_hinstance, IDR_MENU);
-            let popup_menu = self.menu.sub_menu(0);
+            self.popup_menu = self.menu.sub_menu(0);
             let button = LangBarButton::new(
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
@@ -246,7 +247,7 @@ impl ChewingTextService {
                     Some(g_hinstance),
                     PCWSTR::from_raw(IDI_CONFIG as *const u16),
                 )?,
-                popup_menu,
+                self.popup_menu,
                 0,
                 thread_mgr.clone(),
             )
@@ -280,7 +281,7 @@ impl ChewingTextService {
                     info,
                     BSTR::from_wide(tooltip.as_wide()),
                     LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?,
-                    MenuRef::default(),
+                    HMENU::default(),
                     ID_MODE_ICON,
                     thread_mgr.clone(),
                 )
@@ -699,10 +700,9 @@ impl ChewingTextService {
                 unsafe {
                     let _ = GetCursorPos(&mut pos);
                 }
-                let popup_menu = self.menu.sub_menu(0);
                 let ret = unsafe {
                     TrackPopupMenu(
-                        *popup_menu,
+                        self.popup_menu,
                         TPM_NONOTIFY | TPM_RETURNCMD | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
                         pos.x,
                         pos.y,
@@ -770,14 +770,17 @@ impl ChewingTextService {
                 }
                 ID_OUTPUT_SIMP_CHINESE => {
                     self.output_simp_chinese = !self.output_simp_chinese;
-                    debug!("toggle output simplified chinese: {}", self.output_simp_chinese);
+                    debug!(
+                        "toggle output simplified chinese: {}",
+                        self.output_simp_chinese
+                    );
                     let check_flag = if self.output_simp_chinese {
                         MF_CHECKED
                     } else {
                         MF_UNCHECKED
                     };
                     unsafe {
-                        CheckMenuItem(*self.menu.sub_menu(0), ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+                        CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
                     }
                 }
                 ID_ABOUT => {
@@ -1105,7 +1108,7 @@ impl ChewingTextService {
             MF_UNCHECKED
         };
         unsafe {
-            CheckMenuItem(*self.menu.sub_menu(0), ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+            CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
         if let Some(message_window) = &self.message_window {
             message_window.set_font_size(self.cfg.font_size);
