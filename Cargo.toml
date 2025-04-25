@@ -2,6 +2,10 @@
 members = ["chewing_tip", "preferences", "tsfreg", "xtask"]
 resolver = "3"
 
+[patch.crates-io]
+chewing = { git = "https://github.com/chewing/libchewing" }
+chewing_capi = { git = "https://github.com/chewing/libchewing" }
+
 [profile.release]
 lto = "thin"
 panic = "abort"

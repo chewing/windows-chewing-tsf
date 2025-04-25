@@ -9,16 +9,12 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.95"
+chewing = { version = "0.9.1", features = ["sqlite"] }
 slint = "1.8.0"
 windows = { version = "0.61.0", features = [
     "Win32_Security",
     "Win32_System_Registry",
 ] }
-
-[dependencies.chewing]
-version = "0.9.1"
-features = ["sqlite"]
-git = "https://github.com/chewing/libchewing"
 
 [build-dependencies]
 embed-resource = "3.0.1"
