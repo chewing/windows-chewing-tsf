@@ -8,6 +8,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
 
+use anyhow::bail;
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
     chewing_cand_TotalChoice, chewing_cand_close, chewing_cand_hasNext, chewing_get_selKey,
@@ -1040,6 +1041,9 @@ impl ChewingTextService {
         if self.chewing_context.is_none() {
             init_chewing_env()?;
             let ctx = chewing_new();
+            if ctx.is_null() {
+                bail!("chewing context is null");
+            }
             unsafe {
                 chewing_set_maxChiSymbolLen(ctx, 50);
                 if self.cfg.default_english {
