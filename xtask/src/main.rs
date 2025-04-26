@@ -1,9 +1,11 @@
-use std::fs::File;
-use std::io::Write;
+use anyhow::Result;
 
-use jiff::Zoned;
+mod installer;
+mod version;
 
 mod flags {
+    use super::installer::Target;
+
     xflags::xflags! {
         src "src/main.rs"
 
@@ -20,6 +22,16 @@ mod flags {
                 /// Optional build number (u32)
                 optional -b, --build BUILD_NUMBER: u32
             }
+            /// Build the installer.
+            cmd build-installer {
+                /// Target platform [gnu, msvc]
+                optional -t, --target TARGET: Target
+                /// Build release artifact
+                optional --release
+            }
+            cmd package-installer {
+
+            }
         }
     }
     // generated start
@@ -33,6 +45,8 @@ mod flags {
     #[derive(Debug)]
     pub enum XtaskCmd {
         UpdateVersion(UpdateVersion),
+        BuildInstaller(BuildInstaller),
+        PackageInstaller(PackageInstaller),
     }
 
     #[derive(Debug)]
@@ -42,6 +56,15 @@ mod flags {
         pub patch: u32,
         pub build: Option<u32>,
     }
+
+    #[derive(Debug)]
+    pub struct BuildInstaller {
+        pub target: Option<Target>,
+        pub release: bool,
+    }
+
+    #[derive(Debug)]
+    pub struct PackageInstaller;
 
     impl Xtask {
         #[allow(dead_code)]
@@ -62,55 +85,18 @@ mod flags {
     // generated end
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let flags = flags::Xtask::from_env()?;
 
     match flags.subcommand {
-        flags::XtaskCmd::UpdateVersion(update_version) => {
-            let now = Zoned::now();
-            let year = now.year();
-            let month = now.month();
-            let day = now.day();
-            let yy = update_version.major;
-            let mm = update_version.minor;
-            let rv = update_version.patch;
-            let bn = update_version.build.unwrap_or_default();
-            let mut version_rc = File::create("version.rc")?;
-            indoc::writedoc!(
-                version_rc,
-                r#"
-                    #define VER_FILEVERSION             {yy},{mm},{rv},{bn}
-                    #define VER_FILEVERSION_STR         "{yy}.{mm}.{rv}.{bn}\0"
-                    #define VER_PRODUCTVERSION          {yy},{mm},{rv},{bn}
-                    #define VER_PRODUCTVERSION_STR      "{yy}.{mm}.{rv}.{bn}\0"
-                    #define ABOUT_CAPTION_WITH_VER      "關於新酷音輸入法 ({yy}.{mm}.{rv}.{bn})\0"
-                    #define ABOUT_VERSION_STR           "版本：{yy}.{mm}.{rv}.{bn}\0"
-                    #define ABOUT_RELEASE_DATE_STR      "發行日期：{year} 年 {month:02} 月 {day:02} 日\0"
-                    #define PREFS_TITLE_WITH_VER        "設定新酷音輸入法 ({yy}.{mm}.{rv}.{bn})\0"
-                "#
-            )?;
-
-            let mut version_slint = File::create("preferences/ui/version.slint")?;
-            indoc::writedoc!(
-                version_slint,
-                r#"
-                    export global Version {{
-                        out property <string> product-version: "{yy}.{mm}.{rv}.{bn}";
-                        out property <string> build-date: "{year} 年 {month:02} 月 {day:02} 日";
-                    }}
-                "#
-            )?;
-
-            let mut version_wxi = File::create("installer/version.wxi")?;
-            indoc::writedoc!(
-                version_wxi,
-                r#"
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <Include>
-                        <?define Version = "{yy}.{mm}.{rv}.{bn}"?>
-                    </Include>
-                "#
-            )?;
+        flags::XtaskCmd::UpdateVersion(flags) => {
+            version::update_version(flags)?;
+        }
+        flags::XtaskCmd::BuildInstaller(flags) => {
+            installer::build_installer(flags)?;
+        }
+        flags::XtaskCmd::PackageInstaller(flags) => {
+            installer::package_installer(flags)?;
         }
     }
 

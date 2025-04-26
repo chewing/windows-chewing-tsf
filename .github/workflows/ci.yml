@@ -17,7 +17,7 @@ on:
       nightly:
         description: "Update all submodules to build nightly build"
         default: true
-        required: false
+        required: true
         type: boolean
     outputs:
       unsigned-artifact-id:
@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
-          sudo dnf -y install clang sqlite-devel rustup git
+          sudo dnf -y install clang sqlite-devel rustup git libchewing
           sudo dnf -y install mingw32-binutils mingw32-gcc mingw32-sqlite-static mingw32-zlib-static
           sudo dnf -y install mingw64-binutils mingw64-gcc mingw64-sqlite-static mingw64-zlib-static
           rustup-init -y
@@ -69,22 +69,88 @@ jobs:
           cat version.rc
           cat installer/version.wxi
 
-      - name: Build
+      - name: Build debug
+        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
           source "$HOME/.cargo/env"
-          sh scripts/cross_build.sh
+          cargo xtask build-installer --target gnu
+
+      - name: Build release
+        if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
+        run: |
+          source "$HOME/.cargo/env"
+          cargo xtask build-installer --release --target gnu
+
+  build:
+    runs-on: windows-latest
+    name: Build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup vcpkg
+        shell: cmd
+        run: |
+          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+          vcpkg install sqlite3:x86-windows-static
+          vcpkg install sqlite3:x64-windows-static
+          vcpkg install sqlite3:x64-windows
+
+      - name: Install build dependencies
+        shell: cmd
+        run: |
+          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+          set VCPKGRS_DYNAMIC=1
+          cargo install chewing-cli
+
+      - name: Update Submodules
+        if: ${{ inputs.nightly }}
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git submodule update --remote
+
+      - name: Generate nightly version info
+        if: ${{ inputs.nightly }}
+        run: |
+          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
+          cat version.rc
+          cat installer/version.wxi
+
+      - name: Generate pull_request version info
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          cargo xtask update-version --major 0 --minor 0 --patch $env:PR_NUMBER -b $env:GITHUB_RUN_NUMBER
+          cat version.rc
+          cat installer/version.wxi
+
+      - name: Build debug
+        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+        shell: cmd
+        run: |
+          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+          cargo xtask build-installer --target msvc
+
+      - name: Build release
+        if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
+        shell: cmd
+        run: |
+          set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
+          cargo xtask build-installer --release --target msvc
 
       - uses: actions/upload-artifact@v4
         with:
           name: Installer Artifact
           path: build/installer
 
-  build:
+  package:
     runs-on: windows-latest
     name: Package
     outputs:
       unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
-    needs: [cross-build]
+    needs: [build]
 
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +174,7 @@ jobs:
       - name: Build Package
         shell: cmd
         run: |
-          scripts/package_installer.bat
+          cargo xtask package-installer
 
       - id: upload-unsigned
         uses: actions/upload-artifact@v4

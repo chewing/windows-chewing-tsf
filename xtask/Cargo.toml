@@ -8,3 +8,4 @@ anyhow = "1.0.94"
 indoc = "2.0.5"
 jiff = { version = "0.2.0", default-features = false, features = ["std"] }
 xflags = "0.3.2"
+xshell = "0.2.7"
