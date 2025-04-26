@@ -5094,6 +5094,7 @@ name = "tsfreg"
 version = "24.10.1"
 dependencies = [
  "windows 0.61.1",
+ "windows-registry",
 ]
 
 [[package]]
@@ -5740,6 +5741,17 @@ checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
  "windows-core 0.61.0",
  "windows-link",
+]
+
+[[package]]
+name = "windows-registry"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad1da3e436dc7653dfdf3da67332e22bff09bb0e28b0239e1624499c7830842e"
+dependencies = [
+ "windows-link",
+ "windows-result 0.3.2",
+ "windows-strings 0.4.0",
 ]
 
 [[package]]

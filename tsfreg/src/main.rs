@@ -8,6 +8,7 @@ use windows::{
     },
     core::*,
 };
+use windows_registry::LOCAL_MACHINE;
 
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 const CHEWING_PROFILE_GUID: GUID = GUID::from_u128(0xCE45F71D_CE79_41D1_967D_640B65A380E3);
@@ -71,6 +72,14 @@ fn register(icon_path: String) -> Result<()> {
             &GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
             &CHEWING_TSF_CLSID,
         )?;
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        // Enable user-mode minidump for debug build
+        if let Err(error) = LOCAL_MACHINE.create("SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps") {
+            println!("Error: unable to enable user-mode minidump: {error}");
+        }
     }
     Ok(())
 }
