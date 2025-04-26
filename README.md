@@ -33,9 +33,10 @@ All parts are licensed under GNU LGPL v2.1 license.
     git clone --recursive https://github.com/chewing/windows-chewing-tsf.git
     cd windows-chewing-tsf
     ```
-* Use the build script to build the installer
+* Use this xtask command to build the installer
     ```
-    scripts\build_installer.bat
+    cargo xtask build-installer
+    cargo xtask package-installer
     ```
 
 ## TSF References
