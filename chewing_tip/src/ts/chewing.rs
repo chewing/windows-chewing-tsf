@@ -1276,8 +1276,8 @@ fn user_dir() -> Result<PathBuf> {
 
 fn program_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(
-        std::env::var("programfiles(x86)")
-            .or_else(|_| std::env::var("programfiles"))
+        std::env::var("programfiles")
+            .or_else(|_| std::env::var("programfiles(x86)"))
             .map_err(|_| E_FAIL)?,
     )
     .join("ChewingTextService"))
