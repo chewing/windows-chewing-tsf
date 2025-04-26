@@ -22,7 +22,7 @@ on:
     outputs:
       unsigned-artifact-id:
         description: "Unsigned Installer"
-        value: ${{ jobs.build.outputs.unsigned-artifact-id }}
+        value: ${{ jobs.package.outputs.unsigned-artifact-id }}
 
 jobs:
   cross-build:
