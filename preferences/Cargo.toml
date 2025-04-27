@@ -1,6 +1,6 @@
 [package]
 name = "chewing-preferences"
-version = "24.10.1"
+version = "25.4.0"
 edition = "2024"
 
 [[bin]]
