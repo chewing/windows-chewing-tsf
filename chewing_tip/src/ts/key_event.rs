@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyboardState, ToAscii, VIRTUAL_KEY, VK_A, VK_CONTROL, VK_DIVIDE, VK_NUMPAD0, VK_Z,
 };

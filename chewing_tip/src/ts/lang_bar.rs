@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::{cell::Cell, collections::BTreeMap, sync::RwLock};
 
 use windows::Win32::{

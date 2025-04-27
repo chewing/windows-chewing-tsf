@@ -65,7 +65,7 @@
                 Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
         </InstallExecuteSequence>
         <ui:WixUI Id="WixUI_Minimal" />
-        <WixVariable Id="WixUILicenseRtf" Value="lgpl-2.1.rtf" />
+        <WixVariable Id="WixUILicenseRtf" Value="gpl-notice.rtf" />
 
         <Property Id="NSISUNINSTALLFOLDER32">
             <RegistrySearch Id="NSISUNINSTALLFOLDER32" Type="file" Root="HKLM"

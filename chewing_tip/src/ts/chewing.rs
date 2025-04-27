@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use core::slice;
 use std::ffi::{CStr, c_void};
 use std::os::windows::ffi::OsStrExt;

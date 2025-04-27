@@ -1,5 +1,6 @@
 [package]
 name = "tsfreg"
+license = "GPL-3.0-or-later"
 version = "25.4.0"
 edition = "2024"
 

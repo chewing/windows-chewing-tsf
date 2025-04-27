@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use core::ffi::c_void;
 
 use windows::Win32::System::Com::{CoLockObjectExternal, IClassFactory, IClassFactory_Impl};

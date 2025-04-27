@@ -6,7 +6,7 @@ Implement chewing in Windows via Text Services Framework:
 * tsfreg contains TSF registration helper used in the installer.
 * preferences contains the user preference and phrase editor GUI.
 
-All parts are licensed under GNU LGPL v2.1 license.
+All parts are licensed under GPL-3.0-or-later license.
 
 # Development
 

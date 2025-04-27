@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::{
     ffi::{c_int, c_void},
     sync::atomic::{AtomicUsize, Ordering},
