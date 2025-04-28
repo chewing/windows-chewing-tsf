@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <WixLocalization Culture="zh-tw" Codepage="950" xmlns="http://wixtoolset.org/schemas/v4/wxl">
-    <String Id="WelcomeEulaDlgTitle" Overridable="yes" Value="{\WixUI_Font_Title}[ProductName]使用 GNU Lesser General Public License (LGPL) 2.1 授權。" />
+    <String Id="WelcomeEulaDlgTitle" Overridable="yes" Value="{\WixUI_Font_Title}[ProductName]使用 GNU GPL 3.0 授權。" />
     <String Id="WelcomeEulaDlgLicenseAcceptedCheckBox" Overridable="yes" Value="我已閱讀並了解我的權利(&amp;R)" />
 
     <!-- Remove spaces before and after [ProductName] -->

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::{env, process};
 
 use windows::{
@@ -77,7 +79,9 @@ fn register(icon_path: String) -> Result<()> {
     #[cfg(debug_assertions)]
     {
         // Enable user-mode minidump for debug build
-        if let Err(error) = LOCAL_MACHINE.create("SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps") {
+        if let Err(error) = LOCAL_MACHINE
+            .create("SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps")
+        {
             println!("Error: unable to enable user-mode minidump: {error}");
         }
     }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use core::f32;
 use std::{
     cell::{Cell, RefCell},

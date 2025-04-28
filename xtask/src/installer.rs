@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::{path::PathBuf, str::FromStr};
 
 use anyhow::{Error, Result, bail};
@@ -116,7 +118,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     {
         let _p = sh.push_dir("installer");
         for file in [
-            "lgpl-2.1.rtf",
+            "gpl-notice.rtf",
             "windows-chewing-tsf.wixproj",
             "windows-chewing-tsf.wxs",
             "windows-chewing-tsf.wxl",
@@ -125,7 +127,10 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             sh.copy_file(file, "../build/installer")?;
         }
     }
-    sh.copy_file("chewing_tip/rc/im.chewing.Chewing.ico", "build/installer/chewing.ico")?;
+    sh.copy_file(
+        "chewing_tip/rc/im.chewing.Chewing.ico",
+        "build/installer/chewing.ico",
+    )?;
     sh.copy_file("build/bin/chewing-cli.exe", "build/installer")?;
 
     sh.create_dir("build/installer/Dictionary")?;

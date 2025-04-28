@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::iter;
 use std::rc::Rc;
 use std::str::FromStr;

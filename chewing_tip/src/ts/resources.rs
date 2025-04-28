@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pub(super) const IDS_SETTINGS: u32 = 105;
 pub(super) const IDS_SWITCH_LANG: u32 = 104;
 pub(super) const IDS_SWITCH_SHAPE: u32 = 103;

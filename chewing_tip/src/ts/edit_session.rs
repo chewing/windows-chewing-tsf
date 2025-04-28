@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::cell::OnceCell;
 use std::ops::Deref;
 use std::ptr;
