@@ -179,11 +179,20 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     fn OnSetFocus(
         &self,
         pdimfocus: Ref<ITfDocumentMgr>,
-        _pdimprevfocus: Ref<ITfDocumentMgr>,
+        pdimprevfocus: Ref<ITfDocumentMgr>,
     ) -> Result<()> {
         let mut ts = self.lock();
         if pdimfocus.is_null() {
-            ts.on_kill_focus()?;
+            if let Some(doc_mgr) = pdimprevfocus.as_ref() {
+                // From MSTF doc: To simplify this process and prevent
+                // multiple modal UIs from being displayed, there is a maximum
+                // of two contexts allowed on the stack.
+                //
+                // XXX: We don't push contexts, so there should always only one
+                // context. It doesn't matter we get the Top or the Base.
+                let context = unsafe { doc_mgr.GetBase()? };
+                ts.on_kill_focus(&context)?;
+            }
         }
         Ok(())
     }
