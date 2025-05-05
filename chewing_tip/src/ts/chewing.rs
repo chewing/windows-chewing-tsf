@@ -439,7 +439,7 @@ impl ChewingTextService {
                 unsafe {
                     chewing_handle_Default(ctx, ev.code.to_ascii_lowercase() as i32);
                 }
-            } else if ev.vk == VK_SPACE.0 {
+            } else if ev.is_key_down(VK_SPACE) {
                 unsafe {
                     chewing_handle_Space(ctx);
                 }
