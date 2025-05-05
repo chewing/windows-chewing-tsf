@@ -45,6 +45,9 @@ impl KeyEvent {
     pub(super) fn is_printable(&self) -> bool {
         !self.code.is_ascii_control()
     }
+    pub(super) fn is_key(&self, vk: VIRTUAL_KEY) -> bool {
+        self.vk == vk.0
+    }
     pub(super) fn is_key_down(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & (1 << 7) != 0
     }
