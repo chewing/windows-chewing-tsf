@@ -5095,6 +5095,7 @@ name = "tsfreg"
 version = "25.4.0"
 dependencies = [
  "windows 0.61.1",
+ "windows-link",
  "windows-registry",
 ]
 

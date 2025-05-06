@@ -56,12 +56,17 @@
         <CustomAction Id="RegisterTSF" BinaryRef="tsfreg"
             ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;"
             Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no"
-            Execute="deferred" Return="check" />
+        <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="EnableTIP" BinaryRef="tsfreg" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
+        <CustomAction Id="DisableTIP" BinaryRef="tsfreg" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
         <InstallExecuteSequence>
             <Custom Action="RegisterTSF" After="WriteRegistryValues"
                 Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
+            <Custom Action="EnableTIP" After="RegisterTSF"
+                Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
             <Custom Action="UnregisterTSF" Before="RemoveRegistryValues"
+                Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
+            <Custom Action="DisableTIP" Before="UnregisterTSF"
                 Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
         </InstallExecuteSequence>
         <ui:WixUI Id="WixUI_Minimal" />
