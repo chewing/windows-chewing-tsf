@@ -325,10 +325,9 @@ impl ChewingTextService {
         self.thread_mgr.take().ok_or(E_FAIL.into())
     }
 
-    pub(super) fn on_kill_focus(&mut self) -> Result<()> {
+    pub(super) fn on_kill_focus(&mut self, context: &ITfContext) -> Result<()> {
         if self.is_composing() {
-            // TODO
-            // self.end_composition(&context)?;
+            self.end_composition(&context)?;
         }
         self.hide_candidates();
         self.hide_message();
