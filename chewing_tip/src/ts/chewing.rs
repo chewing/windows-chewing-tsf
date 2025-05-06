@@ -275,10 +275,12 @@ impl ChewingTextService {
                     tooltip,
                     info.szDescription.len() as i32,
                 );
-                let icon_id = if is_light_theme() {
-                    IDI_ENG
-                } else {
-                    IDI_ENG_DARK
+                let icon_id = match (is_light_theme(), self.lang_mode) {
+                    (true, CHINESE_MODE) => IDI_CHI,
+                    (true, SYMBOL_MODE) => IDI_ENG,
+                    (false, CHINESE_MODE) => IDI_CHI_DARK,
+                    (false, SYMBOL_MODE) => IDI_ENG_DARK,
+                    _ => unreachable!(),
                 };
                 let button = LangBarButton::new(
                     info,
@@ -1053,6 +1055,8 @@ impl ChewingTextService {
                 chewing_set_maxChiSymbolLen(ctx, 50);
                 if self.cfg.default_english {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
+                } else {
+                    chewing_set_ChiEngMode(ctx, CHINESE_MODE);
                 }
                 if self.cfg.default_full_space {
                     chewing_set_ShapeMode(ctx, FULLSHAPE_MODE);
