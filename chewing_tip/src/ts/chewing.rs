@@ -765,7 +765,7 @@ impl ChewingTextService {
                                 Some(HWND_DESKTOP),
                                 w!("open"),
                                 &HSTRING::from(&exe),
-                                None,
+                                w!("--config"),
                                 None,
                                 SW_SHOWNORMAL,
                             );
