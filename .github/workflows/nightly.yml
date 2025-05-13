@@ -68,4 +68,5 @@ jobs:
           files: |
             dist/windows-chewing-tsf.msi
             dist/windows-chewing-tsf.msi.sha256
+            build/installer/ChewingPreferences.exe
             installer/windows-chewing-tsf-debug.bat

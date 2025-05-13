@@ -32,6 +32,11 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     } else {
         None
     };
+    let nightly = if flags.nightly {
+        vec!["--features", "nightly"]
+    } else {
+        vec![]
+    };
 
     let x86_64_target = match flags.target {
         None | Some(Target::Gnu) => "x86_64-pc-windows-gnu",
@@ -87,7 +92,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         .run()?;
         cmd!(
             sh,
-            "cargo build -p tsfreg {release...} --target {x86_64_target}"
+            "cargo build -p tsfreg {release...} {nightly...} --target {x86_64_target}"
         )
         .run()?;
     }

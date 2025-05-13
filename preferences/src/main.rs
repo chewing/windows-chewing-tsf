@@ -15,8 +15,10 @@ fn main() -> anyhow::Result<()> {
         editor::run()?;
     } else if env::args().any(|arg| arg == "/about" || arg == "--about") {
         about::run()?;
-    } else {
+    } else if env::args().any(|arg| arg == "/config" || arg == "--config") {
         config::run()?;
+    } else {
+        editor::run()?;
     }
     Ok(())
 }
