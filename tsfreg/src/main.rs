@@ -63,7 +63,7 @@ fn register(icon_path: String) -> Result<()> {
         }
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(feature = "nightly")]
     {
         // Enable user-mode minidump for debug build
         if let Err(error) = LOCAL_MACHINE

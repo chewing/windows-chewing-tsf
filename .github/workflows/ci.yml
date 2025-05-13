@@ -69,11 +69,11 @@ jobs:
           cat version.rc
           cat installer/version.wxi
 
-      - name: Build debug
+      - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
           source "$HOME/.cargo/env"
-          cargo xtask build-installer --target gnu
+          cargo xtask build-installer --nightly --release --target gnu
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
@@ -126,12 +126,12 @@ jobs:
           cat version.rc
           cat installer/version.wxi
 
-      - name: Build debug
+      - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         shell: cmd
         run: |
           set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
-          cargo xtask build-installer --target msvc
+          cargo xtask build-installer --nightly --release --target msvc
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
