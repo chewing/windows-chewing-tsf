@@ -975,17 +975,23 @@ impl ChewingTextService {
                 return Ok(());
             };
             let bitmap_path = program_dir.join("Assets").join("bubble.9.png");
-            let candidate_window = CandidateWindow::new(hwnd, &bitmap_path)?;
+            let candidate_window = match CandidateWindow::new(hwnd, &bitmap_path) {
+                Ok(window) => window,
+                Err(error) => {
+                    error!("unable to create candidate window: {error}");
+                    return Err(error);
+                }
+            };
             self.candidate_window = Some(candidate_window);
         }
 
         if let Some(candidate_window) = &self.candidate_window {
-            unsafe {
-                candidate_window.clear();
-                candidate_window.set_use_cursor(self.cfg.cursor_cand_list);
-                candidate_window.set_cand_per_row(self.cfg.cand_per_row);
-                candidate_window.set_font_size(self.cfg.font_size);
+            candidate_window.clear();
+            candidate_window.set_use_cursor(self.cfg.cursor_cand_list);
+            candidate_window.set_cand_per_row(self.cfg.cand_per_row);
+            candidate_window.set_font_size(self.cfg.font_size);
 
+            unsafe {
                 let sel_keys = slice::from_raw_parts(chewing_get_selKey(ctx), 10);
                 let n = chewing_cand_ChoicePerPage(ctx) as usize;
 
@@ -1000,14 +1006,14 @@ impl ChewingTextService {
                     chewing_free(ptr.cast());
                     candidate_window.add(text, *item as u16);
                 }
+            }
 
-                candidate_window.recalculate_size()?;
-                candidate_window.refresh();
-                candidate_window.show();
+            candidate_window.recalculate_size()?;
+            candidate_window.refresh();
+            candidate_window.show();
 
-                if let Ok(rect) = self.get_selection_rect(context) {
-                    candidate_window.r#move(rect.left, rect.bottom);
-                }
+            if let Ok(rect) = self.get_selection_rect(context) {
+                candidate_window.r#move(rect.left, rect.bottom);
             }
         }
 
@@ -1281,8 +1287,9 @@ fn user_dir() -> Result<PathBuf> {
 
 fn program_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(
-        std::env::var("programfiles")
-            .or_else(|_| std::env::var("programfiles(x86)"))
+        std::env::var("ProgramW6432")
+            .or_else(|_| std::env::var("ProgramFiles"))
+            .or_else(|_| std::env::var("FrogramFiles(x86)"))
             .map_err(|_| E_FAIL)?,
     )
     .join("ChewingTextService"))
