@@ -156,12 +156,6 @@ impl ChewingTextService {
         };
         self.input_da_atom = register_display_attribute(&GUID_INPUT_DISPLAY_ATTRIBUTE, da)?;
 
-        info!("Load config and start watching changes");
-        if let Err(error) = self.cfg.load() {
-            error!("unable to load config: {error}");
-        }
-        self.cfg.watch_changes();
-
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
 
         window_register_class();
@@ -342,8 +336,8 @@ impl ChewingTextService {
         ev: KeyEvent,
         dry_run: bool,
     ) -> Result<bool> {
-        if let Err(error) = self.cfg.reload_if_needed() {
-            error!("unable to reload config {error}");
+        if let Err(error) = self.apply_config_if_changed() {
+            error!("unable to load config: {error}");
         }
         if self.chewing_context.is_none() {
             error!("on_keydown but chewing context is null");
@@ -1057,17 +1051,6 @@ impl ChewingTextService {
             if ctx.is_null() {
                 bail!("chewing context is null");
             }
-            unsafe {
-                chewing_set_maxChiSymbolLen(ctx, 50);
-                if self.cfg.default_english {
-                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
-                } else {
-                    chewing_set_ChiEngMode(ctx, CHINESE_MODE);
-                }
-                if self.cfg.default_full_space {
-                    chewing_set_ShapeMode(ctx, FULLSHAPE_MODE);
-                }
-            }
             self.chewing_context = Some(ctx);
 
             // Get last mtime of the symbols.dat file
@@ -1080,7 +1063,21 @@ impl ChewingTextService {
                 .as_secs();
         }
 
-        self.apply_config()?;
+        self.apply_config_if_changed()?;
+
+        if let Some(ctx) = self.chewing_context {
+            unsafe {
+                chewing_set_maxChiSymbolLen(ctx, 50);
+                if self.cfg.default_english {
+                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
+                } else {
+                    chewing_set_ChiEngMode(ctx, CHINESE_MODE);
+                }
+                if self.cfg.default_full_space {
+                    chewing_set_ShapeMode(ctx, FULLSHAPE_MODE);
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1092,44 +1089,45 @@ impl ChewingTextService {
         }
     }
 
-    fn apply_config(&mut self) -> anyhow::Result<()> {
-        self.cfg.reload_if_needed()?;
-        let cfg = &self.cfg;
+    fn apply_config_if_changed(&mut self) -> anyhow::Result<()> {
+        if self.cfg.reload_if_needed()? {
+            let cfg = &self.cfg;
 
-        if let Some(ctx) = &self.chewing_context {
-            unsafe {
-                chewing_set_addPhraseDirection(*ctx, cfg.add_phrase_forward as i32);
-                chewing_set_autoShiftCur(*ctx, cfg.advance_after_selection as i32);
-                chewing_set_candPerPage(*ctx, cfg.cand_per_page);
-                chewing_set_escCleanAllBuf(*ctx, cfg.esc_clean_all_buf as i32);
-                chewing_set_KBType(*ctx, cfg.keyboard_layout);
-                chewing_set_spaceAsSelection(*ctx, cfg.show_cand_with_space_key as i32);
-                chewing_config_set_str(
-                    *ctx,
-                    c"chewing.selection_keys".as_ptr(),
-                    SEL_KEYS[cfg.sel_key_type as usize].as_ptr(),
-                );
-                chewing_config_set_int(
-                    *ctx,
-                    c"chewing.conversion_engine".as_ptr(),
-                    cfg.conv_engine,
-                );
+            if let Some(ctx) = &self.chewing_context {
+                unsafe {
+                    chewing_set_addPhraseDirection(*ctx, cfg.add_phrase_forward as i32);
+                    chewing_set_autoShiftCur(*ctx, cfg.advance_after_selection as i32);
+                    chewing_set_candPerPage(*ctx, cfg.cand_per_page);
+                    chewing_set_escCleanAllBuf(*ctx, cfg.esc_clean_all_buf as i32);
+                    chewing_set_KBType(*ctx, cfg.keyboard_layout);
+                    chewing_set_spaceAsSelection(*ctx, cfg.show_cand_with_space_key as i32);
+                    chewing_config_set_str(
+                        *ctx,
+                        c"chewing.selection_keys".as_ptr(),
+                        SEL_KEYS[cfg.sel_key_type as usize].as_ptr(),
+                    );
+                    chewing_config_set_int(
+                        *ctx,
+                        c"chewing.conversion_engine".as_ptr(),
+                        cfg.conv_engine,
+                    );
+                }
             }
-        }
-        self.output_simp_chinese = cfg.output_simp_chinese;
-        let check_flag = if self.output_simp_chinese {
-            MF_CHECKED
-        } else {
-            MF_UNCHECKED
-        };
-        unsafe {
-            CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
-        }
-        if let Some(message_window) = &self.message_window {
-            message_window.set_font_size(self.cfg.font_size);
-        }
-        if let Some(candidate_window) = &self.candidate_window {
-            candidate_window.set_font_size(self.cfg.font_size);
+            self.output_simp_chinese = cfg.output_simp_chinese;
+            let check_flag = if self.output_simp_chinese {
+                MF_CHECKED
+            } else {
+                MF_UNCHECKED
+            };
+            unsafe {
+                CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+            }
+            if let Some(message_window) = &self.message_window {
+                message_window.set_font_size(self.cfg.font_size);
+            }
+            if let Some(candidate_window) = &self.candidate_window {
+                candidate_window.set_font_size(self.cfg.font_size);
+            }
         }
 
         Ok(())
