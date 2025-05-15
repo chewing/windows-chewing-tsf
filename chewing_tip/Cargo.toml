@@ -18,6 +18,7 @@ nine_patch_drawable = "0.1.0"
 win_dbg_logger = "0.1.0"
 windows-core = "0.61.0"
 windows-numerics = "0.2.0"
+windows-registry = "0.5.1"
 windows-version = "0.1.4"
 windows = { version = "0.61.0", features = [
     "Foundation_Numerics",

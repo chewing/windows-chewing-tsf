@@ -797,6 +797,7 @@ dependencies = [
  "slint",
  "slint-build",
  "windows 0.61.1",
+ "windows-registry",
 ]
 
 [[package]]
@@ -825,6 +826,7 @@ dependencies = [
  "windows 0.61.1",
  "windows-core 0.61.0",
  "windows-numerics",
+ "windows-registry",
  "windows-version",
  "zhconv",
 ]
