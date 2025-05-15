@@ -198,7 +198,7 @@ pub(super) fn create_render_target(
 
         let target = d2device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
 
-        target.SetUnitMode(D2D1_UNIT_MODE_DIPS);
+        //target.SetUnitMode(D2D1_UNIT_MODE_DIPS);
 
         Ok(target)
     }

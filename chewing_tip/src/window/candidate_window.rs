@@ -18,6 +18,7 @@ use windows::Win32::Graphics::DirectWrite::*;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::UI::HiDpi::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_core::*;
@@ -44,7 +45,6 @@ pub(crate) struct CandidateWindow {
     swapchain: RefCell<Option<IDXGISwapChain1>>,
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
     nine_patch_bitmap: NinePatchBitmap,
-    dpi: f32,
     window: Window,
 }
 
@@ -65,10 +65,6 @@ impl CandidateWindow {
                 D2D1_FACTORY_TYPE_SINGLE_THREADED,
                 Some(&D2D1_FACTORY_OPTIONS::default()),
             )?;
-
-            let mut dpi = 0.0;
-            let mut dpiy = 0.0;
-            factory.GetDesktopDpi(&mut dpi, &mut dpiy);
 
             let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
             let text_format = dwrite_factory.CreateTextFormat(
@@ -102,7 +98,6 @@ impl CandidateWindow {
                 swapchain: None.into(),
                 brush: None.into(),
                 nine_patch_bitmap,
-                dpi,
                 window,
             });
             Window::register_hwnd(
@@ -116,8 +111,9 @@ impl CandidateWindow {
         let margin = self.nine_patch_bitmap.margin().ceil();
         if self.items.borrow().is_empty() {
             // Convert to HW pixels
-            let width = 2.0 * margin * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
-            let height = 2.0 * margin * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
+            let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            let width = 2.0 * margin * dpi / USER_DEFAULT_SCREEN_DPI as f32;
+            let height = 2.0 * margin * dpi / USER_DEFAULT_SCREEN_DPI as f32;
 
             self.window.resize(width as i32, height as i32);
             self.resize_swap_chain(width as u32, height as u32)?;
@@ -172,11 +168,12 @@ impl CandidateWindow {
         let height = rows * item_height as u32 + (rows - 1) * ROW_SPACING + 2 * margin as u32;
 
         // Convert to HW pixels
-        let width = width * self.dpi as u32 / USER_DEFAULT_SCREEN_DPI;
-        let height = height * self.dpi as u32 / USER_DEFAULT_SCREEN_DPI;
+        let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+        let width = width as f32 * dpi / USER_DEFAULT_SCREEN_DPI as f32;
+        let height = height as f32 * dpi / USER_DEFAULT_SCREEN_DPI as f32;
 
         self.window.resize(width as i32, height as i32);
-        self.resize_swap_chain(width, height)?;
+        self.resize_swap_chain(width as u32, height as u32)?;
 
         Ok(())
     }
@@ -203,7 +200,8 @@ impl CandidateWindow {
                     self.swapchain.take();
                     self.brush.take();
                 } else {
-                    create_swapchain_bitmap(swapchain, target, self.dpi)?;
+                    let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+                    create_swapchain_bitmap(swapchain, target, dpi)?;
                 }
 
                 self.on_paint()?;
@@ -216,7 +214,6 @@ impl CandidateWindow {
         if self.target.borrow().is_none() {
             let device = create_device()?;
             let target = create_render_target(&self.factory, &device)?;
-            unsafe { target.SetDpi(self.dpi, self.dpi) };
 
             let mut rc = RECT::default();
             unsafe { GetClientRect(self.window.hwnd.get(), &mut rc)? };
@@ -226,7 +223,8 @@ impl CandidateWindow {
                 (rc.right - rc.left) as u32,
                 (rc.bottom - rc.top) as u32,
             )?;
-            create_swapchain_bitmap(&swapchain, &target, self.dpi)?;
+            let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget =
                 setup_direct_composition(&device, self.window.hwnd.get(), &swapchain)?;
 
@@ -248,14 +246,15 @@ impl CandidateWindow {
             unsafe {
                 let mut rc = RECT::default();
                 GetClientRect(self.window.hwnd.get(), &mut rc)?;
+                let dpi = GetDpiForWindow(self.window.hwnd()) as f32;
 
                 target.BeginDraw();
                 let rect = D2D_RECT_F {
                     top: 0.0,
                     left: 0.0,
                     // Convert to DIPs
-                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
-                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
+                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
+                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
                 };
                 self.nine_patch_bitmap.draw_bitmap(target, rect)?;
 
