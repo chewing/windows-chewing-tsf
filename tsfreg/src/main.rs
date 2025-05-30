@@ -10,6 +10,7 @@ use windows::{
     },
     core::*,
 };
+#[cfg(feature = "nightly")]
 use windows_registry::LOCAL_MACHINE;
 
 // https://learn.microsoft.com/en-us/windows/win32/tsf/installlayoutortip
@@ -102,6 +103,7 @@ fn unregister() -> Result<()> {
             0,
         )?;
     }
+
     Ok(())
 }
 
