@@ -15,9 +15,9 @@ use std::{
 };
 
 use display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
-use log::info;
+use log::{error, info};
 use windows::Win32::{
-    Foundation::{FALSE, LPARAM, WPARAM},
+    Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
     UI::TextServices::*,
 };
 use windows_core::{
@@ -125,7 +125,11 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         let mut ts = self.lock();
         let thread_mgr = ptim.ok()?;
         let composition_sink = self.as_interface_ref();
-        ts.activate(thread_mgr, tid, composition_sink)?;
+
+        if let Err(error) = ts.activate(thread_mgr, tid, composition_sink) {
+            error!("Unable to activate chewing_tip: {error:#}");
+            return Err(E_UNEXPECTED.into());
+        }
 
         let punk: InterfaceRef<IUnknown> = self.as_interface_ref();
         // Set up event sinks
@@ -145,7 +149,14 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Deactivate(&self) -> Result<()> {
         info!("Deactivate chewing_tip");
         let mut ts = self.lock();
-        let thread_mgr = ts.deactivate()?;
+
+        let thread_mgr = match ts.deactivate() {
+            Ok(mgr) => mgr,
+            Err(error) => {
+                error!("Unable to deactivate chewing_tip: {error:#}");
+                return Err(E_UNEXPECTED.into());
+            }
+        };
 
         // Remove event sinks
         unsafe {
@@ -191,7 +202,10 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
                 // XXX: We don't push contexts, so there should always only one
                 // context. It doesn't matter we get the Top or the Base.
                 let context = unsafe { doc_mgr.GetBase()? };
-                ts.on_kill_focus(&context)?;
+                if let Err(error) = ts.on_kill_focus(&context) {
+                    error!("Unable to kill focus: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
             }
         }
         Ok(())
@@ -226,28 +240,52 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let should_handle = ts.on_keydown(pic.ok()?, ev, true)?;
+        let should_handle = match ts.on_keydown(pic.ok()?, ev, true) {
+            Ok(v) => v,
+            Err(error) => {
+                error!("Unable to handle OnTestKeyDown: {error:#}");
+                return Err(E_UNEXPECTED.into());
+            }
+        };
         Ok(should_handle.into())
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let should_handle = ts.on_keyup(pic.ok()?, ev, true)?;
+        let should_handle = match ts.on_keyup(pic.ok()?, ev, true) {
+            Ok(v) => v,
+            Err(error) => {
+                error!("Unable to handle OnTestKeyUp: {error:#}");
+                return Err(E_UNEXPECTED.into());
+            }
+        };
         Ok(should_handle.into())
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let handled = ts.on_keydown(pic.ok()?, ev, false)?;
+        let handled = match ts.on_keydown(pic.ok()?, ev, false) {
+            Ok(v) => v,
+            Err(error) => {
+                error!("Unable to handle OnKeyDown: {error:#}");
+                return Err(E_UNEXPECTED.into());
+            }
+        };
         Ok(handled.into())
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let mut ts = self.lock();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let handled = ts.on_keyup(pic.ok()?, ev, false)?;
+        let handled = match ts.on_keyup(pic.ok()?, ev, false) {
+            Ok(v) => v,
+            Err(error) => {
+                error!("Unable to handle OnKeyUp: {error:#}");
+                return Err(E_UNEXPECTED.into());
+            }
+        };
         Ok(handled.into())
     }
 

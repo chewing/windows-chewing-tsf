@@ -10,7 +10,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
 
-use anyhow::bail;
+use anyhow::{Context, Result, bail};
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
     chewing_cand_TotalChoice, chewing_cand_close, chewing_cand_hasNext, chewing_get_selKey,
@@ -41,7 +41,7 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info, warn};
-use windows::Win32::Foundation::{E_FAIL, HINSTANCE, POINT, RECT};
+use windows::Win32::Foundation::{HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
@@ -70,8 +70,7 @@ use windows::Win32::UI::{
     },
 };
 use windows_core::{
-    BSTR, ComObject, ComObjectInner, Error, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR,
-    Result, w,
+    BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR, w,
 };
 use windows_version::OsVersion;
 use zhconv::{Variant, zhconv};
@@ -318,12 +317,12 @@ impl ChewingTextService {
         // TSF doc: The corresponding ITfTextInputProcessor::Deactivate
         // method that shuts down the text service must release all references
         // to the ptim parameter.
-        self.thread_mgr.take().ok_or(E_FAIL.into())
+        self.thread_mgr.take().context("there is no thread manager")
     }
 
     pub(super) fn on_kill_focus(&mut self, context: &ITfContext) -> Result<()> {
         if self.is_composing() {
-            self.end_composition(&context)?;
+            self.end_composition(context)?;
         }
         self.hide_candidates();
         self.hide_message();
@@ -860,7 +859,7 @@ impl ChewingTextService {
         let Some(composition) = &self.composition else {
             return Ok(());
         };
-        debug!("set composition string to {}", text);
+        debug!("set composition string to {text}");
         let session =
             SetCompositionString::new(context, composition, self.input_da_atom.clone(), text)
                 .into_object();
@@ -878,7 +877,7 @@ impl ChewingTextService {
                 }
             }
         }
-        debug!("done compose {}", text);
+        debug!("done compose {text}");
         Ok(())
     }
 
@@ -945,7 +944,7 @@ impl ChewingTextService {
                 .RequestEditSession(self.tid, session.as_interface(), TF_ES_SYNC | TF_ES_READ)?
                 .ok()?;
         }
-        session.rect().cloned().ok_or(Error::empty())
+        session.rect().cloned().context("there is no selection")
     }
 
     fn update_candidates(&mut self, context: &ITfContext) -> Result<()> {
@@ -969,13 +968,8 @@ impl ChewingTextService {
                 return Ok(());
             };
             let bitmap_path = program_dir.join("Assets").join("bubble.9.png");
-            let candidate_window = match CandidateWindow::new(hwnd, &bitmap_path) {
-                Ok(window) => window,
-                Err(error) => {
-                    error!("unable to create candidate window: {error}");
-                    return Err(error);
-                }
-            };
+            let candidate_window = CandidateWindow::new(hwnd, &bitmap_path)
+                .context("unable to create candidate window")?;
             self.candidate_window = Some(candidate_window);
         }
 
@@ -1263,7 +1257,7 @@ fn user_dir() -> Result<PathBuf> {
     //
     // SHGetFolderPath might fail in impersonation security context.
     // Use %USERPROFILE% to retrieve the user home directory.
-    let user_profile = PathBuf::from(std::env::var("USERPROFILE").map_err(|_| E_FAIL)?);
+    let user_profile = PathBuf::from(std::env::var("USERPROFILE")?);
     let user_dir = user_profile.join("ChewingTextService");
 
     if !user_dir.exists() {
@@ -1286,8 +1280,7 @@ fn program_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(
         std::env::var("ProgramW6432")
             .or_else(|_| std::env::var("ProgramFiles"))
-            .or_else(|_| std::env::var("FrogramFiles(x86)"))
-            .map_err(|_| E_FAIL)?,
+            .or_else(|_| std::env::var("FrogramFiles(x86)"))?,
     )
     .join("ChewingTextService"))
 }
