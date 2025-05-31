@@ -57,20 +57,20 @@ fn load_config() -> Result<Config> {
         .read()
         .access(KEY_WOW64_64KEY.0)
         .open("Software\\ChewingTextService")?;
-    let mut cfg = Config::default();
-
-    // Init settings to default value
-    cfg.cand_per_row = 3;
-    cfg.switch_lang_with_shift = true;
-    cfg.add_phrase_forward = true;
-    cfg.advance_after_selection = true;
-    cfg.font_size = 16;
-    cfg.conv_engine = 1;
-    cfg.cand_per_page = 9;
-    cfg.cursor_cand_list = true;
-    cfg.enable_caps_lock = true;
-    cfg.full_shape_symbols = true;
-    cfg.easy_symbols_with_shift = true;
+    let mut cfg = Config {
+        cand_per_row: 3,
+        switch_lang_with_shift: true,
+        add_phrase_forward: true,
+        advance_after_selection: true,
+        font_size: 16,
+        conv_engine: 1,
+        cand_per_page: 9,
+        cursor_cand_list: true,
+        enable_caps_lock: true,
+        full_shape_symbols: true,
+        easy_symbols_with_shift: true,
+        ..Config::default()
+    };
 
     // if let Ok(path) = user_symbols_dat_path() {
     //     cfg.set_symbols_dat(fs::read_to_string(path)?.into());

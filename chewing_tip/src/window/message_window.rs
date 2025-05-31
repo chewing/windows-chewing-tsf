@@ -187,8 +187,7 @@ impl MessageWindow {
             let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
             unsafe { target.SetDpi(dpi, dpi) };
             create_swapchain_bitmap(&swapchain, &target, dpi)?;
-            let dcomptarget =
-                setup_direct_composition(&device, self.window.hwnd(), &swapchain)?;
+            let dcomptarget = setup_direct_composition(&device, self.window.hwnd(), &swapchain)?;
 
             self.brush
                 .replace(create_brush(&target, create_color(COLOR_INFOTEXT)).ok());
