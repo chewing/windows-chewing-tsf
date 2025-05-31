@@ -17,6 +17,7 @@ use windows::Win32::Graphics::DirectWrite::*;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::UI::HiDpi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_core::*;
 
@@ -36,7 +37,6 @@ pub(crate) struct MessageWindow {
     dcomptarget: RefCell<Option<IDCompositionTarget>>,
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
     nine_patch_bitmap: NinePatchBitmap,
-    dpi: f32,
     window: Window,
 }
 
@@ -55,10 +55,6 @@ impl MessageWindow {
                 Some(&D2D1_FACTORY_OPTIONS::default()),
             )?;
 
-            let mut dpi = 0.0;
-            let mut dpiy = 0.0;
-            factory.GetDesktopDpi(&mut dpi, &mut dpiy);
-
             let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
             let text_format = dwrite_factory.CreateTextFormat(
                 w!("Segoe UI"),
@@ -67,7 +63,7 @@ impl MessageWindow {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 16.0,
-                w!(""),
+                w!("zh-TW"),
             )?;
 
             let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
@@ -83,7 +79,6 @@ impl MessageWindow {
                 swapchain: None.into(),
                 brush: None.into(),
                 nine_patch_bitmap,
-                dpi,
                 window,
             });
             Window::register_hwnd(
@@ -123,12 +118,13 @@ impl MessageWindow {
         let height = metrics.height + margin * 2.0;
 
         // Convert to HW pixels
-        let width = width * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
-        let height = height * self.dpi / USER_DEFAULT_SCREEN_DPI as f32;
+        let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+        let width = width * dpi / USER_DEFAULT_SCREEN_DPI as f32;
+        let height = height * dpi / USER_DEFAULT_SCREEN_DPI as f32;
 
         unsafe {
             let _ = SetWindowPos(
-                self.window.hwnd.get(),
+                self.window.hwnd(),
                 Some(HWND_TOPMOST),
                 0,
                 0,
@@ -164,7 +160,8 @@ impl MessageWindow {
                     self.swapchain.take();
                     self.brush.take();
                 } else {
-                    create_swapchain_bitmap(swapchain, target, self.dpi)?;
+                    let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+                    create_swapchain_bitmap(swapchain, target, dpi)?;
                 }
 
                 self.on_paint()?;
@@ -178,20 +175,20 @@ impl MessageWindow {
         if self.target.borrow().is_none() {
             let device = create_device()?;
             let target = create_render_target(&self.factory, &device)?;
-            unsafe { target.SetDpi(self.dpi, self.dpi) };
 
             let mut rc = RECT::default();
-            unsafe { GetClientRect(self.window.hwnd.get(), &mut rc)? };
+            unsafe { GetClientRect(self.window.hwnd(), &mut rc)? };
 
             let swapchain = create_swapchain(
                 &device,
                 (rc.right - rc.left) as u32,
                 (rc.bottom - rc.top) as u32,
             )?;
-
-            create_swapchain_bitmap(&swapchain, &target, self.dpi)?;
+            let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            unsafe { target.SetDpi(dpi, dpi) };
+            create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget =
-                setup_direct_composition(&device, self.window.hwnd.get(), &swapchain)?;
+                setup_direct_composition(&device, self.window.hwnd(), &swapchain)?;
 
             self.brush
                 .replace(create_brush(&target, create_color(COLOR_INFOTEXT)).ok());
@@ -210,15 +207,16 @@ impl MessageWindow {
         if let Some(target) = target.as_ref() {
             unsafe {
                 let mut rc = RECT::default();
-                GetClientRect(self.window.hwnd.get(), &mut rc)?;
+                GetClientRect(self.window.hwnd(), &mut rc)?;
+                let dpi = GetDpiForWindow(self.window.hwnd()) as f32;
 
                 target.BeginDraw();
                 let rect = D2D_RECT_F {
                     top: 0.0,
                     left: 0.0,
                     // Convert to DIPs
-                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
-                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / self.dpi,
+                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
+                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
                 };
                 self.nine_patch_bitmap.draw_bitmap(target, rect)?;
                 let margin = self.nine_patch_bitmap.margin();
@@ -264,7 +262,7 @@ impl MessageWindow {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 font_size as f32,
-                w!(""),
+                w!("zh-TW"),
             )
         } {
             self.text_format.replace(text_format);

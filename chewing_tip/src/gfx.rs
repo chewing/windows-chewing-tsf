@@ -105,15 +105,18 @@ impl NinePatchBitmap {
                 (rect.bottom - rect.top) as usize,
             );
             for patch in patches {
+                // NB: Add 0.5 offset to ensure source sampling works well with
+                // fractional scaling.
                 let source = D2D_RECT_F {
-                    left: patch.source.left,
-                    top: patch.source.top,
-                    right: patch.source.right,
-                    bottom: patch.source.bottom,
+                    left: patch.source.left + 0.5,
+                    top: patch.source.top + 0.5,
+                    right: patch.source.right - 0.5,
+                    bottom: patch.source.bottom - 0.5,
                 };
+                // NB: Add 0.5 offset to ensure seam does not appear between tiles.
                 let target = D2D_RECT_F {
-                    left: patch.target.left,
-                    top: patch.target.top,
+                    left: patch.target.left - 0.5,
+                    top: patch.target.top - 0.5,
                     right: patch.target.right,
                     bottom: patch.target.bottom,
                 };
@@ -157,16 +160,13 @@ pub(super) fn create_brush(
 }
 
 pub(super) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
-    let flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-
     let mut device = None;
-
     unsafe {
         D3D11CreateDevice(
             None,
             drive_type,
             HMODULE::default(),
-            flags,
+            D3D11_CREATE_DEVICE_BGRA_SUPPORT,
             None,
             D3D11_SDK_VERSION,
             Some(&mut device),
@@ -195,11 +195,7 @@ pub(super) fn create_render_target(
 ) -> Result<ID2D1DeviceContext> {
     unsafe {
         let d2device = factory.CreateDevice(&device.cast::<IDXGIDevice>()?)?;
-
         let target = d2device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
-
-        target.SetUnitMode(D2D1_UNIT_MODE_DIPS);
-
         Ok(target)
     }
 }
