@@ -185,6 +185,7 @@ impl MessageWindow {
                 (rc.bottom - rc.top) as u32,
             )?;
             let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            unsafe { target.SetDpi(dpi, dpi) };
             create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget =
                 setup_direct_composition(&device, self.window.hwnd(), &swapchain)?;

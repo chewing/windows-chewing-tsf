@@ -74,7 +74,7 @@ impl CandidateWindow {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 16.0,
-                w!(""),
+                w!("zh-TW"),
             )?;
 
             let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
@@ -224,6 +224,7 @@ impl CandidateWindow {
                 (rc.bottom - rc.top) as u32,
             )?;
             let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            unsafe { target.SetDpi(dpi, dpi) };
             create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget =
                 setup_direct_composition(&device, self.window.hwnd.get(), &swapchain)?;
@@ -373,7 +374,7 @@ impl CandidateWindow {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 font_size as f32,
-                w!(""),
+                w!("zh-TW"),
             )
         } {
             self.text_format.replace(text_format);
