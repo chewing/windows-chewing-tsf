@@ -8,7 +8,7 @@ use std::ptr;
 use std::rc::Rc;
 use std::sync::LazyLock;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::Duration;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -114,7 +114,6 @@ pub(super) struct ChewingTextService {
     output_simp_chinese: bool,
     last_keydown_code: u16,
     message_timer_id: usize,
-    symbols_file_mtime: u64,
     cfg: Config,
     chewing_context: Option<*mut ChewingContext>,
 
@@ -1049,15 +1048,6 @@ impl ChewingTextService {
             }
             log::set_max_level(log::LevelFilter::Info);
             self.chewing_context = Some(ctx);
-
-            // Get last mtime of the symbols.dat file
-            let symbols_dat = user_dir()?.join("symbols.dat");
-            let metadata = std::fs::metadata(&symbols_dat)?;
-            self.symbols_file_mtime = metadata
-                .modified()?
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
         }
 
         self.apply_config();
@@ -1248,19 +1238,13 @@ fn init_chewing_env() -> Result<()> {
     );
 
     unsafe {
-        std::env::set_var("CHEWING_USER_PATH", &user_path);
         std::env::set_var("CHEWING_PATH", &chewing_path);
     }
     Ok(())
 }
 
 pub(crate) fn user_dir() -> Result<PathBuf> {
-    // FIXME use chewing::path instead.
-    //
-    // SHGetFolderPath might fail in impersonation security context.
-    // Use %USERPROFILE% to retrieve the user home directory.
-    let user_profile = PathBuf::from(std::env::var("USERPROFILE")?);
-    let user_dir = user_profile.join("ChewingTextService");
+    let user_dir = chewing::path::data_dir().context("unable to determine user_dir")?;
 
     if !user_dir.exists() {
         std::fs::create_dir(&user_dir)?;

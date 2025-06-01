@@ -211,6 +211,7 @@ pub fn run() -> Result<()> {
 }
 
 fn dict_list_model() -> Result<ModelRc<ModelRc<StandardListViewItem>>> {
+    // FIXME: stop relying on global CHEWING_PATH environment variable
     let sys_loader = SystemDictionaryLoader::new();
     let user_loader = UserDictionaryLoader::new();
 
