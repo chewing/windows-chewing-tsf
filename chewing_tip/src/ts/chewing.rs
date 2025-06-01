@@ -6,6 +6,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::ptr;
 use std::rc::Rc;
+use std::sync::LazyLock;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -75,11 +76,11 @@ use windows_core::{
 use windows_version::OsVersion;
 use zhconv::{Variant, zhconv};
 
-use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
 use crate::ts::menu::Menu;
 use crate::window::{CandidateWindow, MessageWindow, Window, window_register_class};
+use crate::{G_HINSTANCE, LOGGER};
 
 use super::CommandType;
 use super::config::Config;
@@ -144,6 +145,7 @@ impl ChewingTextService {
         tid: u32,
         composition_sink: InterfaceRef<ITfCompositionSink>,
     ) -> Result<()> {
+        LazyLock::force(&LOGGER);
         self.thread_mgr = Some(thread_mgr.clone());
         self.tid = tid;
         self.composition_sink = Some(composition_sink.to_owned());
@@ -1252,7 +1254,7 @@ fn init_chewing_env() -> Result<()> {
     Ok(())
 }
 
-fn user_dir() -> Result<PathBuf> {
+pub(crate) fn user_dir() -> Result<PathBuf> {
     // FIXME use chewing::path instead.
     //
     // SHGetFolderPath might fail in impersonation security context.
