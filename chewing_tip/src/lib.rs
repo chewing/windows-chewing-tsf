@@ -2,19 +2,28 @@
 
 use std::{
     ffi::{c_int, c_void},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        LazyLock,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use com::CClassFactory;
-use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTACH};
+use flexi_logger::LoggerHandle;
+use windows::Win32::{
+    Foundation::TRUE,
+    System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH},
+};
 use windows_core::{ComObjectInner, GUID, HRESULT, IUnknown, Interface};
 
 mod com;
 mod gfx;
+mod logging;
 mod ts;
 mod window;
 
 static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
+static LOGGER: LazyLock<Option<LoggerHandle>> = LazyLock::new(crate::logging::init_logger);
 
 #[unsafe(no_mangle)]
 extern "stdcall" fn DllMain(
@@ -22,12 +31,15 @@ extern "stdcall" fn DllMain(
     ul_reason_for_call: u32,
     _reserved: *const c_void,
 ) -> c_int {
-    if let DLL_PROCESS_ATTACH = ul_reason_for_call {
+    if DLL_PROCESS_ATTACH == ul_reason_for_call {
         let g_hinstance = G_HINSTANCE.load(Ordering::Relaxed);
         if g_hinstance == 0 {
             G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
-            win_dbg_logger::rust_win_dbg_logger_init_info();
-            log::info!("chewing_tip initialized");
+        }
+    }
+    if DLL_PROCESS_DETACH == ul_reason_for_call {
+        if let Some(handle) = &*LOGGER {
+            handle.shutdown();
         }
     }
     TRUE.0
