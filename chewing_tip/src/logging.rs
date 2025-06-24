@@ -21,7 +21,10 @@ impl LogWriter for WinDbgLogWriter {
 }
 
 pub(super) fn init_logger() -> Option<LoggerHandle> {
-    let user_dir = chewing::user_dir().ok()?;
+    let Ok(user_dir) = chewing::user_dir() else {
+        win_dbg_logger::init();
+        return None;
+    };
     let file_spec = FileSpec::default()
         .directory(user_dir)
         .basename("chewing_tip")
