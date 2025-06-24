@@ -2,6 +2,7 @@
 
 use core::slice;
 use std::ffi::{CStr, c_void};
+use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::ptr;
@@ -1041,7 +1042,9 @@ impl ChewingTextService {
     fn init_chewing_context(&mut self) -> anyhow::Result<()> {
         // FIXME assert ctx should be none
         if self.chewing_context.is_none() {
-            init_chewing_env()?;
+            if let Err(error) = init_chewing_env() {
+                error!("unable to init chewing env, init may fail: {error}");
+            }
             let ctx = chewing_new();
             if ctx.is_null() {
                 bail!("chewing context is null");
@@ -1246,7 +1249,19 @@ fn init_chewing_env() -> Result<()> {
 pub(crate) fn user_dir() -> Result<PathBuf> {
     let user_dir = chewing::path::data_dir().context("unable to determine user_dir")?;
 
-    if !user_dir.exists() {
+    // NB: chewing might be loaded into a low mandatory integrity level process (SearchHost.exe).
+    // In that case, it might not be able to check if a file exists using CreateFile
+    // If the file exists, it will get the PermissionDenied error instead.
+    let user_dir_exists = match std::fs::exists(&user_dir) {
+        Ok(true) => true,
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => true,
+            _ => false,
+        },
+        _ => false,
+    };
+
+    if !user_dir_exists {
         std::fs::create_dir(&user_dir)?;
         let metadata = user_dir.metadata()?;
         let attributes = metadata.file_attributes();
