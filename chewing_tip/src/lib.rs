@@ -26,7 +26,7 @@ static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 static LOGGER: LazyLock<Option<LoggerHandle>> = LazyLock::new(crate::logging::init_logger);
 
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllMain(
+extern "system" fn DllMain(
     hmodule: *mut c_void,
     ul_reason_for_call: u32,
     _reserved: *const c_void,
@@ -46,7 +46,7 @@ extern "stdcall" fn DllMain(
 }
 
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllGetClassObject(
+extern "system" fn DllGetClassObject(
     _rclsid: *const c_void,
     riid: *const GUID,
     ppv_obj: *mut *mut c_void,

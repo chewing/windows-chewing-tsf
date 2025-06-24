@@ -1254,12 +1254,10 @@ pub(crate) fn user_dir() -> Result<PathBuf> {
     // If the file exists, it will get the PermissionDenied error instead.
     let user_dir_exists = match std::fs::exists(&user_dir) {
         Ok(true) => true,
-        Err(e) => {
-            match e.kind() {
-                ErrorKind::PermissionDenied => true,
-                _ => false,
-            }
-        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => true,
+            _ => false,
+        },
         _ => false,
     };
 

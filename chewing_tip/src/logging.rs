@@ -30,22 +30,21 @@ pub(super) fn init_logger() -> Option<LoggerHandle> {
         .basename("chewing_tip")
         .suppress_timestamp();
     let writer = Box::new(WinDbgLogWriter);
-    match Logger::try_with_env_or_str("warn").and_then(|logger| {
-        logger
-            .log_to_file_and_writer(file_spec, writer)
-            .rotate(
-                Criterion::Size(1024 * 1024),
-                Naming::Numbers,
-                Cleanup::KeepLogFiles(7),
-            )
-            .append()
-            .cleanup_in_background_thread(true)
-            .panic_if_error_channel_is_broken(false)
-            .use_windows_line_ending()
-            .write_mode(WriteMode::BufferAndFlush)
-            .start()
-    }) {
-        Ok(handle) => Some(handle),
-        Err(_) => None,
-    }
+    Logger::try_with_env_or_str("warn")
+        .and_then(|logger| {
+            logger
+                .log_to_file_and_writer(file_spec, writer)
+                .rotate(
+                    Criterion::Size(1024 * 1024),
+                    Naming::Numbers,
+                    Cleanup::KeepLogFiles(7),
+                )
+                .append()
+                .cleanup_in_background_thread(true)
+                .panic_if_error_channel_is_broken(false)
+                .use_windows_line_ending()
+                .write_mode(WriteMode::BufferAndFlush)
+                .start()
+        })
+        .ok()
 }
