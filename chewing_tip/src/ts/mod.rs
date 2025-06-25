@@ -15,9 +15,10 @@ use std::{
 };
 
 use display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
-use log::{error, info};
+use log::{debug, error, info};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
+    System::Variant::VARIANT,
     UI::TextServices::*,
 };
 use windows_core::{
@@ -45,19 +46,21 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
 }
 
 #[implement(
+    IFnRunCommand,
+    ITfCompartmentEventSink,
     ITfCompositionSink,
+    ITfDisplayAttributeProvider,
+    ITfFunctionProvider,
     ITfKeyEventSink,
     ITfTextEditSink,
     ITfTextInputProcessorEx,
-    ITfThreadMgrEventSink,
-    ITfDisplayAttributeProvider,
-    ITfFunctionProvider,
-    IFnRunCommand
+    ITfThreadMgrEventSink
 )]
 pub(super) struct TextService {
     inner: RwLock<ChewingTextService>,
     tid: Cell<u32>,
     thread_mgr_sink_cookie: Cell<u32>,
+    keyboard_openclose_cookie: Cell<u32>,
 }
 
 impl TextService {
@@ -66,6 +69,7 @@ impl TextService {
             inner: RwLock::new(ChewingTextService::new()),
             tid: Cell::default(),
             thread_mgr_sink_cookie: Cell::new(TF_INVALID_COOKIE),
+            keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
         }
     }
     #[track_caller]
@@ -126,11 +130,6 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         let thread_mgr = ptim.ok()?;
         let composition_sink = self.as_interface_ref();
 
-        if let Err(error) = ts.activate(thread_mgr, tid, composition_sink) {
-            error!("Unable to activate chewing_tip: {error:#}");
-            return Err(E_UNEXPECTED.into());
-        }
-
         let punk: InterfaceRef<IUnknown> = self.as_interface_ref();
         // Set up event sinks
         unsafe {
@@ -138,9 +137,28 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
             self.thread_mgr_sink_cookie
                 .set(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
             let source_single: ITfSourceSingle = thread_mgr.cast()?;
-            source_single.AdviseSingleSink(tid, &ITfFunctionProvider::IID, punk)?;
+            if let Err(error) = source_single.AdviseSingleSink(tid, &ITfFunctionProvider::IID, punk)
+            {
+                error!("Unable to register function provider: {error:#}");
+            }
             let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
             keystroke_mgr.AdviseKeyEventSink(tid, self.as_interface_ref(), true)?;
+            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+            let thread_compartment =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+            // FIXME move the initialization of keyboard openclose to open to TIP code
+            let openclose: VARIANT = 1i32.into();
+            if let Err(error) = thread_compartment.SetValue(tid, &openclose) {
+                error!("Unable to initialize keyboard openclose compartment: {error:#}");
+            }
+            let source: ITfSource = thread_compartment.cast()?;
+            self.keyboard_openclose_cookie
+                .set(source.AdviseSink(&ITfCompartmentEventSink::IID, self.as_interface_ref())?);
+        }
+
+        if let Err(error) = ts.activate(thread_mgr, tid, composition_sink) {
+            error!("Unable to activate chewing_tip: {error:#}");
+            return Err(E_UNEXPECTED.into());
         }
 
         Ok(())
@@ -166,6 +184,11 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
             source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
             let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
             keystroke_mgr.UnadviseKeyEventSink(self.tid.get())?;
+            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+            let thread_compartment =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+            let source: ITfSource = thread_compartment.cast()?;
+            source.UnadviseSink(self.keyboard_openclose_cookie.get())?;
         }
 
         Ok(())
@@ -313,6 +336,20 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // this event is not triggered.
         let mut ts = self.lock();
         ts.on_composition_terminated();
+        Ok(())
+    }
+}
+
+impl ITfCompartmentEventSink_Impl for TextService_Impl {
+    fn OnChange(&self, rguid: *const GUID) -> Result<()> {
+        if let Some(rguid) = unsafe { rguid.as_ref() } {
+            debug!("received compartment change event: {rguid:?}");
+            let mut ts = self.lock();
+            if let Err(error) = ts.on_compartment_change(rguid) {
+                error!("Unable to handle compartment change: {error:#}");
+                return Err(E_UNEXPECTED.into());
+            }
+        }
         Ok(())
     }
 }

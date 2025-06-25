@@ -55,9 +55,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
-    GUID_LBI_INPUTMODE, ITfCompositionSink, ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE,
-    TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU,
-    TF_LS_DOT,
+    GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
+    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
+    TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
@@ -689,6 +689,38 @@ impl ChewingTextService {
         false
     }
 
+    pub(super) fn on_compartment_change(&mut self, guid: &GUID) -> Result<()> {
+        if let Some(thread_mgr) = &self.thread_mgr {
+            if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
+                let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+                unsafe {
+                    let thread_compartment =
+                        compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+                    let value = thread_compartment.GetValue()?;
+                    let openclose: i32 = (&value).try_into().unwrap_or_default();
+                    self.on_keyboard_status_changed(openclose != 0)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn on_keyboard_status_changed(&mut self, opened: bool) -> Result<()> {
+        if opened {
+            self.init_chewing_context()?;
+        } else {
+            let context = self
+                .current_context()
+                .context("unable to get current ITfContext")?;
+            self.on_kill_focus(&context)?;
+            self.free_chewing_context();
+        }
+        if let Some(ime_icon) = &self.ime_mode_button {
+            ime_icon.set_enabled(opened)?;
+        }
+        Ok(())
+    }
+
     pub(super) fn on_command(&mut self, id: u32, cmd_type: CommandType) {
         if matches!(cmd_type, CommandType::RightClick) {
             if id == ID_MODE_ICON {
@@ -1033,6 +1065,16 @@ impl ChewingTextService {
             self.update_lang_buttons()?;
         }
         Ok(())
+    }
+
+    fn current_context(&self) -> Option<ITfContext> {
+        let Some(thread_mgr) = &self.thread_mgr else {
+            return None;
+        };
+        unsafe {
+            let doc_mgr = thread_mgr.GetFocus().ok()?;
+            doc_mgr.GetTop().ok()
+        }
     }
 
     fn is_composing(&self) -> bool {
