@@ -85,9 +85,7 @@ use crate::{G_HINSTANCE, LOGGER};
 
 use super::CommandType;
 use super::config::Config;
-use super::edit_session::{
-    EndComposition, SelectionRect, SetCompositionCursor, SetCompositionString, StartComposition,
-};
+use super::edit_session::{EndComposition, SelectionRect, SetCompositionString, StartComposition};
 use super::key_event::KeyEvent;
 use super::lang_bar::LangBarButton;
 use super::resources::*;
@@ -547,7 +545,7 @@ impl ChewingTextService {
                 text = zhconv(&text, Variant::ZhHans);
             }
             debug!("commit string {}", &text);
-            self.set_composition_string(context, &text.into())?;
+            self.set_composition_string(context, &text.into(), 0)?;
             self.end_composition(context)?;
             debug!("commit string ok");
         }
@@ -575,11 +573,12 @@ impl ChewingTextService {
                 self.start_composition(context)?;
             }
             let text = HSTRING::from_wide(&composition_buf);
-            self.set_composition_string(context, &text)?;
+            let cursor = unsafe { chewing_cursor_Current(ctx) };
+            self.set_composition_string(context, &text, cursor)?;
         } else {
             // nothing left in composition buffer, terminate composition status
             if self.is_composing() {
-                self.set_composition_string(context, &HSTRING::new())?;
+                self.set_composition_string(context, &HSTRING::new(), 0)?;
             }
             // We also need to make sure that the candidate window is not
             // currently shown. When typing symbols with ` key, it's possible
@@ -588,10 +587,6 @@ impl ChewingTextService {
             if self.candidate_window.is_none() {
                 self.end_composition(context)?;
             }
-        }
-
-        if self.is_composing() {
-            self.set_composition_cursor(context, unsafe { chewing_cursor_Current(ctx) })?;
         }
 
         if unsafe { chewing_aux_Check(ctx) } == 1 {
@@ -889,14 +884,24 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn set_composition_string(&mut self, context: &ITfContext, text: &HSTRING) -> Result<()> {
+    fn set_composition_string(
+        &mut self,
+        context: &ITfContext,
+        text: &HSTRING,
+        cursor: i32,
+    ) -> Result<()> {
         let Some(composition) = &self.composition else {
             return Ok(());
         };
         debug!("set composition string to {text}");
-        let session =
-            SetCompositionString::new(context, composition, self.input_da_atom.clone(), text)
-                .into_object();
+        let session = SetCompositionString::new(
+            context,
+            composition,
+            self.input_da_atom.clone(),
+            text,
+            cursor,
+        )
+        .into_object();
         unsafe {
             match context.RequestEditSession(
                 self.tid,
@@ -912,23 +917,6 @@ impl ChewingTextService {
             }
         }
         debug!("done compose {text}");
-        Ok(())
-    }
-
-    fn set_composition_cursor(&mut self, context: &ITfContext, cursor: i32) -> Result<()> {
-        let Some(composition) = &self.composition else {
-            return Ok(());
-        };
-        let session = SetCompositionCursor::new(context, composition, cursor).into_object();
-        unsafe {
-            context
-                .RequestEditSession(
-                    self.tid,
-                    session.as_interface(),
-                    TF_ES_SYNC | TF_ES_READWRITE,
-                )?
-                .ok()?;
-        }
         Ok(())
     }
 
