@@ -61,6 +61,7 @@ pub(super) struct TextService {
     tid: Cell<u32>,
     thread_mgr_sink_cookie: Cell<u32>,
     keyboard_openclose_cookie: Cell<u32>,
+    key_busy: Cell<bool>,
 }
 
 impl TextService {
@@ -70,6 +71,7 @@ impl TextService {
             tid: Cell::default(),
             thread_mgr_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
+            key_busy: Cell::new(false),
         }
     }
     #[track_caller]
@@ -215,6 +217,11 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         pdimfocus: Ref<ITfDocumentMgr>,
         pdimprevfocus: Ref<ITfDocumentMgr>,
     ) -> Result<()> {
+        // Excel switches document upon first key down. Skip this superflos
+        // focus change.
+        if self.key_busy.get() {
+            return Ok(());
+        }
         let mut ts = self.lock();
         if pdimfocus.is_null() {
             if let Some(doc_mgr) = pdimprevfocus.as_ref() {
@@ -287,6 +294,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        self.key_busy.set(true);
         let mut ts = self.lock();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keydown(pic.ok()?, ev, false) {
@@ -300,6 +308,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        self.key_busy.set(false);
         let mut ts = self.lock();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keyup(pic.ok()?, ev, false) {

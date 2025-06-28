@@ -114,6 +114,7 @@ pub(super) struct SetCompositionString<'a> {
     composition: &'a ITfComposition,
     da_atom: VARIANT,
     text: &'a HSTRING,
+    cursor: i32,
 }
 
 impl<'a> SetCompositionString<'a> {
@@ -122,12 +123,14 @@ impl<'a> SetCompositionString<'a> {
         composition: &'a ITfComposition,
         da_atom: VARIANT,
         text: &'a HSTRING,
+        cursor: i32,
     ) -> SetCompositionString<'a> {
         Self {
             context,
             composition,
             da_atom,
             text,
+            cursor,
         }
     }
 }
@@ -143,44 +146,15 @@ impl ITfEditSession_Impl for SetCompositionString_Impl<'_> {
             }
             let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
             disp_attr_prop.SetValue(ec, &range, &self.da_atom)?;
-        }
-        Ok(())
-    }
-}
 
-#[implement(ITfEditSession)]
-pub(super) struct SetCompositionCursor<'a> {
-    context: &'a ITfContext,
-    composition: &'a ITfComposition,
-    cursor: i32,
-}
-
-impl<'a> SetCompositionCursor<'a> {
-    pub(super) fn new(
-        context: &'a ITfContext,
-        composition: &'a ITfComposition,
-        cursor: i32,
-    ) -> SetCompositionCursor<'a> {
-        Self {
-            context,
-            composition,
-            cursor,
-        }
-    }
-}
-
-impl ITfEditSession_Impl for SetCompositionCursor_Impl<'_> {
-    fn DoEditSession(&self, ec: u32) -> Result<()> {
-        let mut selection = [TF_SELECTION::default(); 1];
-        let mut selection_len = 0;
-        unsafe {
+            let mut selection = [TF_SELECTION::default(); 1];
+            let mut selection_len = 0;
             self.context.GetSelection(
                 ec,
                 TF_DEFAULT_SELECTION,
                 &mut selection,
                 &mut selection_len,
             )?;
-            let range = self.composition.GetRange()?;
             if let Some(sel_range) = &selection[0].range.deref() {
                 sel_range.ShiftStartToRange(ec, &range, TF_ANCHOR_START)?;
                 sel_range.Collapse(ec, TF_ANCHOR_START)?;
