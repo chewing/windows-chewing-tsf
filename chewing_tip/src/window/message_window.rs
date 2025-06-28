@@ -17,7 +17,6 @@ use windows::Win32::Graphics::DirectWrite::*;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
-use windows::Win32::UI::HiDpi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_core::*;
 
@@ -102,6 +101,7 @@ impl MessageWindow {
     }
 
     fn recalculate_size(&self) -> Result<()> {
+        let scale = get_scale_for_window(self.window.hwnd());
         let text_layout = unsafe {
             self.dwrite_factory.CreateTextLayout(
                 self.text.borrow().as_ref(),
@@ -118,9 +118,8 @@ impl MessageWindow {
         let height = metrics.height + margin * 2.0;
 
         // Convert to HW pixels
-        let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
-        let width = width * dpi / USER_DEFAULT_SCREEN_DPI as f32;
-        let height = height * dpi / USER_DEFAULT_SCREEN_DPI as f32;
+        let width = width * scale;
+        let height = height * scale;
 
         unsafe {
             let _ = SetWindowPos(
@@ -160,7 +159,7 @@ impl MessageWindow {
                     self.swapchain.take();
                     self.brush.take();
                 } else {
-                    let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+                    let dpi = get_dpi_for_window(self.window.hwnd());
                     create_swapchain_bitmap(swapchain, target, dpi)?;
                 }
 
@@ -184,7 +183,7 @@ impl MessageWindow {
                 (rc.right - rc.left) as u32,
                 (rc.bottom - rc.top) as u32,
             )?;
-            let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            let dpi = get_dpi_for_window(self.window.hwnd());
             unsafe { target.SetDpi(dpi, dpi) };
             create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget = setup_direct_composition(&device, self.window.hwnd(), &swapchain)?;
@@ -201,21 +200,22 @@ impl MessageWindow {
     fn on_paint(&self) -> Result<()> {
         self.create_target()?;
 
+        let scale = get_scale_for_window(self.window.hwnd());
         let target = self.target.borrow();
         let swapchain = self.swapchain.borrow();
+
         if let Some(target) = target.as_ref() {
             unsafe {
                 let mut rc = RECT::default();
                 GetClientRect(self.window.hwnd(), &mut rc)?;
-                let dpi = GetDpiForWindow(self.window.hwnd()) as f32;
 
                 target.BeginDraw();
                 let rect = D2D_RECT_F {
                     top: 0.0,
                     left: 0.0,
                     // Convert to DIPs
-                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
-                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
+                    right: rc.right as f32 / scale,
+                    bottom: rc.bottom as f32 / scale,
                 };
                 self.nine_patch_bitmap.draw_bitmap(target, rect)?;
                 let margin = self.nine_patch_bitmap.margin();

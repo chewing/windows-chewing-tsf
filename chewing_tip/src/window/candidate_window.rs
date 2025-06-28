@@ -18,7 +18,6 @@ use windows::Win32::Graphics::DirectWrite::*;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
-use windows::Win32::UI::HiDpi::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_core::*;
@@ -109,19 +108,19 @@ impl CandidateWindow {
     }
     pub(crate) fn recalculate_size(&self) -> Result<()> {
         let margin = self.nine_patch_bitmap.margin().ceil();
+        let scale = get_scale_for_window(self.window.hwnd());
         if self.items.borrow().is_empty() {
             // Convert to HW pixels
-            let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
-            let width = 2.0 * margin * dpi / USER_DEFAULT_SCREEN_DPI as f32;
-            let height = 2.0 * margin * dpi / USER_DEFAULT_SCREEN_DPI as f32;
+            let width = 2.0 * margin * scale as f32;
+            let height = 2.0 * margin * scale as f32;
 
             self.window.resize(width as i32, height as i32);
             self.resize_swap_chain(width as u32, height as u32)?;
         }
 
-        let mut selkey_width = 0.0_f32;
-        let mut text_width = 0.0_f32;
-        let mut item_height = 0.0_f32;
+        let mut selkey_width = 0f32;
+        let mut text_width = 0f32;
+        let mut item_height = 0f32;
         let mut selkey = "?. ".to_string().encode_utf16().collect::<Vec<_>>();
 
         for (key, text) in self
@@ -168,9 +167,8 @@ impl CandidateWindow {
         let height = rows * item_height as u32 + (rows - 1) * ROW_SPACING + 2 * margin as u32;
 
         // Convert to HW pixels
-        let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
-        let width = width as f32 * dpi / USER_DEFAULT_SCREEN_DPI as f32;
-        let height = height as f32 * dpi / USER_DEFAULT_SCREEN_DPI as f32;
+        let width = width as f32 * scale;
+        let height = height as f32 * scale;
 
         self.window.resize(width as i32, height as i32);
         self.resize_swap_chain(width as u32, height as u32)?;
@@ -200,7 +198,7 @@ impl CandidateWindow {
                     self.swapchain.take();
                     self.brush.take();
                 } else {
-                    let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+                    let dpi = get_dpi_for_window(self.window.hwnd());
                     create_swapchain_bitmap(swapchain, target, dpi)?;
                 }
 
@@ -223,7 +221,7 @@ impl CandidateWindow {
                 (rc.right - rc.left) as u32,
                 (rc.bottom - rc.top) as u32,
             )?;
-            let dpi = unsafe { GetDpiForWindow(self.window.hwnd()) } as f32;
+            let dpi = get_dpi_for_window(self.window.hwnd());
             unsafe { target.SetDpi(dpi, dpi) };
             create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget =
@@ -240,6 +238,7 @@ impl CandidateWindow {
     fn on_paint(&self) -> Result<()> {
         self.create_target()?;
 
+        let scale = get_scale_for_window(self.window.hwnd());
         let target = self.target.borrow();
         let swapchain = self.swapchain.borrow();
 
@@ -247,15 +246,14 @@ impl CandidateWindow {
             unsafe {
                 let mut rc = RECT::default();
                 GetClientRect(self.window.hwnd.get(), &mut rc)?;
-                let dpi = GetDpiForWindow(self.window.hwnd()) as f32;
 
                 target.BeginDraw();
                 let rect = D2D_RECT_F {
                     top: 0.0,
                     left: 0.0,
                     // Convert to DIPs
-                    right: rc.right as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
-                    bottom: rc.bottom as f32 * USER_DEFAULT_SCREEN_DPI as f32 / dpi,
+                    right: rc.right as f32 / scale,
+                    bottom: rc.bottom as f32 / scale,
                 };
                 self.nine_patch_bitmap.draw_bitmap(target, rect)?;
 

@@ -18,6 +18,7 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Graphics::Imaging::*;
 use windows::Win32::System::Com::*;
 use windows::core::*;
+use windows::Win32::UI::HiDpi::*;
 use windows_numerics::Matrix3x2;
 
 #[derive(Debug)]
@@ -271,4 +272,31 @@ pub(super) fn setup_direct_composition(
         dcompdevice.Commit()?;
         Ok(dcomptarget)
     }
+}
+
+pub(super) fn get_dpi_for_window(hwnd: HWND) -> f32 {
+    unsafe {
+        // Save the old DPI context
+        let old_context = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+        // Get monitor from window
+        let monitor: HMONITOR = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        let mut dpi_x: u32 = 96;
+        let mut dpi_y: u32 = 96;
+
+        let hr = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
+
+        // Restore previous DPI context
+        SetThreadDpiAwarenessContext(old_context);
+
+        if hr.is_ok() {
+            dpi_x as f32
+        } else {
+            96.0 // fallback to 1.0x scale
+        }
+    }
+}
+
+pub(super) fn get_scale_for_window(hwnd: HWND) -> f32 {
+    get_dpi_for_window(hwnd) / 96.0
 }
