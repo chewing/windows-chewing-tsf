@@ -770,7 +770,6 @@ dependencies = [
  "chewing",
  "chewing_capi",
  "embed-resource",
- "flexi_logger",
  "getrandom 0.3.3",
  "log",
  "nine_patch_drawable",
@@ -1553,17 +1552,6 @@ checksum = "4a3d7db9596fecd151c5f638c0ee5d5bd487b6e0ea232e5dc96d5250f6f94b1d"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
-]
-
-[[package]]
-name = "flexi_logger"
-version = "0.30.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb03342077df16d5b1400d7bed00156882846d7a479ff61a6f10594bcc3423d8"
-dependencies = [
- "chrono",
- "log",
- "thiserror 2.0.12",
 ]
 
 [[package]]

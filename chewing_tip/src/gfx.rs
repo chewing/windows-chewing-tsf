@@ -17,8 +17,8 @@ use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Graphics::Imaging::*;
 use windows::Win32::System::Com::*;
-use windows::core::*;
 use windows::Win32::UI::HiDpi::*;
+use windows::core::*;
 use windows_numerics::Matrix3x2;
 
 #[derive(Debug)]
