@@ -5,12 +5,15 @@ use std::{env, fs, path::PathBuf};
 use anyhow::{Result, bail};
 use chewing::path::data_dir;
 use slint::ComponentHandle;
-use windows::Win32::System::Registry::KEY_WOW64_64KEY;
 use windows_registry::{CURRENT_USER, Key};
 
 use crate::ConfigWindow;
+use crate::AboutWindow;
+
+const KEY_WOW64_64KEY: u32 = 0x0100;
 
 pub fn run() -> Result<()> {
+    let about = AboutWindow::new()?;
     let ui = ConfigWindow::new()?;
     load_config(&ui)?;
 
@@ -22,6 +25,14 @@ pub fn run() -> Result<()> {
         let ui = ui_handle.upgrade().unwrap();
         save_config(&ui).unwrap();
         slint::quit_event_loop().unwrap();
+    });
+    let about_handle = about.as_weak();
+    about.on_done(move || {
+        let about = about_handle.upgrade().unwrap();
+        about.hide().unwrap();
+    });
+    ui.on_about(move || {
+        about.show().unwrap();
     });
 
     ui.run()?;
@@ -105,7 +116,7 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
         .options()
         .create()
         .read()
-        .access(KEY_WOW64_64KEY.0)
+        .access(KEY_WOW64_64KEY)
         .open("Software\\ChewingTextService")?;
     // Load custom value from the registry
     if let Ok(value) = reg_get_i32(&key, "KeyboardLayout") {
@@ -182,7 +193,7 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
     let key = CURRENT_USER
         .options()
         .create()
-        .access(KEY_WOW64_64KEY.0)
+        .access(KEY_WOW64_64KEY)
         .write()
         .open("Software\\ChewingTextService")?;
 

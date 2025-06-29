@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { VerticalBox, StandardTableView, Button, TabWidget, HorizontalBox, LineEdit, AboutSlint, StandardButton, GridBox } from "std-widgets.slint";
+import { Assets, Version } from "globals.slint";
+import { BopomofoKeyboard } from "bopomofo-keyboard.slint";
+
+export enum ErrorKind {
+    ok,
+    other,
+}
+
+export struct CallbackResult {
+    error: ErrorKind,
+    err_msg: string,
+}
+
+enum TabState {
+    dict-info,
+    edit-entry,
+}
+
+export component EditorWindow inherits Window {
+    preferred-height: 500px;
+    title: "新酷音詞庫管理程式 (" + Version.product-version + ")";
+    icon: Assets.icon;
+    in property <[[StandardListViewItem]]> dictionaries;
+    in property <[[StandardListViewItem]]> entries;
+    in property <[[StandardListViewItem]]> dictionary-info;
+    out property <int> edit-dict-current-row: -1;
+    out property <string> phrase;
+    out property <string> bopomofo;
+    out property <string> freq;
+    property <TabState> tab-state: TabState.dict-info;
+    property <CallbackResult> edit-result;
+
+    callback reload-dict-info();
+    callback info-clicked(row: [StandardListViewItem]);
+    callback edit-dict-clicked(row: [StandardListViewItem]);
+    callback edit-entry-new();
+    callback edit-entry-delete();
+    callback edit-entry-done() -> CallbackResult;
+    callback edit-dict-save() -> CallbackResult;
+    callback quit();
+    callback about();
+
+    states [
+        show-dict-info when tab-state == TabState.dict-info: {}
+        show-edit-entry when tab-state == TabState.edit-entry: {}
+    ]
+
+    MenuBar {
+        Menu {
+            title: "檔案";
+            MenuItem {
+                title: "結束";
+                activated => {
+                    root.quit();
+                }
+            }
+        }
+        Menu {
+            title: "說明";
+            MenuItem {
+                title: "關於酷音詞庫管理程式";
+                activated => {
+                    root.about();
+                }
+            }
+        }
+    }
+
+    HorizontalBox {
+        if tab-state == TabState.dict-info: VerticalBox {
+            width: 400px;
+            HorizontalBox {
+                alignment: start;
+                Button {
+                    text: "編輯";
+                    enabled: table.current-row >= 0;
+                    clicked => {
+                        root.edit-dict-clicked(root.dictionaries[table.current-row]);
+                        tab-state = TabState.edit-entry;
+                    }
+                }
+
+                // Button {
+                //     text: "新增";
+                // }
+
+                // Button {
+                //     text: "匯入";
+                // }
+
+                // Button {
+                //     text: "匯出";
+                // }
+
+                // Button {
+                //     text: "刪除";
+                // }
+
+                Button {
+                    text: "重新整理";
+                    clicked => {
+                        root.reload-dict-info();
+                    }
+                }
+            }
+
+            table := StandardTableView {
+                columns: [{ title: "類型", width: 70px }, { title: "名稱" }];
+                rows: root.dictionaries;
+                current-row-changed(current-row) => {
+                    root.info-clicked(root.dictionaries[current-row]);
+                }
+            }
+        }
+        if tab-state == TabState.edit-entry: VerticalBox {
+            width: 400px;
+            HorizontalBox {
+                alignment: start;
+                Button {
+                    text: "新增";
+                    clicked => {
+                        root.edit-entry-new();
+                    }
+                }
+
+                Button {
+                    text: "刪除";
+                    enabled: root.edit-dict-current-row >= 0;
+                    clicked => {
+                        root.edit-entry-delete();
+                    }
+                }
+
+                Button {
+                    text: "放棄修改";
+                    clicked => {
+                        root.tab-state = TabState.dict-info;
+                        root.edit-result = { }
+                    }
+                }
+
+                Button {
+                    text: "存檔";
+                    clicked => {
+                        root.edit-result = root.edit-dict-save();
+                        if (root.edit-result.error == ErrorKind.ok) {
+                            root.reload-dict-info();
+                            root.tab-state = TabState.dict-info;
+                        }
+                    }
+                }
+            }
+
+            HorizontalBox {
+                LineEdit {
+                    placeholder-text: "搜尋";
+                    enabled: false;
+                }
+            }
+
+            StandardTableView {
+                columns: [{ title: "字/詞" }, { title: "注音" }, { title: "詞頻" }];
+                rows: entries;
+                current-row-changed(current-row) => {
+                    root.edit-dict-current-row = current-row;
+                    root.phrase = root.entries[current-row][0].text;
+                    root.bopomofo = root.entries[current-row][1].text;
+                    root.freq = root.entries[current-row][2].text;
+                }
+            }
+        }
+
+        if tab-state == TabState.dict-info: HorizontalLayout {
+            Path {
+                width: 1px;
+                height: 100%;
+                stroke: Colors.lightgray;
+                stroke-width: 1px;
+                MoveTo {
+                    x: 0;
+                    y: 0;
+                }
+
+                LineTo {
+                    x: 0;
+                    y: 100;
+                }
+            }
+
+            VerticalBox {
+                StandardTableView {
+                    columns: [{ title: "屬性", width: 100px }, { title: "內容" } ];
+                    rows: root.dictionary-info;
+                }
+            }
+        }
+        if tab-state == TabState.edit-entry: VerticalBox {
+            if root.edit-result.error != ErrorKind.ok: Rectangle {
+                height: 40px;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: Colors.lightgray;
+                background: Colors.lightyellow;
+                Text {
+                    text: root.edit-result.err-msg;
+                }
+            }
+            HorizontalLayout {
+                Path {
+                    width: 1px;
+                    height: 100%;
+                    stroke: Colors.lightgray;
+                    stroke-width: 1px;
+                    MoveTo {
+                        x: 0;
+                        y: 0;
+                    }
+
+                    LineTo {
+                        x: 0;
+                        y: 100;
+                    }
+                }
+
+                VerticalBox {
+                    alignment: start;
+                    Text {
+                        text: "字/詞：";
+                    }
+
+                    phrase := LineEdit {
+                        text <=> root.phrase;
+                    }
+
+                    Text {
+                        text: "注音：";
+                    }
+
+                    bopomofo := LineEdit {
+                        text <=> root.bopomofo;
+                    }
+
+                    Text {
+                        text: "詞頻：";
+                    }
+
+                    freq := LineEdit {
+                        text <=> root.freq;
+                    }
+
+                    BopomofoKeyboard {
+                        clicked(text) => {
+                            bopomofo.clear-focus();
+                            bopomofo.text += text;
+                        }
+                        clear-clicked => {
+                            bopomofo.text = "";
+                        }
+                        done => {
+                            root.edit-result = root.edit-entry-done();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

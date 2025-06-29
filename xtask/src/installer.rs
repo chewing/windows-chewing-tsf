@@ -92,6 +92,11 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         .run()?;
         cmd!(
             sh,
+            "cargo build -p chewing-editor {release...} --target {x86_64_target}"
+        )
+        .run()?;
+        cmd!(
+            sh,
             "cargo build -p tsfreg {release...} {nightly...} --target {x86_64_target}"
         )
         .run()?;
@@ -176,13 +181,13 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             "build/installer/x64",
         );
     }
-    for file in ["ChewingPreferences.exe", "tsfreg.exe"] {
+    for file in ["ChewingPreferences.exe", "chewing-editor.exe", "tsfreg.exe"] {
         sh.copy_file(
             format!("{}/{file}", x86_64_target_dir.display()),
             "build/installer",
         )?;
     }
-    for file in ["ChewingPreferences.pdb", "tsfreg.pdb"] {
+    for file in ["ChewingPreferences.pdb", "chewing-editor.pdb", "tsfreg.pdb"] {
         let _ = sh.copy_file(
             format!("{}/{file}", x86_64_target_dir.display()),
             "build/installer",

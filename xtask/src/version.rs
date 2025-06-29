@@ -32,9 +32,20 @@ pub(super) fn update_version(flags: UpdateVersion) -> Result<()> {
         "#
     )?;
 
-    let mut version_slint = File::create("preferences/ui/version.slint")?;
+    let mut pref_version_slint = File::create("preferences/ui/version.slint")?;
     indoc::writedoc!(
-        version_slint,
+        pref_version_slint,
+        r#"
+            export global Version {{
+                out property <string> product-version: "{yy}.{mm}.{rv}.{bn}";
+                out property <string> build-date: "{year} 年 {month:02} 月 {day:02} 日";
+            }}
+        "#
+    )?;
+
+    let mut editor_version_slint = File::create("editor/ui/version.slint")?;
+    indoc::writedoc!(
+        editor_version_slint,
         r#"
             export global Version {{
                 out property <string> product-version: "{yy}.{mm}.{rv}.{bn}";
