@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { AboutSlint, Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Assets, Version } from "globals.slint";
+
+export component AboutWindow inherits Window {
+    title: "關於新酷音詞庫管理程式 (" + Version.product-version + ")";
+    icon: Assets.icon;
+    width: 400px;
+    height: 500px;
+
+    callback done();
+
+    VerticalBox {
+        alignment: start;
+        Text {
+            text: "新酷音詞庫管理程式";
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        Text {
+            text: "版本：" + Version.product-version;
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "發行日期：" + Version.build-date;
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "新酷音詞庫管理程式是一個跨平台的新酷音詞庫管理及編輯工具。它提供了一個簡單的方式來管理使用者詞庫。透過它，使用者可以自訂詞庫以提升輸入效率。";
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "新酷音詞庫管理程式採用 GNU 通用公眾授權條款第 3.0 版或更新版本授權 (GPL-3.0-or-later)。";
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "關於新酷音詞庫管理程式的授權詳情，請參閱 https://www.gnu.org/licenses/gpl-3.0.html 網站。";
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "版權所有© 2024 新酷音開發團隊及 GitHub 貢獻者。";
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "新酷音詞庫管理程式是一個開源專案，開發平台位於 https://github.com/chewing/chewing-editor。歡迎在 issues 提供任何建議。";
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "特別感謝：";
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "此版本使用開源專案 Slint 開發：";
+            wrap: word-wrap;
+        }
+
+        AboutSlint { }
+
+        HorizontalBox {
+            alignment: end;
+            Button {
+                text: "確定";
+                clicked => {
+                    done();
+                }
+            }
+        }
+    }
+}

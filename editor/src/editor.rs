@@ -15,14 +15,25 @@ use slint::{
     ComponentHandle, Model, ModelNotify, ModelRc, ModelTracker, StandardListViewItem, VecModel,
 };
 
+use crate::AboutWindow;
 use crate::CallbackResult;
 use crate::EditorWindow;
 use crate::ErrorKind;
 
 pub fn run() -> Result<()> {
     let ui = EditorWindow::new()?;
+    let about = AboutWindow::new()?;
 
     ui.set_dictionaries(dict_list_model()?);
+
+    let about_handle = about.as_weak();
+    about.on_done(move || {
+        let about = about_handle.upgrade().unwrap();
+        about.hide().unwrap();
+    });
+    ui.on_about(move || {
+        about.show().unwrap();
+    });
 
     let ui_handle = ui.as_weak();
     ui.on_reload_dict_info(move || {

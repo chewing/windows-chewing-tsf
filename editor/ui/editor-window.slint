@@ -17,7 +17,6 @@ export struct CallbackResult {
 enum TabState {
     dict-info,
     edit-entry,
-    about,
 }
 
 export component EditorWindow inherits Window {
@@ -41,186 +40,135 @@ export component EditorWindow inherits Window {
     callback edit-entry-delete();
     callback edit-entry-done() -> CallbackResult;
     callback edit-dict-save() -> CallbackResult;
+    callback quit();
+    callback about();
 
     states [
         show-dict-info when tab-state == TabState.dict-info: {}
         show-edit-entry when tab-state == TabState.edit-entry: {}
-        about when tab-state == TabState.about: {
-            tabs.current-index: 1;
-        }
     ]
 
+    MenuBar {
+        Menu {
+            title: "檔案";
+            MenuItem {
+                title: "結束";
+                activated => {
+                    root.quit();
+                }
+            }
+        }
+        Menu {
+            title: "說明";
+            MenuItem {
+                title: "關於酷音詞庫管理程式";
+                activated => {
+                    root.about();
+                }
+            }
+        }
+    }
+
     HorizontalBox {
-        tabs := TabWidget {
+        if tab-state == TabState.dict-info: VerticalBox {
             width: 400px;
-            Tab {
-                states [
-                    show-dict-info when tab-state == TabState.dict-info: {
-                        title: "管理";
-                    }
-                    show-edit-entry when tab-state == TabState.edit-entry: {
-                        title: "編輯";
-                    }
-                ]
-                title: "管理";
-                if tab-state == TabState.dict-info: VerticalBox {
-                    HorizontalBox {
-                        alignment: start;
-                        Button {
-                            text: "編輯";
-                            enabled: table.current-row >= 0;
-                            clicked => {
-                                root.edit-dict-clicked(root.dictionaries[table.current-row]);
-                                tab-state = TabState.edit-entry;
-                            }
-                        }
-
-                        // Button {
-                        //     text: "新增";
-                        // }
-
-                        // Button {
-                        //     text: "匯入";
-                        // }
-
-                        // Button {
-                        //     text: "匯出";
-                        // }
-
-                        // Button {
-                        //     text: "刪除";
-                        // }
-
-                        Button {
-                            text: "重新整理";
-                            clicked => {
-                                root.reload-dict-info();
-                            }
-                        }
-                    }
-
-                    table := StandardTableView {
-                        columns: [{ title: "類型", width: 70px }, { title: "名稱" }];
-                        rows: root.dictionaries;
-                        current-row-changed(current-row) => {
-                            root.info-clicked(root.dictionaries[current-row]);
-                        }
+            HorizontalBox {
+                alignment: start;
+                Button {
+                    text: "編輯";
+                    enabled: table.current-row >= 0;
+                    clicked => {
+                        root.edit-dict-clicked(root.dictionaries[table.current-row]);
+                        tab-state = TabState.edit-entry;
                     }
                 }
-                if tab-state == TabState.edit-entry: VerticalBox {
-                    HorizontalBox {
-                        alignment: start;
-                        Button {
-                            text: "新增";
-                            clicked => {
-                                root.edit-entry-new();
-                            }
-                        }
 
-                        Button {
-                            text: "刪除";
-                            enabled: root.edit-dict-current-row >= 0;
-                            clicked => {
-                                root.edit-entry-delete();
-                            }
-                        }
+                // Button {
+                //     text: "新增";
+                // }
 
-                        Button {
-                            text: "放棄修改";
-                            clicked => {
-                                root.tab-state = TabState.dict-info;
-                                root.edit-result = { }
-                            }
-                        }
+                // Button {
+                //     text: "匯入";
+                // }
 
-                        Button {
-                            text: "存檔";
-                            clicked => {
-                                root.edit-result = root.edit-dict-save();
-                                if (root.edit-result.error == ErrorKind.ok) {
-                                    root.reload-dict-info();
-                                    root.tab-state = TabState.dict-info;
-                                }
-                            }
-                        }
+                // Button {
+                //     text: "匯出";
+                // }
+
+                // Button {
+                //     text: "刪除";
+                // }
+
+                Button {
+                    text: "重新整理";
+                    clicked => {
+                        root.reload-dict-info();
                     }
+                }
+            }
 
-                    HorizontalBox {
-                        LineEdit {
-                            placeholder-text: "搜尋";
-                            enabled: false;
-                        }
+            table := StandardTableView {
+                columns: [{ title: "類型", width: 70px }, { title: "名稱" }];
+                rows: root.dictionaries;
+                current-row-changed(current-row) => {
+                    root.info-clicked(root.dictionaries[current-row]);
+                }
+            }
+        }
+        if tab-state == TabState.edit-entry: VerticalBox {
+            width: 400px;
+            HorizontalBox {
+                alignment: start;
+                Button {
+                    text: "新增";
+                    clicked => {
+                        root.edit-entry-new();
                     }
+                }
 
-                    StandardTableView {
-                        columns: [{ title: "字/詞" }, { title: "注音" }, { title: "詞頻" }];
-                        rows: entries;
-                        current-row-changed(current-row) => {
-                            root.edit-dict-current-row = current-row;
-                            root.phrase = root.entries[current-row][0].text;
-                            root.bopomofo = root.entries[current-row][1].text;
-                            root.freq = root.entries[current-row][2].text;
+                Button {
+                    text: "刪除";
+                    enabled: root.edit-dict-current-row >= 0;
+                    clicked => {
+                        root.edit-entry-delete();
+                    }
+                }
+
+                Button {
+                    text: "放棄修改";
+                    clicked => {
+                        root.tab-state = TabState.dict-info;
+                        root.edit-result = { }
+                    }
+                }
+
+                Button {
+                    text: "存檔";
+                    clicked => {
+                        root.edit-result = root.edit-dict-save();
+                        if (root.edit-result.error == ErrorKind.ok) {
+                            root.reload-dict-info();
+                            root.tab-state = TabState.dict-info;
                         }
                     }
                 }
             }
 
-            Tab {
-                title: "關於";
-                VerticalBox {
-                    alignment: start;
-                    Text {
-                        text: "新酷音詞庫管理程式";
-                        font-size: 20px;
-                        font-weight: 800;
-                    }
+            HorizontalBox {
+                LineEdit {
+                    placeholder-text: "搜尋";
+                    enabled: false;
+                }
+            }
 
-                    Text {
-                        text: "版本：" + Version.product-version;
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "發行日期：" + Version.build-date;
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "新酷音詞庫管理程式是一個跨平台的新酷音詞庫管理及編輯工具。它提供了一個簡單的方式來管理使用者詞庫。透過它，使用者可以自訂詞庫以提升輸入效率。";
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "新酷音詞庫管理程式採用 GNU 通用公眾授權條款第 3.0 版或更新版本授權 (GPL-3.0-or-later)。";
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "關於新酷音詞庫管理程式的授權詳情，請參閱 https://www.gnu.org/licenses/gpl-3.0.html 網站。";
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "版權所有© 2024 新酷音開發團隊及 GitHub 貢獻者。";
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "新酷音詞庫管理程式是一個開源專案，開發平台位於 https://github.com/chewing/chewing-editor。歡迎在 issues 提供任何建議。";
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "特別感謝：";
-                        wrap: word-wrap;
-                    }
-
-                    Text {
-                        text: "此版本使用開源專案 Slint 開發：";
-                        wrap: word-wrap;
-                    }
-
-                    AboutSlint { }
+            StandardTableView {
+                columns: [{ title: "字/詞" }, { title: "注音" }, { title: "詞頻" }];
+                rows: entries;
+                current-row-changed(current-row) => {
+                    root.edit-dict-current-row = current-row;
+                    root.phrase = root.entries[current-row][0].text;
+                    root.bopomofo = root.entries[current-row][1].text;
+                    root.freq = root.entries[current-row][2].text;
                 }
             }
         }
