@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Button, VerticalBox, TabWidget, CheckBox, ComboBox, HorizontalBox, SpinBox, AboutSlint, TextEdit, StandardButton } from "std-widgets.slint";
-import { AboutChewing } from "about-box.slint";
 import { Assets, Version } from "globals.slint";
 
 export component ConfigWindow inherits Window {
@@ -36,6 +35,34 @@ export component ConfigWindow inherits Window {
 
     callback apply();
     callback cancel();
+    callback about();
+
+    MenuBar {
+        Menu {
+            title: "檔案";
+            MenuItem {
+                title: "確定";
+                activated => {
+                    root.apply();
+                }
+            }
+            MenuItem {
+                title: "結束";
+                activated => {
+                    root.cancel();
+                }
+            }
+        }
+        Menu {
+            title: "說明";
+            MenuItem {
+                title: "關於新酷音";
+                activated => {
+                    root.about();
+                }
+            }
+        }
+    }
 
     VerticalBox {
 
@@ -304,31 +331,11 @@ export component ConfigWindow inherits Window {
                     }
                 }
             }
-
-            Tab {
-                title: "關於";
-                VerticalBox {
-                    alignment: start;
-
-                    AboutChewing { }
-
-                    Text {
-                        text: "此設定程式使用開源專案 Slint 開發：";
-                        wrap: word-wrap;
-                    }
-
-                    HorizontalLayout {
-                        alignment: start;
-                        AboutSlint {
-                            width: 50%;
-                        }
-                    }
-                }
-            }
         }
 
         HorizontalBox {
             alignment: end;
+
             Button {
                 text: "確定";
                 clicked => {

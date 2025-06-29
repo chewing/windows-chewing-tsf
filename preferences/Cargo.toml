@@ -11,12 +11,23 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0.95"
 chewing = { version = "0.9.1", features = ["sqlite"] }
-slint = "1.8.0"
 windows-registry = "0.5.1"
 windows = { version = "0.61.0", features = [
     "Win32_Security",
     "Win32_System_Registry",
 ] }
+
+[dependencies.slint]
+version = "1.8.0"
+default-features = false
+features = [
+    "compat-1-2",
+    "std",
+    "log",
+    "software-renderer-systemfonts",
+    "backend-winit",
+    "renderer-femtovg-wgpu",
+]
 
 [build-dependencies]
 embed-resource = "3.0.1"
