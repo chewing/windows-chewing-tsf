@@ -35,6 +35,7 @@
                     <RemoveFile Name="Uninstall.exe" On="install" />
                 </Component>
                 <File Source="ChewingPreferences.exe" Bitness="always64" />
+                <File Source="chewing-editor.exe" Bitness="always64" />
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
             </Directory>

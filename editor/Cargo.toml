@@ -1,17 +1,12 @@
 [package]
-name = "chewing-preferences"
+name = "chewing-editor"
 license = "GPL-3.0-or-later"
 version = "25.4.0"
 edition = "2024"
 
-[[bin]]
-name = "ChewingPreferences"
-path = "src/main.rs"
-
 [dependencies]
 anyhow = "1.0.95"
 chewing = "0.9.1"
-windows-registry = "0.5.1"
 
 [dependencies.slint]
 version = "1.8.0"

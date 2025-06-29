@@ -759,7 +759,7 @@ impl ChewingTextService {
                 ID_HASHED => {
                     if let Ok(prog_dir) = program_dir() {
                         let exe = prog_dir
-                            .join("ChewingPreferences.exe")
+                            .join("chewing-editor.exe")
                             .to_string_lossy()
                             .into_owned();
                         unsafe {
@@ -767,7 +767,7 @@ impl ChewingTextService {
                                 Some(HWND_DESKTOP),
                                 w!("open"),
                                 &HSTRING::from(&exe),
-                                w!("--edit"),
+                                None,
                                 None,
                                 SW_SHOWNORMAL,
                             );
