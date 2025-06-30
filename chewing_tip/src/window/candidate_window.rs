@@ -116,6 +116,7 @@ impl CandidateWindow {
 
             self.window.resize(width as i32, height as i32);
             self.resize_swap_chain(width as u32, height as u32)?;
+            return Ok(());
         }
 
         let mut selkey_width = 0f32;
@@ -159,7 +160,9 @@ impl CandidateWindow {
         self.selkey_width.set(selkey_width);
         self.text_width.set(text_width);
         self.item_height.set(item_height);
-        let cand_per_row = items_len.min(self.cand_per_row.get() as u32);
+        let cand_per_row = items_len
+            .min(self.cand_per_row.get() as u32)
+            .clamp(1, u32::MAX);
         let rows = items_len.div_ceil(cand_per_row).clamp(1, u32::MAX);
         let width = cand_per_row * (selkey_width + text_width).ceil() as u32
             + (cand_per_row - 1) * COL_SPACING
