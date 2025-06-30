@@ -7,8 +7,8 @@ use chewing::path::data_dir;
 use slint::ComponentHandle;
 use windows_registry::{CURRENT_USER, Key};
 
-use crate::ConfigWindow;
 use crate::AboutWindow;
+use crate::ConfigWindow;
 
 const KEY_WOW64_64KEY: u32 = 0x0100;
 
