@@ -585,7 +585,7 @@ dependencies = [
 [[package]]
 name = "chewing"
 version = "0.9.1"
-source = "git+https://github.com/chewing/libchewing#9a11fc0cc9c60b372ddf11da5090820397c14989"
+source = "git+https://github.com/chewing/libchewing#473cee10848c0e71e83904807a50a7b63d151328"
 dependencies = [
  "der",
  "log",
@@ -618,7 +618,7 @@ dependencies = [
 [[package]]
 name = "chewing_capi"
 version = "0.9.1"
-source = "git+https://github.com/chewing/libchewing#9a11fc0cc9c60b372ddf11da5090820397c14989"
+source = "git+https://github.com/chewing/libchewing#473cee10848c0e71e83904807a50a7b63d151328"
 dependencies = [
  "chewing",
  "env_logger",
