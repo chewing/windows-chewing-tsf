@@ -159,15 +159,12 @@ pub fn run() -> Result<()> {
             .as_any()
             .downcast_ref::<DictEditViewModel>()
             .expect("entries should be a DictEditViewModel");
-        let _ = entry
-            .cache
-            .write()
-            .map(|mut cache| {
+        if let Ok(mut cache) = entry.cache.write() {
+            if index < cache.len() {
                 cache.remove(index);
-            })
-            .map(|_| {
                 entry.tracker.row_removed(index, 1);
-            });
+            }
+        }
     });
 
     let ui_handle = ui.as_weak();
@@ -341,6 +338,12 @@ struct DictEditViewModel {
 
 impl From<&DictTableItemModel> for DictEditViewModel {
     fn from(value: &DictTableItemModel) -> Self {
+        let dict = value.1.clone();
+        if let Ok(mut dict) = dict.write() {
+            if let Some(dict_mut) = dict.as_dict_mut() {
+                let _ = dict_mut.reopen();
+            }
+        }
         DictEditViewModel {
             cache: value
                 .1
@@ -349,7 +352,7 @@ impl From<&DictTableItemModel> for DictEditViewModel {
                 .entries()
                 .collect::<Vec<_>>()
                 .into(),
-            dict: value.1.clone(),
+            dict,
             tracker: ModelNotify::default(),
         }
     }
