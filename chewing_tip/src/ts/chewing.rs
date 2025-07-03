@@ -288,6 +288,10 @@ impl ChewingTextService {
             }
         }
 
+        if let Err(error) = self.cfg.reload_if_needed() {
+            error!("unable to load config: {error}");
+        }
+
         // FIXME error handling
         if let Err(error) = self.init_chewing_context() {
             error!("unable to initialize chewing: {error}");
