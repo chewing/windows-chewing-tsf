@@ -103,6 +103,7 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     ui.set_enable_caps_lock(true);
     ui.set_full_shape_symbols(true);
     ui.set_easy_symbols_with_shift(true);
+    ui.set_enable_auto_learn(true);
 
     if let Ok(path) = user_symbols_dat_path() {
         ui.set_symbols_dat(fs::read_to_string(path)?.into());
@@ -185,6 +186,9 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
         ui.set_upper_case_with_shift(value);
     }
+    if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
+        ui.set_enable_auto_learn(value);
+    }
 
     Ok(())
 }
@@ -231,6 +235,7 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
     );
     let _ = reg_set_bool(&key, "EasySymbolsWithCtrl", ui.get_easy_symbols_with_ctrl());
     let _ = reg_set_bool(&key, "UpperCaseWithShift", ui.get_upper_case_with_shift());
+    let _ = reg_set_bool(&key, "EnableAutoLearn", ui.get_enable_auto_learn());
 
     let sys_symbols_dat = system_symbols_dat_path()
         .and_then(|path| Ok(fs::read_to_string(path)?))

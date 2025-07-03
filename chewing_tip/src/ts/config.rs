@@ -10,6 +10,7 @@ use windows_registry::{CURRENT_USER, Key};
 pub(super) struct Config {
     pub(super) switch_lang_with_shift: bool,
     pub(super) enable_caps_lock: bool,
+    pub(super) enable_auto_learn: bool,
     pub(super) esc_clean_all_buf: bool,
     pub(super) full_shape_symbols: bool,
     pub(super) upper_case_with_shift: bool,
@@ -67,6 +68,7 @@ fn load_config() -> Result<Config> {
         cand_per_page: 9,
         cursor_cand_list: true,
         enable_caps_lock: true,
+        enable_auto_learn: true,
         full_shape_symbols: true,
         easy_symbols_with_shift: true,
         ..Config::default()
@@ -128,6 +130,9 @@ fn load_config() -> Result<Config> {
     }
     if let Ok(value) = reg_get_bool(&key, "EnableCapsLock") {
         cfg.enable_caps_lock = value;
+    }
+    if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
+        cfg.enable_auto_learn = value;
     }
     if let Ok(value) = reg_get_bool(&key, "FullShapeSymbols") {
         cfg.full_shape_symbols = value;
