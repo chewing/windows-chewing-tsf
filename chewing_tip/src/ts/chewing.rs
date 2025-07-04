@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use core::slice;
-use std::ffi::{CStr, c_void};
+use std::ffi::{CStr, c_int, c_void};
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
@@ -18,9 +18,9 @@ use chewing_capi::candidates::{
     chewing_set_candPerPage,
 };
 use chewing_capi::globals::{
-    chewing_config_set_int, chewing_config_set_str, chewing_set_addPhraseDirection,
-    chewing_set_autoShiftCur, chewing_set_escCleanAllBuf, chewing_set_maxChiSymbolLen,
-    chewing_set_spaceAsSelection,
+    AUTOLEARN_DISABLED, AUTOLEARN_ENABLED, chewing_config_set_int, chewing_config_set_str,
+    chewing_set_addPhraseDirection, chewing_set_autoShiftCur, chewing_set_escCleanAllBuf,
+    chewing_set_maxChiSymbolLen, chewing_set_spaceAsSelection,
 };
 use chewing_capi::input::{
     chewing_handle_Backspace, chewing_handle_Capslock, chewing_handle_CtrlNum,
@@ -1134,6 +1134,15 @@ impl ChewingTextService {
                     SEL_KEYS[cfg.sel_key_type as usize].as_ptr(),
                 );
                 chewing_config_set_int(ctx, c"chewing.conversion_engine".as_ptr(), cfg.conv_engine);
+                chewing_config_set_int(
+                    ctx,
+                    c"chewing.disable_auto_learn_phrase".as_ptr(),
+                    if cfg.enable_auto_learn {
+                        AUTOLEARN_ENABLED
+                    } else {
+                        AUTOLEARN_DISABLED
+                    } as c_int,
+                );
             }
         }
         self.output_simp_chinese = cfg.output_simp_chinese;
