@@ -32,6 +32,8 @@ export component ConfigWindow inherits Window {
     in-out property <int> cand-per-row;
     in-out property <int> cand-per-page;
     in-out property <int> font-size;
+    in property <[string]> font-families;
+    in-out property <string> font-family;
     in-out property <int> keyboard-layout;
     in-out property <string> symbols-dat;
 
@@ -225,6 +227,16 @@ export component ConfigWindow inherits Window {
                         minimum: 4;
                         maximum: 64;
                         value <=> font-size;
+                    }
+
+                    Text {
+                        text: "選字視窗字型 (beta)";
+                        min-width: 140px;
+                    }
+
+                    ComboBox {
+                        model: font-families;
+                        current-value <=> font-family;
                     }
                 }
             }

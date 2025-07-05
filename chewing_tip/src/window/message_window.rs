@@ -252,10 +252,10 @@ impl MessageWindow {
 
         Ok(())
     }
-    pub(crate) fn set_font_size(&self, font_size: i32) {
+    pub(crate) fn set_font(&self, font_family: &HSTRING, font_size: i32) {
         if let Ok(text_format) = unsafe {
             self.dwrite_factory.CreateTextFormat(
-                w!("Segoe UI"),
+                font_family,
                 None,
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
