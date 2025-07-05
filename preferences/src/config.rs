@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::rc::Rc;
 use std::{env, fs, path::PathBuf};
 
 use anyhow::{Result, bail};
 use chewing::path::data_dir;
 use slint::ComponentHandle;
+use slint::ModelRc;
+use slint::VecModel;
 use windows_registry::{CURRENT_USER, Key};
 
 use crate::AboutWindow;
@@ -15,6 +18,9 @@ const KEY_WOW64_64KEY: u32 = 0x0100;
 pub fn run() -> Result<()> {
     let about = AboutWindow::new()?;
     let ui = ConfigWindow::new()?;
+    let families = crate::fonts::enum_font_families()?;
+    let model = Rc::new(VecModel::from(families));
+    ui.set_font_families(ModelRc::from(model));
     load_config(&ui)?;
 
     ui.on_cancel(move || {
@@ -156,6 +162,9 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     if let Ok(value) = reg_get_i32(&key, "DefFontSize") {
         ui.set_font_size(value);
     }
+    if let Ok(value) = key.get_string("DefFontFamily") {
+        ui.set_font_family(value.into());
+    }
     if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
         ui.set_sel_key_type(value);
     }
@@ -228,6 +237,7 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
         ui.get_advance_after_selection(),
     );
     let _ = reg_set_i32(&key, "DefFontSize", ui.get_font_size());
+    let _ = key.set_string("DefFontFamily", ui.get_font_family());
     let _ = reg_set_i32(&key, "SelKeyType", ui.get_sel_key_type());
     let _ = reg_set_i32(&key, "ConvEngine", ui.get_conv_engine());
     let _ = reg_set_i32(&key, "SelAreaLen", ui.get_cand_per_page());

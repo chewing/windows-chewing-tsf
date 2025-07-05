@@ -4,6 +4,7 @@
 
 mod about;
 mod config;
+mod fonts;
 
 use std::env;
 
