@@ -10,6 +10,12 @@ pub(super) struct KeyEvent {
     key_state: [u8; 256],
 }
 
+impl Default for KeyEvent {
+    fn default() -> Self {
+        KeyEvent::new(0, 0)
+    }
+}
+
 impl KeyEvent {
     pub fn new(vk: u16, lparam: isize) -> KeyEvent {
         let scan_code = lparam & 0xff0000;
