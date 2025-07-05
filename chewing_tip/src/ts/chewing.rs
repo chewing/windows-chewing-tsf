@@ -49,14 +49,15 @@ use windows::Win32::Storage::FileSystem::{
 use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_DWORD, RegGetValueW};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE, VK_HOME,
-    VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
+    VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE, VK_F12,
+    VK_HOME, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT, VK_SHIFT,
+    VK_TAB, VK_UP,
 };
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
-    TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
+    TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
@@ -93,6 +94,7 @@ const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_5695937
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
 const GUID_SETTINGS_BUTTON: GUID = GUID::from_u128(0x4FAFA520_2104_407E_A532_9F1AAB7751CD);
 const GUID_SHIFT_SPACE: GUID = GUID::from_u128(0xC77A44F5_DB21_474E_A2A2_A17242217AB3);
+const GUID_CONTROL_F12: GUID = GUID::from_u128(0x1797B43A_2332_40B4_8007_B2F98F19C047);
 
 const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 
@@ -146,6 +148,7 @@ impl ChewingTextService {
         self.tid = tid;
         self.composition_sink = Some(composition_sink.to_owned());
         self.add_preserved_key(VK_SPACE.0 as u32, TF_MOD_SHIFT, GUID_SHIFT_SPACE)?;
+        self.add_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
         let da = TF_DISPLAYATTRIBUTE {
             lsStyle: TF_LS_DOT,
             bAttr: TF_ATTR_INPUT,
@@ -312,6 +315,7 @@ impl ChewingTextService {
         self.ime_mode_button = None;
         self.remove_buttons()?;
         self.remove_preserved_key(VK_SPACE.0 as u32, TF_MOD_SHIFT, GUID_SHIFT_SPACE)?;
+        self.remove_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
         self.composition = None;
         self.hide_candidates();
         self.hide_message();
@@ -690,6 +694,9 @@ impl ChewingTextService {
         if guid == &GUID_SHIFT_SPACE && self.toggle_shape_mode().is_ok() {
             return true;
         }
+        if guid == &GUID_CONTROL_F12 && self.toggle_simp_chinese().is_ok() {
+            return true;
+        }
         false
     }
 
@@ -804,18 +811,8 @@ impl ChewingTextService {
                     }
                 }
                 ID_OUTPUT_SIMP_CHINESE => {
-                    self.output_simp_chinese = !self.output_simp_chinese;
-                    debug!(
-                        "toggle output simplified chinese: {}",
-                        self.output_simp_chinese
-                    );
-                    let check_flag = if self.output_simp_chinese {
-                        MF_CHECKED
-                    } else {
-                        MF_UNCHECKED
-                    };
-                    unsafe {
-                        CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+                    if let Err(error) = self.toggle_simp_chinese() {
+                        error!("unable to toggle simplified chinese: {error}");
                     }
                 }
                 ID_ABOUT => {
@@ -1041,6 +1038,23 @@ impl ChewingTextService {
 
     fn hide_candidates(&mut self) {
         self.candidate_window = None;
+    }
+
+    fn toggle_simp_chinese(&mut self) -> Result<()> {
+        self.output_simp_chinese = !self.output_simp_chinese;
+        debug!(
+            "toggle output simplified chinese: {}",
+            self.output_simp_chinese
+        );
+        let check_flag = if self.output_simp_chinese {
+            MF_CHECKED
+        } else {
+            MF_UNCHECKED
+        };
+        unsafe {
+            CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
+        }
+        Ok(())
     }
 
     fn toggle_shape_mode(&mut self) -> Result<()> {
