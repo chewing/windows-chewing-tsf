@@ -345,9 +345,13 @@ impl ChewingTextService {
             return Ok(false);
         }
         self.last_keydown_code = ev.vk;
+        let enable_caps_lock = self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL);
         if !self.is_composing() {
             // don't do further handling in English + half shape mode
-            if self.lang_mode == SYMBOL_MODE && self.shape_mode == HALFSHAPE_MODE {
+            if self.lang_mode == SYMBOL_MODE
+                && self.shape_mode == HALFSHAPE_MODE
+                && !enable_caps_lock
+            {
                 debug!("key not handled - in English mode");
                 return Ok(false);
             }
@@ -365,7 +369,7 @@ impl ChewingTextService {
             // numbers, and symbols need to be converted to full shape Chinese chars.
             if self.shape_mode != FULLSHAPE_MODE {
                 // Caps lock is on => English mode
-                if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
+                if enable_caps_lock {
                     // We only need to handle printable keys because we need to
                     // convert them to upper case.
                     if !ev.is_alphabet() {
@@ -399,8 +403,7 @@ impl ChewingTextService {
             let mut momentary_english_mode = false;
             let mut invert_case = false;
             // If caps lock is on, temprarily change to English mode
-            if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
-                momentary_english_mode = true;
+            if enable_caps_lock {
                 invert_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols
@@ -410,11 +413,7 @@ impl ChewingTextService {
                     invert_case = true;
                 }
             }
-            if self.lang_mode == SYMBOL_MODE {
-                unsafe {
-                    chewing_handle_Default(ctx, ev.code as i32);
-                }
-            } else if momentary_english_mode {
+            if self.lang_mode == SYMBOL_MODE || momentary_english_mode {
                 unsafe {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 }
@@ -613,22 +612,46 @@ impl ChewingTextService {
         let Some(ctx) = self.chewing_context else {
             return Ok(false);
         };
-        if self.cfg.switch_lang_with_shift
-            && self.last_keydown_code == VK_SHIFT.0
-            && ev.vk == VK_SHIFT.0
-        {
-            // last key down event is also shift key
-            // a <Shift> key down + key up pair was detected
-            // --> switch language
+        let last_is_shift = self.last_keydown_code == VK_SHIFT.0 && ev.vk == VK_SHIFT.0;
+        let last_is_caps_lock = self.last_keydown_code == VK_CAPITAL.0 && ev.vk == VK_CAPITAL.0;
+
+        if self.cfg.switch_lang_with_shift && last_is_shift {
+            if dry_run {
+                return Ok(true);
+            }
+            if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
+                // Locked by CapsLock
+                let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
+                    SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
+                    CHINESE_MODE => HSTRING::from("中文模式"),
+                    _ => unreachable!(),
+                };
+                self.show_message(context, &msg, Duration::from_secs(2))?;
+                self.last_keydown_code = 0;
+                return Ok(true);
+            } else {
+                self.toggle_lang_mode()?;
+                let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
+                    SYMBOL_MODE => HSTRING::from("英數模式"),
+                    CHINESE_MODE if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) => {
+                        HSTRING::from("英數模式 (CapsLock)")
+                    }
+                    CHINESE_MODE => HSTRING::from("中文模式"),
+                    _ => unreachable!(),
+                };
+                self.show_message(context, &msg, Duration::from_secs(2))?;
+                self.last_keydown_code = 0;
+                return Ok(true);
+            }
+        }
+
+        if self.cfg.enable_caps_lock && last_is_caps_lock {
             if dry_run {
                 return Ok(true);
             }
             self.toggle_lang_mode()?;
             let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
-                SYMBOL_MODE => HSTRING::from("英數模式"),
-                CHINESE_MODE if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) => {
-                    HSTRING::from("英數模式 (CapsLock)")
-                }
+                SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
                 CHINESE_MODE => HSTRING::from("中文模式"),
                 _ => unreachable!(),
             };
@@ -636,23 +659,7 @@ impl ChewingTextService {
             self.last_keydown_code = 0;
             return Ok(true);
         }
-        if self.cfg.enable_caps_lock
-            && self.last_keydown_code == VK_CAPITAL.0
-            && ev.vk == VK_CAPITAL.0
-            && self.lang_mode == CHINESE_MODE
-        {
-            if dry_run {
-                return Ok(true);
-            }
-            let msg = if ev.is_key_toggled(VK_CAPITAL) {
-                HSTRING::from("英數模式 (CapsLock)")
-            } else {
-                HSTRING::from("中文模式")
-            };
-            self.show_message(context, &msg, Duration::from_secs(2))?;
-            self.last_keydown_code = 0;
-            return Ok(true);
-        }
+
         self.last_keydown_code = 0;
         Ok(false)
     }
@@ -1087,10 +1094,13 @@ impl ChewingTextService {
 
         self.apply_config();
 
+        let ev = KeyEvent::default();
+        // XXX assumes there is only one keyboard
+        let capslock = ev.is_key_toggled(VK_CAPITAL);
         if let Some(ctx) = self.chewing_context {
             unsafe {
                 chewing_set_maxChiSymbolLen(ctx, 50);
-                if self.cfg.default_english {
+                if self.cfg.default_english || capslock {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 } else {
                     chewing_set_ChiEngMode(ctx, CHINESE_MODE);
