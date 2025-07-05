@@ -20,7 +20,7 @@ use chewing_capi::candidates::{
 use chewing_capi::globals::{
     AUTOLEARN_DISABLED, AUTOLEARN_ENABLED, chewing_config_set_int, chewing_config_set_str,
     chewing_set_addPhraseDirection, chewing_set_autoShiftCur, chewing_set_escCleanAllBuf,
-    chewing_set_maxChiSymbolLen, chewing_set_spaceAsSelection,
+    chewing_set_maxChiSymbolLen, chewing_set_phraseChoiceRearward, chewing_set_spaceAsSelection,
 };
 use chewing_capi::input::{
     chewing_handle_Backspace, chewing_handle_Capslock, chewing_handle_CtrlNum,
@@ -1133,6 +1133,7 @@ impl ChewingTextService {
         if let Some(ctx) = self.chewing_context {
             unsafe {
                 chewing_set_addPhraseDirection(ctx, cfg.add_phrase_forward as i32);
+                chewing_set_phraseChoiceRearward(ctx, cfg.phrase_choice_rearward as i32);
                 chewing_set_autoShiftCur(ctx, cfg.advance_after_selection as i32);
                 chewing_set_candPerPage(ctx, cfg.cand_per_page);
                 chewing_set_escCleanAllBuf(ctx, cfg.esc_clean_all_buf as i32);

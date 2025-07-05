@@ -144,6 +144,9 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     if let Ok(value) = reg_get_bool(&key, "AddPhraseForward") {
         ui.set_add_phrase_forward(value);
     }
+    if let Ok(value) = reg_get_bool(&key, "PhraseChoiceRearward") {
+        ui.set_phrase_choice_rearward(value);
+    }
     // if let Ok(value) = reg_get_bool(&key, "ColorCandWnd") {
     //     ui.set_color_cand_wnd(value);
     // }
@@ -213,6 +216,11 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
     let _ = reg_set_bool(&key, "SwitchLangWithShift", ui.get_switch_lang_with_shift());
     let _ = reg_set_bool(&key, "OutputSimpChinese", ui.get_output_simp_chinese());
     let _ = reg_set_bool(&key, "AddPhraseForward", ui.get_add_phrase_forward());
+    let _ = reg_set_bool(
+        &key,
+        "PhraseChoiceRearward",
+        ui.get_phrase_choice_rearward(),
+    );
     // let _ = reg_set_i32(&key, "ColorCandWnd", ui.get_color_cand_wnd());
     let _ = reg_set_bool(
         &key,
