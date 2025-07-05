@@ -17,6 +17,7 @@ export component ConfigWindow inherits Window {
     in-out property <bool> full-shape-symbols;
     in-out property <bool> upper-case-with-shift;
     in-out property <bool> add-phrase-forward;
+    in-out property <bool> phrase-choice-rearward;
     in-out property <bool> easy-symbols-with-shift: true;
     in-out property <bool> easy-symbols-with-ctrl: false;
     in-out property <bool> enable-auto-learn;
@@ -104,6 +105,11 @@ export component ConfigWindow inherits Window {
                         CheckBox {
                             text: "Ctrl + 數字儲存游標前方的詞";
                             checked <=> add-phrase-forward;
+                        }
+
+                        CheckBox {
+                            text: "選字時依照游標前方的詞";
+                            checked <=> phrase-choice-rearward;
                         }
 
                         CheckBox {

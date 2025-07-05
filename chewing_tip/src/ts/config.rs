@@ -15,6 +15,7 @@ pub(super) struct Config {
     pub(super) full_shape_symbols: bool,
     pub(super) upper_case_with_shift: bool,
     pub(super) add_phrase_forward: bool,
+    pub(super) phrase_choice_rearward: bool,
     pub(super) easy_symbols_with_shift: bool,
     pub(super) easy_symbols_with_ctrl: bool,
     pub(super) cursor_cand_list: bool,
@@ -106,6 +107,9 @@ fn load_config() -> Result<Config> {
     }
     if let Ok(value) = reg_get_bool(&key, "AddPhraseForward") {
         cfg.add_phrase_forward = value;
+    }
+    if let Ok(value) = reg_get_bool(&key, "PhraseChoiceRearward") {
+        cfg.phrase_choice_rearward = value;
     }
     // if let Ok(value) = reg_get_bool(&key, "ColorCandWnd") {
     //     ui.color_cand_wnd = value;
