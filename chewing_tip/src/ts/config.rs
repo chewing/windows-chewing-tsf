@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use anyhow::Result;
-use windows::Win32::System::Registry::KEY_WOW64_64KEY;
+use windows::Win32::{Graphics::Direct2D::Common::D2D1_COLOR_F, System::Registry::KEY_WOW64_64KEY};
 use windows_core::{HSTRING, h};
 use windows_registry::{CURRENT_USER, Key};
 
@@ -31,6 +31,10 @@ pub(super) struct Config {
     pub(super) cand_per_page: i32,
     pub(super) font_size: i32,
     pub(super) font_family: HSTRING,
+    pub(super) font_fg_color: D2D1_COLOR_F,
+    pub(super) font_highlight_fg_color: D2D1_COLOR_F,
+    pub(super) font_highlight_bg_color: D2D1_COLOR_F,
+    pub(super) font_number_fg_color: D2D1_COLOR_F,
     pub(super) keyboard_layout: i32,
 }
 
@@ -54,6 +58,18 @@ fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool> {
     Ok(hk.get_u32(value_name)? > 0)
 }
 
+fn color_f(r: f32, g: f32, b: f32) -> D2D1_COLOR_F {
+    D2D1_COLOR_F { r, g, b, a: 1.0 }
+}
+
+fn color_s(rgb: &str) -> D2D1_COLOR_F {
+    let rgb = u32::from_str_radix(rgb, 16).unwrap_or(0);
+    let r = ((rgb >> 16) & 0xFF) as f32 / 255.0;
+    let g = ((rgb >> 8) & 0xFF) as f32 / 255.0;
+    let b = (rgb & 0xFF) as f32 / 255.0;
+    color_f(r, g, b)
+}
+
 fn load_config() -> Result<Config> {
     let key = CURRENT_USER
         .options()
@@ -68,6 +84,10 @@ fn load_config() -> Result<Config> {
         advance_after_selection: true,
         font_size: 16,
         font_family: h!("Segoe UI").to_owned(),
+        font_fg_color: color_f(0.0, 0.0, 0.0),
+        font_highlight_fg_color: color_f(1.0, 1.0, 1.0),
+        font_highlight_bg_color: color_f(0.0, 0.0, 0.0),
+        font_number_fg_color: color_f(0.0, 0.0, 1.0),
         conv_engine: 1,
         cand_per_page: 9,
         cursor_cand_list: true,
@@ -125,6 +145,18 @@ fn load_config() -> Result<Config> {
     }
     if let Ok(value) = key.get_hstring("DefFontFamily") {
         cfg.font_family = value;
+    }
+    if let Ok(value) = key.get_string("DefFontFgColor") {
+        cfg.font_fg_color = color_s(&value);
+    }
+    if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
+        cfg.font_highlight_fg_color = color_s(&value);
+    }
+    if let Ok(value) = key.get_string("DefFontHighlightBgColor") {
+        cfg.font_highlight_bg_color = color_s(&value);
+    }
+    if let Ok(value) = key.get_string("DefFontNumberFgColor") {
+        cfg.font_number_fg_color = color_s(&value);
     }
     if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
         cfg.sel_key_type = value;
