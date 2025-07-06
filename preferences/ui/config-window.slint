@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button, VerticalBox, TabWidget, CheckBox, ComboBox, HorizontalBox, SpinBox, AboutSlint, TextEdit, StandardButton } from "std-widgets.slint";
+import { Button, VerticalBox, TabWidget, CheckBox, ComboBox, HorizontalBox, SpinBox, AboutSlint, TextEdit, StandardButton, LineEdit } from "std-widgets.slint";
 import { Assets, Version } from "globals.slint";
 
 export component ConfigWindow inherits Window {
@@ -34,6 +34,10 @@ export component ConfigWindow inherits Window {
     in-out property <int> font-size;
     in property <[string]> font-families;
     in-out property <string> font-family;
+    in-out property <string> font-fg-color;
+    in-out property <string> font-number-fg-color;
+    in-out property <string> font-highlight-fg-color;
+    in-out property <string> font-highlight-bg-color;
     in-out property <int> keyboard-layout;
     in-out property <string> symbols-dat;
 
@@ -229,14 +233,68 @@ export component ConfigWindow inherits Window {
                         value <=> font-size;
                     }
 
+                    VerticalLayout {
+                        padding-top: 10px;
+                        padding-bottom: 10px;
+                        Text {
+                            text: "進階設定 (beta)";
+                        }
+                        Rectangle {
+                            height: 1px;
+                            width: 100%;
+                            border-width: 0.5px;
+                            border-color: lightslategray;
+                        }
+                    }
+
                     Text {
-                        text: "選字視窗字型 (beta)";
+                        text: "選字視窗字型";
                         min-width: 140px;
                     }
 
                     ComboBox {
                         model: font-families;
                         current-value <=> font-family;
+                    }
+
+                    HorizontalLayout {
+                        Text {
+                            text: "文字顏色 (RGB)";
+                        }
+                        LineEdit {
+                            width: 100px;
+                            text <=> font-fg-color;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        Text {
+                            text: "焦點文字顏色 (RGB)";
+                        }
+                        LineEdit {
+                            width: 100px;
+                            text <=> font-highlight-fg-color;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        Text {
+                            text: "焦點背景顏色 (RGB)";
+                        }
+                        LineEdit {
+                            width: 100px;
+                            text <=> font-highlight-bg-color;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        Text {
+                            text: "數字顏色 (RGB)";
+                        }
+                        LineEdit {
+                            width: 100px;
+                            text <=> font-number-fg-color;
+                        }
                     }
                 }
             }

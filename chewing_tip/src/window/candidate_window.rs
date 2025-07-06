@@ -45,6 +45,10 @@ pub(crate) struct CandidateWindow {
     brush: RefCell<Option<ID2D1SolidColorBrush>>,
     nine_patch_bitmap: NinePatchBitmap,
     window: Window,
+    font_fg_color: Cell<D2D1_COLOR_F>,
+    font_highlight_fg_color: Cell<D2D1_COLOR_F>,
+    font_highlight_bg_color: Cell<D2D1_COLOR_F>,
+    font_number_fg_color: Cell<D2D1_COLOR_F>,
 }
 
 const ROW_SPACING: u32 = 4;
@@ -98,6 +102,10 @@ impl CandidateWindow {
                 brush: None.into(),
                 nine_patch_bitmap,
                 window,
+                font_fg_color: Cell::new(create_color(COLOR_WINDOWTEXT)),
+                font_highlight_fg_color: Cell::new(create_color(COLOR_HOTLIGHT)),
+                font_highlight_bg_color: Cell::new(create_color(COLOR_HIGHLIGHT)),
+                font_number_fg_color: Cell::new(create_color(COLOR_INFOTEXT)),
             });
             Window::register_hwnd(
                 candidate_window.window.hwnd(),
@@ -302,15 +310,10 @@ impl CandidateWindow {
             bottom: top + self.item_height.get(),
         };
 
-        // FIXME: make the color of strings configurable
-        let sel_key_color = create_color(COLOR_HOTLIGHT);
-        let text_color = create_color(COLOR_WINDOWTEXT);
-        let selected_text_color = D2D1_COLOR_F {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        };
+        let sel_key_color = self.font_number_fg_color.get();
+        let fg_color = self.font_fg_color.get();
+        let highlight_fg_color = self.font_highlight_fg_color.get();
+        let highlight_bg_color = self.font_highlight_bg_color.get();
         let selkey = "?. ".to_string();
         let mut selkey = selkey.encode_utf16().collect::<Vec<_>>();
         selkey[0] = *self
@@ -338,11 +341,12 @@ impl CandidateWindow {
         let items = self.items.borrow();
         if let Some(item) = items.get(i.clamp(0, 9)) {
             unsafe {
-                let text_brush = dc.CreateSolidColorBrush(&text_color, None)?;
-                let selected_text_brush = dc.CreateSolidColorBrush(&selected_text_color, None)?;
+                let text_brush = dc.CreateSolidColorBrush(&fg_color, None)?;
+                let highlight_brush = dc.CreateSolidColorBrush(&highlight_bg_color, None)?;
+                let selected_text_brush = dc.CreateSolidColorBrush(&highlight_fg_color, None)?;
 
                 if self.use_cursor.get() && i == self.current_sel.get() {
-                    dc.FillRectangle(&text_rect, &text_brush);
+                    dc.FillRectangle(&text_rect, &highlight_brush);
                     dc.DrawText(
                         item,
                         self.text_format.borrow().deref(),
@@ -380,6 +384,18 @@ impl CandidateWindow {
         } {
             self.text_format.replace(text_format);
         }
+    }
+    pub(crate) fn set_font_color(
+        &self,
+        fg: D2D1_COLOR_F,
+        highlight_fg: D2D1_COLOR_F,
+        highlight_bg: D2D1_COLOR_F,
+        number_fg: D2D1_COLOR_F,
+    ) {
+        self.font_fg_color.set(fg);
+        self.font_highlight_fg_color.set(highlight_fg);
+        self.font_highlight_bg_color.set(highlight_bg);
+        self.font_number_fg_color.set(number_fg);
     }
     pub(crate) fn add(&self, item: HSTRING, sel_key: u16) {
         self.items.borrow_mut().push(item);

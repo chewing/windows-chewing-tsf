@@ -102,7 +102,6 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     ui.set_switch_lang_with_shift(true);
     ui.set_add_phrase_forward(true);
     ui.set_advance_after_selection(true);
-    ui.set_font_size(16);
     ui.set_conv_engine(1);
     ui.set_cand_per_page(9);
     ui.set_cursor_cand_list(true);
@@ -110,6 +109,12 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     ui.set_full_shape_symbols(true);
     ui.set_easy_symbols_with_shift(true);
     ui.set_enable_auto_learn(true);
+    ui.set_font_size(16);
+    ui.set_font_family("Segoe UI".into());
+    ui.set_font_fg_color("000000".into());
+    ui.set_font_highlight_fg_color("FFFFFF".into());
+    ui.set_font_highlight_bg_color("000000".into());
+    ui.set_font_number_fg_color("0000FF".into());
 
     if let Ok(path) = user_symbols_dat_path() {
         ui.set_symbols_dat(fs::read_to_string(path)?.into());
@@ -164,6 +169,18 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     }
     if let Ok(value) = key.get_string("DefFontFamily") {
         ui.set_font_family(value.into());
+    }
+    if let Ok(value) = key.get_string("DefFontFgColor") {
+        ui.set_font_fg_color(value.into());
+    }
+    if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
+        ui.set_font_highlight_fg_color(value.into());
+    }
+    if let Ok(value) = key.get_string("DefFontHighlightBgColor") {
+        ui.set_font_highlight_bg_color(value.into());
+    }
+    if let Ok(value) = key.get_string("DefFontNumberFgColor") {
+        ui.set_font_number_fg_color(value.into());
     }
     if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
         ui.set_sel_key_type(value);
@@ -238,6 +255,10 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
     );
     let _ = reg_set_i32(&key, "DefFontSize", ui.get_font_size());
     let _ = key.set_string("DefFontFamily", ui.get_font_family());
+    let _ = key.set_string("DefFontFgColor", ui.get_font_fg_color());
+    let _ = key.set_string("DefFontHighlightFgColor", ui.get_font_highlight_fg_color());
+    let _ = key.set_string("DefFontHighlightBgColor", ui.get_font_highlight_bg_color());
+    let _ = key.set_string("DefFontNumberFgColor", ui.get_font_number_fg_color());
     let _ = reg_set_i32(&key, "SelKeyType", ui.get_sel_key_type());
     let _ = reg_set_i32(&key, "ConvEngine", ui.get_conv_engine());
     let _ = reg_set_i32(&key, "SelAreaLen", ui.get_cand_per_page());

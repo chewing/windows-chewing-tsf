@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     ffi::{c_int, c_uint},
     ops::Deref,
     path::Path,
@@ -34,9 +34,9 @@ pub(crate) struct MessageWindow {
     target: RefCell<Option<ID2D1DeviceContext>>,
     swapchain: RefCell<Option<IDXGISwapChain1>>,
     dcomptarget: RefCell<Option<IDCompositionTarget>>,
-    brush: RefCell<Option<ID2D1SolidColorBrush>>,
     nine_patch_bitmap: NinePatchBitmap,
     window: Window,
+    font_fg_color: Cell<D2D1_COLOR_F>,
 }
 
 impl MessageWindow {
@@ -76,9 +76,9 @@ impl MessageWindow {
                 dcomptarget: None.into(),
                 target: None.into(),
                 swapchain: None.into(),
-                brush: None.into(),
                 nine_patch_bitmap,
                 window,
+                font_fg_color: Cell::new(create_color(COLOR_WINDOWTEXT)),
             });
             Window::register_hwnd(
                 message_window.hwnd(),
@@ -157,7 +157,6 @@ impl MessageWindow {
                     error!("unable to resize swapchain: {error}");
                     self.target.take();
                     self.swapchain.take();
-                    self.brush.take();
                 } else {
                     let dpi = get_dpi_for_window(self.window.hwnd());
                     create_swapchain_bitmap(swapchain, target, dpi)?;
@@ -188,8 +187,6 @@ impl MessageWindow {
             create_swapchain_bitmap(&swapchain, &target, dpi)?;
             let dcomptarget = setup_direct_composition(&device, self.window.hwnd(), &swapchain)?;
 
-            self.brush
-                .replace(create_brush(&target, create_color(COLOR_INFOTEXT)).ok());
             self.dcomptarget.replace(Some(dcomptarget));
             self.target.replace(Some(target));
             self.swapchain.replace(Some(swapchain));
@@ -220,21 +217,20 @@ impl MessageWindow {
                 self.nine_patch_bitmap.draw_bitmap(target, rect)?;
                 let margin = self.nine_patch_bitmap.margin();
 
-                if let Some(brush) = self.brush.borrow().as_ref() {
-                    target.DrawText(
-                        self.text.borrow().as_ref(),
-                        self.text_format.borrow().deref(),
-                        &D2D_RECT_F {
-                            left: margin,
-                            top: margin,
-                            right: f32::MAX,
-                            bottom: f32::MAX,
-                        },
-                        brush,
-                        D2D1_DRAW_TEXT_OPTIONS_NONE,
-                        DWRITE_MEASURING_MODE_NATURAL,
-                    );
-                }
+                let brush = target.CreateSolidColorBrush(&self.font_fg_color.get(), None)?;
+                target.DrawText(
+                    self.text.borrow().as_ref(),
+                    self.text_format.borrow().deref(),
+                    &D2D_RECT_F {
+                        left: margin,
+                        top: margin,
+                        right: f32::MAX,
+                        bottom: f32::MAX,
+                    },
+                    &brush,
+                    D2D1_DRAW_TEXT_OPTIONS_NONE,
+                    DWRITE_MEASURING_MODE_NATURAL,
+                );
                 target.EndDraw(None, None)?;
 
                 if let Some(swapchain) = swapchain.as_ref() {
@@ -244,7 +240,6 @@ impl MessageWindow {
                         _ = swapchain;
                         self.target.take();
                         self.swapchain.take();
-                        self.brush.take();
                     }
                 }
             }
@@ -266,6 +261,9 @@ impl MessageWindow {
         } {
             self.text_format.replace(text_format);
         }
+    }
+    pub(crate) fn set_font_color(&self, fg: D2D1_COLOR_F) {
+        self.font_fg_color.set(fg);
     }
     pub(crate) fn set_text(&self, text: HSTRING) -> Result<()> {
         self.text.replace(text);
@@ -298,7 +296,6 @@ impl WndProc for MessageWindow {
                 WM_NCDESTROY => {
                     self.target.take();
                     self.swapchain.take();
-                    self.brush.take();
                     LRESULT(0)
                 }
                 _ => self.window.wnd_proc(msg, wp, lp),

@@ -941,6 +941,7 @@ impl ChewingTextService {
             let bitmap_path = program_dir.join("Assets").join("msg.9.png");
             let message_window = MessageWindow::new(hwnd, &bitmap_path)?;
             message_window.set_font(&self.cfg.font_family, self.cfg.font_size);
+            message_window.set_font_color(self.cfg.font_fg_color);
             message_window.set_text(text.clone())?;
 
             let rect = self.get_selection_rect(context)?;
@@ -1006,6 +1007,12 @@ impl ChewingTextService {
             candidate_window.set_use_cursor(self.cfg.cursor_cand_list);
             candidate_window.set_cand_per_row(self.cfg.cand_per_row);
             candidate_window.set_font(&self.cfg.font_family, self.cfg.font_size);
+            candidate_window.set_font_color(
+                self.cfg.font_fg_color,
+                self.cfg.font_highlight_fg_color,
+                self.cfg.font_highlight_bg_color,
+                self.cfg.font_number_fg_color,
+            );
 
             unsafe {
                 let sel_keys = slice::from_raw_parts(chewing_get_selKey(ctx), 10);
