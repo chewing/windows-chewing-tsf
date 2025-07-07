@@ -14,8 +14,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 use anyhow::{Context, Result, bail};
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
-    chewing_cand_TotalChoice, chewing_cand_close, chewing_cand_hasNext, chewing_get_selKey,
-    chewing_set_candPerPage,
+    chewing_cand_TotalChoice, chewing_cand_choose_by_index, chewing_cand_close,
+    chewing_cand_hasNext, chewing_get_selKey, chewing_set_candPerPage,
 };
 use chewing_capi::globals::{
     AUTOLEARN_DISABLED, AUTOLEARN_ENABLED, chewing_config_set_int, chewing_config_set_str,
@@ -62,7 +62,7 @@ use windows::Win32::UI::TextServices::{
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
     MF_CHECKED, MF_UNCHECKED, SW_SHOWNORMAL, SetTimer, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
-    TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
+    TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu, WINDOW_EX_STYLE, WINDOW_STYLE,
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
@@ -81,7 +81,7 @@ use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
 use crate::ts::menu::Menu;
-use crate::window::{CandidateWindow, MessageWindow, Window, window_register_class};
+use crate::window::{MessageWindow, Window, window_register_class};
 
 use super::CommandType;
 use super::config::Config;
@@ -89,6 +89,7 @@ use super::edit_session::{EndComposition, SelectionRect, SetCompositionString, S
 use super::key_event::KeyEvent;
 use super::lang_bar::LangBarButton;
 use super::resources::*;
+use super::ui_elements::{CandidateList, FilterKeyResult, Model};
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
@@ -123,7 +124,7 @@ pub(super) struct ChewingTextService {
     switch_shape_button: Option<ComObject<LangBarButton>>,
     ime_mode_button: Option<ComObject<LangBarButton>>,
     message_window: Option<Rc<MessageWindow>>,
-    candidate_window: Option<Rc<CandidateWindow>>,
+    candidate_list: Option<Rc<CandidateList>>,
     thread_mgr: Option<ITfThreadMgr>,
     composition: Option<ITfComposition>,
     composition_sink: Option<ITfCompositionSink>,
@@ -458,16 +459,21 @@ impl ChewingTextService {
         } else {
             let mut key_handled = false;
             if self.cfg.cursor_cand_list {
-                if let Some(candidate_window) = &self.candidate_window {
-                    if candidate_window.filter_key_event(ev.vk) {
-                        if candidate_window.has_result() {
-                            let sel_key = candidate_window.current_sel_key();
+                if let Some(candidate_list) = &self.candidate_list {
+                    match candidate_list.filter_key_event(ev.vk) {
+                        FilterKeyResult::HandledCommit => {
+                            let sel_key = candidate_list.current_sel();
                             unsafe {
-                                chewing_handle_Default(ctx, sel_key as i32);
+                                chewing_cand_choose_by_index(ctx, sel_key as i32);
                             }
                             key_handled = true;
-                        } else {
+                        }
+                        FilterKeyResult::Handled => {
+                            candidate_list.show();
                             return Ok(true);
+                        }
+                        FilterKeyResult::NotHandled => {
+                            // do nothing
                         }
                     }
                 }
@@ -589,7 +595,7 @@ impl ChewingTextService {
             // currently shown. When typing symbols with ` key, it's possible
             // that the composition string empty, while the candidate window is
             // shown. We should not terminate the composition in this case.
-            if self.candidate_window.is_none() {
+            if self.candidate_list.is_none() {
                 self.end_composition(context)?;
             }
         }
@@ -670,7 +676,7 @@ impl ChewingTextService {
 
     pub(super) fn on_composition_terminated(&mut self) {
         if let Some(ctx) = self.chewing_context {
-            if self.candidate_window.is_some() {
+            if self.candidate_list.is_some() {
                 self.hide_candidates();
                 unsafe {
                     chewing_cand_close(ctx);
@@ -737,7 +743,11 @@ impl ChewingTextService {
             if id == ID_MODE_ICON {
                 // TrackPopupMenu requires a window to work, so let's build a transient one.
                 let window = Window::new();
-                window.create(HWND_DESKTOP, 0, 0);
+                window.create(
+                    HWND_DESKTOP,
+                    WINDOW_STYLE::default(),
+                    WINDOW_EX_STYLE::default(),
+                );
                 let mut pos = POINT::default();
                 unsafe {
                     let _ = GetCursorPos(&mut pos);
@@ -982,61 +992,57 @@ impl ChewingTextService {
             return Ok(());
         };
         if unsafe { chewing_cand_TotalChoice(ctx) } == 0 {
-            self.candidate_window = None;
+            self.hide_candidates();
             return Ok(());
         }
-        if self.candidate_window.is_none() {
+        if self.candidate_list.is_none() {
             let view = unsafe { context.GetActiveView()? };
             let hwnd = unsafe { view.GetWnd()? };
             if hwnd.is_invalid() {
                 warn!("unable to show candidate box: context active view is windowless");
                 return Ok(());
             }
-            let Ok(program_dir) = program_dir() else {
-                error!("unable to show candidate box: Program Files path not found");
-                return Ok(());
-            };
-            let bitmap_path = program_dir.join("Assets").join("bubble.9.png");
-            let candidate_window = CandidateWindow::new(hwnd, &bitmap_path)
-                .context("unable to create candidate window")?;
-            self.candidate_window = Some(candidate_window);
+            let candidate_list = CandidateList::new(hwnd)?;
+            self.candidate_list = Some(candidate_list);
         }
 
-        if let Some(candidate_window) = &self.candidate_window {
-            candidate_window.clear();
-            candidate_window.set_use_cursor(self.cfg.cursor_cand_list);
-            candidate_window.set_cand_per_row(self.cfg.cand_per_row);
-            candidate_window.set_font(&self.cfg.font_family, self.cfg.font_size);
-            candidate_window.set_font_color(
-                self.cfg.font_fg_color,
-                self.cfg.font_highlight_fg_color,
-                self.cfg.font_highlight_bg_color,
-                self.cfg.font_number_fg_color,
-            );
-
+        if let Some(candidate_list) = &self.candidate_list {
             unsafe {
                 let sel_keys = slice::from_raw_parts(chewing_get_selKey(ctx), 10);
                 let n = chewing_cand_ChoicePerPage(ctx) as usize;
+                let mut items = vec![];
 
                 chewing_cand_Enumerate(ctx);
-                for item in sel_keys.iter().take(n) {
+                for _ in 0..n {
                     if chewing_cand_hasNext(ctx) != 1 {
                         break;
                     }
                     let ptr = chewing_cand_String(ctx);
                     let cstr = CStr::from_ptr(ptr);
-                    let text = HSTRING::from(cstr.to_string_lossy().as_ref());
+                    let text = cstr.to_string_lossy();
+                    items.push(text.into_owned());
                     chewing_free(ptr.cast());
-                    candidate_window.add(text, *item as u16);
                 }
+                candidate_list.set_model(Model {
+                    items,
+                    selkeys: sel_keys.iter().take(n).map(|&k| k as u16).collect(),
+                    cand_per_row: self.cfg.cand_per_row as u32,
+                    font_family: self.cfg.font_family.clone(),
+                    font_size: self.cfg.font_size as f32,
+                    fg_color: self.cfg.font_fg_color,
+                    bg_color: self.cfg.font_bg_color,
+                    highlight_fg_color: self.cfg.font_highlight_fg_color,
+                    highlight_bg_color: self.cfg.font_highlight_bg_color,
+                    selkey_color: self.cfg.font_number_fg_color,
+                    use_cursor: self.cfg.cursor_cand_list,
+                    current_sel: 0,
+                });
             }
 
-            candidate_window.recalculate_size()?;
-            candidate_window.refresh();
-            candidate_window.show();
+            candidate_list.show();
 
             if let Ok(rect) = self.get_selection_rect(context) {
-                candidate_window.r#move(rect.left, rect.bottom);
+                candidate_list.set_position(rect.left, rect.bottom);
             }
         }
 
@@ -1044,7 +1050,7 @@ impl ChewingTextService {
     }
 
     fn hide_candidates(&mut self) {
-        self.candidate_window = None;
+        self.candidate_list = None;
     }
 
     fn toggle_simp_chinese(&mut self) -> Result<()> {
@@ -1188,9 +1194,6 @@ impl ChewingTextService {
         }
         if let Some(message_window) = &self.message_window {
             message_window.set_font(&self.cfg.font_family, self.cfg.font_size);
-        }
-        if let Some(candidate_window) = &self.candidate_window {
-            candidate_window.set_font(&self.cfg.font_family, self.cfg.font_size);
         }
     }
 

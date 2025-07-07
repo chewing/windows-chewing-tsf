@@ -32,6 +32,7 @@ pub(super) struct Config {
     pub(super) font_size: i32,
     pub(super) font_family: HSTRING,
     pub(super) font_fg_color: D2D1_COLOR_F,
+    pub(super) font_bg_color: D2D1_COLOR_F,
     pub(super) font_highlight_fg_color: D2D1_COLOR_F,
     pub(super) font_highlight_bg_color: D2D1_COLOR_F,
     pub(super) font_number_fg_color: D2D1_COLOR_F,
@@ -85,6 +86,7 @@ fn load_config() -> Result<Config> {
         font_size: 16,
         font_family: h!("Segoe UI").to_owned(),
         font_fg_color: color_f(0.0, 0.0, 0.0),
+        font_bg_color: color_f(0.98, 0.98, 0.98),
         font_highlight_fg_color: color_f(1.0, 1.0, 1.0),
         font_highlight_bg_color: color_f(0.0, 0.0, 0.0),
         font_number_fg_color: color_f(0.0, 0.0, 1.0),
@@ -147,6 +149,9 @@ fn load_config() -> Result<Config> {
         cfg.font_family = value;
     }
     if let Ok(value) = key.get_string("DefFontFgColor") {
+        cfg.font_fg_color = color_s(&value);
+    }
+    if let Ok(value) = key.get_string("DefFontBgColor") {
         cfg.font_fg_color = color_s(&value);
     }
     if let Ok(value) = key.get_string("DefFontHighlightFgColor") {

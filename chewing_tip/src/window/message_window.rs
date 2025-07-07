@@ -45,8 +45,8 @@ impl MessageWindow {
             let window = Window::new();
             window.create(
                 parent,
-                (WS_POPUP | WS_CLIPCHILDREN).0,
-                (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
+                WS_POPUP | WS_CLIPCHILDREN,
+                WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             );
 
             let factory: ID2D1Factory1 = D2D1CreateFactory(
@@ -89,7 +89,7 @@ impl MessageWindow {
     }
 
     pub(crate) fn r#move(&self, x: c_int, y: c_int) {
-        self.window.r#move(x, y);
+        self.window.set_position(x, y);
     }
 
     pub(crate) fn hwnd(&self) -> HWND {
