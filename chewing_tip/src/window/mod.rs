@@ -4,7 +4,6 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     ffi::{c_int, c_uint, c_void},
-    rc::{Rc, Weak},
     sync::atomic::Ordering,
 };
 
@@ -20,10 +19,11 @@ pub(crate) use message_window::MessageWindow;
 use crate::G_HINSTANCE;
 
 thread_local! {
-    static HWND_MAP: RefCell<HashMap<*mut c_void, Weak<dyn WndProc>>> = RefCell::new(HashMap::new());
+    static HWND_MAP: RefCell<HashMap<*mut c_void, Weak<IWndProc>>> = RefCell::new(HashMap::new());
 }
 
-pub(crate) trait WndProc {
+#[interface("aea9b4b6-9c50-487a-92a4-c897683dbdc0")]
+pub(crate) unsafe trait IWndProc: IUnknown {
     fn wnd_proc(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT;
 }
 
@@ -38,8 +38,10 @@ impl Window {
             hwnd: Cell::new(HWND::default()),
         }
     }
-    pub(crate) fn register_hwnd(hwnd: HWND, window: Rc<dyn WndProc>) {
-        let weak_ref = Rc::downgrade(&window);
+    pub(crate) fn register_hwnd(hwnd: HWND, window: IWndProc) {
+        let weak_ref = window
+            .downgrade()
+            .expect("Failed to downgrade IWndProc reference");
         HWND_MAP.with_borrow_mut(|hwnd_map| {
             hwnd_map.insert(hwnd.0, weak_ref);
         })
@@ -67,7 +69,7 @@ pub(crate) fn window_register_class() -> bool {
 extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let result = HWND_MAP.with_borrow(|hwnd_map| {
         if let Some(handle) = hwnd_map.get(&hwnd.0).and_then(Weak::upgrade) {
-            handle.wnd_proc(msg, wparam, lparam)
+            unsafe { handle.wnd_proc(msg, wparam, lparam) }
         } else {
             unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
         }
@@ -166,20 +168,6 @@ impl Window {
             let _ = GetWindowRect(self.hwnd(), &mut rc);
             width.write(rc.right - rc.left);
             height.write(rc.bottom - rc.top);
-        }
-    }
-
-    pub(crate) fn resize(&self, width: c_int, height: c_int) {
-        unsafe {
-            let _ = SetWindowPos(
-                self.hwnd(),
-                Some(HWND_TOP),
-                0,
-                0,
-                width,
-                height,
-                SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE,
-            );
         }
     }
 

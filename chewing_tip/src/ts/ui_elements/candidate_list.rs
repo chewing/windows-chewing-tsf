@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{cell::RefCell, rc::Rc};
+use std::cell::{Cell, RefCell};
 
 use anyhow::{Context, Result};
 use windows::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
+    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, WPARAM},
     Graphics::{
         Direct2D::{
             Common::{D2D_RECT_F, D2D1_COLOR_F},
@@ -24,13 +24,21 @@ use windows::Win32::{
     },
     UI::{
         Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_DOWN, VK_LEFT, VK_RETURN, VK_RIGHT, VK_UP},
+        TextServices::{
+            ITfCandidateListUIElement, ITfCandidateListUIElement_Impl, ITfDocumentMgr,
+            ITfUIElement, ITfUIElement_Impl, TF_CLUIE_COUNT, TF_CLUIE_CURRENTPAGE,
+            TF_CLUIE_DOCUMENTMGR, TF_CLUIE_PAGEINDEX, TF_CLUIE_SELECTION, TF_CLUIE_STRING,
+        },
         WindowsAndMessaging::{
             GetClientRect, WINDOWPOS, WM_PAINT, WM_WINDOWPOSCHANGING, WS_CLIPCHILDREN,
             WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
         },
     },
 };
-use windows_core::{HSTRING, w};
+use windows_core::{
+    BOOL, BSTR, ComObject, ComObjectInner, ComObjectInterface, GUID, HSTRING, InterfaceRef,
+    Result as WindowsResult, implement, w,
+};
 
 use crate::{
     gfx::{
@@ -38,16 +46,20 @@ use crate::{
         get_dpi_for_window, get_scale_for_window, setup_direct_composition,
     },
     ts::ui_elements::message_box::draw_message_box,
-    window::{Window, WndProc},
+    window::{IWndProc, IWndProc_Impl, Window},
 };
 
+#[implement(ITfUIElement, ITfCandidateListUIElement, IWndProc)]
 pub(crate) struct CandidateList {
+    element_id: Cell<u32>,
+    parent: Cell<HWND>,
     model: RefCell<Model>,
     view: RefCell<Box<dyn View>>,
 }
 
 #[derive(Default)]
 pub(crate) struct Model {
+    pub(crate) document_mgr: Option<ITfDocumentMgr>,
     pub(crate) items: Vec<String>,
     pub(crate) selkeys: Vec<u16>,
     pub(crate) font_family: HSTRING,
@@ -74,8 +86,8 @@ trait View {
     fn on_paint(&self, model: &Model) -> Result<()>;
 }
 
-impl WndProc for CandidateList {
-    fn wnd_proc(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+impl IWndProc_Impl for CandidateList_Impl {
+    unsafe fn wnd_proc(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         match msg {
             WM_PAINT => {
                 let view = self.view.borrow();
@@ -121,6 +133,8 @@ impl WndProc for CandidateList {
         }
     }
 }
+
+struct DummyView;
 
 struct RenderedView {
     _factory: ID2D1Factory1,
@@ -174,6 +188,26 @@ impl RenderedView {
 
 const ROW_SPACING: u32 = 4;
 const COL_SPACING: u32 = 8;
+
+impl View for DummyView {
+    fn window(&self) -> Option<&Window> {
+        None
+    }
+    fn calculate_client_rect(&self, _model: &Model) -> Result<RenderedMetrics> {
+        Ok(RenderedMetrics {
+            width: 0.0,
+            height: 0.0,
+            hw_width: 0.0,
+            hw_height: 0.0,
+            selkey_width: 0.0,
+            text_width: 0.0,
+            item_height: 0.0,
+        })
+    }
+    fn on_paint(&self, _model: &Model) -> Result<()> {
+        Ok(())
+    }
+}
 
 impl View for RenderedView {
     fn window(&self) -> Option<&Window> {
@@ -372,17 +406,21 @@ impl View for RenderedView {
 }
 
 impl CandidateList {
-    pub(crate) fn new(parent: HWND) -> Result<Rc<CandidateList>> {
-        let view = RenderedView::new(parent)?;
-        let candidate_list = Rc::new(CandidateList {
+    pub(crate) fn new(parent: HWND) -> Result<ComObject<CandidateList>> {
+        let candidate_list = CandidateList {
+            element_id: Cell::new(0),
+            parent: Cell::new(parent),
             model: RefCell::new(Model::default()),
-            view: RefCell::new(Box::new(view)),
-        });
-        if let Some(window) = candidate_list.view.borrow().window() {
-            // Register the window handle for message routing
-            Window::register_hwnd(window.hwnd(), Rc::clone(&candidate_list) as Rc<dyn WndProc>);
+            view: RefCell::new(Box::new(DummyView)),
         }
+        .into_object();
         Ok(candidate_list)
+    }
+    pub(crate) fn set_element_id(&self, id: u32) {
+        self.element_id.set(id);
+    }
+    pub(crate) fn element_id(&self) -> u32 {
+        self.element_id.get()
     }
     pub(crate) fn set_model(&self, model: Model) {
         *self.model.borrow_mut() = model;
@@ -436,5 +474,92 @@ impl CandidateList {
             window.refresh();
             window.show();
         }
+    }
+}
+
+impl ITfUIElement_Impl for CandidateList_Impl {
+    fn GetDescription(&self) -> WindowsResult<BSTR> {
+        Ok(BSTR::from("Candidate List"))
+    }
+
+    fn GetGUID(&self) -> WindowsResult<GUID> {
+        Ok(GUID::from_u128(0x4b7f55c3_2ae5_4077_a1c0_d17c5cb3c88a))
+    }
+
+    fn Show(&self, show: BOOL) -> WindowsResult<()> {
+        if show.as_bool() {
+            let view = RenderedView::new(self.parent.get()).map_err(|_| E_FAIL)?;
+            self.view.replace(Box::new(view));
+            let iwndproc: InterfaceRef<IWndProc> = self.as_interface_ref();
+            if let Some(window) = self.view.borrow().window() {
+                // Register the window handle for message routing
+                Window::register_hwnd(window.hwnd(), iwndproc.to_owned());
+            }
+            self.show();
+        } else {
+            self.view.replace(Box::new(DummyView));
+        }
+        Ok(())
+    }
+
+    fn IsShown(&self) -> WindowsResult<BOOL> {
+        Ok(self.view.borrow().window().is_some().into())
+    }
+}
+
+impl ITfCandidateListUIElement_Impl for CandidateList_Impl {
+    fn GetUpdatedFlags(&self) -> WindowsResult<u32> {
+        Ok(TF_CLUIE_DOCUMENTMGR
+            | TF_CLUIE_COUNT
+            | TF_CLUIE_SELECTION
+            | TF_CLUIE_STRING
+            | TF_CLUIE_PAGEINDEX
+            | TF_CLUIE_CURRENTPAGE)
+    }
+
+    fn GetDocumentMgr(&self) -> WindowsResult<ITfDocumentMgr> {
+        if let Some(document_mgr) = &self.model.borrow().document_mgr {
+            Ok(document_mgr.clone())
+        } else {
+            Err(E_FAIL.into())
+        }
+    }
+
+    fn GetCount(&self) -> WindowsResult<u32> {
+        let model = self.model.borrow();
+        Ok(model.items.len() as u32)
+    }
+
+    fn GetSelection(&self) -> WindowsResult<u32> {
+        let model = self.model.borrow();
+        Ok(model.current_sel as u32)
+    }
+
+    fn GetString(&self, uindex: u32) -> WindowsResult<BSTR> {
+        let model = self.model.borrow();
+        if uindex as usize >= model.items.len() {
+            return Err(E_INVALIDARG.into());
+        }
+        Ok(BSTR::from(model.items[uindex as usize].clone()))
+    }
+
+    fn GetPageIndex(
+        &self,
+        _pindex: *mut u32,
+        _usize: u32,
+        pupagecnt: *mut u32,
+    ) -> WindowsResult<()> {
+        unsafe {
+            *pupagecnt = 1; // Assuming single page for simplicity
+        }
+        return Ok(());
+    }
+
+    fn SetPageIndex(&self, _pindex: *const u32, _upagecnt: u32) -> WindowsResult<()> {
+        Ok(())
+    }
+
+    fn GetCurrentPage(&self) -> WindowsResult<u32> {
+        Ok(0) // Assuming single page for simplicity
     }
 }

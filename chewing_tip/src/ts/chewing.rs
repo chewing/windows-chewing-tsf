@@ -6,7 +6,6 @@ use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::ptr;
-use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -42,7 +41,7 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info, warn};
-use windows::Win32::Foundation::{HINSTANCE, POINT, RECT};
+use windows::Win32::Foundation::{HINSTANCE, POINT, RECT, TRUE};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
@@ -56,8 +55,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
-    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
-    TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
+    ITfContext, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr, TF_ATTR_INPUT,
+    TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON,
+    TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
@@ -123,8 +123,8 @@ pub(super) struct ChewingTextService {
     switch_lang_button: Option<ComObject<LangBarButton>>,
     switch_shape_button: Option<ComObject<LangBarButton>>,
     ime_mode_button: Option<ComObject<LangBarButton>>,
-    message_window: Option<Rc<MessageWindow>>,
-    candidate_list: Option<Rc<CandidateList>>,
+    message_window: Option<ComObject<MessageWindow>>,
+    candidate_list: Option<ComObject<CandidateList>>,
     thread_mgr: Option<ITfThreadMgr>,
     composition: Option<ITfComposition>,
     composition_sink: Option<ITfCompositionSink>,
@@ -470,6 +470,7 @@ impl ChewingTextService {
                         }
                         FilterKeyResult::Handled => {
                             candidate_list.show();
+                            self.update_ui_elements()?;
                             return Ok(true);
                         }
                         FilterKeyResult::NotHandled => {
@@ -611,6 +612,17 @@ impl ChewingTextService {
         }
 
         Ok(true)
+    }
+
+    fn update_ui_elements(&mut self) -> Result<()> {
+        Ok(if let Some(thread_mgr) = &self.thread_mgr {
+            if let Some(candidate_list) = &self.candidate_list {
+                let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
+                unsafe {
+                    ui_manager.UpdateUIElement(candidate_list.element_id())?;
+                }
+            }
+        })
     }
 
     pub(super) fn on_keyup(
@@ -1003,6 +1015,17 @@ impl ChewingTextService {
                 return Ok(());
             }
             let candidate_list = CandidateList::new(hwnd)?;
+            if let Some(thread_mgr) = &self.thread_mgr {
+                let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
+                let ui_element: ITfUIElement = candidate_list.cast()?;
+                let mut should_show = TRUE;
+                let mut ui_element_id = 0;
+                unsafe {
+                    ui_manager.BeginUIElement(&ui_element, &mut should_show, &mut ui_element_id)?;
+                    candidate_list.set_element_id(ui_element_id);
+                    candidate_list.Show(should_show)?;
+                }
+            }
             self.candidate_list = Some(candidate_list);
         }
 
@@ -1024,6 +1047,7 @@ impl ChewingTextService {
                     chewing_free(ptr.cast());
                 }
                 candidate_list.set_model(Model {
+                    document_mgr: Some(context.GetDocumentMgr()?),
                     items,
                     selkeys: sel_keys.iter().take(n).map(|&k| k as u16).collect(),
                     cand_per_row: self.cfg.cand_per_row as u32,
@@ -1044,13 +1068,28 @@ impl ChewingTextService {
             if let Ok(rect) = self.get_selection_rect(context) {
                 candidate_list.set_position(rect.left, rect.bottom);
             }
+
+            self.update_ui_elements()?;
         }
 
         Ok(())
     }
 
     fn hide_candidates(&mut self) {
-        self.candidate_list = None;
+        let candidate_list = self.candidate_list.take();
+        if let Some(thread_mgr) = &self.thread_mgr {
+            if let Some(candidate_list) = candidate_list {
+                let Ok(ui_manager): Result<ITfUIElementMgr, windows_core::Error> =
+                    thread_mgr.cast()
+                else {
+                    error!("unable to cast thread manager to ITfUIElementMgr");
+                    return;
+                };
+                unsafe {
+                    let _ = ui_manager.EndUIElement(candidate_list.element_id());
+                }
+            }
+        }
     }
 
     fn toggle_simp_chinese(&mut self) -> Result<()> {
