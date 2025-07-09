@@ -266,8 +266,8 @@ impl View for RenderedView {
         let width = width as f32;
         let height = height as f32;
         // Convert to HW pixels
-        let hw_width = width * scale + 10.0;
-        let hw_height = height * scale + 10.0;
+        let hw_width = width * scale + 25.0;
+        let hw_height = height * scale + 25.0;
         Ok(RenderedMetrics {
             width,
             height,
