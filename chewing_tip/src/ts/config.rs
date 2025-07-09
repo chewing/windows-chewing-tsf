@@ -152,7 +152,7 @@ fn load_config() -> Result<Config> {
         cfg.font_fg_color = color_s(&value);
     }
     if let Ok(value) = key.get_string("DefFontBgColor") {
-        cfg.font_fg_color = color_s(&value);
+        cfg.font_bg_color = color_s(&value);
     }
     if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
         cfg.font_highlight_fg_color = color_s(&value);

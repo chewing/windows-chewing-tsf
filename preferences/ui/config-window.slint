@@ -35,6 +35,7 @@ export component ConfigWindow inherits Window {
     in property <[string]> font-families;
     in-out property <string> font-family;
     in-out property <string> font-fg-color;
+    in-out property <string> font-bg-color;
     in-out property <string> font-number-fg-color;
     in-out property <string> font-highlight-fg-color;
     in-out property <string> font-highlight-bg-color;
@@ -264,6 +265,16 @@ export component ConfigWindow inherits Window {
                         LineEdit {
                             width: 100px;
                             text <=> font-fg-color;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        Text {
+                            text: "選字背景顏色 (RGB)";
+                        }
+                        LineEdit {
+                            width: 100px;
+                            text <=> font-bg-color;
                         }
                     }
 
