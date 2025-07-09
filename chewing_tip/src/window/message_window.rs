@@ -5,7 +5,6 @@ use std::{
     ffi::{c_int, c_uint},
     ops::Deref,
     path::Path,
-    rc::Rc,
 };
 
 use log::error;
@@ -20,11 +19,12 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_core::*;
 
-use super::{Window, WndProc};
-use crate::gfx::*;
+use super::{IWndProc, Window};
+use crate::{gfx::*, window::IWndProc_Impl};
 
 const ID_TIMEOUT: usize = 1;
 
+#[implement(IWndProc)]
 #[derive(Debug)]
 pub(crate) struct MessageWindow {
     text: RefCell<HSTRING>,
@@ -40,13 +40,13 @@ pub(crate) struct MessageWindow {
 }
 
 impl MessageWindow {
-    pub(crate) fn new(parent: HWND, image_path: &Path) -> Result<Rc<MessageWindow>> {
+    pub(crate) fn new(parent: HWND, image_path: &Path) -> Result<ComObject<MessageWindow>> {
         unsafe {
             let window = Window::new();
             window.create(
                 parent,
-                (WS_POPUP | WS_CLIPCHILDREN).0,
-                (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0,
+                WS_POPUP | WS_CLIPCHILDREN,
+                WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             );
 
             let factory: ID2D1Factory1 = D2D1CreateFactory(
@@ -68,7 +68,7 @@ impl MessageWindow {
             let image_path = HSTRING::from(image_path.to_string_lossy().as_ref());
             let nine_patch_bitmap = NinePatchBitmap::new(&image_path)?;
 
-            let message_window = Rc::new(MessageWindow {
+            let message_window = MessageWindow {
                 text: RefCell::new(h!("").to_owned()),
                 factory,
                 dwrite_factory,
@@ -79,17 +79,15 @@ impl MessageWindow {
                 nine_patch_bitmap,
                 window,
                 font_fg_color: Cell::new(create_color(COLOR_WINDOWTEXT)),
-            });
-            Window::register_hwnd(
-                message_window.hwnd(),
-                Rc::clone(&message_window) as Rc<dyn WndProc>,
-            );
+            }
+            .into_object();
+            Window::register_hwnd(message_window.hwnd(), message_window.cast()?);
             Ok(message_window)
         }
     }
 
     pub(crate) fn r#move(&self, x: c_int, y: c_int) {
-        self.window.r#move(x, y);
+        self.window.set_position(x, y);
     }
 
     pub(crate) fn hwnd(&self) -> HWND {
@@ -275,8 +273,8 @@ impl MessageWindow {
     }
 }
 
-impl WndProc for MessageWindow {
-    fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
+impl IWndProc_Impl for MessageWindow_Impl {
+    unsafe fn wnd_proc(&self, msg: c_uint, wp: WPARAM, lp: LPARAM) -> LRESULT {
         unsafe {
             match msg {
                 WM_PAINT => {

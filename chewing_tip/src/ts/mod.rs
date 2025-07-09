@@ -8,6 +8,7 @@ mod key_event;
 mod lang_bar;
 mod menu;
 mod resources;
+mod ui_elements;
 
 use std::{
     cell::Cell,

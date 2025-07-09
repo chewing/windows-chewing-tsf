@@ -4,7 +4,6 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     ffi::{c_int, c_uint, c_void},
-    rc::{Rc, Weak},
     sync::atomic::Ordering,
 };
 
@@ -13,19 +12,18 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::*;
 
-mod candidate_window;
 mod message_window;
 
-pub(crate) use candidate_window::CandidateWindow;
 pub(crate) use message_window::MessageWindow;
 
 use crate::G_HINSTANCE;
 
 thread_local! {
-    static HWND_MAP: RefCell<HashMap<*mut c_void, Weak<dyn WndProc>>> = RefCell::new(HashMap::new());
+    static HWND_MAP: RefCell<HashMap<*mut c_void, Weak<IWndProc>>> = RefCell::new(HashMap::new());
 }
 
-pub(crate) trait WndProc {
+#[interface("aea9b4b6-9c50-487a-92a4-c897683dbdc0")]
+pub(crate) unsafe trait IWndProc: IUnknown {
     fn wnd_proc(&self, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT;
 }
 
@@ -40,8 +38,10 @@ impl Window {
             hwnd: Cell::new(HWND::default()),
         }
     }
-    fn register_hwnd(hwnd: HWND, window: Rc<dyn WndProc>) {
-        let weak_ref = Rc::downgrade(&window);
+    pub(crate) fn register_hwnd(hwnd: HWND, window: IWndProc) {
+        let weak_ref = window
+            .downgrade()
+            .expect("Failed to downgrade IWndProc reference");
         HWND_MAP.with_borrow_mut(|hwnd_map| {
             hwnd_map.insert(hwnd.0, weak_ref);
         })
@@ -68,8 +68,8 @@ pub(crate) fn window_register_class() -> bool {
 
 extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let result = HWND_MAP.with_borrow(|hwnd_map| {
-        if let Some(window) = hwnd_map.get(&hwnd.0).and_then(Weak::upgrade) {
-            window.wnd_proc(msg, wparam, lparam)
+        if let Some(handle) = hwnd_map.get(&hwnd.0).and_then(Weak::upgrade) {
+            unsafe { handle.wnd_proc(msg, wparam, lparam) }
         } else {
             unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
         }
@@ -89,14 +89,19 @@ impl Window {
         self.hwnd.get()
     }
 
-    pub(crate) fn create(&self, parent: HWND, style: u32, ex_style: u32) -> bool {
+    pub(crate) fn create(
+        &self,
+        parent: HWND,
+        style: WINDOW_STYLE,
+        ex_style: WINDOW_EX_STYLE,
+    ) -> bool {
         let hinst = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let hwnd = unsafe {
             CreateWindowExW(
-                WINDOW_EX_STYLE(ex_style),
+                ex_style,
                 w!("chewing_tip"),
                 None,
-                WINDOW_STYLE(style),
+                style,
                 0,
                 0,
                 0,
@@ -120,7 +125,7 @@ impl Window {
         unsafe { IsWindowVisible(self.hwnd()).as_bool() }
     }
 
-    pub(crate) fn r#move(&self, mut x: c_int, mut y: c_int) {
+    pub(crate) fn set_position(&self, mut x: c_int, mut y: c_int) {
         let mut w = 0;
         let mut h = 0;
         self.size(&mut w, &mut h);
@@ -163,20 +168,6 @@ impl Window {
             let _ = GetWindowRect(self.hwnd(), &mut rc);
             width.write(rc.right - rc.left);
             height.write(rc.bottom - rc.top);
-        }
-    }
-
-    pub(crate) fn resize(&self, width: c_int, height: c_int) {
-        unsafe {
-            let _ = SetWindowPos(
-                self.hwnd(),
-                Some(HWND_TOP),
-                0,
-                0,
-                width,
-                height,
-                SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE,
-            );
         }
     }
 

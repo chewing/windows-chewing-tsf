@@ -19,7 +19,6 @@ use windows::Win32::Graphics::Imaging::*;
 use windows::Win32::System::Com::*;
 use windows::Win32::UI::HiDpi::*;
 use windows::core::*;
-use windows_numerics::Matrix3x2;
 
 #[derive(Debug)]
 pub(super) struct NinePatchBitmap {
@@ -146,18 +145,6 @@ pub(super) fn create_color(gdi_color_index: SYS_COLOR_INDEX) -> D2D1_COLOR_F {
         b: ((color >> 16) & 0xFF) as f32 / 255.0,
         a: 1.0,
     }
-}
-
-pub(super) fn create_brush(
-    target: &ID2D1DeviceContext,
-    color: D2D1_COLOR_F,
-) -> Result<ID2D1SolidColorBrush> {
-    let properties = D2D1_BRUSH_PROPERTIES {
-        opacity: 0.8,
-        transform: Matrix3x2::identity(),
-    };
-
-    unsafe { target.CreateSolidColorBrush(&color, Some(&properties)) }
 }
 
 pub(super) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {

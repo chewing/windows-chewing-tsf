@@ -112,6 +112,7 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     ui.set_font_size(16);
     ui.set_font_family("Segoe UI".into());
     ui.set_font_fg_color("000000".into());
+    ui.set_font_bg_color("FAFAFA".into());
     ui.set_font_highlight_fg_color("FFFFFF".into());
     ui.set_font_highlight_bg_color("000000".into());
     ui.set_font_number_fg_color("0000FF".into());
@@ -172,6 +173,9 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     }
     if let Ok(value) = key.get_string("DefFontFgColor") {
         ui.set_font_fg_color(value.into());
+    }
+    if let Ok(value) = key.get_string("DefFontBgColor") {
+        ui.set_font_bg_color(value.into());
     }
     if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
         ui.set_font_highlight_fg_color(value.into());
@@ -256,6 +260,7 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
     let _ = reg_set_i32(&key, "DefFontSize", ui.get_font_size());
     let _ = key.set_string("DefFontFamily", ui.get_font_family());
     let _ = key.set_string("DefFontFgColor", ui.get_font_fg_color());
+    let _ = key.set_string("DefFontBgColor", ui.get_font_bg_color());
     let _ = key.set_string("DefFontHighlightFgColor", ui.get_font_highlight_fg_color());
     let _ = key.set_string("DefFontHighlightBgColor", ui.get_font_highlight_bg_color());
     let _ = key.set_string("DefFontNumberFgColor", ui.get_font_number_fg_color());
