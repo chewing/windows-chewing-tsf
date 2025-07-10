@@ -3,8 +3,9 @@
 use std::cell::{Cell, RefCell};
 
 use anyhow::{Context, Result};
+use log::error;
 use windows::Win32::{
-    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, WPARAM},
+    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
             Common::{D2D_RECT_F, D2D1_COLOR_F},
@@ -26,8 +27,9 @@ use windows::Win32::{
         Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_DOWN, VK_LEFT, VK_RETURN, VK_RIGHT, VK_UP},
         TextServices::{
             ITfCandidateListUIElement, ITfCandidateListUIElement_Impl, ITfDocumentMgr,
-            ITfUIElement, ITfUIElement_Impl, TF_CLUIE_COUNT, TF_CLUIE_CURRENTPAGE,
-            TF_CLUIE_DOCUMENTMGR, TF_CLUIE_PAGEINDEX, TF_CLUIE_SELECTION, TF_CLUIE_STRING,
+            ITfThreadMgr, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr, TF_CLUIE_COUNT,
+            TF_CLUIE_CURRENTPAGE, TF_CLUIE_DOCUMENTMGR, TF_CLUIE_PAGEINDEX, TF_CLUIE_SELECTION,
+            TF_CLUIE_STRING,
         },
         WindowsAndMessaging::{
             GetClientRect, WINDOWPOS, WM_PAINT, WM_WINDOWPOSCHANGING, WS_CLIPCHILDREN,
@@ -36,8 +38,8 @@ use windows::Win32::{
     },
 };
 use windows_core::{
-    BOOL, BSTR, ComObject, ComObjectInner, ComObjectInterface, GUID, HSTRING, InterfaceRef,
-    Result as WindowsResult, implement, w,
+    BOOL, BSTR, ComObject, ComObjectInner, ComObjectInterface, GUID, HSTRING, Interface,
+    InterfaceRef, Result as WindowsResult, implement, w,
 };
 
 use crate::{
@@ -51,6 +53,7 @@ use crate::{
 
 #[implement(ITfUIElement, ITfCandidateListUIElement, IWndProc)]
 pub(crate) struct CandidateList {
+    thread_mgr: ITfThreadMgr,
     element_id: Cell<u32>,
     parent: Cell<HWND>,
     model: RefCell<Model>,
@@ -59,7 +62,6 @@ pub(crate) struct CandidateList {
 
 #[derive(Default)]
 pub(crate) struct Model {
-    pub(crate) document_mgr: Option<ITfDocumentMgr>,
     pub(crate) items: Vec<String>,
     pub(crate) selkeys: Vec<u16>,
     pub(crate) font_family: HSTRING,
@@ -406,60 +408,93 @@ impl View for RenderedView {
 }
 
 impl CandidateList {
-    pub(crate) fn new(parent: HWND) -> Result<ComObject<CandidateList>> {
+    pub(crate) fn new(parent: HWND, thread_mgr: ITfThreadMgr) -> Result<ComObject<CandidateList>> {
+        let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
         let candidate_list = CandidateList {
+            thread_mgr,
             element_id: Cell::new(0),
             parent: Cell::new(parent),
             model: RefCell::new(Model::default()),
             view: RefCell::new(Box::new(DummyView)),
         }
         .into_object();
+        let mut should_show = TRUE;
+        let mut ui_element_id = 0;
+        let ui_element: ITfUIElement = candidate_list.cast()?;
+        unsafe {
+            ui_manager.BeginUIElement(&ui_element, &mut should_show, &mut ui_element_id)?;
+            candidate_list.set_element_id(ui_element_id);
+            candidate_list.Show(should_show)?;
+        }
         Ok(candidate_list)
     }
-    pub(crate) fn set_element_id(&self, id: u32) {
+    pub(crate) fn end_ui_element(&self) {
+        let Ok(ui_manager): Result<ITfUIElementMgr, windows_core::Error> = self.thread_mgr.cast()
+        else {
+            error!("unable to cast thread manager to ITfUIElementMgr");
+            return;
+        };
+        unsafe {
+            let _ = ui_manager.EndUIElement(self.element_id.get());
+        }
+    }
+    fn set_element_id(&self, id: u32) {
         self.element_id.set(id);
     }
-    pub(crate) fn element_id(&self) -> u32 {
-        self.element_id.get()
+    fn update_ui_element(&self) -> Result<()> {
+        let ui_manager: ITfUIElementMgr = self.thread_mgr.cast()?;
+        unsafe {
+            ui_manager.UpdateUIElement(self.element_id.get())?;
+        }
+        Ok(())
     }
     pub(crate) fn set_model(&self, model: Model) {
         *self.model.borrow_mut() = model;
+        if let Err(error) = self.update_ui_element() {
+            error!("Failed to update UI element: {error}");
+        }
     }
     pub(crate) fn filter_key_event(&self, key_code: u16) -> FilterKeyResult {
-        let mut model = self.model.borrow_mut();
-        let old_sel = model.current_sel;
-        let cand_per_row = model.cand_per_row as usize;
-        match VIRTUAL_KEY(key_code) {
-            VK_UP => {
-                if model.current_sel >= cand_per_row {
-                    model.current_sel -= cand_per_row;
+        let mut res = FilterKeyResult::NotHandled;
+        {
+            let mut model = self.model.borrow_mut();
+            let old_sel = model.current_sel;
+            let cand_per_row = model.cand_per_row as usize;
+            match VIRTUAL_KEY(key_code) {
+                VK_UP => {
+                    if model.current_sel >= cand_per_row {
+                        model.current_sel -= cand_per_row;
+                    }
                 }
-            }
-            VK_DOWN => {
-                if model.current_sel + cand_per_row < model.items.len() {
-                    model.current_sel += cand_per_row;
+                VK_DOWN => {
+                    if model.current_sel + cand_per_row < model.items.len() {
+                        model.current_sel += cand_per_row;
+                    }
                 }
-            }
-            VK_LEFT => {
-                if model.current_sel >= 1 {
-                    model.current_sel -= 1;
+                VK_LEFT => {
+                    if model.current_sel >= 1 {
+                        model.current_sel -= 1;
+                    }
                 }
-            }
-            VK_RIGHT => {
-                if model.current_sel < model.items.len() - 1 {
-                    model.current_sel += 1;
+                VK_RIGHT => {
+                    if model.current_sel < model.items.len() - 1 {
+                        model.current_sel += 1;
+                    }
                 }
+                VK_RETURN => {
+                    res = FilterKeyResult::HandledCommit;
+                }
+                _ => res = FilterKeyResult::NotHandled,
             }
-            VK_RETURN => {
-                return FilterKeyResult::HandledCommit;
-            }
-            _ => return FilterKeyResult::NotHandled,
-        }
 
-        if model.current_sel != old_sel {
-            return FilterKeyResult::Handled;
+            if model.current_sel != old_sel {
+                res = FilterKeyResult::Handled;
+            }
         }
-        FilterKeyResult::NotHandled
+        if let Err(error) = self.update_ui_element() {
+            error!("Failed to update UI element: {error}");
+        }
+        res
     }
     pub(crate) fn current_sel(&self) -> usize {
         self.model.borrow().current_sel
@@ -518,11 +553,7 @@ impl ITfCandidateListUIElement_Impl for CandidateList_Impl {
     }
 
     fn GetDocumentMgr(&self) -> WindowsResult<ITfDocumentMgr> {
-        if let Some(document_mgr) = &self.model.borrow().document_mgr {
-            Ok(document_mgr.clone())
-        } else {
-            Err(E_FAIL.into())
-        }
+        unsafe { self.thread_mgr.GetFocus() }
     }
 
     fn GetCount(&self) -> WindowsResult<u32> {
