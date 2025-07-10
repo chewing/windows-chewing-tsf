@@ -11,6 +11,7 @@ use windows_registry::{CURRENT_USER, Key};
 pub(super) struct Config {
     pub(super) switch_lang_with_shift: bool,
     pub(super) enable_caps_lock: bool,
+    pub(super) show_notification: bool,
     pub(super) enable_auto_learn: bool,
     pub(super) esc_clean_all_buf: bool,
     pub(super) full_shape_symbols: bool,
@@ -81,6 +82,7 @@ fn load_config() -> Result<Config> {
     let mut cfg = Config {
         cand_per_row: 3,
         switch_lang_with_shift: true,
+        show_notification: true,
         add_phrase_forward: true,
         advance_after_selection: true,
         font_size: 16,
@@ -126,6 +128,9 @@ fn load_config() -> Result<Config> {
     }
     if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
         cfg.switch_lang_with_shift = value;
+    }
+    if let Ok(value) = reg_get_bool(&key, "ShowNotification") {
+        cfg.show_notification = value;
     }
     if let Ok(value) = reg_get_bool(&key, "OutputSimpChinese") {
         cfg.output_simp_chinese = value;

@@ -13,6 +13,7 @@ export component ConfigWindow inherits Window {
 
     in-out property <bool> switch-lang-with-shift;
     in-out property <bool> enable-caps-lock;
+    in-out property <bool> show-notification;
     in-out property <bool> esc-clean-all-buf;
     in-out property <bool> full-shape-symbols;
     in-out property <bool> upper-case-with-shift;
@@ -92,6 +93,11 @@ export component ConfigWindow inherits Window {
                         CheckBox {
                             text: "使用 CapsLock 切換中英文";
                             checked <=> enable-caps-lock;
+                        }
+
+                        CheckBox {
+                            text: "顯示通知訊息";
+                            checked <=> show-notification;
                         }
 
                         CheckBox {
