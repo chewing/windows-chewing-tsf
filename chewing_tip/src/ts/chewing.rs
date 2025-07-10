@@ -41,7 +41,7 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info, warn};
-use windows::Win32::Foundation::{HINSTANCE, POINT, RECT, TRUE};
+use windows::Win32::Foundation::{HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
@@ -55,9 +55,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
-    ITfContext, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr, TF_ATTR_INPUT,
-    TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON,
-    TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
+    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
+    TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
@@ -470,7 +469,6 @@ impl ChewingTextService {
                         }
                         FilterKeyResult::Handled => {
                             candidate_list.show();
-                            self.update_ui_elements()?;
                             return Ok(true);
                         }
                         FilterKeyResult::NotHandled => {
@@ -612,17 +610,6 @@ impl ChewingTextService {
         }
 
         Ok(true)
-    }
-
-    fn update_ui_elements(&mut self) -> Result<()> {
-        Ok(if let Some(thread_mgr) = &self.thread_mgr {
-            if let Some(candidate_list) = &self.candidate_list {
-                let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
-                unsafe {
-                    ui_manager.UpdateUIElement(candidate_list.element_id())?;
-                }
-            }
-        })
     }
 
     pub(super) fn on_keyup(
@@ -1020,19 +1007,10 @@ impl ChewingTextService {
                 warn!("unable to show candidate box: context active view is windowless");
                 return Ok(());
             }
-            let candidate_list = CandidateList::new(hwnd)?;
             if let Some(thread_mgr) = &self.thread_mgr {
-                let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
-                let ui_element: ITfUIElement = candidate_list.cast()?;
-                let mut should_show = TRUE;
-                let mut ui_element_id = 0;
-                unsafe {
-                    ui_manager.BeginUIElement(&ui_element, &mut should_show, &mut ui_element_id)?;
-                    candidate_list.set_element_id(ui_element_id);
-                    candidate_list.Show(should_show)?;
-                }
+                let candidate_list = CandidateList::new(hwnd, thread_mgr.clone())?;
+                self.candidate_list = Some(candidate_list);
             }
-            self.candidate_list = Some(candidate_list);
         }
 
         if let Some(candidate_list) = &self.candidate_list {
@@ -1047,13 +1025,10 @@ impl ChewingTextService {
                         break;
                     }
                     let ptr = chewing_cand_String(ctx);
-                    let cstr = CStr::from_ptr(ptr);
-                    let text = cstr.to_string_lossy();
-                    items.push(text.into_owned());
+                    items.push(CStr::from_ptr(ptr).to_string_lossy().into_owned());
                     chewing_free(ptr.cast());
                 }
                 candidate_list.set_model(Model {
-                    document_mgr: Some(context.GetDocumentMgr()?),
                     items,
                     selkeys: sel_keys.iter().take(n).map(|&k| k as u16).collect(),
                     cand_per_row: self.cfg.cand_per_row as u32,
@@ -1074,27 +1049,14 @@ impl ChewingTextService {
             if let Ok(rect) = self.get_selection_rect(context) {
                 candidate_list.set_position(rect.left, rect.bottom);
             }
-
-            self.update_ui_elements()?;
         }
 
         Ok(())
     }
 
     fn hide_candidates(&mut self) {
-        let candidate_list = self.candidate_list.take();
-        if let Some(thread_mgr) = &self.thread_mgr {
-            if let Some(candidate_list) = candidate_list {
-                let Ok(ui_manager): Result<ITfUIElementMgr, windows_core::Error> =
-                    thread_mgr.cast()
-                else {
-                    error!("unable to cast thread manager to ITfUIElementMgr");
-                    return;
-                };
-                unsafe {
-                    let _ = ui_manager.EndUIElement(candidate_list.element_id());
-                }
-            }
+        if let Some(candidate_list) = self.candidate_list.take() {
+            candidate_list.end_ui_element();
         }
     }
 
