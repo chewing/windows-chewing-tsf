@@ -608,7 +608,7 @@ impl ChewingTextService {
             unsafe {
                 chewing_free(ptr.cast());
             }
-            self.show_message(context, &text, Duration::from_secs(2))?;
+            self.show_message(context, &text, Duration::from_millis(500))?;
         }
 
         Ok(true)
@@ -648,7 +648,7 @@ impl ChewingTextService {
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
                 };
-                self.show_message(context, &msg, Duration::from_secs(2))?;
+                self.show_message(context, &msg, Duration::from_millis(500))?;
                 self.last_keydown_code = 0;
                 return Ok(true);
             } else {
@@ -661,7 +661,7 @@ impl ChewingTextService {
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
                 };
-                self.show_message(context, &msg, Duration::from_secs(2))?;
+                self.show_message(context, &msg, Duration::from_millis(500))?;
                 self.last_keydown_code = 0;
                 return Ok(true);
             }
@@ -677,7 +677,7 @@ impl ChewingTextService {
                 CHINESE_MODE => HSTRING::from("中文模式"),
                 _ => unreachable!(),
             };
-            self.show_message(context, &msg, Duration::from_secs(2))?;
+            self.show_message(context, &msg, Duration::from_millis(500))?;
             self.last_keydown_code = 0;
             return Ok(true);
         }
@@ -949,6 +949,9 @@ impl ChewingTextService {
     }
 
     fn show_message(&mut self, context: &ITfContext, text: &HSTRING, dur: Duration) -> Result<()> {
+        if !self.cfg.show_notification {
+            return Ok(());
+        }
         unsafe {
             let view = context.GetActiveView()?;
             let hwnd = view.GetWnd()?;
@@ -966,7 +969,10 @@ impl ChewingTextService {
             message_window.set_font_color(self.cfg.font_fg_color);
             message_window.set_text(text.clone())?;
 
-            let rect = self.get_selection_rect(context)?;
+            let mut rect = self.get_selection_rect(context)?;
+            // TODO: bound the position to the screen
+            rect.bottom += 50;
+            rect.left += 50;
             message_window.r#move(rect.left, rect.bottom);
             message_window.show();
 
