@@ -55,7 +55,7 @@ use crate::{
 pub(crate) struct CandidateList {
     thread_mgr: ITfThreadMgr,
     element_id: Cell<u32>,
-    parent: Cell<HWND>,
+    parent: HWND,
     model: RefCell<Model>,
     view: RefCell<Box<dyn View>>,
 }
@@ -413,7 +413,7 @@ impl CandidateList {
         let candidate_list = CandidateList {
             thread_mgr,
             element_id: Cell::new(0),
-            parent: Cell::new(parent),
+            parent,
             model: RefCell::new(Model::default()),
             view: RefCell::new(Box::new(DummyView)),
         }
@@ -523,7 +523,7 @@ impl ITfUIElement_Impl for CandidateList_Impl {
 
     fn Show(&self, show: BOOL) -> WindowsResult<()> {
         if show.as_bool() {
-            let view = RenderedView::new(self.parent.get()).map_err(|_| E_FAIL)?;
+            let view = RenderedView::new(self.parent).map_err(|_| E_FAIL)?;
             self.view.replace(Box::new(view));
             let iwndproc: InterfaceRef<IWndProc> = self.as_interface_ref();
             if let Some(window) = self.view.borrow().window() {

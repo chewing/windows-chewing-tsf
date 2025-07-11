@@ -59,9 +59,9 @@ use windows::Win32::UI::TextServices::{
     TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, KillTimer, LoadIconW, LoadStringW,
-    MF_CHECKED, MF_UNCHECKED, SW_SHOWNORMAL, SetTimer, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
-    TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu, WINDOW_EX_STYLE, WINDOW_STYLE,
+    CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, LoadIconW, LoadStringW, MF_CHECKED,
+    MF_UNCHECKED, SW_SHOWNORMAL, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_NONOTIFY, TPM_RETURNCMD,
+    TrackPopupMenu, WINDOW_EX_STYLE, WINDOW_STYLE,
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
@@ -80,7 +80,7 @@ use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
 use crate::ts::menu::Menu;
-use crate::window::{MessageWindow, Window, window_register_class};
+use crate::window::{Window, window_register_class};
 
 use super::CommandType;
 use super::config::Config;
@@ -88,7 +88,7 @@ use super::edit_session::{EndComposition, SelectionRect, SetCompositionString, S
 use super::key_event::KeyEvent;
 use super::lang_bar::LangBarButton;
 use super::resources::*;
-use super::ui_elements::{CandidateList, FilterKeyResult, Model};
+use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, NotificationModel};
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
@@ -113,7 +113,6 @@ pub(super) struct ChewingTextService {
     shape_mode: i32,
     output_simp_chinese: bool,
     last_keydown_code: u16,
-    message_timer_id: usize,
     cfg: Config,
     chewing_context: Option<*mut ChewingContext>,
 
@@ -122,7 +121,7 @@ pub(super) struct ChewingTextService {
     switch_lang_button: Option<ComObject<LangBarButton>>,
     switch_shape_button: Option<ComObject<LangBarButton>>,
     ime_mode_button: Option<ComObject<LangBarButton>>,
-    message_window: Option<ComObject<MessageWindow>>,
+    notification: Option<ComObject<Notification>>,
     candidate_list: Option<ComObject<CandidateList>>,
     thread_mgr: Option<ITfThreadMgr>,
     composition: Option<ITfComposition>,
@@ -946,38 +945,30 @@ impl ChewingTextService {
                 warn!("unable to show message box: context active view is windowless");
                 return Ok(());
             }
-            let Ok(program_dir) = program_dir() else {
-                error!("unable to show message box: Program Files path not found");
-                return Ok(());
-            };
-            let bitmap_path = program_dir.join("Assets").join("msg.9.png");
-            let message_window = MessageWindow::new(hwnd, &bitmap_path)?;
-            message_window.set_font(&self.cfg.font_family, self.cfg.font_size);
-            message_window.set_font_color(self.cfg.font_fg_color);
-            message_window.set_text(text.clone())?;
-
-            let mut rect = self.get_selection_rect(context)?;
-            // TODO: bound the position to the screen
-            rect.bottom += 50;
-            rect.left += 50;
-            message_window.r#move(rect.left, rect.bottom);
-            message_window.show();
-
-            self.message_timer_id =
-                SetTimer(Some(message_window.hwnd()), 1, dur.as_millis() as u32, None);
-            self.message_window = Some(message_window);
+            if let Some(thread_mgr) = &self.thread_mgr {
+                let notification = Notification::new(hwnd, thread_mgr.clone())?;
+                notification.set_model(NotificationModel {
+                    text: text.clone(),
+                    font_family: self.cfg.font_family.clone(),
+                    font_size: self.cfg.font_size as f32,
+                });
+                let mut rect = self.get_selection_rect(context)?;
+                // TODO: bound the position to the screen
+                rect.bottom += 50;
+                rect.left += 50;
+                notification.set_position(rect.left, rect.bottom);
+                notification.show();
+                notification.set_timer(dur);
+                self.notification = Some(notification);
+            }
         }
         Ok(())
     }
 
     fn hide_message(&mut self) {
-        if let Some(message_window) = self.message_window.take() {
-            if self.message_timer_id > 0 {
-                unsafe {
-                    let _ = KillTimer(Some(message_window.hwnd()), self.message_timer_id);
-                }
-                self.message_timer_id = 0;
-            }
+        if let Some(notification) = self.notification.take() {
+            notification.set_timer(Duration::ZERO);
+            notification.end_ui_element();
         }
     }
 
@@ -1198,9 +1189,6 @@ impl ChewingTextService {
         };
         unsafe {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
-        }
-        if let Some(message_window) = &self.message_window {
-            message_window.set_font(&self.cfg.font_family, self.cfg.font_size);
         }
     }
 

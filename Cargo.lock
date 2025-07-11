@@ -637,7 +637,6 @@ dependencies = [
  "embed-resource",
  "getrandom 0.3.3",
  "log",
- "nine_patch_drawable",
  "win_dbg_logger",
  "windows",
  "windows-core",
@@ -2687,12 +2686,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "nine_patch_drawable"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d96e2f356f3fbb4179ee2a3d76ed2881553b93213a421a28975b2ea0c8d81d15"
 
 [[package]]
 name = "nix"
