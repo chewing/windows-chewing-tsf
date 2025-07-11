@@ -118,13 +118,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     }
 
     sh.remove_path("build/installer")?;
-    sh.create_dir("build/installer/assets")?;
-    {
-        let _p = sh.push_dir("assets");
-        for file in ["bubble.9.png", "msg.9.png"] {
-            sh.copy_file(file, "../build/installer/assets")?;
-        }
-    }
+    sh.create_dir("build/installer")?;
     {
         let _p = sh.push_dir("installer");
         for file in [

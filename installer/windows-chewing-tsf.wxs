@@ -21,10 +21,6 @@
                     <File Source="Dictionary\tsi.dat" Bitness="always64" />
                     <File Source="Dictionary\word.dat" Bitness="always64" />
                 </Directory>
-                <Directory Id="Assets" Name="Assets">
-                    <File Source="assets\bubble.9.png" Bitness="always64" />
-                    <File Source="assets\msg.9.png" Bitness="always64" />
-                </Directory>
                 <Component Bitness="always64">
                     <File Source="x64\chewing_tip.dll">
                         <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"

@@ -12,10 +12,6 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::*;
 
-mod message_window;
-
-pub(crate) use message_window::MessageWindow;
-
 use crate::G_HINSTANCE;
 
 thread_local! {
@@ -121,10 +117,6 @@ impl Window {
         }
     }
 
-    pub(crate) fn is_visible(&self) -> bool {
-        unsafe { IsWindowVisible(self.hwnd()).as_bool() }
-    }
-
     pub(crate) fn set_position(&self, mut x: c_int, mut y: c_int) {
         let mut w = 0;
         let mut h = 0;
@@ -175,14 +167,6 @@ impl Window {
         unsafe {
             if !self.hwnd().is_invalid() {
                 let _ = ShowWindow(self.hwnd(), SW_SHOWNA);
-            }
-        }
-    }
-
-    pub(crate) fn hide(&self) {
-        unsafe {
-            if !self.hwnd().is_invalid() {
-                let _ = ShowWindow(self.hwnd(), SW_HIDE);
             }
         }
     }

@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use core::slice;
-use std::ptr::null_mut;
-
-use nine_patch_drawable::NinePatchDrawable;
-use nine_patch_drawable::PatchKind;
-use nine_patch_drawable::Section;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -15,137 +9,8 @@ use windows::Win32::Graphics::DirectComposition::*;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::Graphics::Gdi::*;
-use windows::Win32::Graphics::Imaging::*;
-use windows::Win32::System::Com::*;
 use windows::Win32::UI::HiDpi::*;
 use windows::core::*;
-
-#[derive(Debug)]
-pub(super) struct NinePatchBitmap {
-    bitmap: IWICBitmap,
-    nine_patch: NinePatchDrawable,
-}
-
-impl NinePatchBitmap {
-    pub(super) fn new<P0>(image_path: P0) -> Result<NinePatchBitmap>
-    where
-        P0: Param<PCWSTR>,
-    {
-        unsafe {
-            let wicfactory: IWICImagingFactory =
-                CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)?;
-            let decoder = wicfactory.CreateDecoderFromFilename(
-                image_path,
-                None,
-                GENERIC_READ,
-                WICDecodeMetadataCacheOnDemand,
-            )?;
-            let frame = decoder.GetFrame(0)?;
-            let converter = wicfactory.CreateFormatConverter()?;
-            converter.Initialize(
-                &frame,
-                &GUID_WICPixelFormat32bppPRGBA,
-                WICBitmapDitherTypeNone,
-                None,
-                0.0,
-                WICBitmapPaletteTypeCustom,
-            )?;
-            let bitmap = wicfactory.CreateBitmapFromSource(&converter, WICBitmapCacheOnDemand)?;
-            let mut width = 0;
-            let mut height = 0;
-            bitmap.GetSize(&mut width, &mut height)?;
-            let lock = bitmap.Lock(
-                &WICRect {
-                    X: 0,
-                    Y: 0,
-                    Width: width as i32,
-                    Height: height as i32,
-                },
-                1,
-            )?;
-            let stride = lock.GetStride()?;
-
-            let mut len = 0;
-            let mut data = null_mut();
-            lock.GetDataPointer(&mut len, &mut data)?;
-            let data_slice = slice::from_raw_parts(data, len as usize);
-
-            let nine_patch = NinePatchDrawable::new(
-                data_slice,
-                stride as usize,
-                width as usize,
-                height as usize,
-            )
-            .unwrap_or_else(|_| NinePatchDrawable {
-                width: width as usize,
-                height: height as usize,
-                h_sections: vec![Section {
-                    start: 1.0,
-                    len: width as f32 - 1.0,
-                    kind: PatchKind::Stretching,
-                }],
-                v_sections: vec![Section {
-                    start: 1.0,
-                    len: width as f32 - 1.0,
-                    kind: PatchKind::Stretching,
-                }],
-                margin_left: 0.0,
-                margin_top: 0.0,
-                margin_right: 0.0,
-                margin_bottom: 0.0,
-            });
-            Ok(NinePatchBitmap { bitmap, nine_patch })
-        }
-    }
-    pub(super) fn draw_bitmap(&self, dc: &ID2D1DeviceContext, rect: D2D_RECT_F) -> Result<()> {
-        unsafe {
-            let bitmap = dc.CreateBitmapFromWicBitmap(&self.bitmap, None)?;
-            let patches = self.nine_patch.scale_to(
-                (rect.right - rect.left) as usize,
-                (rect.bottom - rect.top) as usize,
-            );
-            for patch in patches {
-                // NB: Add 0.5 offset to ensure source sampling works well with
-                // fractional scaling.
-                let source = D2D_RECT_F {
-                    left: patch.source.left + 0.5,
-                    top: patch.source.top + 0.5,
-                    right: patch.source.right - 0.5,
-                    bottom: patch.source.bottom - 0.5,
-                };
-                // NB: Add 0.5 offset to ensure seam does not appear between tiles.
-                let target = D2D_RECT_F {
-                    left: patch.target.left - 0.5,
-                    top: patch.target.top - 0.5,
-                    right: patch.target.right,
-                    bottom: patch.target.bottom,
-                };
-                dc.DrawBitmap(
-                    &bitmap,
-                    Some(&target),
-                    1.0,
-                    D2D1_INTERPOLATION_MODE_LINEAR,
-                    Some(&source),
-                    None,
-                );
-            }
-            Ok(())
-        }
-    }
-    pub(super) fn margin(&self) -> f32 {
-        self.nine_patch.margin_top
-    }
-}
-
-pub(super) fn create_color(gdi_color_index: SYS_COLOR_INDEX) -> D2D1_COLOR_F {
-    let color = unsafe { GetSysColor(gdi_color_index) };
-    D2D1_COLOR_F {
-        r: (color & 0xFF) as f32 / 255.0,
-        g: ((color >> 8) & 0xFF) as f32 / 255.0,
-        b: ((color >> 16) & 0xFF) as f32 / 255.0,
-        a: 1.0,
-    }
-}
 
 pub(super) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
     let mut device = None;
