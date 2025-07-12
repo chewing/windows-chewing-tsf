@@ -40,7 +40,7 @@ use chewing_capi::output::{
     chewing_commit_preedit_buf, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use windows::Win32::Foundation::{HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
@@ -587,7 +587,7 @@ impl ChewingTextService {
         } else {
             // nothing left in composition buffer, terminate composition status
             if self.is_composing() {
-                self.set_composition_string(context, &HSTRING::new(), 0)?;
+                self.set_composition_string(context, &HSTRING::from(""), 0)?;
             }
             // We also need to make sure that the candidate window is not
             // currently shown. When typing symbols with ` key, it's possible
@@ -940,11 +940,8 @@ impl ChewingTextService {
         }
         unsafe {
             let view = context.GetActiveView()?;
-            let hwnd = view.GetWnd()?;
-            if hwnd.is_invalid() {
-                warn!("unable to show message box: context active view is windowless");
-                return Ok(());
-            }
+            // UILess console may not have valid HWND
+            let hwnd = view.GetWnd().unwrap_or_default();
             if let Some(thread_mgr) = &self.thread_mgr {
                 let notification = Notification::new(hwnd, thread_mgr.clone())?;
                 notification.set_model(NotificationModel {
@@ -993,11 +990,8 @@ impl ChewingTextService {
         }
         if self.candidate_list.is_none() {
             let view = unsafe { context.GetActiveView()? };
-            let hwnd = unsafe { view.GetWnd()? };
-            if hwnd.is_invalid() {
-                warn!("unable to show candidate box: context active view is windowless");
-                return Ok(());
-            }
+            // UILess console may not have valid HWND
+            let hwnd = unsafe { view.GetWnd().unwrap_or_default() };
             if let Some(thread_mgr) = &self.thread_mgr {
                 let candidate_list = CandidateList::new(hwnd, thread_mgr.clone())?;
                 self.candidate_list = Some(candidate_list);

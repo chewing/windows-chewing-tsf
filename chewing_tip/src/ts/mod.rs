@@ -55,12 +55,14 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
     ITfKeyEventSink,
     ITfTextEditSink,
     ITfTextInputProcessorEx,
-    ITfThreadMgrEventSink
+    ITfThreadMgrEventSink,
+    ITfActiveLanguageProfileNotifySink
 )]
 pub(super) struct TextService {
     inner: RwLock<ChewingTextService>,
     tid: Cell<u32>,
     thread_mgr_sink_cookie: Cell<u32>,
+    active_lang_profile_sink_cookie: Cell<u32>,
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
 }
@@ -71,6 +73,7 @@ impl TextService {
             inner: RwLock::new(ChewingTextService::new()),
             tid: Cell::default(),
             thread_mgr_sink_cookie: Cell::new(TF_INVALID_COOKIE),
+            active_lang_profile_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
         }
@@ -139,13 +142,20 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
             let source: ITfSource = thread_mgr.cast()?;
             self.thread_mgr_sink_cookie
                 .set(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
+            self.active_lang_profile_sink_cookie.set(source.AdviseSink(
+                &ITfActiveLanguageProfileNotifySink::IID,
+                self.as_interface_ref(),
+            )?);
             let source_single: ITfSourceSingle = thread_mgr.cast()?;
             if let Err(error) = source_single.AdviseSingleSink(tid, &ITfFunctionProvider::IID, punk)
             {
                 error!("Unable to register function provider: {error:#}");
             }
             let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
-            keystroke_mgr.AdviseKeyEventSink(tid, self.as_interface_ref(), true)?;
+            if let Err(error) = keystroke_mgr.AdviseKeyEventSink(tid, self.as_interface_ref(), true)
+            {
+                error!("Unable to register key event sink: {error:#}");
+            }
             let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
             let thread_compartment =
                 compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
@@ -183,6 +193,10 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         unsafe {
             let source: ITfSource = thread_mgr.cast()?;
             source.UnadviseSink(self.thread_mgr_sink_cookie.replace(TF_INVALID_COOKIE))?;
+            source.UnadviseSink(
+                self.active_lang_profile_sink_cookie
+                    .replace(TF_INVALID_COOKIE),
+            )?;
             let source_single: ITfSourceSingle = thread_mgr.cast()?;
             source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
             let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
@@ -360,6 +374,17 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
                 return Err(E_UNEXPECTED.into());
             }
         }
+        Ok(())
+    }
+}
+
+impl ITfActiveLanguageProfileNotifySink_Impl for TextService_Impl {
+    fn OnActivated(
+        &self,
+        _clsid: *const GUID,
+        _guidprofile: *const GUID,
+        _factivated: BOOL,
+    ) -> Result<()> {
         Ok(())
     }
 }

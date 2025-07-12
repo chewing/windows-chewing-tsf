@@ -141,11 +141,12 @@ impl ITfEditSession_Impl for SetCompositionString_Impl<'_> {
             let range = self.composition.GetRange()?;
             debug!("range {:?}", &range);
             if let Err(error) = range.SetText(ec, 0, self.text) {
-                debug!("set text failed: {error}");
-                return Err(error);
+                error!("set composition string failed: {error}");
             }
             let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-            disp_attr_prop.SetValue(ec, &range, &self.da_atom)?;
+            if let Err(error) = disp_attr_prop.SetValue(ec, &range, &self.da_atom) {
+                error!("set display attribute failed: {error}");
+            }
 
             let mut selection = [TF_SELECTION::default(); 1];
             let mut selection_len = 0;
