@@ -6,17 +6,52 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- (prefs) Add slint UI skeleton
+- (prefs) Move dialog UI into the same window
+- (prefs) Add bopomofo keyboard widget
+- (prefs) Implement basic dict editor
+- (prefs) Better error handling
+- (prefs) Add about page for editor
+- (prefs) Implement new config app
+- (prefs) Add about page for config window
+- (prefs) Use assets and version string from globals
 - (prefs) Replace ChewingPreferences with chewing-preferences-rs
-- (prefs) Implement new config dictionary editor
+- Make tsfreg uninstall more robust against failures
+- Add help url to menu
 - Use zhconv crate for Simplified Chinese conversion
+- Enable user-mode minidump in test build
+- Enable ChewingTIP by default
+- Log to files
+- Use chewing::path module to get user data path
+- Make autolearn configurable
+- Make phrase-choice-rearward configurable
+- Add Ctrl+F12 shortcut key for toggle Simplified Chinese conversion
+- Make font configurable
+- Make font color configurable
+- Implement UILess mode
+- Allow configuring background color
+- Make notification configurable
 
 ### 🐛 Bug Fixes
 
 - Allow NSIS uninstall custom action to fail
 - Find configs using runtime env
-- Avoid chewing_new error caused crashes
-- Make tsfreg uninstall more robust against failures
-- Enable user-mode minidump in test build
+- Check chewing_new error
+- Only use key state for modifier keys
+- Load correct mode icon after reactivation
+- Always use 64-bit program files path
+- Ensure sub-pixel sampling works well with fractional scale
+- Always initialize windbg logger
+- Detect user dir even with MIC
+- Bring back keyboard openclose monitor
+- Skip focus event during key down
+- Set composition string and cursor in the same edit session
+- Use GetDpiForMonitor to detect monitor DPI
+- Ensure to resize empty candidate window correctly
+- (editor) Reload dict when start editing
+- Load config after activation
+- Better handling of capslock state
+- Allow invalid HWND for UILess console
 
 ### 🚜 Refactor
 
@@ -45,16 +80,36 @@ All notable changes to this project will be documented in this file.
 - Reduce unwraps to avoid panic
 - Fix conversion to Simplified Chinese
 - Fix menu reuse
+- End composition when losing focus
+- Use windows-registry crate to read registry
+- (prefs) Use windows-registry crate to read registry
+- Always apply configs after activation
+- Better HiDPI handling
+- Better error logging
+- Clippy warnings
+- Add menubar to preferences and reuse about dialog
+- Move editor about tab to about window
+- Rewrite candidate window drawing routine
+- Adjust candidate window client area size
+- Move UIElement handling into CandidateList
+- Reimplement notification window
+- Clarify notification config string
+- Try to improve dark mode detection
 
 ### 📚 Documentation
 
 - Remove unused build scripts and references
+
+### 🎨 Styling
+
+- (prefs) Remove default font setting
 
 ### ⚙️ Miscellaneous Tasks
 
 - Use sqlite from vcpkg
 - Rebuild if cpp files change
 - Use rust-lld by default
+- (deps) Bump actions/checkout in the github-actions group
 - Install stable rust toolchain
 - Attach debug script to nightly release
 - Update nightly release wording
@@ -62,11 +117,20 @@ All notable changes to this project will be documented in this file.
 - Move rc files to a subdirectory
 - Fix version.rc include path
 - Update WixToolset to v6
+- (deps) Bump crossbeam-channel from 0.5.14 to 0.5.15
 - Cross-compile in linux container
 - Mark workspace as safe directory
 - Use libchewing from git
 - Use xtask to drive build and package
 - Fix nightly code signing
+- Allow nightly workflow to update releases
+- Run cargo fmt
+- (deps) Bump signpath/github-action-submit-signing-request
+- Build nightly with release profile
+- Attach ChewingPreferences.exe to nightly build
+- Download Installer Artifact in nightly workflow
+- Extract chewing-editor as separate executable
+- Add cache
 
 ## [24.10.1] - 2024-12-22
 
