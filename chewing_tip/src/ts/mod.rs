@@ -8,6 +8,7 @@ mod key_event;
 mod lang_bar;
 mod menu;
 mod resources;
+mod theme;
 mod ui_elements;
 
 use std::{
