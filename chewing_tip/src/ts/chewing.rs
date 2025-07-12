@@ -5,7 +5,6 @@ use std::ffi::{CStr, c_int, c_void};
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
-use std::ptr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -45,7 +44,6 @@ use windows::Win32::Foundation::{HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
-use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_DWORD, RegGetValueW};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE, VK_F12,
@@ -80,6 +78,7 @@ use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
 use crate::ts::menu::Menu;
+use crate::ts::theme::{ThemeDetector, WindowsTheme};
 use crate::window::{Window, window_register_class};
 
 use super::CommandType;
@@ -159,6 +158,7 @@ impl ChewingTextService {
 
         window_register_class();
 
+        info!("Detected theme info: {:?}", ThemeDetector::get_theme_info());
         info!("Add language bar buttons to switch Chinese/English modes");
         unsafe {
             let mut info = TF_LANGBARITEMINFO {
@@ -268,12 +268,12 @@ impl ChewingTextService {
                     tooltip,
                     info.szDescription.len() as i32,
                 );
-                let icon_id = match (is_light_theme(), self.lang_mode) {
-                    (true, CHINESE_MODE) => IDI_CHI,
-                    (true, SYMBOL_MODE) => IDI_ENG,
-                    (false, CHINESE_MODE) => IDI_CHI_DARK,
-                    (false, SYMBOL_MODE) => IDI_ENG_DARK,
-                    _ => unreachable!(),
+                let icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
+                    (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
+                    (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
+                    (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
+                    (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
+                    _ => IDI_CHI,
                 };
                 let button = LangBarButton::new(
                     info,
@@ -1196,12 +1196,12 @@ impl ChewingTextService {
         let lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
         if lang_mode != self.lang_mode {
             self.lang_mode = lang_mode;
-            let icon_id = match (is_light_theme(), lang_mode) {
-                (true, CHINESE_MODE) => IDI_CHI,
-                (true, SYMBOL_MODE) => IDI_ENG,
-                (false, CHINESE_MODE) => IDI_CHI_DARK,
-                (false, SYMBOL_MODE) => IDI_ENG_DARK,
-                _ => unreachable!(),
+            let icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
+                (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
+                (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
+                (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
+                (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
+                _ => IDI_CHI,
             };
             if let Some(button) = &self.switch_lang_button {
                 unsafe {
@@ -1349,30 +1349,6 @@ fn program_dir() -> Result<PathBuf> {
             .or_else(|_| std::env::var("FrogramFiles(x86)"))?,
     )
     .join("ChewingTextService"))
-}
-
-fn is_light_theme() -> bool {
-    let mut value = 1;
-    let mut data_size = size_of_val(&value) as u32;
-    let val_ptr = ptr::addr_of_mut!(value);
-    let size_ptr = ptr::addr_of_mut!(data_size);
-    unsafe {
-        let result = RegGetValueW(
-            HKEY_CURRENT_USER,
-            w!("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"),
-            w!("AppsUseLightTheme"),
-            RRF_RT_DWORD,
-            None,
-            Some(val_ptr.cast()),
-            Some(size_ptr),
-        );
-        if result.is_err() {
-            info!("Determine is_light_theme failed, fallback to light theme");
-            return true;
-        }
-    }
-    // 0 = dark theme, 1 = light theme
-    value > 0
 }
 
 fn open_url(url: &str) {
