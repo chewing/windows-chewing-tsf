@@ -45,6 +45,8 @@ jobs:
         with:
           submodules: true
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Update Submodules
         if: ${{ inputs.nightly }}
         run: |
@@ -96,6 +98,8 @@ jobs:
           vcpkg install sqlite3:x86-windows-static
           vcpkg install sqlite3:x64-windows-static
           vcpkg install sqlite3:x64-windows
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install build dependencies
         shell: cmd
@@ -164,6 +168,8 @@ jobs:
       #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_TOKEN }}
       #     SSH_PASS: ${{ secrets.SSH_PASS }}
       #     NGROK_REGION: jp
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Download Installer Artifact
         uses: actions/download-artifact@v4
