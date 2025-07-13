@@ -268,13 +268,20 @@ impl ChewingTextService {
                     tooltip,
                     info.szDescription.len() as i32,
                 );
-                let icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
+                let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
                     (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
                     (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
                     (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
                     (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
                     _ => IDI_CHI,
                 };
+                if self.output_simp_chinese {
+                    icon_id = match icon_id {
+                        IDI_CHI => IDI_SIMP,
+                        IDI_CHI_DARK => IDI_SIMP_DARK,
+                        _ => icon_id,
+                    }
+                }
                 let button = LangBarButton::new(
                     info,
                     BSTR::from_wide(tooltip.as_wide()),
@@ -299,7 +306,7 @@ impl ChewingTextService {
             error!("unable to initialize chewing: {error}");
         }
 
-        if let Err(error) = self.update_lang_buttons() {
+        if let Err(error) = self.update_lang_buttons(false) {
             error!("unable to update lang buttons: {error}");
         }
 
@@ -523,7 +530,7 @@ impl ChewingTextService {
             }
         }
 
-        if let Err(error) = self.update_lang_buttons() {
+        if let Err(error) = self.update_lang_buttons(false) {
             error!("unable to update lang bar button: {error}")
         }
 
@@ -1058,6 +1065,7 @@ impl ChewingTextService {
         unsafe {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
+        self.update_lang_buttons(true)?;
         Ok(())
     }
 
@@ -1066,7 +1074,7 @@ impl ChewingTextService {
             unsafe {
                 chewing_set_ShapeMode(ctx, !chewing_get_ShapeMode(ctx));
             }
-            self.update_lang_buttons()?;
+            self.update_lang_buttons(false)?;
         }
         Ok(())
     }
@@ -1077,7 +1085,7 @@ impl ChewingTextService {
                 // HACK: send capslock to switch mode
                 chewing_handle_Capslock(ctx);
             }
-            self.update_lang_buttons()?;
+            self.update_lang_buttons(false)?;
         }
         Ok(())
     }
@@ -1185,7 +1193,7 @@ impl ChewingTextService {
         }
     }
 
-    fn update_lang_buttons(&mut self) -> Result<()> {
+    fn update_lang_buttons(&mut self, toggle_simp_mode: bool) -> Result<()> {
         let Some(ctx) = self.chewing_context else {
             error!("update_lang_buttons called with null chewing context");
             return Ok(());
@@ -1193,15 +1201,22 @@ impl ChewingTextService {
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
-        if lang_mode != self.lang_mode {
+        if lang_mode != self.lang_mode || toggle_simp_mode {
             self.lang_mode = lang_mode;
-            let icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
+            let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
                 (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
                 (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
                 (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
                 (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
                 _ => IDI_CHI,
             };
+            if self.output_simp_chinese {
+                icon_id = match icon_id {
+                    IDI_CHI => IDI_SIMP,
+                    IDI_CHI_DARK => IDI_SIMP_DARK,
+                    _ => icon_id,
+                }
+            }
             if let Some(button) = &self.switch_lang_button {
                 unsafe {
                     button.set_icon(LoadIconW(

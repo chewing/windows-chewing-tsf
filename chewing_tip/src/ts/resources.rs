@@ -11,6 +11,8 @@ pub(super) const IDI_FULL_SHAPE: u32 = 106;
 pub(super) const IDI_HALF_SHAPE: u32 = 107;
 pub(super) const IDI_CHI_DARK: u32 = 108;
 pub(super) const IDI_ENG_DARK: u32 = 109;
+pub(super) const IDI_SIMP: u32 = 110;
+pub(super) const IDI_SIMP_DARK: u32 = 111;
 
 pub(super) const ID_SWITCH_LANG: u32 = 101;
 pub(super) const ID_SWITCH_SHAPE: u32 = 102;

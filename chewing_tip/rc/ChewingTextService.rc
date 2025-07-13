@@ -59,6 +59,8 @@ IDI_CHI_DARK            ICON                    "chi_dark.ico"
 IDI_CONFIG              ICON                    "config.ico"
 IDI_ENG                 ICON                    "eng.ico"
 IDI_ENG_DARK            ICON                    "eng_dark.ico"
+IDI_SIMP                ICON                    "simp.ico"
+IDI_SIMP_DARK           ICON                    "simp_dark.ico"
 IDI_FULL_SHAPE          ICON                    "full.ico"
 IDI_HALF_SHAPE          ICON                    "half.ico"
 
