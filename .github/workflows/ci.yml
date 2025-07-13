@@ -40,6 +40,7 @@ jobs:
           rustup set auto-self-update disable
           rustup target add i686-pc-windows-gnu
           rustup target add x86_64-pc-windows-gnu
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - uses: actions/checkout@v4
         with:
@@ -56,7 +57,6 @@ jobs:
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}
         run: |
-          source "$HOME/.cargo/env"
           cargo xtask update-version --major $VER_MAJOR --minor $VER_MINOR --patch $VER_PATCH -b $GITHUB_RUN_NUMBER
           cat version.rc
           cat installer/version.wxi
@@ -66,7 +66,6 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.number }}
         run: |
-          source "$HOME/.cargo/env"
           cargo xtask update-version --major 0 --minor 0 --patch $PR_NUMBER -b $GITHUB_RUN_NUMBER
           cat version.rc
           cat installer/version.wxi
@@ -74,13 +73,11 @@ jobs:
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
-          source "$HOME/.cargo/env"
           cargo xtask build-installer --nightly --release --target gnu
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
         run: |
-          source "$HOME/.cargo/env"
           cargo xtask build-installer --release --target gnu
 
   build:
