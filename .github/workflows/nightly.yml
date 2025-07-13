@@ -6,31 +6,31 @@ env:
   VER_PATCH: 0
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
+  # schedule:
+  #   - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
   # https://stackoverflow.com/questions/63014786/how-to-schedule-a-github-actions-nightly-build-but-run-it-only-when-there-where
-  check_date:
-    runs-on: ubuntu-latest
-    name: Check latest commit
-    outputs:
-      should_run: ${{ steps.should_run.outputs.should_run }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: print latest_commit
-        run: echo ${{ github.sha }}
+  # check_date:
+  #   runs-on: ubuntu-latest
+  #   name: Check latest commit
+  #   outputs:
+  #     should_run: ${{ steps.should_run.outputs.should_run }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: print latest_commit
+  #       run: echo ${{ github.sha }}
 
-      - id: should_run
-        continue-on-error: true
-        name: check latest commit is less than a day
-        if: ${{ github.event_name == 'schedule' }}
-        run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
+  #     - id: should_run
+  #       continue-on-error: true
+  #       name: check latest commit is less than a day
+  #       if: ${{ github.event_name == 'schedule' }}
+  #       run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
 
   nightly-build:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.should_run != 'false' }}
+    # needs: check_date
+    # if: ${{ needs.check_date.outputs.should_run != 'false' }}
     uses: ./.github/workflows/ci.yml
     with:
       nightly: true
@@ -60,14 +60,14 @@ jobs:
         with:
           name: Signed Installer
           path: dist
-      - name: Upload Nightly Release
-        uses: andelf/nightly-release@46e2d5f80828ecc5c2c3c819eb31186a7cf2156c # main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: GH Release
+        uses: softprops/action-gh-release@v2.3.2
         with:
-          tag_name: nightly
+          tag_name: nightly-${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
+          name: 測試版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
+          draft: true
           prerelease: true
-          name: 最新測試版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
+          preserve_order: true
           body: |
             這是開發中的測試用版本。若不確定，請使用最新的穩定版。
           files: |
