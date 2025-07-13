@@ -108,7 +108,7 @@ export component EditorWindow inherits Window {
             }
 
             table := StandardTableView {
-                columns: [{ title: "類型", width: 70px }, { title: "名稱" }];
+                columns: [{ title: "類型", width: 70px }, { title: "名稱", width: 100px }, { title: "檔案路徑", min_width: 400px }];
                 rows: root.dictionaries;
                 current-row-changed(current-row) => {
                     root.info-clicked(root.dictionaries[current-row]);
