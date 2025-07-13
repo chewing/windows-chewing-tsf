@@ -38,7 +38,7 @@ jobs:
     needs: [nightly-build]
     uses: ./.github/workflows/code-signing.yml
     with:
-      signing-policy-slug: test-signing
+      signing-policy-slug: release-signing
       github-artifact-id: ${{ needs.nightly-build.outputs.unsigned-artifact-id }}
     secrets:
       api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
         uses: softprops/action-gh-release@v2.3.2
         with:
           tag_name: nightly-${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
-          name: 測試版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
+          name: 預覽版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
           draft: true
           prerelease: true
           preserve_order: true
