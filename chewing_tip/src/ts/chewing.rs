@@ -950,7 +950,6 @@ impl ChewingTextService {
                     font_size: self.cfg.font_size as f32,
                 });
                 let mut rect = self.get_selection_rect(context)?;
-                // TODO: bound the position to the screen
                 rect.bottom += 50;
                 rect.left += 50;
                 notification.set_position(rect.left, rect.bottom);

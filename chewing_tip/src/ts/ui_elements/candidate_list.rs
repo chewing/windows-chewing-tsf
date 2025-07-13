@@ -5,7 +5,7 @@ use std::cell::{Cell, RefCell};
 use anyhow::{Context, Result};
 use log::error;
 use windows::Win32::{
-    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, TRUE, WPARAM},
+    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
             Common::{D2D_RECT_F, D2D1_COLOR_F},
@@ -21,7 +21,10 @@ use windows::Win32::{
         Dxgi::{
             Common::DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG, IDXGISwapChain1,
         },
-        Gdi::{BeginPaint, EndPaint, PAINTSTRUCT},
+        Gdi::{
+            BeginPaint, EndPaint, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO,
+            MonitorFromPoint, PAINTSTRUCT,
+        },
     },
     UI::{
         Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_DOWN, VK_LEFT, VK_RETURN, VK_RIGHT, VK_UP},
@@ -499,8 +502,22 @@ impl CandidateList {
     pub(crate) fn current_sel(&self) -> usize {
         self.model.borrow().current_sel
     }
-    pub(crate) fn set_position(&self, x: i32, y: i32) {
-        if let Some(window) = self.view.borrow().window() {
+    pub(crate) fn set_position(&self, mut x: i32, mut y: i32) {
+        let view = self.view.borrow();
+        if let Some(window) = view.window() {
+            let hmonitor = unsafe { MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONEAREST) };
+            let mut monitor_info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            let has_monitor_info = unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info) };
+            if has_monitor_info.as_bool() {
+                if let Ok(size) = view.calculate_client_rect(&self.model.borrow()) {
+                    // constraint window to screen
+                    x = x.min(monitor_info.rcMonitor.right - size.hw_width as i32 - 10);
+                    y = y.min(monitor_info.rcMonitor.bottom - size.hw_height as i32 - 10);
+                }
+            }
             window.set_position(x, y);
         }
     }
