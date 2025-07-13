@@ -19,6 +19,8 @@
 #define IDI_HALF_SHAPE 107
 #define IDI_CHI_DARK 108
 #define IDI_ENG_DARK 109
+#define IDI_SIMP 110
+#define IDI_SIMP_DARK 111
 #define IDR_MENU1 108
 #define IDR_MENU2 109
 #define IDR_MENU 109
