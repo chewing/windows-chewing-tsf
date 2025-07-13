@@ -255,7 +255,7 @@ impl Model for DictTableItemModel {
     type Data = StandardListViewItem;
 
     fn row_count(&self) -> usize {
-        2
+        3
     }
 
     fn row_data(&self, row: usize) -> Option<Self::Data> {
@@ -266,6 +266,12 @@ impl Model for DictTableItemModel {
                 .read()
                 .ok()
                 .map(|dict| dict.about().name.as_str().into()),
+            2 => self
+                .1
+                .read()
+                .ok()
+                .map(|dict| dict.path().map(|p| p.to_string_lossy().as_ref().into()))
+                .flatten(),
             _ => None,
         }
     }
