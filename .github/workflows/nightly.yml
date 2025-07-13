@@ -38,7 +38,7 @@ jobs:
     needs: [nightly-build]
     uses: ./.github/workflows/code-signing.yml
     with:
-      signing-policy-slug: test-signing
+      signing-policy-slug: release-signing
       github-artifact-id: ${{ needs.nightly-build.outputs.unsigned-artifact-id }}
     secrets:
       api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
