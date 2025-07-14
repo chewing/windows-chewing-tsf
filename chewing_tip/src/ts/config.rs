@@ -75,7 +75,6 @@ fn color_s(rgb: &str) -> D2D1_COLOR_F {
 fn load_config() -> Result<Config> {
     let key = CURRENT_USER
         .options()
-        .create()
         .read()
         .access(KEY_WOW64_64KEY.0)
         .open("Software\\ChewingTextService")?;
