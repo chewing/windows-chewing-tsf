@@ -7,7 +7,7 @@ use windows_registry::{CURRENT_USER, Key};
 
 // TODO use this config module in preferences
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(super) struct Config {
     pub(super) switch_lang_with_shift: bool,
     pub(super) enable_caps_lock: bool,
@@ -38,6 +38,42 @@ pub(super) struct Config {
     pub(super) font_highlight_bg_color: D2D1_COLOR_F,
     pub(super) font_number_fg_color: D2D1_COLOR_F,
     pub(super) keyboard_layout: i32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            switch_lang_with_shift: true,
+            enable_caps_lock: true,
+            show_notification: true,
+            enable_auto_learn: true,
+            esc_clean_all_buf: false,
+            full_shape_symbols: true,
+            upper_case_with_shift: false,
+            add_phrase_forward: true,
+            phrase_choice_rearward: false,
+            easy_symbols_with_shift: true,
+            easy_symbols_with_ctrl: false,
+            cursor_cand_list: true,
+            show_cand_with_space_key: false,
+            advance_after_selection: true,
+            default_full_space: false,
+            default_english: false,
+            output_simp_chinese: false,
+            sel_key_type: 0,
+            conv_engine: 1,
+            cand_per_row: 3,
+            cand_per_page: 9,
+            font_size: 16,
+            font_family: h!("Segoe UI").to_owned(),
+            font_fg_color: color_f(0.0, 0.0, 0.0),
+            font_bg_color: color_f(0.98, 0.98, 0.98),
+            font_highlight_fg_color: color_f(1.0, 1.0, 1.0),
+            font_highlight_bg_color: color_f(0.0, 0.0, 0.0),
+            font_number_fg_color: color_f(0.0, 0.0, 1.0),
+            keyboard_layout: 0,
+        }
+    }
 }
 
 impl Config {
@@ -75,32 +111,10 @@ fn color_s(rgb: &str) -> D2D1_COLOR_F {
 fn load_config() -> Result<Config> {
     let key = CURRENT_USER
         .options()
-        .create()
         .read()
         .access(KEY_WOW64_64KEY.0)
         .open("Software\\ChewingTextService")?;
-    let mut cfg = Config {
-        cand_per_row: 3,
-        switch_lang_with_shift: true,
-        show_notification: true,
-        add_phrase_forward: true,
-        advance_after_selection: true,
-        font_size: 16,
-        font_family: h!("Segoe UI").to_owned(),
-        font_fg_color: color_f(0.0, 0.0, 0.0),
-        font_bg_color: color_f(0.98, 0.98, 0.98),
-        font_highlight_fg_color: color_f(1.0, 1.0, 1.0),
-        font_highlight_bg_color: color_f(0.0, 0.0, 0.0),
-        font_number_fg_color: color_f(0.0, 0.0, 1.0),
-        conv_engine: 1,
-        cand_per_page: 9,
-        cursor_cand_list: true,
-        enable_caps_lock: true,
-        enable_auto_learn: true,
-        full_shape_symbols: true,
-        easy_symbols_with_shift: true,
-        ..Config::default()
-    };
+    let mut cfg = Config::default();
 
     // if let Ok(path) = user_symbols_dat_path() {
     //     cfg.set_symbols_dat(fs::read_to_string(path)?.into());
