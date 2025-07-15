@@ -341,6 +341,10 @@ impl ChewingTextService {
         Ok(())
     }
 
+    pub(super) fn on_focus(&mut self, _context: &ITfContext) -> Result<()> {
+        self.apply_config_if_changed()
+    }
+
     pub(super) fn on_keydown(
         &mut self,
         context: &ITfContext,
@@ -1191,9 +1195,10 @@ impl ChewingTextService {
         unsafe {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
+        let _ = self.update_lang_buttons(true);
     }
 
-    fn update_lang_buttons(&mut self, toggle_simp_mode: bool) -> Result<()> {
+    fn update_lang_buttons(&mut self, check_simp_mode: bool) -> Result<()> {
         let Some(ctx) = self.chewing_context else {
             error!("update_lang_buttons called with null chewing context");
             return Ok(());
@@ -1201,7 +1206,7 @@ impl ChewingTextService {
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
-        if lang_mode != self.lang_mode || toggle_simp_mode {
+        if lang_mode != self.lang_mode || check_simp_mode {
             self.lang_mode = lang_mode;
             let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
                 (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
