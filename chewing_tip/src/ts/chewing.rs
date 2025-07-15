@@ -17,8 +17,9 @@ use chewing_capi::candidates::{
 };
 use chewing_capi::globals::{
     AUTOLEARN_DISABLED, AUTOLEARN_ENABLED, chewing_config_set_int, chewing_config_set_str,
-    chewing_set_addPhraseDirection, chewing_set_autoShiftCur, chewing_set_escCleanAllBuf,
-    chewing_set_maxChiSymbolLen, chewing_set_phraseChoiceRearward, chewing_set_spaceAsSelection,
+    chewing_set_addPhraseDirection, chewing_set_autoShiftCur, chewing_set_easySymbolInput,
+    chewing_set_escCleanAllBuf, chewing_set_maxChiSymbolLen, chewing_set_phraseChoiceRearward,
+    chewing_set_spaceAsSelection,
 };
 use chewing_capi::input::{
     chewing_handle_Backspace, chewing_handle_Capslock, chewing_handle_CtrlNum,
@@ -420,8 +421,11 @@ impl ChewingTextService {
             if enable_caps_lock {
                 invert_case = true;
             }
-            // If shift is pressed, but we don't want to enter full shape symbols
-            if ev.is_key_down(VK_SHIFT) && (!self.cfg.full_shape_symbols || ev.is_alphabet()) {
+            // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
+            if ev.is_key_down(VK_SHIFT)
+                && (!self.cfg.full_shape_symbols || ev.is_alphabet())
+                && !self.cfg.easy_symbols_with_shift
+            {
                 momentary_english_mode = true;
                 if !self.cfg.upper_case_with_shift {
                     invert_case = true;
@@ -446,7 +450,7 @@ impl ChewingTextService {
                 }
             } else if ev.is_alphabet() {
                 unsafe {
-                    chewing_handle_Default(ctx, ev.code.to_ascii_lowercase() as i32);
+                    chewing_handle_Default(ctx, ev.code as i32);
                 }
             } else if ev.is_key(VK_SPACE) {
                 unsafe {
@@ -1162,6 +1166,7 @@ impl ChewingTextService {
         let cfg = &self.cfg;
         if let Some(ctx) = self.chewing_context {
             unsafe {
+                chewing_set_easySymbolInput(ctx, cfg.easy_symbols_with_shift as i32);
                 chewing_set_addPhraseDirection(ctx, cfg.add_phrase_forward as i32);
                 chewing_set_phraseChoiceRearward(ctx, cfg.phrase_choice_rearward as i32);
                 chewing_set_autoShiftCur(ctx, cfg.advance_after_selection as i32);
