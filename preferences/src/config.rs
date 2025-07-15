@@ -61,39 +61,39 @@ fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<()> {
     Ok(hk.set_u32(value_name, value as u32)?)
 }
 
-fn default_user_symbols_dat_path() -> PathBuf {
+fn default_user_path_for_file(file: &str) -> PathBuf {
     let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
     let user_data_dir = PathBuf::from(user_profile).join("ChewingTextService");
-    let user_symbols_dat = data_dir().unwrap_or(user_data_dir).join("symbols.dat");
-    user_symbols_dat
+    let user_file = data_dir().unwrap_or(user_data_dir).join(file);
+    user_file
 }
 
-// FIXME: provide path info from libchewing
-fn user_symbols_dat_path() -> Result<PathBuf> {
-    let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
-    let user_data_dir = PathBuf::from(user_profile).join("ChewingTextService");
-    let user_symbols_dat = data_dir().unwrap_or(user_data_dir).join("symbols.dat");
-    if user_symbols_dat.exists() {
-        return Ok(user_symbols_dat);
+fn user_path_for_file(file: &str) -> Result<PathBuf> {
+    let user_file = default_user_path_for_file(file);
+    if user_file.exists() {
+        return Ok(user_file);
     }
-    bail!("使用者符號檔不存在")
+    bail!("使用者檔案 {file} 不存在")
 }
 
 // FIXME: provide path info from libchewing
-fn system_symbols_dat_path() -> Result<PathBuf> {
+fn system_path_for_file(file: &str) -> Result<PathBuf> {
     let progfiles_x86 =
         env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files(x86)".into());
     let progfiles = env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".into());
-    let symbols_x86 =
-        PathBuf::from(progfiles_x86).join("ChewingTextService\\Dictionary\\symbols.dat");
-    let symbols = PathBuf::from(progfiles).join("ChewingTextService\\Dictionary\\symbols.dat");
-    if symbols_x86.exists() {
-        return Ok(symbols_x86);
+    let path_x86 = PathBuf::from(progfiles_x86)
+        .join("ChewingTextService\\Dictionary")
+        .join(file);
+    let path = PathBuf::from(progfiles)
+        .join("ChewingTextService\\Dictionary")
+        .join(file);
+    if path_x86.exists() {
+        return Ok(path_x86);
     }
-    if symbols.exists() {
-        return Ok(symbols);
+    if path.exists() {
+        return Ok(path);
     }
-    bail!("系統詞庫不存在")
+    bail!("系統詞庫 {file} 不存在")
 }
 
 fn load_config(ui: &ConfigWindow) -> Result<()> {
@@ -118,11 +118,19 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     ui.set_font_highlight_bg_color("000000".into());
     ui.set_font_number_fg_color("0000FF".into());
 
-    if let Ok(path) = user_symbols_dat_path() {
+    if let Ok(path) = user_path_for_file("symbols.dat") {
         ui.set_symbols_dat(fs::read_to_string(path)?.into());
     } else {
-        if let Ok(path) = system_symbols_dat_path() {
+        if let Ok(path) = system_path_for_file("symbols.dat") {
             ui.set_symbols_dat(fs::read_to_string(path)?.into());
+        }
+    }
+
+    if let Ok(path) = user_path_for_file("swkb.dat") {
+        ui.set_swkb_dat(fs::read_to_string(path)?.into());
+    } else {
+        if let Ok(path) = system_path_for_file("swkb.dat") {
+            ui.set_swkb_dat(fs::read_to_string(path)?.into());
         }
     }
 
@@ -286,14 +294,22 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
     let _ = reg_set_bool(&key, "UpperCaseWithShift", ui.get_upper_case_with_shift());
     let _ = reg_set_bool(&key, "EnableAutoLearn", ui.get_enable_auto_learn());
 
-    let sys_symbols_dat = system_symbols_dat_path()
+    let sys_symbols_dat = system_path_for_file("symbols.dat")
         .and_then(|path| Ok(fs::read_to_string(path)?))
         .unwrap_or_default();
     if ui.get_symbols_dat() != sys_symbols_dat {
-        let user_symbols_dat_path =
-            user_symbols_dat_path().unwrap_or_else(|_| default_user_symbols_dat_path());
+        let user_symbols_dat_path = default_user_path_for_file("symbols.dat");
         fs::create_dir_all(user_symbols_dat_path.parent().unwrap())?;
         fs::write(user_symbols_dat_path, ui.get_symbols_dat())?;
+    }
+
+    let sys_swkb_dat = system_path_for_file("swkb.dat")
+        .and_then(|path| Ok(fs::read_to_string(path)?))
+        .unwrap_or_default();
+    if ui.get_swkb_dat() != sys_swkb_dat {
+        let user_swkb_dat_path = default_user_path_for_file("swkb.dat");
+        fs::create_dir_all(user_swkb_dat_path.parent().unwrap())?;
+        fs::write(user_swkb_dat_path, ui.get_swkb_dat())?;
     }
 
     Ok(())

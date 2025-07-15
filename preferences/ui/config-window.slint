@@ -42,6 +42,7 @@ export component ConfigWindow inherits Window {
     in-out property <string> font-highlight-bg-color;
     in-out property <int> keyboard-layout;
     in-out property <string> symbols-dat;
+    in-out property <string> swkb-dat;
 
     callback apply();
     callback cancel();
@@ -126,13 +127,12 @@ export component ConfigWindow inherits Window {
                         }
 
                         CheckBox {
-                            text: "按住 Shift 輸入快速符號";
+                            text: "按住 Shift 輸入快捷符號";
                             checked <=> easy-symbols-with-shift;
-                            enabled: false;
                         }
 
                         CheckBox {
-                            text: "按住 Ctrl 輸入快速符號";
+                            text: "按住 Ctrl 輸入快捷符號";
                             checked <=> easy-symbols-with-ctrl;
                             enabled: false;
                         }
@@ -425,6 +425,25 @@ export component ConfigWindow inherits Window {
 
                     Text {
                         text: "以上是符號表的設定檔，語法相當簡單：\n每一行的內容都是：「分類名稱」＝「此分類下的所有符號」\n您也可以一行只放一個符號，則該符號會被放在最上層選單。";
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            Tab {
+                title: "快捷符號";
+                VerticalBox {
+                    Text {
+                        text: "輸入中文時，按下 Shift 加英文字母即可快速輸入：";
+                    }
+
+                    TextEdit {
+                        text <=> swkb-dat;
+                        wrap: no-wrap;
+                    }
+
+                    Text {
+                        text: "以上是快捷符號的設定檔，語法相當簡單：\n每一行的內容都是：「大寫字母」空格「對應的符號或文字」。";
                         wrap: word-wrap;
                     }
                 }
