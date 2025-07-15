@@ -40,7 +40,7 @@ use windows_core::{
 use crate::{
     gfx::{
         create_device, create_render_target, create_swapchain, create_swapchain_bitmap,
-        get_dpi_for_window, setup_direct_composition,
+        dwrite_family_from_gdi_name, get_dpi_for_window, setup_direct_composition,
     },
     ts::ui_elements::message_box::draw_message_box,
     window::{IWndProc, IWndProc_Impl, Window},
@@ -203,9 +203,12 @@ impl View for RenderedView {
         Some(&self.window)
     }
     fn calculate_client_rect(&self, model: &NotificationModel) -> Result<RenderedMetrics> {
+        let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
+        let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
+            .unwrap_or_else(|_| model.font_family.clone());
         let text_format = unsafe {
             self.dwrite_factory.CreateTextFormat(
-                &model.font_family,
+                &font_family,
                 None,
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
@@ -242,9 +245,12 @@ impl View for RenderedView {
         if model.text.is_empty() {
             return Ok(());
         }
+        let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
+        let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
+            .unwrap_or_else(|_| model.font_family.clone());
         let text_format = unsafe {
             self.dwrite_factory.CreateTextFormat(
-                &model.font_family,
+                &font_family,
                 None,
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
