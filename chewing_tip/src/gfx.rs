@@ -159,7 +159,13 @@ pub(super) fn dwrite_family_from_gdi_name(
     interop: &IDWriteGdiInterop,
     family_name: &HSTRING,
 ) -> anyhow::Result<HSTRING> {
-    let mut logfont = LOGFONTW::default();
+    let mut logfont = LOGFONTW {
+        lfCharSet: DEFAULT_CHARSET,
+        lfOutPrecision: OUT_DEFAULT_PRECIS,
+        lfClipPrecision: CLIP_DEFAULT_PRECIS,
+        lfQuality: DEFAULT_QUALITY,
+        ..Default::default()
+    };
     unsafe {
         let fa: &[u16] = &*family_name;
         if fa.len() > logfont.lfFaceName.len() {
