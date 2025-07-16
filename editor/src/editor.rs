@@ -12,11 +12,13 @@ use chewing::dictionary::{
 use chewing::dictionary::{DictionaryInfo, Phrase};
 use chewing::zhuyin::Syllable;
 use slint::{
-    ComponentHandle, Model, ModelNotify, ModelRc, ModelTracker, StandardListViewItem, VecModel,
+    ComponentHandle, Model, ModelExt, ModelNotify, ModelRc, ModelTracker, SharedString,
+    StandardListViewItem, VecModel,
 };
 
 use crate::AboutWindow;
 use crate::CallbackResult;
+use crate::DictEntriesAdapter;
 use crate::EditorWindow;
 use crate::ErrorKind;
 
@@ -63,33 +65,28 @@ pub fn run() -> Result<()> {
         let dict_model = ModelRc::new(DictEditViewModel::from(dict_item));
 
         let ui = ui_handle.upgrade().unwrap();
-        ui.set_entries(dict_model);
+        ui.global::<DictEntriesAdapter>().set_entries(dict_model);
     });
+    ui.global::<DictEntriesAdapter>()
+        .on_filter_sort_model(filter_sort_model);
 
     let ui_handle = ui.as_weak();
-    ui.on_edit_entry_done(move || -> CallbackResult {
-        let ui = ui_handle.upgrade().unwrap();
-        let out_phrase = ui.get_phrase();
-        let out_bopomofo = ui.get_bopomofo();
-        let out_freq = ui.get_freq();
-        let index = ui.get_edit_dict_current_row() as usize;
-        let entries_rc = ui.get_entries();
-        let entry = entries_rc
-            .as_any()
-            .downcast_ref::<DictEditViewModel>()
-            .expect("entries should be a DictEditViewModel");
-        if let Ok(mut cache) = entry.cache.write() {
-            let freq: u32 = match out_freq.parse() {
+    ui.global::<DictEntriesAdapter>().on_update_entry(
+        move |search_text, sort_index, sort_ascending, current_row, data| {
+            let ui = ui_handle.upgrade().unwrap();
+            // verification
+            let bopomofo = data.row_data(1).unwrap_or_default().text;
+            let freq = data.row_data(2).unwrap_or_default().text;
+            match freq.parse::<u32>() {
                 Ok(v) => v,
                 Err(_) => {
                     return CallbackResult {
                         error: ErrorKind::Other,
-                        err_msg: slint::format!("無法辨認 {out_freq} 為數字"),
+                        err_msg: slint::format!("無法辨認 {freq} 為數字"),
                     };
                 }
             };
-            let phrase = Phrase::new(out_phrase.as_str(), freq);
-            let syllables = out_bopomofo
+            let syllables = bopomofo
                 .replace("␣", " ")
                 // number one vs. bopomofo I
                 .replace("一", "ㄧ")
@@ -99,12 +96,12 @@ pub fn run() -> Result<()> {
                 .collect::<Vec<_>>();
             for err in syllables.iter() {
                 if err.is_err() {
-                    dbg!(err);
+                    log::error!("{err:?}");
                 }
             }
             if syllables.iter().any(|syl| syl.is_err()) {
-                let ellipsis = if out_bopomofo.len() > 20 { 3 } else { 0 };
-                let sample = out_bopomofo
+                let ellipsis = if bopomofo.len() > 20 { 3 } else { 0 };
+                let sample = bopomofo
                     .chars()
                     .take(20)
                     .chain(iter::repeat_n('.', ellipsis))
@@ -116,23 +113,24 @@ pub fn run() -> Result<()> {
                     ),
                 };
             }
-            let syllables = syllables
-                .into_iter()
-                .map(|syl| syl.unwrap())
-                .collect::<Vec<_>>();
-            cache[index] = (syllables, phrase);
-        }
-        entry.tracker.row_changed(index);
-        CallbackResult {
-            error: ErrorKind::Ok,
-            ..Default::default()
-        }
-    });
+            // save data
+            let entries_rc = ui.global::<DictEntriesAdapter>().get_entries();
+            let wrapped_entries =
+                filter_sort_model(entries_rc, search_text, sort_index, sort_ascending);
+            // HACK: initialize the mapping
+            let _ = wrapped_entries.row_data(0);
+            wrapped_entries.set_row_data(current_row as usize, data);
+            CallbackResult {
+                error: ErrorKind::Ok,
+                ..Default::default()
+            }
+        },
+    );
 
     let ui_handle = ui.as_weak();
     ui.on_edit_entry_new(move || {
         let ui = ui_handle.upgrade().unwrap();
-        let entries_rc = ui.get_entries();
+        let entries_rc = ui.global::<DictEntriesAdapter>().get_entries();
         let entry = entries_rc
             .as_any()
             .downcast_ref::<DictEditViewModel>()
@@ -142,8 +140,8 @@ pub fn run() -> Result<()> {
             .write()
             .map(|mut cache| {
                 let phrase = Phrase::new("", 0);
-                cache.push((vec![], phrase));
-                cache.len() - 1
+                cache.insert(0, (vec![], phrase));
+                0
             })
             .map(|index| {
                 entry.tracker.row_added(index, 1);
@@ -154,7 +152,7 @@ pub fn run() -> Result<()> {
     ui.on_edit_entry_delete(move || {
         let ui = ui_handle.upgrade().unwrap();
         let index = ui.get_edit_dict_current_row() as usize;
-        let entries_rc = ui.get_entries();
+        let entries_rc = ui.global::<DictEntriesAdapter>().get_entries();
         let entry = entries_rc
             .as_any()
             .downcast_ref::<DictEditViewModel>()
@@ -170,7 +168,7 @@ pub fn run() -> Result<()> {
     let ui_handle = ui.as_weak();
     ui.on_edit_dict_save(move || -> CallbackResult {
         let ui = ui_handle.upgrade().unwrap();
-        let entries_rc = ui.get_entries();
+        let entries_rc = ui.global::<DictEntriesAdapter>().get_entries();
         let entry = entries_rc
             .as_any()
             .downcast_ref::<DictEditViewModel>()
@@ -393,6 +391,41 @@ impl Model for DictEditViewModel {
             })
     }
 
+    fn set_row_data(&self, row: usize, data: Self::Data) {
+        let out_phrase = data.row_data(0).unwrap_or_default().text;
+        let out_bopomofo = data.row_data(1).unwrap_or_default().text;
+        let out_freq = data.row_data(2).unwrap_or_default().text;
+        if let Ok(mut cache) = self.cache.write() {
+            let freq: u32 = match out_freq.parse() {
+                Ok(v) => v,
+                Err(_) => return,
+            };
+            let phrase = Phrase::new(out_phrase.as_str(), freq);
+            let syllables = out_bopomofo
+                .replace("␣", " ")
+                // number one vs. bopomofo I
+                .replace("一", "ㄧ")
+                .trim()
+                .split_whitespace()
+                .map(|cluster| Syllable::from_str(&cluster))
+                .collect::<Vec<_>>();
+            for err in syllables.iter() {
+                if err.is_err() {
+                    dbg!(err);
+                }
+            }
+            if syllables.iter().any(|syl| syl.is_err()) {
+                return;
+            }
+            let syllables = syllables
+                .into_iter()
+                .map(|syl| syl.unwrap())
+                .collect::<Vec<_>>();
+            cache[row] = (syllables, phrase);
+        }
+        self.tracker.row_changed(row);
+    }
+
     fn model_tracker(&self) -> &dyn ModelTracker {
         &self.tracker
     }
@@ -400,4 +433,53 @@ impl Model for DictEditViewModel {
     fn as_any(&self) -> &dyn core::any::Any {
         self
     }
+}
+
+fn filter_sort_model(
+    source_model: ModelRc<ModelRc<StandardListViewItem>>,
+    filter: SharedString,
+    sort_index: i32,
+    sort_ascending: bool,
+) -> ModelRc<ModelRc<StandardListViewItem>> {
+    let mut model = source_model.clone();
+
+    if !filter.is_empty() {
+        let filter = filter.to_lowercase();
+
+        // filter by first row
+        model = Rc::new(source_model.clone().filter(move |e| {
+            e.row_data(0)
+                .unwrap()
+                .text
+                .to_lowercase()
+                .contains(filter.as_str())
+        }))
+        .into();
+    }
+
+    if sort_index >= 0 {
+        model = Rc::new(model.clone().sort_by(move |r_a, r_b| {
+            let c_a = r_a.row_data(sort_index as usize).unwrap();
+            let c_b = r_b.row_data(sort_index as usize).unwrap();
+
+            if sort_index == 2 {
+                let a_num: u32 = c_a.text.parse().unwrap_or_default();
+                let b_num: u32 = c_b.text.parse().unwrap_or_default();
+                if sort_ascending {
+                    a_num.cmp(&b_num)
+                } else {
+                    b_num.cmp(&a_num)
+                }
+            } else {
+                if sort_ascending {
+                    c_a.text.cmp(&c_b.text)
+                } else {
+                    c_b.text.cmp(&c_a.text)
+                }
+            }
+        }))
+        .into();
+    }
+
+    model
 }
