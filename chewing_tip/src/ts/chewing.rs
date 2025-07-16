@@ -450,7 +450,11 @@ impl ChewingTextService {
                 }
             } else if ev.is_alphabet() {
                 unsafe {
-                    chewing_handle_Default(ctx, ev.code as i32);
+                    let mut code = ev.code.to_ascii_lowercase();
+                    if ev.is_key_down(VK_SHIFT) && self.cfg.easy_symbols_with_shift {
+                        code = ev.code.to_ascii_uppercase();
+                    }
+                    chewing_handle_Default(ctx, code as i32);
                 }
             } else if ev.is_key(VK_SPACE) {
                 unsafe {
