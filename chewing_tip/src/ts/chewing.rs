@@ -669,7 +669,9 @@ impl ChewingTextService {
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
                 };
-                self.show_message(context, &msg, Duration::from_millis(500))?;
+                if self.cfg.show_notification {
+                    self.show_message(context, &msg, Duration::from_millis(500))?;
+                }
                 self.last_keydown_time = None;
                 self.last_keydown_code = 0;
                 return Ok(true);
@@ -683,7 +685,9 @@ impl ChewingTextService {
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
                 };
-                self.show_message(context, &msg, Duration::from_millis(500))?;
+                if self.cfg.show_notification {
+                    self.show_message(context, &msg, Duration::from_millis(500))?;
+                }
                 self.last_keydown_time = None;
                 self.last_keydown_code = 0;
                 return Ok(true);
@@ -700,7 +704,9 @@ impl ChewingTextService {
                 CHINESE_MODE => HSTRING::from("中文模式"),
                 _ => unreachable!(),
             };
-            self.show_message(context, &msg, Duration::from_millis(500))?;
+            if self.cfg.show_notification {
+                self.show_message(context, &msg, Duration::from_millis(500))?;
+            }
             self.last_keydown_time = None;
             self.last_keydown_code = 0;
             return Ok(true);
@@ -979,9 +985,6 @@ impl ChewingTextService {
     }
 
     fn show_message(&mut self, context: &ITfContext, text: &HSTRING, dur: Duration) -> Result<()> {
-        if !self.cfg.show_notification {
-            return Ok(());
-        }
         unsafe {
             let view = context.GetActiveView()?;
             // UILess console may not have valid HWND
