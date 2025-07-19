@@ -192,8 +192,8 @@ impl RenderedView {
     }
 }
 
-const ROW_SPACING: u32 = 4;
-const COL_SPACING: u32 = 8;
+const ROW_SPACING: f32 = 4.0;
+const COL_SPACING: f32 = 8.0;
 
 impl View for DummyView {
     fn window(&self) -> Option<&Window> {
@@ -236,12 +236,12 @@ impl View for RenderedView {
             )?
         };
         // Recalculate the size of the window
-        let margin = 10.0;
+        let margin: f32 = 10.0;
         let scale = get_scale_for_window(self.window.hwnd());
         let mut selkey_width: f32 = 0.0;
         let mut text_width: f32 = 0.0;
         let mut item_height: f32 = 0.0;
-        let mut selkey = "?. ".to_string().encode_utf16().collect::<Vec<_>>();
+        let mut selkey = "?.".to_string().encode_utf16().collect::<Vec<_>>();
         for (key, text) in model.selkeys.iter().zip(model.items.iter()) {
             let mut selkey_metrics = DWRITE_TEXT_METRICS::default();
             let mut item_metrics = DWRITE_TEXT_METRICS::default();
@@ -263,20 +263,21 @@ impl View for RenderedView {
                 .max(item_metrics.height)
                 .max(selkey_metrics.height);
         }
+        selkey_width += 1.0;
 
-        let items_len = model.items.len() as u32;
-        let cand_per_row = items_len.min(model.cand_per_row).clamp(1, u32::MAX);
-        let rows = items_len.div_ceil(cand_per_row).clamp(1, u32::MAX);
-        let width = cand_per_row * (selkey_width + text_width).ceil() as u32
-            + (cand_per_row - 1) * COL_SPACING
-            + 2 * margin as u32;
-        let height = rows * item_height as u32 + (rows - 1) * ROW_SPACING + 2 * margin as u32;
+        let items_len = model.items.len() as f32;
+        let cand_per_row = items_len
+            .min(model.cand_per_row as f32)
+            .clamp(1.0, f32::MAX);
+        let rows = (items_len / cand_per_row).clamp(1.0, f32::MAX).ceil();
+        let width = cand_per_row * (selkey_width + text_width)
+            + (cand_per_row - 1.0) * COL_SPACING
+            + 2.0 * margin;
+        let height = rows * item_height + (rows - 1.0) * ROW_SPACING + 2.0 * margin;
 
-        let width = width as f32;
-        let height = height as f32;
         // Convert to HW pixels
-        let hw_width = width * scale + 25.0;
-        let hw_height = height * scale + 25.0;
+        let hw_width = (width * scale + 25.0).ceil();
+        let hw_height = (height * scale + 25.0).ceil();
         Ok(RenderedMetrics {
             width,
             height,
@@ -348,7 +349,7 @@ impl View for RenderedView {
                     right: x + selkey_width + text_width,
                     bottom: y + item_height,
                 };
-                let mut selkey = "?. ".to_string().encode_utf16().collect::<Vec<_>>();
+                let mut selkey = "?.".to_string().encode_utf16().collect::<Vec<_>>();
                 selkey[0] = model.selkeys.get(i.clamp(0, 9)).cloned().unwrap_or(0x3F);
 
                 let selkey_brush = dc.CreateSolidColorBrush(&model.selkey_color, None)?;
@@ -398,9 +399,9 @@ impl View for RenderedView {
                 if col >= model.cand_per_row {
                     col = 0;
                     x = margin;
-                    y += item_height + ROW_SPACING as f32;
+                    y += item_height + ROW_SPACING;
                 } else {
-                    x += selkey_width + text_width + COL_SPACING as f32;
+                    x += selkey_width + text_width + COL_SPACING;
                 }
             }
 

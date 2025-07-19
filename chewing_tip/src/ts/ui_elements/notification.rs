@@ -230,8 +230,8 @@ impl View for RenderedView {
         let height = metrics.height + margin * 2.0;
 
         // Convert to HW pixels
-        let hw_width = width * scale + 25.0;
-        let hw_height = height * scale + 25.0;
+        let hw_width = (width * scale + 25.0).ceil();
+        let hw_height = (height * scale + 25.0).ceil();
 
         Ok(RenderedMetrics {
             width,
