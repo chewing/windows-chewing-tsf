@@ -362,6 +362,22 @@ impl ChewingTextService {
             self.last_keydown_time = Some(Instant::now());
         }
         let enable_caps_lock = self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL);
+
+        if ev.is_key_down(VK_MENU) {
+            // bypass IME. This might be a shortcut key used in the application
+            debug!("key not handled - Alt modifier key was down");
+            return Ok(false);
+        }
+        if ev.is_key_down(VK_CONTROL) {
+            // bypass IME. This might be a shortcut key used in the application
+            if self.is_composing() && ev.is_digits() {
+                // need to handle userphrase
+            } else {
+                debug!("key not handled - Ctrl modifier key was down");
+                return Ok(false);
+            }
+        }
+
         if !self.is_composing() {
             // don't do further handling in English + half shape mode
             if self.lang_mode == SYMBOL_MODE
@@ -369,15 +385,6 @@ impl ChewingTextService {
                 && !enable_caps_lock
             {
                 debug!("key not handled - in English mode");
-                return Ok(false);
-            }
-
-            if ev.is_key_down(VK_CONTROL) || ev.is_key_down(VK_MENU) {
-                // bypass IME. This might be a shortcut key used in the application
-                // FIXME: we only need Ctrl in composition mode for adding user phrases.
-                // However, if we turn on easy symbol input with Ctrl support later,
-                // we'll need th Ctrl key then.
-                debug!("key not handled - Ctrl or Alt modifier key was down");
                 return Ok(false);
             }
 
@@ -461,7 +468,7 @@ impl ChewingTextService {
                 unsafe {
                     chewing_handle_Space(ctx);
                 }
-            } else if ev.is_key_down(VK_CONTROL) && ev.code.is_ascii_digit() {
+            } else if ev.is_key_down(VK_CONTROL) && ev.is_digits() {
                 unsafe {
                     chewing_handle_CtrlNum(ctx, ev.code as i32);
                 }
