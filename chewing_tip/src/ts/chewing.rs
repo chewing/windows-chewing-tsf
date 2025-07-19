@@ -1081,7 +1081,13 @@ impl ChewingTextService {
     fn toggle_shape_mode(&mut self) -> Result<()> {
         if let Some(ctx) = self.chewing_context {
             unsafe {
-                chewing_set_ShapeMode(ctx, !chewing_get_ShapeMode(ctx));
+                chewing_set_ShapeMode(
+                    ctx,
+                    match chewing_get_ShapeMode(ctx) {
+                        0 => 1,
+                        _ => 0,
+                    },
+                );
             }
             self.update_lang_buttons(false)?;
         }
