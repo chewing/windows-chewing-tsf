@@ -72,7 +72,6 @@ use windows::Win32::UI::{
 use windows_core::{
     BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR, w,
 };
-use windows_version::OsVersion;
 use zhconv::{Variant, zhconv};
 
 use crate::G_HINSTANCE;
@@ -253,49 +252,47 @@ impl ChewingTextService {
         }
 
         // Windows 8 systray IME mode icon
-        if OsVersion::current() >= OsVersion::new(6, 2, 9200, 0) {
-            info!("Add systray IME mode icon to switch Chinese/English modes");
-            unsafe {
-                let mut info = TF_LANGBARITEMINFO {
-                    clsidService: CLSID_TEXT_SERVICE,
-                    guidItem: GUID_LBI_INPUTMODE,
-                    dwStyle: TF_LBI_STYLE_BTN_BUTTON,
-                    ..Default::default()
-                };
-                let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
-                LoadStringW(
-                    Some(g_hinstance),
-                    IDS_SWITCH_LANG,
-                    tooltip,
-                    info.szDescription.len() as i32,
-                );
-                let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
-                    (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
-                    (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
-                    (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
-                    (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
-                    _ => IDI_CHI,
-                };
-                if self.output_simp_chinese {
-                    icon_id = match icon_id {
-                        IDI_CHI => IDI_SIMP,
-                        IDI_CHI_DARK => IDI_SIMP_DARK,
-                        _ => icon_id,
-                    }
+        info!("Add systray IME mode icon to switch Chinese/English modes");
+        unsafe {
+            let mut info = TF_LANGBARITEMINFO {
+                clsidService: CLSID_TEXT_SERVICE,
+                guidItem: GUID_LBI_INPUTMODE,
+                dwStyle: TF_LBI_STYLE_BTN_BUTTON,
+                ..Default::default()
+            };
+            let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
+            LoadStringW(
+                Some(g_hinstance),
+                IDS_SWITCH_LANG,
+                tooltip,
+                info.szDescription.len() as i32,
+            );
+            let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
+                (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
+                (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
+                (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
+                (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
+                _ => IDI_CHI,
+            };
+            if self.output_simp_chinese {
+                icon_id = match icon_id {
+                    IDI_CHI => IDI_SIMP,
+                    IDI_CHI_DARK => IDI_SIMP_DARK,
+                    _ => icon_id,
                 }
-                let button = LangBarButton::new(
-                    info,
-                    BSTR::from_wide(tooltip.as_wide()),
-                    LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?,
-                    HMENU::default(),
-                    ID_MODE_ICON,
-                    thread_mgr.clone(),
-                )
-                .into_object();
-                button.set_enabled(true)?;
-                self.ime_mode_button = Some(button.clone());
-                self.add_button(button.to_interface())?;
             }
+            let button = LangBarButton::new(
+                info,
+                BSTR::from_wide(tooltip.as_wide()),
+                LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?,
+                HMENU::default(),
+                ID_MODE_ICON,
+                thread_mgr.clone(),
+            )
+            .into_object();
+            button.set_enabled(true)?;
+            self.ime_mode_button = Some(button.clone());
+            self.add_button(button.to_interface())?;
         }
 
         if let Err(error) = self.cfg.reload_if_needed() {
