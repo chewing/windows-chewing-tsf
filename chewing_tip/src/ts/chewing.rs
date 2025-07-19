@@ -565,35 +565,37 @@ impl ChewingTextService {
         if unsafe { chewing_commit_Check(ctx) } == 1 {
             let ptr = unsafe { chewing_commit_String(ctx) };
             let cstr = unsafe { CStr::from_ptr(ptr) };
-            let mut text = cstr.to_string_lossy().into_owned();
+            let text = cstr.to_string_lossy().into_owned();
             unsafe {
                 chewing_free(ptr.cast());
                 chewing_ack(ctx);
             }
-            if self.output_simp_chinese {
-                text = zhconv(&text, Variant::ZhHans);
-            }
             debug!("commit string {}", &text);
-            self.set_composition_string(context, &text.into(), 0)?;
+            self.set_composition_string(context, &text, 0)?;
             self.end_composition(context)?;
             debug!("commit string ok");
         }
 
-        let mut composition_buf = vec![];
+        let mut composition_buf = String::new();
         if unsafe { chewing_buffer_Check(ctx) } == 1 {
             let ptr = unsafe { chewing_buffer_String(ctx) };
             let cstr = unsafe { CStr::from_ptr(ptr) };
-            let text = HSTRING::from(cstr.to_string_lossy().as_ref());
+            let text = cstr.to_string_lossy().into_owned();
             unsafe {
                 chewing_free(ptr.cast());
             }
-            composition_buf.extend_from_slice(&text);
+            composition_buf.push_str(&text);
         }
         if unsafe { chewing_bopomofo_Check(ctx) } == 1 {
             let ptr = unsafe { chewing_bopomofo_String_static(ctx) };
             let cstr = unsafe { CStr::from_ptr(ptr) };
             let pos = unsafe { chewing_cursor_Current(ctx) } as usize;
-            composition_buf.splice(pos..pos, cstr.to_string_lossy().encode_utf16());
+            let idx = composition_buf
+                .char_indices()
+                .nth(pos)
+                .map(|pair| pair.0)
+                .unwrap_or(composition_buf.len());
+            composition_buf.insert_str(idx, &cstr.to_string_lossy());
         }
 
         // has something in composition buffer
@@ -601,13 +603,12 @@ impl ChewingTextService {
             if !self.is_composing() {
                 self.start_composition(context)?;
             }
-            let text = HSTRING::from_wide(&composition_buf);
             let cursor = unsafe { chewing_cursor_Current(ctx) };
-            self.set_composition_string(context, &text, cursor)?;
+            self.set_composition_string(context, &composition_buf, cursor)?;
         } else {
             // nothing left in composition buffer, terminate composition status
             if self.is_composing() {
-                self.set_composition_string(context, &HSTRING::from(""), 0)?;
+                self.set_composition_string(context, "", 0)?;
             }
             // We also need to make sure that the candidate window is not
             // currently shown. When typing symbols with ` key, it's possible
@@ -932,18 +933,23 @@ impl ChewingTextService {
     fn set_composition_string(
         &mut self,
         context: &ITfContext,
-        text: &HSTRING,
+        text: &str,
         cursor: i32,
     ) -> Result<()> {
         let Some(composition) = &self.composition else {
             return Ok(());
         };
         debug!("set composition string to {text}");
+        let htext = if self.output_simp_chinese {
+            zhconv(text, Variant::ZhHans).into()
+        } else {
+            text.into()
+        };
         let session = SetCompositionString::new(
             context,
             composition,
             self.input_da_atom.clone(),
-            text,
+            &htext,
             cursor,
         )
         .into_object();
