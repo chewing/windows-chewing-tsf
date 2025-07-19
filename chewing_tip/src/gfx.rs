@@ -167,7 +167,7 @@ pub(super) fn dwrite_family_from_gdi_name(
         ..Default::default()
     };
     unsafe {
-        let fa: &[u16] = &*family_name;
+        let fa: &[u16] = family_name;
         if fa.len() > logfont.lfFaceName.len() {
             bail!(
                 "Unable to convert GDI font name longer than {}",

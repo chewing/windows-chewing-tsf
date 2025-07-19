@@ -253,13 +253,11 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
                     return Err(E_UNEXPECTED.into());
                 }
             }
-        } else {
-            if let Some(doc_mgr) = pdimfocus.as_ref() {
-                let context = unsafe { doc_mgr.GetBase()? };
-                if let Err(error) = ts.on_focus(&context) {
-                    error!("Unable to handle focus: {error:#}");
-                    return Err(E_UNEXPECTED.into());
-                }
+        } else if let Some(doc_mgr) = pdimfocus.as_ref() {
+            let context = unsafe { doc_mgr.GetBase()? };
+            if let Err(error) = ts.on_focus(&context) {
+                error!("Unable to handle focus: {error:#}");
+                return Err(E_UNEXPECTED.into());
             }
         }
         Ok(())

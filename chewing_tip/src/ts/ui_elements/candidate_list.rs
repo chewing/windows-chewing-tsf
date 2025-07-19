@@ -105,7 +105,7 @@ impl IWndProc_Impl for CandidateList_Impl {
                 unsafe { BeginPaint(window.hwnd(), &mut ps) };
                 let _ = view.on_paint(&model);
                 let _ = unsafe { EndPaint(window.hwnd(), &ps) };
-                return LRESULT(0);
+                LRESULT(0)
             }
             WM_WINDOWPOSCHANGING => {
                 let view = self.view.borrow();
@@ -127,14 +127,14 @@ impl IWndProc_Impl for CandidateList_Impl {
                         }
                     }
                 }
-                return LRESULT(0);
+                LRESULT(0)
             }
             _ => {
                 let view = self.view.borrow();
                 let Some(window) = view.window() else {
                     return LRESULT(0);
                 };
-                return window.wnd_proc(msg, wparam, lparam);
+                window.wnd_proc(msg, wparam, lparam)
             }
         }
     }
@@ -607,7 +607,7 @@ impl ITfCandidateListUIElement_Impl for CandidateList_Impl {
         unsafe {
             *pupagecnt = 1; // Assuming single page for simplicity
         }
-        return Ok(());
+        Ok(())
     }
 
     fn SetPageIndex(&self, _pindex: *const u32, _upagecnt: u32) -> WindowsResult<()> {

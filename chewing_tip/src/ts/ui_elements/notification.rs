@@ -84,7 +84,7 @@ impl IWndProc_Impl for Notification_Impl {
                 unsafe { BeginPaint(window.hwnd(), &mut ps) };
                 let _ = view.on_paint(&model);
                 let _ = unsafe { EndPaint(window.hwnd(), &ps) };
-                return LRESULT(0);
+                LRESULT(0)
             }
             WM_WINDOWPOSCHANGING => {
                 let view = self.view.borrow();
@@ -106,7 +106,7 @@ impl IWndProc_Impl for Notification_Impl {
                         }
                     }
                 }
-                return LRESULT(0);
+                LRESULT(0)
             }
             WM_TIMER => {
                 if wparam.0 == ID_TIMEOUT {
@@ -117,14 +117,14 @@ impl IWndProc_Impl for Notification_Impl {
                     };
                     let _ = unsafe { KillTimer(Some(window.hwnd()), ID_TIMEOUT) };
                 }
-                return LRESULT(0);
+                LRESULT(0)
             }
             _ => {
                 let view = self.view.borrow();
                 let Some(window) = view.window() else {
                     return LRESULT(0);
                 };
-                return window.wnd_proc(msg, wparam, lparam);
+                window.wnd_proc(msg, wparam, lparam)
             }
         }
     }
