@@ -6,7 +6,7 @@ use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -112,6 +112,7 @@ pub(super) struct ChewingTextService {
     shape_mode: i32,
     output_simp_chinese: bool,
     last_keydown_code: u16,
+    last_keydown_time: Option<Instant>,
     cfg: Config,
     chewing_context: Option<*mut ChewingContext>,
 
@@ -357,6 +358,9 @@ impl ChewingTextService {
             return Ok(false);
         }
         self.last_keydown_code = ev.vk;
+        if self.last_keydown_time.is_none() {
+            self.last_keydown_time = Some(Instant::now());
+        }
         let enable_caps_lock = self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL);
         if !self.is_composing() {
             // don't do further handling in English + half shape mode
@@ -638,8 +642,15 @@ impl ChewingTextService {
         };
         let last_is_shift = self.last_keydown_code == VK_SHIFT.0 && ev.vk == VK_SHIFT.0;
         let last_is_caps_lock = self.last_keydown_code == VK_CAPITAL.0 && ev.vk == VK_CAPITAL.0;
+        let hold_duration = self
+            .last_keydown_time
+            .map(|t| t.elapsed())
+            .unwrap_or(Duration::from_secs(1));
 
-        if self.cfg.switch_lang_with_shift && last_is_shift {
+        if self.cfg.switch_lang_with_shift
+            && hold_duration < Duration::from_secs(1)
+            && last_is_shift
+        {
             if dry_run {
                 return Ok(true);
             }
@@ -651,6 +662,7 @@ impl ChewingTextService {
                     _ => unreachable!(),
                 };
                 self.show_message(context, &msg, Duration::from_millis(500))?;
+                self.last_keydown_time = None;
                 self.last_keydown_code = 0;
                 return Ok(true);
             } else {
@@ -664,6 +676,7 @@ impl ChewingTextService {
                     _ => unreachable!(),
                 };
                 self.show_message(context, &msg, Duration::from_millis(500))?;
+                self.last_keydown_time = None;
                 self.last_keydown_code = 0;
                 return Ok(true);
             }
@@ -680,10 +693,12 @@ impl ChewingTextService {
                 _ => unreachable!(),
             };
             self.show_message(context, &msg, Duration::from_millis(500))?;
+            self.last_keydown_time = None;
             self.last_keydown_code = 0;
             return Ok(true);
         }
 
+        self.last_keydown_time = None;
         self.last_keydown_code = 0;
         Ok(false)
     }
