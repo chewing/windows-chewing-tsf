@@ -2,7 +2,7 @@ name: Nightly Build
 
 env:
   VER_MAJOR: 25
-  VER_MINOR: 4
+  VER_MINOR: 8
   VER_PATCH: 0
 
 on:
