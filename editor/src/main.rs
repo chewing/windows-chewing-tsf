@@ -9,8 +9,7 @@ use std::env;
 slint::include_modules!();
 
 fn main() -> anyhow::Result<()> {
-    env_logger::init();
-    log::info!("editor started");
+    win_dbg_logger::init();
     editor::run()?;
     Ok(())
 }
