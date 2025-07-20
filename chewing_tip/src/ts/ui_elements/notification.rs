@@ -203,6 +203,7 @@ impl View for RenderedView {
         Some(&self.window)
     }
     fn calculate_client_rect(&self, model: &NotificationModel) -> Result<RenderedMetrics> {
+        let scale = get_dpi_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());
@@ -213,11 +214,10 @@ impl View for RenderedView {
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
-                model.font_size,
+                model.font_size * scale,
                 w!("zh-TW"),
             )?
         };
-        let scale = get_dpi_for_window(self.window.hwnd());
         let text_layout = unsafe {
             self.dwrite_factory
                 .CreateTextLayout(&model.text, &text_format, f32::MAX, f32::MAX)?
@@ -245,6 +245,7 @@ impl View for RenderedView {
         if model.text.is_empty() {
             return Ok(());
         }
+        let scale = get_dpi_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());
@@ -255,7 +256,7 @@ impl View for RenderedView {
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
-                model.font_size,
+                model.font_size * scale,
                 w!("zh-TW"),
             )?
         };

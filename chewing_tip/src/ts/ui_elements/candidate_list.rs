@@ -221,6 +221,7 @@ impl View for RenderedView {
     }
     fn calculate_client_rect(&self, model: &Model) -> Result<RenderedMetrics> {
         // Create a text format for the candidate list
+        let scale = get_scale_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());
@@ -231,13 +232,12 @@ impl View for RenderedView {
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
-                model.font_size,
+                model.font_size * scale,
                 w!("zh-TW"),
             )?
         };
         // Recalculate the size of the window
         let margin: f32 = 10.0;
-        let scale = get_scale_for_window(self.window.hwnd());
         let mut selkey_width: f32 = 0.0;
         let mut text_width: f32 = 0.0;
         let mut item_height: f32 = 0.0;
@@ -292,6 +292,7 @@ impl View for RenderedView {
         if model.items.is_empty() {
             return Ok(());
         }
+        let scale = get_scale_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());
@@ -303,7 +304,7 @@ impl View for RenderedView {
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
-                model.font_size,
+                model.font_size * scale,
                 w!("zh-TW"),
             )?
         };
