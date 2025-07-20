@@ -3,9 +3,9 @@
 use std::cell::{Cell, RefCell};
 
 use anyhow::{Context, Result};
-use log::error;
+use log::{debug, error};
 use windows::Win32::{
-    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WPARAM},
+    Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
             Common::{D2D_RECT_F, D2D1_COLOR_F},
@@ -35,8 +35,8 @@ use windows::Win32::{
             TF_CLUIE_STRING,
         },
         WindowsAndMessaging::{
-            GetClientRect, WINDOWPOS, WM_PAINT, WM_WINDOWPOSCHANGING, WS_CLIPCHILDREN,
-            WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+            WINDOWPOS, WM_PAINT, WM_WINDOWPOSCHANGING, WS_CLIPCHILDREN, WS_EX_TOOLWINDOW,
+            WS_EX_TOPMOST, WS_POPUP,
         },
     },
 };
@@ -109,22 +109,14 @@ impl IWndProc_Impl for CandidateList_Impl {
             }
             WM_WINDOWPOSCHANGING => {
                 let view = self.view.borrow();
-                let Some(window) = view.window() else {
-                    return LRESULT(0);
-                };
                 // Recalculate the client rect
                 let model = self.model.borrow();
                 if let Ok(metrics) = view.calculate_client_rect(&model) {
-                    let mut rect = RECT::default();
-                    let _ = unsafe { GetClientRect(window.hwnd(), &mut rect) };
-                    if rect.right as f32 != metrics.hw_width
-                        || rect.bottom as f32 != metrics.hw_height
-                    {
-                        let pos = lparam.0 as *mut WINDOWPOS;
-                        unsafe {
-                            (*pos).cx = metrics.hw_width as i32;
-                            (*pos).cy = metrics.hw_height as i32;
-                        }
+                    debug!("calculat client rect wndproc: {metrics:?}");
+                    let pos = lparam.0 as *mut WINDOWPOS;
+                    unsafe {
+                        (*pos).cx = metrics.hw_width as i32;
+                        (*pos).cy = metrics.hw_height as i32;
                     }
                 }
                 LRESULT(0)
@@ -151,6 +143,7 @@ struct RenderedView {
     window: Window,
 }
 
+#[derive(Debug)]
 struct RenderedMetrics {
     width: f32,
     height: f32,
@@ -309,6 +302,8 @@ impl View for RenderedView {
             )?
         };
 
+        let rm = self.calculate_client_rect(model)?;
+        debug!("calculat client rect on_paint: {rm:?}");
         let RenderedMetrics {
             width,
             height,
@@ -317,7 +312,7 @@ impl View for RenderedView {
             selkey_width,
             text_width,
             item_height,
-        } = self.calculate_client_rect(model)?;
+        } = rm;
         unsafe {
             self.target.SetTarget(None);
             self.swapchain.ResizeBuffers(
@@ -523,6 +518,7 @@ impl CandidateList {
             if has_monitor_info.as_bool() {
                 if let Ok(size) = view.calculate_client_rect(&self.model.borrow()) {
                     // constraint window to screen
+                    debug!("calculate client rect set_pos: {size:?}");
                     x = x.min(monitor_info.rcMonitor.right - size.hw_width as i32 - 10);
                     y = y.min(monitor_info.rcMonitor.bottom - size.hw_height as i32 - 10);
                 }

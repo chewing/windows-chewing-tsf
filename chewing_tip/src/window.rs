@@ -7,9 +7,9 @@ use std::{
     sync::atomic::Ordering,
 };
 
-use windows::Win32::Foundation::*;
-use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::Win32::{Foundation::*, UI::HiDpi::SetThreadDpiAwarenessContext};
+use windows::Win32::{Graphics::Gdi::*, UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::core::*;
 
 use crate::G_HINSTANCE;
@@ -92,6 +92,9 @@ impl Window {
         ex_style: WINDOW_EX_STYLE,
     ) -> bool {
         let hinst = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
+        // Switch to DPI aware context
+        let old_context =
+            unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
         let hwnd = unsafe {
             CreateWindowExW(
                 ex_style,
@@ -108,6 +111,10 @@ impl Window {
                 None,
             )
         };
+        // Restore previous DPI context
+        unsafe {
+            SetThreadDpiAwarenessContext(old_context);
+        }
         match hwnd {
             Ok(hwnd) => {
                 self.hwnd.set(hwnd);

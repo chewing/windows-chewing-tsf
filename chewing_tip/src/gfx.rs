@@ -130,24 +130,8 @@ pub(super) fn setup_direct_composition(
 
 pub(super) fn get_dpi_for_window(hwnd: HWND) -> f32 {
     unsafe {
-        // Save the old DPI context
-        let old_context = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
-        // Get monitor from window
-        let monitor: HMONITOR = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        let mut dpi_x: u32 = 96;
-        let mut dpi_y: u32 = 96;
-
-        let hr = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
-
-        // Restore previous DPI context
-        SetThreadDpiAwarenessContext(old_context);
-
-        if hr.is_ok() {
-            dpi_x as f32
-        } else {
-            96.0 // fallback to 1.0x scale
-        }
+        let dpi = GetDpiForWindow(hwnd);
+        if dpi == 0 { 96.0 } else { dpi as f32 }
     }
 }
 
