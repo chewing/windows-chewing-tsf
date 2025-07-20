@@ -49,11 +49,13 @@ pub fn enum_font_families() -> Result<Vec<SharedString>> {
         }
 
         // Create LOGFONT structure for enumeration
-        let mut logfont = LOGFONTW::default();
-        logfont.lfCharSet = DEFAULT_CHARSET;
+        let logfont = LOGFONTW {
+            lfCharSet: DEFAULT_CHARSET,
+            ..Default::default()
+        };
 
         // Vector to store font information
-        let fonts: Box<Vec<String>> = Box::new(Vec::new());
+        let fonts: Box<Vec<String>> = Box::default();
         let fonts_ptr = Box::into_raw(fonts);
 
         // Enumerate font families
@@ -77,8 +79,8 @@ pub fn enum_font_families() -> Result<Vec<SharedString>> {
 
         let mut res: Vec<SharedString> = fonts.into_iter().map(|s| s.into()).collect();
         res.sort_by(|a, b| {
-            let a_localized = a.chars().any(|ch| !ch.is_ascii());
-            let b_localized = b.chars().any(|ch| !ch.is_ascii());
+            let a_localized = a.is_ascii();
+            let b_localized = b.is_ascii();
             match (a_localized, b_localized) {
                 (true, true) => a.cmp(b),
                 (true, false) => Ordering::Less,

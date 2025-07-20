@@ -610,8 +610,10 @@ dependencies = [
  "anyhow",
  "chewing",
  "embed-resource",
+ "log",
  "slint",
  "slint-build",
+ "win_dbg_logger",
  "windows",
  "windows-registry",
 ]

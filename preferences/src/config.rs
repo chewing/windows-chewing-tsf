@@ -1,13 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::ptr::null_mut;
 use std::rc::Rc;
 use std::{env, fs, path::PathBuf};
 
 use anyhow::{Result, bail};
 use chewing::path::data_dir;
+use log::error;
 use slint::ComponentHandle;
 use slint::ModelRc;
 use slint::VecModel;
+use windows::Win32::Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree};
+use windows::Win32::Security::Authorization::{
+    EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, SE_OBJECT_TYPE, SE_REGISTRY_KEY, SET_ACCESS,
+    SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_GROUP, TRUSTEE_IS_SID, TRUSTEE_W,
+};
+use windows::Win32::Security::{
+    AllocateAndInitializeSid, DACL_SECURITY_INFORMATION, FreeSid, PSECURITY_DESCRIPTOR, PSID,
+    SECURITY_APP_PACKAGE_AUTHORITY, SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+};
+use windows::Win32::System::Registry::KEY_READ;
+use windows::Win32::System::SystemServices::{
+    SECURITY_APP_PACKAGE_BASE_RID, SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT,
+    SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE,
+};
+use windows::core::{PCWSTR, PWSTR, w};
 use windows_registry::{CURRENT_USER, Key};
 
 use crate::AboutWindow;
@@ -64,8 +81,7 @@ fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<()> {
 fn default_user_path_for_file(file: &str) -> PathBuf {
     let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
     let user_data_dir = PathBuf::from(user_profile).join("ChewingTextService");
-    let user_file = data_dir().unwrap_or(user_data_dir).join(file);
-    user_file
+    data_dir().unwrap_or(user_data_dir).join(file)
 }
 
 fn user_path_for_file(file: &str) -> Result<PathBuf> {
@@ -120,18 +136,14 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
 
     if let Ok(path) = user_path_for_file("symbols.dat") {
         ui.set_symbols_dat(fs::read_to_string(path)?.into());
-    } else {
-        if let Ok(path) = system_path_for_file("symbols.dat") {
-            ui.set_symbols_dat(fs::read_to_string(path)?.into());
-        }
+    } else if let Ok(path) = system_path_for_file("symbols.dat") {
+        ui.set_symbols_dat(fs::read_to_string(path)?.into());
     }
 
     if let Ok(path) = user_path_for_file("swkb.dat") {
         ui.set_swkb_dat(fs::read_to_string(path)?.into());
-    } else {
-        if let Ok(path) = system_path_for_file("swkb.dat") {
-            ui.set_swkb_dat(fs::read_to_string(path)?.into());
-        }
+    } else if let Ok(path) = system_path_for_file("swkb.dat") {
+        ui.set_swkb_dat(fs::read_to_string(path)?.into());
     }
 
     let key = CURRENT_USER
@@ -312,5 +324,96 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
         fs::write(user_swkb_dat_path, ui.get_swkb_dat())?;
     }
 
+    // AppContainer app, like the SearchHost.exe powering the start menu search bar
+    // needs this to access the settings.
+    if let Err(error) = grant_app_container_access(
+        w!(r"CURRENT_USER\Software\ChewingTextService"),
+        SE_REGISTRY_KEY,
+        KEY_READ.0,
+    ) {
+        error!("Failed to grant app container access: {error:#}");
+    }
+
     Ok(())
+}
+
+fn grant_app_container_access(object: PCWSTR, typ: SE_OBJECT_TYPE, access: u32) -> Result<()> {
+    let mut success = false;
+    let mut old_acl_mut_ptr = null_mut();
+    let mut new_acl_mut_ptr = null_mut();
+    let mut sd = PSECURITY_DESCRIPTOR::default();
+    // Get old security descriptor
+    unsafe {
+        if GetNamedSecurityInfoW(
+            object,
+            typ,
+            DACL_SECURITY_INFORMATION,
+            None,
+            None,
+            Some(&mut old_acl_mut_ptr),
+            None,
+            &mut sd,
+        ) == ERROR_SUCCESS
+        {
+            // Create a well-known SID for the all appcontainers group.
+            let mut psid = PSID::default();
+            if AllocateAndInitializeSid(
+                &SECURITY_APP_PACKAGE_AUTHORITY,
+                SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT as u8,
+                SECURITY_APP_PACKAGE_BASE_RID as u32,
+                SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE as u32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                &mut psid,
+            )
+            .is_ok()
+            {
+                let ea = EXPLICIT_ACCESS_W {
+                    grfAccessPermissions: access,
+                    grfAccessMode: SET_ACCESS,
+                    grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+                    Trustee: TRUSTEE_W {
+                        TrusteeForm: TRUSTEE_IS_SID,
+                        TrusteeType: TRUSTEE_IS_GROUP,
+                        ptstrName: PWSTR::from_raw(psid.0.cast()),
+                        ..Default::default()
+                    },
+                };
+                // Add the new entry to the existing DACL
+                if SetEntriesInAclW(Some(&[ea]), Some(old_acl_mut_ptr), &mut new_acl_mut_ptr)
+                    == ERROR_SUCCESS
+                {
+                    // Set the new DACL back to the object
+                    if SetNamedSecurityInfoW(
+                        object,
+                        typ,
+                        DACL_SECURITY_INFORMATION,
+                        None,
+                        None,
+                        Some(new_acl_mut_ptr),
+                        None,
+                    ) == ERROR_SUCCESS
+                    {
+                        success = true;
+                    }
+                }
+                FreeSid(psid);
+            }
+        }
+        if !sd.is_invalid() {
+            LocalFree(Some(HLOCAL(sd.0)));
+        }
+        if !new_acl_mut_ptr.is_null() {
+            LocalFree(Some(HLOCAL(new_acl_mut_ptr.cast())));
+        }
+    }
+    if success {
+        Ok(())
+    } else {
+        bail!("Unable to update security descriptor");
+    }
 }
