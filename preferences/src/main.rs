@@ -15,7 +15,9 @@ fn main() -> anyhow::Result<()> {
     slint::BackendSelector::new()
         .with_winit_window_attributes_hook(|attrs| attrs.with_transparent(false))
         .select()?;
-    if env::args().any(|arg| arg == "/about" || arg == "--about") {
+    if env::args()
+        .any(|arg| arg == "/about" || arg == "--about" || arg == "chewing-preferences://about/")
+    {
         about::run()?;
     } else {
         config::run()?;

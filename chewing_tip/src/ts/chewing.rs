@@ -41,6 +41,8 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info};
+use windows::Foundation::Uri;
+use windows::System::Launcher;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
@@ -51,7 +53,6 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_F12, VK_HOME, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT,
     VK_SHIFT, VK_TAB, VK_UP,
 };
-use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
@@ -59,8 +60,7 @@ use windows::Win32::UI::TextServices::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED, MF_UNCHECKED,
-    SW_SHOWNORMAL, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY, TPM_RETURNCMD,
-    TrackPopupMenu,
+    TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
@@ -70,7 +70,7 @@ use windows::Win32::UI::{
     },
 };
 use windows_core::{
-    BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR, w,
+    BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR,
 };
 use zhconv::{Variant, zhconv};
 
@@ -828,65 +828,14 @@ impl ChewingTextService {
                         error!("unable to toggle lang mode: {error}");
                     }
                 }
-                ID_HASHED => {
-                    if let Ok(prog_dir) = program_dir() {
-                        let exe = prog_dir
-                            .join("chewing-editor.exe")
-                            .to_string_lossy()
-                            .into_owned();
-                        unsafe {
-                            ShellExecuteW(
-                                None,
-                                None,
-                                &HSTRING::from(&exe),
-                                None,
-                                None,
-                                SW_SHOWNORMAL,
-                            );
-                        }
-                    }
-                }
-                ID_CONFIG => {
-                    if let Ok(prog_dir) = program_dir() {
-                        let exe = prog_dir
-                            .join("ChewingPreferences.exe")
-                            .to_string_lossy()
-                            .into_owned();
-                        unsafe {
-                            ShellExecuteW(
-                                None,
-                                None,
-                                &HSTRING::from(&exe),
-                                w!("--config"),
-                                None,
-                                SW_SHOWNORMAL,
-                            );
-                        }
-                    }
-                }
+                ID_HASHED => open_url("chewing-editor://open"),
+                ID_CONFIG => open_url("chewing-preferences://config"),
                 ID_OUTPUT_SIMP_CHINESE => {
                     if let Err(error) = self.toggle_simp_chinese() {
                         error!("unable to toggle simplified chinese: {error}");
                     }
                 }
-                ID_ABOUT => {
-                    if let Ok(prog_dir) = program_dir() {
-                        let exe = prog_dir
-                            .join("ChewingPreferences.exe")
-                            .to_string_lossy()
-                            .into_owned();
-                        unsafe {
-                            ShellExecuteW(
-                                None,
-                                None,
-                                &HSTRING::from(&exe),
-                                w!("--about"),
-                                None,
-                                SW_SHOWNORMAL,
-                            );
-                        }
-                    }
-                }
+                ID_ABOUT => open_url("chewing-preferences://about"),
                 ID_WEBSITE => open_url("https://chewing.im/"),
                 ID_GROUP => open_url("https://groups.google.com/group/chewing-devel"),
                 ID_BUGREPORT => {
@@ -1416,7 +1365,7 @@ fn program_dir() -> Result<PathBuf> {
 }
 
 fn open_url(url: &str) {
-    unsafe {
-        ShellExecuteW(None, None, &HSTRING::from(url), None, None, SW_SHOWNORMAL);
+    if let Ok(uri) = Uri::CreateUri(&url.into()) {
+        let _ = Launcher::LaunchUriAsync(&uri);
     }
 }

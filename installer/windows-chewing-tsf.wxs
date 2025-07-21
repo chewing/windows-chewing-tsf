@@ -34,6 +34,34 @@
                 <File Source="chewing-editor.exe" Bitness="always64" />
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
+                <Component Bitness="always64">
+                    <!-- Main protocol key -->
+                    <RegistryKey Root="HKCR" Key="chewing-preferences">
+                        <RegistryValue Type="string" Value="URL:Chewing Preferences" />
+                        <RegistryValue Name="URL Protocol" Type="string" Value="" />
+                    </RegistryKey>
+                    <!-- Default icon -->
+                    <RegistryKey Root="HKCR" Key="chewing-preferences\DefaultIcon">
+                        <RegistryValue Type="string" Value="[INSTALLFOLDER64]ChewingPreferences.exe,0" />
+                    </RegistryKey>
+                    <!-- Shell command -->
+                    <RegistryKey Root="HKCR" Key="chewing-preferences\shell\open\command">
+                        <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]ChewingPreferences.exe&quot; &quot;%1&quot;" />
+                    </RegistryKey>
+                    <!-- Main protocol key -->
+                    <RegistryKey Root="HKCR" Key="chewing-editor">
+                        <RegistryValue Type="string" Value="URL:Chewing Editor" />
+                        <RegistryValue Name="URL Protocol" Type="string" Value="" />
+                    </RegistryKey>
+                    <!-- Default icon -->
+                    <RegistryKey Root="HKCR" Key="chewing-editor\DefaultIcon">
+                        <RegistryValue Type="string" Value="[INSTALLFOLDER64]chewing-editor.exe,0" />
+                    </RegistryKey>
+                    <!-- Shell command -->
+                    <RegistryKey Root="HKCR" Key="chewing-editor\shell\open\command">
+                        <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing-editor.exe&quot; &quot;%1&quot;" />
+                    </RegistryKey>
+                </Component>
             </Directory>
         </StandardDirectory>
         <StandardDirectory Id="ProgramFilesFolder">
