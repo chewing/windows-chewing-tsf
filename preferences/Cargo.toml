@@ -20,6 +20,7 @@ windows = { version = "0.61.0", features = [
     "Win32_System_SystemServices",
 ] }
 win_dbg_logger = "0.1.0"
+winit = "0.30.11"
 
 [dependencies.slint]
 version = "1.8.0"
@@ -30,6 +31,7 @@ features = [
     "log",
     "backend-winit",
     "renderer-femtovg",
+    "unstable-winit-030",
 ]
 
 [build-dependencies]

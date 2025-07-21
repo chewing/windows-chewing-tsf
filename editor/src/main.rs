@@ -10,6 +10,9 @@ slint::include_modules!();
 
 fn main() -> anyhow::Result<()> {
     win_dbg_logger::init();
+    slint::BackendSelector::new()
+        .with_winit_window_attributes_hook(|attrs| attrs.with_transparent(false))
+        .select()?;
     editor::run()?;
     Ok(())
 }
