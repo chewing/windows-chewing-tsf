@@ -41,15 +41,15 @@ use chewing_capi::output::{
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info};
-use windows::Win32::Foundation::{HINSTANCE, POINT, RECT};
+use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE, VK_F12,
-    VK_HOME, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT, VK_SHIFT,
-    VK_TAB, VK_UP,
+    GetFocus, VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE,
+    VK_F12, VK_HOME, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT,
+    VK_SHIFT, VK_TAB, VK_UP,
 };
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::TextServices::{
@@ -58,9 +58,9 @@ use windows::Win32::UI::TextServices::{
     TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, GetCursorPos, HMENU, HWND_DESKTOP, LoadIconW, LoadStringW, MF_CHECKED,
-    MF_UNCHECKED, SW_SHOWNORMAL, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_NONOTIFY, TPM_RETURNCMD,
-    TrackPopupMenu, WINDOW_EX_STYLE, WINDOW_STYLE,
+    CheckMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED, MF_UNCHECKED,
+    SW_SHOWNORMAL, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY, TPM_RETURNCMD,
+    TrackPopupMenu,
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
@@ -79,7 +79,7 @@ use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
 use crate::ts::menu::Menu;
 use crate::ts::theme::{ThemeDetector, WindowsTheme};
-use crate::window::{Window, window_register_class};
+use crate::window::window_register_class;
 
 use super::CommandType;
 use super::config::Config;
@@ -784,13 +784,6 @@ impl ChewingTextService {
     pub(super) fn on_command(&mut self, id: u32, cmd_type: CommandType) {
         if matches!(cmd_type, CommandType::RightClick) {
             if id == ID_MODE_ICON {
-                // TrackPopupMenu requires a window to work, so let's build a transient one.
-                let window = Window::new();
-                window.create(
-                    HWND_DESKTOP,
-                    WINDOW_STYLE::default(),
-                    WINDOW_EX_STYLE::default(),
-                );
                 let mut pos = POINT::default();
                 unsafe {
                     let _ = GetCursorPos(&mut pos);
@@ -798,16 +791,24 @@ impl ChewingTextService {
                 let ret = unsafe {
                     TrackPopupMenu(
                         self.popup_menu,
-                        TPM_NONOTIFY | TPM_RETURNCMD | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
+                        TPM_NONOTIFY
+                            | TPM_RETURNCMD
+                            | TPM_LEFTALIGN
+                            | TPM_BOTTOMALIGN
+                            | TPM_LEFTBUTTON,
                         pos.x,
                         pos.y,
                         None,
-                        window.hwnd(),
+                        GetFocus(),
                         None,
                     )
                 };
                 if ret.as_bool() {
                     self.on_command(ret.0 as u32, CommandType::Menu);
+                } else {
+                    let last_error = unsafe { GetLastError() };
+                    let hresult = last_error.to_hresult();
+                    error!("unable to open popup menu: {}", hresult.message());
                 }
             }
         } else {
@@ -835,8 +836,8 @@ impl ChewingTextService {
                             .into_owned();
                         unsafe {
                             ShellExecuteW(
-                                Some(HWND_DESKTOP),
-                                w!("open"),
+                                None,
+                                None,
                                 &HSTRING::from(&exe),
                                 None,
                                 None,
@@ -853,8 +854,8 @@ impl ChewingTextService {
                             .into_owned();
                         unsafe {
                             ShellExecuteW(
-                                Some(HWND_DESKTOP),
-                                w!("open"),
+                                None,
+                                None,
                                 &HSTRING::from(&exe),
                                 w!("--config"),
                                 None,
@@ -876,8 +877,8 @@ impl ChewingTextService {
                             .into_owned();
                         unsafe {
                             ShellExecuteW(
-                                Some(HWND_DESKTOP),
-                                w!("open"),
+                                None,
+                                None,
                                 &HSTRING::from(&exe),
                                 w!("--about"),
                                 None,
