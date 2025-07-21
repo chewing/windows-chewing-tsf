@@ -192,7 +192,7 @@ export component EditorWindow inherits Window {
                 }
     
                 entry-table := StandardTableView {
-                    columns: [{ title: "字/詞" }, { title: "注音" }, { title: "詞頻" }];
+                    columns: [{ title: "字/詞", horizontal_stretch: 0.3 }, { title: "注音", horizontal_stretch: 0.4 }, { title: "常用度", horizontal_stretch: 0.2 }];
                     rows: DictEntriesAdapter.filter_sort_model(DictEntriesAdapter.entries, search-edit.text, root.sort-index, root.sort-ascending);
                     sort-ascending(index) => {
                         root.sort-index = index;
@@ -286,7 +286,7 @@ export component EditorWindow inherits Window {
                     }
 
                     Text {
-                        text: "詞頻：";
+                        text: "常用度";
                     }
 
                     freq := LineEdit {
