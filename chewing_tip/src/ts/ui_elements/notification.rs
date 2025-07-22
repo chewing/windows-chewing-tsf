@@ -6,7 +6,7 @@ use std::{
 use anyhow::{Context, Result};
 use log::error;
 use windows::Win32::{
-    Foundation::{E_FAIL, FALSE, HWND, LPARAM, LRESULT, RECT, TRUE, WPARAM},
+    Foundation::{E_FAIL, FALSE, HWND, LPARAM, LRESULT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
             Common::{D2D_RECT_F, D2D1_COLOR_F},
@@ -27,8 +27,8 @@ use windows::Win32::{
     UI::{
         TextServices::{ITfThreadMgr, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr},
         WindowsAndMessaging::{
-            GetClientRect, KillTimer, SetTimer, WINDOWPOS, WM_PAINT, WM_TIMER,
-            WM_WINDOWPOSCHANGING, WS_CLIPCHILDREN, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+            KillTimer, SetTimer, WINDOWPOS, WM_PAINT, WM_TIMER, WM_WINDOWPOSCHANGING,
+            WS_CLIPCHILDREN, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
         },
     },
 };
@@ -40,7 +40,8 @@ use windows_core::{
 use crate::{
     gfx::{
         create_device, create_render_target, create_swapchain, create_swapchain_bitmap,
-        dwrite_family_from_gdi_name, get_dpi_for_window, setup_direct_composition,
+        dwrite_family_from_gdi_name, get_dpi_for_window, get_scale_for_window,
+        setup_direct_composition,
     },
     ts::ui_elements::message_box::draw_message_box,
     window::{IWndProc, IWndProc_Impl, Window},
@@ -88,22 +89,13 @@ impl IWndProc_Impl for Notification_Impl {
             }
             WM_WINDOWPOSCHANGING => {
                 let view = self.view.borrow();
-                let Some(window) = view.window() else {
-                    return LRESULT(0);
-                };
                 // Recalculate the client rect
                 let model = self.model.borrow();
                 if let Ok(metrics) = view.calculate_client_rect(&model) {
-                    let mut rect = RECT::default();
-                    let _ = unsafe { GetClientRect(window.hwnd(), &mut rect) };
-                    if rect.right as f32 != metrics.hw_width
-                        || rect.bottom as f32 != metrics.hw_height
-                    {
-                        let pos = lparam.0 as *mut WINDOWPOS;
-                        unsafe {
-                            (*pos).cx = metrics.hw_width as i32;
-                            (*pos).cy = metrics.hw_height as i32;
-                        }
+                    let pos = lparam.0 as *mut WINDOWPOS;
+                    unsafe {
+                        (*pos).cx = metrics.hw_width as i32;
+                        (*pos).cy = metrics.hw_height as i32;
                     }
                 }
                 LRESULT(0)
@@ -203,7 +195,7 @@ impl View for RenderedView {
         Some(&self.window)
     }
     fn calculate_client_rect(&self, model: &NotificationModel) -> Result<RenderedMetrics> {
-        let scale = get_dpi_for_window(self.window.hwnd());
+        let scale = get_scale_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());
@@ -245,7 +237,7 @@ impl View for RenderedView {
         if model.text.is_empty() {
             return Ok(());
         }
-        let scale = get_dpi_for_window(self.window.hwnd());
+        let scale = get_scale_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());

@@ -951,13 +951,12 @@ impl ChewingTextService {
                     font_family: self.cfg.font_family.clone(),
                     font_size: self.cfg.font_size as f32,
                 });
-                let mut rect = self.get_selection_rect(context)?;
-                rect.bottom += 50;
-                rect.left += 50;
+                if let Ok(rect) = self.get_selection_rect(context) {
+                    notification.set_position(rect.left + 50, rect.bottom + 50);
+                    // HACK set position again to use correct DPI setting
+                    notification.set_position(rect.left + 50, rect.bottom + 50);
+                }
                 notification.show();
-                notification.set_position(rect.left, rect.bottom);
-                // HACK set position again to use correct DPI setting
-                notification.set_position(rect.left, rect.bottom);
                 notification.set_timer(dur);
                 self.notification = Some(notification);
             }
