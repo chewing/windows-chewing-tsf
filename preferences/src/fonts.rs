@@ -79,8 +79,8 @@ pub fn enum_font_families() -> Result<Vec<SharedString>> {
 
         let mut res: Vec<SharedString> = fonts.into_iter().map(|s| s.into()).collect();
         res.sort_by(|a, b| {
-            let a_localized = a.is_ascii();
-            let b_localized = b.is_ascii();
+            let a_localized = !a.is_ascii();
+            let b_localized = !b.is_ascii();
             match (a_localized, b_localized) {
                 (true, true) => a.cmp(b),
                 (true, false) => Ordering::Less,
