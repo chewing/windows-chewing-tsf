@@ -47,6 +47,11 @@ pub fn run() -> Result<()> {
     ui.on_apply(move || {
         let ui = ui_handle.upgrade().unwrap();
         save_config(&ui).unwrap();
+    });
+    let ui_handle = ui.as_weak();
+    ui.on_apply_and_quit(move || {
+        let ui = ui_handle.upgrade().unwrap();
+        save_config(&ui).unwrap();
         slint::quit_event_loop().unwrap();
     });
     let about_handle = about.as_weak();

@@ -46,6 +46,7 @@ export component ConfigWindow inherits Window {
     in-out property <string> swkb-dat;
 
     callback apply();
+    callback apply-and-quit();
     callback cancel();
     callback about();
 
@@ -463,16 +464,22 @@ export component ConfigWindow inherits Window {
             Button {
                 text: "確定";
                 clicked => {
-                    root.apply();
+                    root.apply-and-quit();
                 }
             }
-
             Button {
                 text: "取消";
                 clicked => {
                     root.cancel();
                 }
             }
+            Button {
+                text: "套用";
+                clicked => {
+                    root.apply();
+                }
+            }
+
         }
     }
 }
