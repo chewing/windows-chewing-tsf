@@ -20,7 +20,7 @@ pub(super) struct Config {
     pub(super) add_phrase_forward: bool,
     pub(super) phrase_choice_rearward: bool,
     pub(super) easy_symbols_with_shift: bool,
-    pub(super) easy_symbols_with_ctrl: bool,
+    pub(super) easy_symbols_with_shift_ctrl: bool,
     pub(super) cursor_cand_list: bool,
     pub(super) show_cand_with_space_key: bool,
     pub(super) advance_after_selection: bool,
@@ -55,7 +55,7 @@ impl Default for Config {
             add_phrase_forward: true,
             phrase_choice_rearward: false,
             easy_symbols_with_shift: true,
-            easy_symbols_with_ctrl: false,
+            easy_symbols_with_shift_ctrl: false,
             cursor_cand_list: true,
             show_cand_with_space_key: false,
             advance_after_selection: true,
@@ -214,8 +214,8 @@ fn load_config() -> Result<Config> {
     if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShift") {
         cfg.easy_symbols_with_shift = value;
     }
-    if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithCtrl") {
-        cfg.easy_symbols_with_ctrl = value;
+    if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShiftCtrl") {
+        cfg.easy_symbols_with_shift_ctrl = value;
     }
     if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
         cfg.upper_case_with_shift = value;

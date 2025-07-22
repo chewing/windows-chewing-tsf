@@ -21,7 +21,7 @@ export component ConfigWindow inherits Window {
     in-out property <bool> add-phrase-forward;
     in-out property <bool> phrase-choice-rearward;
     in-out property <bool> easy-symbols-with-shift: true;
-    in-out property <bool> easy-symbols-with-ctrl: false;
+    in-out property <bool> easy-symbols-with-shift-ctrl: false;
     in-out property <bool> enable-auto-learn;
     in-out property <bool> cursor-cand-list;
     in-out property <bool> show-cand-with-space-key;
@@ -139,9 +139,8 @@ export component ConfigWindow inherits Window {
                         }
 
                         CheckBox {
-                            text: "按住 Ctrl 輸入快捷符號";
-                            checked <=> easy-symbols-with-ctrl;
-                            enabled: false;
+                            text: "按住 Shift+Ctrl 輸入快捷符號";
+                            checked <=> easy-symbols-with-shift-ctrl;
                         }
                         CheckBox {
                             text: "自動學習常用詞與新詞";

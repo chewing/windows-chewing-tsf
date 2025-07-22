@@ -369,6 +369,8 @@ impl ChewingTextService {
             // bypass IME. This might be a shortcut key used in the application
             if self.is_composing() && ev.is_digits() {
                 // need to handle userphrase
+            } else if ev.is_key_down(VK_SHIFT) && self.cfg.easy_symbols_with_shift_ctrl {
+                // need to handle easy symbol input
             } else {
                 debug!("key not handled - Ctrl modifier key was down");
                 return Ok(false);
@@ -437,6 +439,7 @@ impl ChewingTextService {
             if ev.is_key_down(VK_SHIFT)
                 && (!self.cfg.full_shape_symbols || ev.is_alphabet())
                 && !self.cfg.easy_symbols_with_shift
+                && !(ev.is_key_down(VK_CONTROL) && self.cfg.easy_symbols_with_shift_ctrl)
             {
                 momentary_english_mode = true;
                 if !self.cfg.upper_case_with_shift {
@@ -468,6 +471,12 @@ impl ChewingTextService {
                 unsafe {
                     let mut code = ev.code.to_ascii_lowercase();
                     if ev.is_key_down(VK_SHIFT) && self.cfg.easy_symbols_with_shift {
+                        code = ev.code.to_ascii_uppercase();
+                    }
+                    if ev.is_key_down(VK_SHIFT)
+                        && ev.is_key_down(VK_CONTROL)
+                        && self.cfg.easy_symbols_with_shift_ctrl
+                    {
                         code = ev.code.to_ascii_uppercase();
                     }
                     chewing_handle_Default(ctx, code as i32);
@@ -1170,7 +1179,11 @@ impl ChewingTextService {
         let cfg = &self.cfg;
         if let Some(ctx) = self.chewing_context {
             unsafe {
-                chewing_set_easySymbolInput(ctx, cfg.easy_symbols_with_shift as i32);
+                if cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl {
+                    chewing_set_easySymbolInput(ctx, 1);
+                } else {
+                    chewing_set_easySymbolInput(ctx, 0);
+                }
                 chewing_set_addPhraseDirection(ctx, cfg.add_phrase_forward as i32);
                 chewing_set_phraseChoiceRearward(ctx, cfg.phrase_choice_rearward as i32);
                 chewing_set_autoShiftCur(ctx, cfg.advance_after_selection as i32);

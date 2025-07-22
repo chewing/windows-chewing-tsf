@@ -246,8 +246,8 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShift") {
         ui.set_easy_symbols_with_shift(value);
     }
-    if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithCtrl") {
-        ui.set_easy_symbols_with_ctrl(value);
+    if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShiftCtrl") {
+        ui.set_easy_symbols_with_shift_ctrl(value);
     }
     if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
         ui.set_upper_case_with_shift(value);
@@ -316,7 +316,11 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
         "EasySymbolsWithShift",
         ui.get_easy_symbols_with_shift(),
     );
-    let _ = reg_set_bool(&key, "EasySymbolsWithCtrl", ui.get_easy_symbols_with_ctrl());
+    let _ = reg_set_bool(
+        &key,
+        "EasySymbolsWithShiftCtrl",
+        ui.get_easy_symbols_with_shift_ctrl(),
+    );
     let _ = reg_set_bool(&key, "UpperCaseWithShift", ui.get_upper_case_with_shift());
     let _ = reg_set_bool(&key, "EnableAutoLearn", ui.get_enable_auto_learn());
 
