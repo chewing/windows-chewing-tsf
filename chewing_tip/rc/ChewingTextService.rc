@@ -132,6 +132,7 @@ BEGIN
             MENUITEM "教育部國語小字典",                    ID_LITTLEDICT
             MENUITEM "教育部成語典",                      ID_PROVERBDICT
         END
+        MENUITEM "輸出全形英數字母 (&F)",             ID_SWITCH_SHAPE
         MENUITEM "輸出簡體中文 (&S)",                 ID_OUTPUT_SIMP_CHINESE
     END
     POPUP "EDIT"

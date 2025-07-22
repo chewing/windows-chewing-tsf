@@ -1079,7 +1079,15 @@ impl ChewingTextService {
                     },
                 );
             }
-            self.update_lang_buttons(false)?;
+            let check_flag = if unsafe { chewing_get_ShapeMode(ctx) == 1 } {
+                MF_CHECKED
+            } else {
+                MF_UNCHECKED
+            };
+            unsafe {
+                CheckMenuItem(self.popup_menu, ID_SWITCH_SHAPE, check_flag.0);
+            }
+            self.update_lang_buttons(true)?;
         }
         Ok(())
     }
@@ -1261,6 +1269,14 @@ impl ChewingTextService {
                         PCWSTR::from_raw(icon_id as *const u16),
                     )?)?;
                 }
+            }
+            let check_flag = if self.shape_mode == FULLSHAPE_MODE {
+                MF_CHECKED
+            } else {
+                MF_UNCHECKED
+            };
+            unsafe {
+                CheckMenuItem(self.popup_menu, ID_SWITCH_SHAPE, check_flag.0);
             }
         }
         Ok(())
