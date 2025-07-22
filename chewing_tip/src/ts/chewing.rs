@@ -26,7 +26,7 @@ use chewing_capi::input::{
     chewing_handle_Default, chewing_handle_Del, chewing_handle_Down, chewing_handle_End,
     chewing_handle_Enter, chewing_handle_Esc, chewing_handle_Home, chewing_handle_Left,
     chewing_handle_Numlock, chewing_handle_PageDown, chewing_handle_PageUp, chewing_handle_Right,
-    chewing_handle_Space, chewing_handle_Tab, chewing_handle_Up,
+    chewing_handle_ShiftSpace, chewing_handle_Space, chewing_handle_Tab, chewing_handle_Up,
 };
 use chewing_capi::layout::chewing_set_KBType;
 use chewing_capi::modes::{
@@ -66,7 +66,7 @@ use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
     TextServices::{
         ITfComposition, ITfKeystrokeMgr, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
-        TF_LANGBARITEMINFO, TF_MOD_SHIFT, TF_PRESERVEDKEY,
+        TF_LANGBARITEMINFO, TF_PRESERVEDKEY,
     },
 };
 use windows_core::{
@@ -92,7 +92,6 @@ use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, No
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
 const GUID_SETTINGS_BUTTON: GUID = GUID::from_u128(0x4FAFA520_2104_407E_A532_9F1AAB7751CD);
-const GUID_SHIFT_SPACE: GUID = GUID::from_u128(0xC77A44F5_DB21_474E_A2A2_A17242217AB3);
 const GUID_CONTROL_F12: GUID = GUID::from_u128(0x1797B43A_2332_40B4_8007_B2F98F19C047);
 
 const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
@@ -146,7 +145,6 @@ impl ChewingTextService {
         self.thread_mgr = Some(thread_mgr.clone());
         self.tid = tid;
         self.composition_sink = Some(composition_sink.to_owned());
-        self.add_preserved_key(VK_SPACE.0 as u32, TF_MOD_SHIFT, GUID_SHIFT_SPACE)?;
         self.add_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
         let da = TF_DISPLAYATTRIBUTE {
             lsStyle: TF_LS_DOT,
@@ -319,7 +317,6 @@ impl ChewingTextService {
         self.switch_shape_button = None;
         self.ime_mode_button = None;
         self.remove_buttons()?;
-        self.remove_preserved_key(VK_SPACE.0 as u32, TF_MOD_SHIFT, GUID_SHIFT_SPACE)?;
         self.remove_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
         self.composition = None;
         self.hide_candidates();
@@ -384,8 +381,15 @@ impl ChewingTextService {
                 && self.shape_mode == HALFSHAPE_MODE
                 && !enable_caps_lock
             {
-                debug!("key not handled - in English mode");
-                return Ok(false);
+                if ev.is_key(VK_SPACE)
+                    && ev.is_key_down(VK_SHIFT)
+                    && self.cfg.enable_fullwidth_toggle_key
+                {
+                    // need to handle mode switch
+                } else {
+                    debug!("key not handled - in English mode");
+                    return Ok(false);
+                }
             }
 
             // we always need further processing in full shape mode since all English chars,
@@ -439,7 +443,11 @@ impl ChewingTextService {
                     invert_case = true;
                 }
             }
-            if self.lang_mode == SYMBOL_MODE || momentary_english_mode {
+            if ev.is_key(VK_SPACE) && ev.is_key_down(VK_SHIFT) {
+                unsafe {
+                    chewing_handle_ShiftSpace(ctx);
+                }
+            } else if self.lang_mode == SYMBOL_MODE || momentary_english_mode {
                 unsafe {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 }
@@ -740,9 +748,6 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_preserved_key(&mut self, guid: &GUID) -> bool {
-        if guid == &GUID_SHIFT_SPACE && self.toggle_shape_mode().is_ok() {
-            return true;
-        }
         if guid == &GUID_CONTROL_F12 && self.toggle_simp_chinese().is_ok() {
             return true;
         }
@@ -1180,6 +1185,11 @@ impl ChewingTextService {
                     } else {
                         AUTOLEARN_DISABLED
                     } as c_int,
+                );
+                chewing_config_set_int(
+                    ctx,
+                    c"chewing.enable_fullwidth_toggle_key".as_ptr(),
+                    cfg.enable_fullwidth_toggle_key as i32,
                 );
             }
         }

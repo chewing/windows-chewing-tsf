@@ -17,6 +17,7 @@ export component ConfigWindow inherits Window {
     in-out property <bool> esc-clean-all-buf;
     in-out property <bool> full-shape-symbols;
     in-out property <bool> upper-case-with-shift;
+    in-out property <bool> enable-fullwidth-toggle-key;
     in-out property <bool> add-phrase-forward;
     in-out property <bool> phrase-choice-rearward;
     in-out property <bool> easy-symbols-with-shift: true;
@@ -109,6 +110,11 @@ export component ConfigWindow inherits Window {
                         CheckBox {
                             text: "按住 Shift 輸入全形標點符號";
                             checked <=> full-shape-symbols;
+                        }
+
+                        CheckBox {
+                            text: "使用 Shift+Space 快速切換全形英文字母";
+                            checked <=> enable-fullwidth-toggle-key;
                         }
 
                         CheckBox {

@@ -116,6 +116,7 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     // Init settings to default value
     ui.set_cand_per_row(3);
     ui.set_switch_lang_with_shift(true);
+    ui.set_enable_fullwidth_toggle_key(false);
     ui.set_show_notification(true);
     ui.set_add_phrase_forward(true);
     ui.set_advance_after_selection(true);
@@ -170,6 +171,9 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     }
     if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
         ui.set_switch_lang_with_shift(value);
+    }
+    if let Ok(value) = reg_get_bool(&key, "EnableFullwidthToggleKey") {
+        ui.set_enable_fullwidth_toggle_key(value);
     }
     if let Ok(value) = reg_get_bool(&key, "ShowNotification") {
         ui.set_show_notification(value);
@@ -268,6 +272,11 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
         ui.get_show_cand_with_space_key(),
     );
     let _ = reg_set_bool(&key, "SwitchLangWithShift", ui.get_switch_lang_with_shift());
+    let _ = reg_set_bool(
+        &key,
+        "EnableFullwidthToggleKey",
+        ui.get_enable_fullwidth_toggle_key(),
+    );
     let _ = reg_set_bool(&key, "ShowNotification", ui.get_show_notification());
     let _ = reg_set_bool(&key, "OutputSimpChinese", ui.get_output_simp_chinese());
     let _ = reg_set_bool(&key, "AddPhraseForward", ui.get_add_phrase_forward());

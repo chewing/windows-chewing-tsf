@@ -10,6 +10,7 @@ use windows_registry::{CURRENT_USER, Key};
 #[derive(Debug, PartialEq)]
 pub(super) struct Config {
     pub(super) switch_lang_with_shift: bool,
+    pub(super) enable_fullwidth_toggle_key: bool,
     pub(super) enable_caps_lock: bool,
     pub(super) show_notification: bool,
     pub(super) enable_auto_learn: bool,
@@ -44,6 +45,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             switch_lang_with_shift: true,
+            enable_fullwidth_toggle_key: false,
             enable_caps_lock: true,
             show_notification: true,
             enable_auto_learn: true,
@@ -217,6 +219,9 @@ fn load_config() -> Result<Config> {
     }
     if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
         cfg.upper_case_with_shift = value;
+    }
+    if let Ok(value) = reg_get_bool(&key, "EnableFullwidthToggleKey") {
+        cfg.enable_fullwidth_toggle_key = value;
     }
 
     Ok(cfg)
