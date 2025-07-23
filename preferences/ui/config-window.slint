@@ -441,7 +441,7 @@ export component ConfigWindow inherits Window {
                 title: "快捷符號";
                 VerticalBox {
                     Text {
-                        text: "輸入中文時，按下 Shift 加英文字母即可快速輸入：";
+                        text: "輸入中文時，按下 Shift (或 Ctrl + Shift）加英文字母即可快速輸入字串：";
                     }
 
                     TextEdit {
@@ -450,7 +450,7 @@ export component ConfigWindow inherits Window {
                     }
 
                     Text {
-                        text: "以上是快捷符號的設定檔，語法相當簡單：\n每一行的內容都是：「大寫字母」空格「對應的符號或文字」。";
+                        text: "以上是快捷符號的設定檔，語法相當簡單：\n每一行的內容都是：「大寫字母」+ 「空格」 +「對應的符號或文字」。";
                         wrap: word-wrap;
                     }
                 }
