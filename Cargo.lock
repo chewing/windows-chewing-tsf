@@ -583,7 +583,7 @@ dependencies = [
 [[package]]
 name = "chewing"
 version = "0.9.1"
-source = "git+https://github.com/chewing/libchewing#74c2ed7063f1e6c618df971b5c8e2add54e486a5"
+source = "git+https://github.com/chewing/libchewing#b91c0d7726bb52bd26d6416e188c2f564521f425"
 dependencies = [
  "der",
  "log",
@@ -623,7 +623,7 @@ dependencies = [
 [[package]]
 name = "chewing_capi"
 version = "0.9.1"
-source = "git+https://github.com/chewing/libchewing#74c2ed7063f1e6c618df971b5c8e2add54e486a5"
+source = "git+https://github.com/chewing/libchewing#b91c0d7726bb52bd26d6416e188c2f564521f425"
 dependencies = [
  "chewing",
  "env_logger",
@@ -1902,7 +1902,7 @@ dependencies = [
  "resvg",
  "rowan",
  "smol_str 0.3.2",
- "strum 0.27.1",
+ "strum 0.27.2",
  "typed-index-collections",
  "url",
 ]
@@ -1940,7 +1940,7 @@ dependencies = [
  "scoped-tls-hkt",
  "scopeguard",
  "slab",
- "strum 0.27.1",
+ "strum 0.27.2",
  "sys-locale",
  "unicode-linebreak",
  "unicode-script",
@@ -2392,11 +2392,12 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "kurbo"
-version = "0.11.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1077d333efea6170d9ccb96d3c3026f300ca0773da4938cc4c811daa6df68b0c"
+checksum = "c62026ae44756f8a599ba21140f350303d4f08dcdcc71b5ad9c9bb8128c13c62"
 dependencies = [
  "arrayvec",
+ "euclid",
  "smallvec",
 ]
 
@@ -2452,7 +2453,7 @@ checksum = "4488594b9328dee448adb906d8b126d9b7deb7cf5c22161ee591610bb1be83c0"
 dependencies = [
  "bitflags 2.9.1",
  "libc",
- "redox_syscall 0.5.13",
+ "redox_syscall 0.5.15",
 ]
 
 [[package]]
@@ -3171,9 +3172,9 @@ dependencies = [
 
 [[package]]
 name = "owned_ttf_parser"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ec719bbf3b2a81c109a4e20b1f129b5566b7dce654bc3872f6a05abf82b2c4"
+checksum = "36820e9051aca1014ddc75770aab4d68bc1e9e632f0f5627c4086bc216fb583b"
 dependencies = [
  "ttf-parser 0.25.1",
 ]
@@ -3337,9 +3338,9 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.2.35"
+version = "0.2.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "061c1221631e079b26479d25bbf2275bfe5917ae8419cd7e34f13bfc2aa7539a"
+checksum = "ff24dfcda44452b9816fff4cd4227e1bb73ff5a2f1bc1105aa92fb8565ce44d2"
 dependencies = [
  "proc-macro2",
  "syn",
@@ -3550,9 +3551,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.13"
+version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d04b7d0ee6b4a0207a0a7adb104d23ecb0b47d6beae7152d0fa34b692b29fd6"
+checksum = "7e8af0dde094006011e6a740d4879319439489813bd0bcdc7d821beaeeff48ec"
 dependencies = [
  "bitflags 2.9.1",
 ]
@@ -4053,7 +4054,7 @@ dependencies = [
  "objc2-foundation 0.2.2",
  "objc2-quartz-core 0.2.2",
  "raw-window-handle",
- "redox_syscall 0.5.13",
+ "redox_syscall 0.5.15",
  "rustix 0.38.44",
  "tiny-xlib",
  "wasm-bindgen",
@@ -4106,11 +4107,11 @@ dependencies = [
 
 [[package]]
 name = "strum"
-version = "0.27.1"
+version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f64def088c51c9510a8579e3c5d67c65349dcf755e5479ad3d010aa6454e2c32"
+checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 dependencies = [
- "strum_macros 0.27.1",
+ "strum_macros 0.27.2",
 ]
 
 [[package]]
@@ -4128,14 +4129,13 @@ dependencies = [
 
 [[package]]
 name = "strum_macros"
-version = "0.27.1"
+version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c77a8c5abcaf0f9ce05d62342b7d298c346515365c36b673df4ebe3ced01fde8"
+checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
 dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "rustversion",
  "syn",
 ]
 
