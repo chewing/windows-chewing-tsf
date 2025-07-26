@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.95"
-chewing = "0.9.1"
+chewing = "0.10.0"
 log = "0.4.27"
 win_dbg_logger  = "0.1.0"
 winit = "0.30.11"
