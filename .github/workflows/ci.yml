@@ -99,12 +99,6 @@ jobs:
           set VCPKGRS_DYNAMIC=1
           cargo install chewing-cli
 
-      - name: Update Submodules
-        if: ${{ inputs.nightly }}
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git submodule update --remote
-
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}
         run: |
