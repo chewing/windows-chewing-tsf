@@ -38,7 +38,7 @@ pub(super) fn draw_message_box(
                 r: 0.0,
                 g: 0.0,
                 b: 0.0,
-                a: 0.1,
+                a: 0.1 * bg_color.a,
             },
             None,
         )?;
