@@ -102,6 +102,15 @@ fn color_f(r: f32, g: f32, b: f32, a: f32) -> D2D1_COLOR_F {
     D2D1_COLOR_F { r, g, b, a }
 }
 
+// XXX: Rust and LLVM assumes the floating point environment is in the default
+// state and divide by zero does not trigger exception. However, chewing_tip is
+// loaded to host program that may set the MXCSR register and trigger UB. Never
+// inline this function to ensure the 4 values used by the SSE instruction DIVPS
+// are all defined.
+//
+// Reference:
+// * https://github.com/rust-lang/unsafe-code-guidelines/issues/471
+// * https://github.com/chewing/windows-chewing-tsf/issues/412
 #[inline(never)]
 fn color_uf(r: u16, g: u16, b: u16, a: u16) -> D2D1_COLOR_F {
     D2D1_COLOR_F {
