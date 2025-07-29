@@ -68,11 +68,11 @@ impl Default for Config {
             cand_per_page: 9,
             font_size: 16,
             font_family: h!("Segoe UI").to_owned(),
-            font_fg_color: color_f(0.0, 0.0, 0.0),
-            font_bg_color: color_f(0.98, 0.98, 0.98),
-            font_highlight_fg_color: color_f(1.0, 1.0, 1.0),
-            font_highlight_bg_color: color_f(0.0, 0.0, 0.0),
-            font_number_fg_color: color_f(0.0, 0.0, 1.0),
+            font_fg_color: color_f(0.0, 0.0, 0.0, 1.0),
+            font_bg_color: color_f(0.98, 0.98, 0.98, 1.0),
+            font_highlight_fg_color: color_f(1.0, 1.0, 1.0, 1.0),
+            font_highlight_bg_color: color_f(0.0, 0.0, 0.0, 1.0),
+            font_number_fg_color: color_f(0.0, 0.0, 1.0, 1.0),
             keyboard_layout: 0,
         }
     }
@@ -98,16 +98,33 @@ fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool> {
     Ok(hk.get_u32(value_name)? > 0)
 }
 
-fn color_f(r: f32, g: f32, b: f32) -> D2D1_COLOR_F {
-    D2D1_COLOR_F { r, g, b, a: 1.0 }
+fn color_f(r: f32, g: f32, b: f32, a: f32) -> D2D1_COLOR_F {
+    D2D1_COLOR_F { r, g, b, a }
+}
+
+#[inline(never)]
+fn color_uf(r: u16, g: u16, b: u16, a: u16) -> D2D1_COLOR_F {
+    D2D1_COLOR_F {
+        r: (r as f32) / 255.0,
+        g: (g as f32) / 255.0,
+        b: (b as f32) / 255.0,
+        a: (a as f32) / 255.0,
+    }
 }
 
 fn color_s(rgb: &str) -> D2D1_COLOR_F {
-    let rgb = u32::from_str_radix(rgb, 16).unwrap_or(0);
-    let r = ((rgb >> 16) & 0xFF) as f32 / 255.0;
-    let g = ((rgb >> 8) & 0xFF) as f32 / 255.0;
-    let b = (rgb & 0xFF) as f32 / 255.0;
-    color_f(r, g, b)
+    let mut rgb = u32::from_str_radix(rgb, 16).unwrap_or(0);
+    let a = if rgb > 0xFFFFFF {
+        let a = rgb & 0xFF;
+        rgb = rgb >> 8;
+        a as u16
+    } else {
+        255
+    };
+    let r = ((rgb >> 16) & 0xFF) as u16;
+    let g = ((rgb >> 8) & 0xFF) as u16;
+    let b = (rgb & 0xFF) as u16;
+    color_uf(r, g, b, a)
 }
 
 fn load_config() -> Result<Config> {
