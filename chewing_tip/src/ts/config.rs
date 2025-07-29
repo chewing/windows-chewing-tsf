@@ -122,17 +122,17 @@ fn color_uf(r: u16, g: u16, b: u16, a: u16) -> D2D1_COLOR_F {
 }
 
 fn color_s(rgb: &str) -> D2D1_COLOR_F {
-    let mut rgb = u32::from_str_radix(rgb, 16).unwrap_or(0);
-    let a = if rgb > 0xFFFFFF {
-        let a = rgb & 0xFF;
-        rgb = rgb >> 8;
+    let mut rgb_u32 = u32::from_str_radix(rgb, 16).unwrap_or(0);
+    let a = if rgb.len() > 6 {
+        let a = rgb_u32 & 0xFF;
+        rgb_u32 = rgb_u32 >> 8;
         a as u16
     } else {
         255
     };
-    let r = ((rgb >> 16) & 0xFF) as u16;
-    let g = ((rgb >> 8) & 0xFF) as u16;
-    let b = (rgb & 0xFF) as u16;
+    let r = ((rgb_u32 >> 16) & 0xFF) as u16;
+    let g = ((rgb_u32 >> 8) & 0xFF) as u16;
+    let b = (rgb_u32 & 0xFF) as u16;
     color_uf(r, g, b, a)
 }
 
@@ -251,4 +251,23 @@ fn load_config() -> Result<Config> {
     }
 
     Ok(cfg)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ts::config::{color_f, color_s};
+
+    #[test]
+    fn color_rgb() {
+        assert_eq!(color_f(1.0, 0.0, 1.0, 1.0), color_s("FF00FF"));
+    }
+    #[test]
+    fn color_rgba() {
+        assert_eq!(color_f(1.0, 0.0, 1.0, 0.0), color_s("FF00FF00"));
+    }
+    #[test]
+    fn color_alpha_only() {
+        assert_eq!(color_f(0.0, 0.0, 1.0, 1.0), color_s("0000FFFF"));
+        assert_eq!(color_f(0.0, 0.0, 0.0, 1.0), color_s("000000FF"));
+    }
 }
