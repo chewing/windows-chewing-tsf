@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [25.8.1.0] - 2025-07-31
 
 ### 🚀 Features
 
@@ -31,6 +31,18 @@ All notable changes to this project will be documented in this file.
 - Implement UILess mode
 - Allow configuring background color
 - Make notification configurable
+- Show file path in editor window
+- Display localized font names in preferences
+- Show Simplified Chinese mode icon
+- Enable using Shift for easy symbol input
+- Support sorting and filtering in dictionary editor ([#367](https://github.com/chewing/windows-chewing-tsf/issues/367))
+- Support sorting and filtering in dictionary editor
+- Only toggle lang mode when short press Shift
+- Allow enable/disable fullwidth toggle key
+- Add menu item to toggle fullwidth mode
+- Add apply button to preferences
+- Support easy symbol input with Shift+Ctrl combo
+- Support semi-transparent candidate window by setting color in RRGGBBAA format
 
 ### 🐛 Bug Fixes
 
@@ -52,6 +64,32 @@ All notable changes to this project will be documented in this file.
 - Load config after activation
 - Better handling of capslock state
 - Allow invalid HWND for UILess console
+- Use near black icon to avoid it becomes transparent
+- Use GDI to enumerate localized font names correctly
+- Open registry with read-only option
+- Fallback to default config if load from registry failed
+- Get DWrite font names from GDI font names
+- Refresh systray icon if config changes
+- Set DEFAULT_CHARSET when querying GDI fonts
+- Normalize key code to lowercase by default ([#362](https://github.com/chewing/windows-chewing-tsf/issues/362))
+- Add missing 大千 26 鍵 in preference
+- Always load inputmode lang bar button ([#370](https://github.com/chewing/windows-chewing-tsf/issues/370))
+- Correctly handle shift space toggle fullshape mode
+- Correctly handle all Simplified Chinese conversion condition
+- Ignore keys with ctrl or alt modifiers
+- Always show user phrase notification
+- Preserve precision when converting window coordinates
+- Scale font size with DPI
+- Retrieve DPI after window is moved to right position
+- Grant app container access to registry
+- Raise font_size limit to 256
+- Menubar is no longer semi-transparent
+- Fix open popup menu from the start menu
+- Make config launcher compatiable with sandboxed applications
+- Use correct method to calculate scaling factor for notification window
+- Sort localized font names first correctly
+- Compatible with pre-2023 Delphi created application
+- Correctly parse 000000FF to RRGGBBAA
 
 ### 🚜 Refactor
 
@@ -95,10 +133,15 @@ All notable changes to this project will be documented in this file.
 - Reimplement notification window
 - Clarify notification config string
 - Try to improve dark mode detection
+- Bound candidate window to screen boundry
+- Fix clippy warnings
+- Update label for frequency in editor
+- Set default-font-family for all slint window
 
 ### 📚 Documentation
 
 - Remove unused build scripts and references
+- Add comment to explain why never inline color_uf
 
 ### 🎨 Styling
 
@@ -131,6 +174,18 @@ All notable changes to this project will be documented in this file.
 - Download Installer Artifact in nightly workflow
 - Extract chewing-editor as separate executable
 - Add cache
+- Adjust how we draft nightly release
+- Fix cross-build cache
+- Adjust nightly release name
+- Sign nightly releases with release signing key
+- Remove env_logger to reduce binary size
+- Switch back to released chewing-rs
+- Do not build libchewing-data with released chewing-cli
+- Do not build libchewing-data with released chewing-cli
+
+### Icon
+
+- Redesign systray icons
 
 ## [24.10.1] - 2024-12-22
 
