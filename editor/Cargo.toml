@@ -1,7 +1,7 @@
 [package]
 name = "chewing-editor"
 license = "GPL-3.0-or-later"
-version = "25.8.0"
+version = "25.8.1"
 edition = "2024"
 
 [dependencies]
