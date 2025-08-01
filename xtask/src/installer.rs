@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{path::PathBuf, str::FromStr};
+use std::{env, path::PathBuf, str::FromStr};
 
 use anyhow::{Error, Result, bail};
 use xshell::{Shell, cmd};
@@ -62,6 +62,9 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
 
     sh.set_var("SQLITE3_STATIC", "1");
     sh.set_var("RUSTFLAGS", "-Ctarget-feature=+crt-static");
+    if let Ok(chost) = env::var("MINGW_CHOST") {
+        sh.set_var("MINGW_CHOST", chost);
+    }
 
     // Ensure chewing-cli is installed
     cmd!(sh, "chewing-cli -V").run()?;
@@ -70,10 +73,15 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         let _env = if matches!(flags.target, Some(Target::Msvc)) {
             None
         } else {
-            Some(sh.push_env(
-                "SQLITE3_LIB_DIR",
-                "/usr/x86_64-w64-mingw32/sys-root/mingw/lib/",
-            ))
+            if sh.var("MINGW_CHOST").is_ok() {
+                None
+            } else {
+                // We are cross-compling from Fedora
+                Some(sh.push_env(
+                    "SQLITE3_LIB_DIR",
+                    "/usr/x86_64-w64-mingw32/sys-root/mingw/lib/",
+                ))
+            }
         };
         cmd!(
             sh,
@@ -105,14 +113,19 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         let _env = if matches!(flags.target, Some(Target::Msvc)) {
             None
         } else {
-            Some(sh.push_env(
-                "SQLITE3_LIB_DIR",
-                "/usr/i686-w64-mingw32/sys-root/mingw/lib/",
-            ))
+            if sh.var("MINGW_CHOST").is_ok() {
+                None
+            } else {
+                // We are cross-compling from Fedora
+                Some(sh.push_env(
+                    "SQLITE3_LIB_DIR",
+                    "/usr/i686-w64-mingw32/sys-root/mingw/lib/",
+                ))
+            }
         };
         cmd!(
             sh,
-            "cargo build -p chewing_tip {release...} --target {i686_target}"
+            "cargo build -p chewing_tip {release...} --target {i686_target} --verbose"
         )
         .run()?;
     }

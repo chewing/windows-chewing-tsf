@@ -11,8 +11,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.95"
-chewing = { version = "0.10.0", features = ["sqlite"] }
-chewing_capi = { version = "0.10.0", features = ["sqlite"] }
+chewing = "0.10.0"
+chewing_capi = "0.10.0"
 log = "0.4.22"
 win_dbg_logger = "0.1.0"
 windows-core = "0.61.0"
