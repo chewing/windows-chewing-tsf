@@ -47,7 +47,7 @@ use windows_core::{
 
 use crate::{
     gfx::{
-        create_device, create_render_target, create_swapchain, create_swapchain_bitmap,
+        create_render_target, create_swapchain, create_swapchain_bitmap, d3d11_device,
         dwrite_family_from_gdi_name, get_dpi_for_window, get_scale_for_window,
         setup_direct_composition,
     },
@@ -166,7 +166,7 @@ impl RenderedView {
             let factory: ID2D1Factory1 =
                 D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)?;
             let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
-            let device = create_device()?;
+            let device = d3d11_device()?;
             let target = create_render_target(&factory, &device)?;
             let swapchain = create_swapchain(&device, 10, 10)?;
             let dpi = get_dpi_for_window(window.hwnd());

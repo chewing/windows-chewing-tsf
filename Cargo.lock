@@ -593,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "chewing-editor"
-version = "25.8.0"
+version = "25.8.1"
 dependencies = [
  "anyhow",
  "chewing",
@@ -607,7 +607,7 @@ dependencies = [
 
 [[package]]
 name = "chewing-preferences"
-version = "25.8.0"
+version = "25.8.1"
 dependencies = [
  "anyhow",
  "chewing",
@@ -634,7 +634,7 @@ dependencies = [
 
 [[package]]
 name = "chewing_tip"
-version = "25.8.0"
+version = "25.8.1"
 dependencies = [
  "anyhow",
  "cc",
@@ -4502,7 +4502,7 @@ dependencies = [
 
 [[package]]
 name = "tsfreg"
-version = "25.8.0"
+version = "25.8.1"
 dependencies = [
  "windows",
  "windows-link",

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::sync::LazyLock;
+
 use anyhow::bail;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
@@ -14,7 +16,10 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::HiDpi::*;
 use windows::core::*;
 
-pub(super) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
+static DEVICE: LazyLock<Result<ID3D11Device>> =
+    LazyLock::new(|| create_device_with_type(D3D_DRIVER_TYPE_WARP));
+
+fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
     let mut device = None;
     unsafe {
         D3D11CreateDevice(
@@ -32,16 +37,8 @@ pub(super) fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3
     }
 }
 
-pub(super) fn create_device() -> Result<ID3D11Device> {
-    let mut result = create_device_with_type(D3D_DRIVER_TYPE_HARDWARE);
-
-    if let Err(err) = &result {
-        if err.code() == DXGI_ERROR_UNSUPPORTED {
-            result = create_device_with_type(D3D_DRIVER_TYPE_WARP);
-        }
-    }
-
-    result
+pub(super) fn d3d11_device() -> Result<ID3D11Device> {
+    LazyLock::force(&DEVICE).to_owned()
 }
 
 pub(super) fn create_render_target(
