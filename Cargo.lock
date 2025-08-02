@@ -525,9 +525,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.30"
+version = "1.2.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deec109607ca693028562ed836a5f1c4b8bd77755c4e132fc5ce11b0b6211ae7"
+checksum = "c3a42d84bb6b69d3a8b3eaacf0d88f179e1929695e1ad012b6cf64d9caaa5fd2"
 dependencies = [
  "jobserver",
  "libc",
@@ -582,9 +582,9 @@ dependencies = [
 
 [[package]]
 name = "chewing"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecb8d63ad6176dc49a654d5499210eb5680c0c65beec2009c8510bcbcdf02eaf"
+checksum = "0530190bb5fb06ec310a9ceb77b9d76044f667f0b23313348d55e375ce7e103f"
 dependencies = [
  "der",
  "log",
@@ -623,9 +623,9 @@ dependencies = [
 
 [[package]]
 name = "chewing_capi"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7932f3c4efe6a3dfcde161c767f22ccf3511b189d875c3f8be7cf5d7733a2af"
+checksum = "1c8c5734e3b2e890ea235992ac0329b24a725a93c2cda9032b88aa117ca77a2b"
 dependencies = [
  "chewing",
  "env_logger",
@@ -3792,9 +3792,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
+checksum = "030fedb782600dcbd6f02d479bf0d817ac3bb40d644745b769d6a96bc3afc5a7"
 dependencies = [
  "itoa",
  "memchr",
