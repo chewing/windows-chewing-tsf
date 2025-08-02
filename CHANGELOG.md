@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- Add missing bopomofo mapping to the GinYieh layout
+- Correct IBM layout mapping
+
+### 🚜 Refactor
+
+- (gfx) Use WARP renderer and cache the D3DDevice to speed up candidate window
+  creation ([#420](https://github.com/chewing/windows-chewing-tsf/issues/420))
+
 ## [25.8.1.0] - 2025-07-31
 
 ### 🚀 Features
