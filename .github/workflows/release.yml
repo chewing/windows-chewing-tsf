@@ -18,3 +18,39 @@ jobs:
       github-artifact-id: ${{ needs.release-build.outputs.unsigned-artifact-id }}
     secrets:
       api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+  release:
+    runs-on: ubuntu-latest
+    name: Release
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: [code-signing]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Installer Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Installer Artifact
+          path: build/installer
+      - uses: actions/download-artifact@v4
+        with:
+          name: Signed Installer
+          path: dist
+      - name: Rename
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          mv dist/windows-chewing-tsf.msi dist/windows-chewing-tsf-$REF_NAME.msi
+          mv dist/windows-chewing-tsf.msi.sha256 dist/windows-chewing-tsf-$REF_NAME.msi.sha256
+      - name: GH Release
+        uses: softprops/action-gh-release@v2.3.2
+        with:
+          tag_name: v${{github.ref_name}}
+          name: 穩定版 ${{github.ref_name}}
+          draft: true
+          preserve_order: true
+          body: |
+            更新摘要
+          files: |
+            dist/windows-chewing-tsf-${{github.ref_name}}.msi
+            dist/windows-chewing-tsf-${{github.ref_name}}.msi.sha256
