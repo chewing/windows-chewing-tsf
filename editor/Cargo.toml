@@ -8,18 +8,13 @@ edition = "2024"
 anyhow = "1.0.95"
 chewing = "0.10.0"
 log = "0.4.27"
+sysinfo = "0.36.1"
 win_dbg_logger  = "0.1.0"
 winit = "0.30.11"
 
 [dependencies.slint]
 version = "1.8.0"
-default-features = false
 features = [
-    "compat-1-2",
-    "std",
-    "log",
-    "backend-winit",
-    "renderer-femtovg",
     "unstable-winit-030",
 ]
 
