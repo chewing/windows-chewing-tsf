@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
-          sudo dnf -y install clang sqlite-devel rustup git libchewing
+          sudo dnf -y install clang sqlite-devel rustup git
           sudo dnf -y install mingw32-binutils mingw32-gcc mingw32-sqlite-static mingw32-zlib-static
           sudo dnf -y install mingw64-binutils mingw64-gcc mingw64-sqlite-static mingw64-zlib-static
           rustup-init -y
@@ -47,6 +47,10 @@ jobs:
           submodules: true
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Install build dependencies
+        run: |
+          cargo install --git https://github.com/chewing/libchewing chewing-cli
 
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}
@@ -97,7 +101,7 @@ jobs:
         run: |
           set VCPKG_ROOT=%VCPKG_INSTALLATION_ROOT%
           set VCPKGRS_DYNAMIC=1
-          cargo install chewing-cli
+          cargo install --git https://github.com/chewing/libchewing chewing-cli
 
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}

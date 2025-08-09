@@ -139,26 +139,19 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
 
     sh.create_dir("build/installer/Dictionary")?;
     {
-        let _p = sh.push_dir("libchewing/data");
+        let _p = sh.push_dir("data/misc");
         for file in ["swkb.dat", "symbols.dat"] {
             sh.copy_file(file, "../../build/installer/Dictionary")?;
         }
     }
-    let copyright = "Copyright (c) 2025 libchewing Core Team";
-    let license = "LGPL-2.1-or-later";
-    let revision = "2025.04.11";
     cmd!(
         sh,
-        "chewing-cli init-database -c {copyright} -l {license} -r {revision} -t trie -n 內建詞庫
-                  libchewing/data/tsi.src
-                  build/installer/Dictionary/tsi.dat"
+        "chewing-cli init-database --csv data/dict/chewing/tsi.csv build/installer/Dictionary/tsi.dat"
     )
     .run()?;
     cmd!(
         sh,
-        "chewing-cli init-database -c {copyright} -l {license} -r {revision} -t trie -n 內建字庫
-                  libchewing/data/word.src
-                  build/installer/Dictionary/word.dat"
+        "chewing-cli init-database --csv data/dict/chewing/word.csv build/installer/Dictionary/word.dat"
     )
     .run()?;
 
