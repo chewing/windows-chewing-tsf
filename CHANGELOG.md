@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Shift-triggered mode switch threshold is lowered to 200 miliseconds
 - Auto shift cursor after candidate selection now moves the cursor to the
   next phrase instead of the next word.
+- Correctly detect application focus change and resync Caps Lock state
 
 ### 🚜 Refactor
 

@@ -337,8 +337,8 @@ impl ChewingTextService {
         Ok(())
     }
 
-    pub(super) fn on_focus(&mut self, _context: &ITfContext) -> Result<()> {
-        self.apply_config_if_changed()
+    pub(super) fn on_focus(&mut self) -> Result<()> {
+        self.on_keyboard_status_changed(true)
     }
 
     pub(super) fn on_keydown(

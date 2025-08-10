@@ -57,12 +57,14 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
     ITfTextEditSink,
     ITfTextInputProcessorEx,
     ITfThreadMgrEventSink,
+    ITfThreadFocusSink,
     ITfActiveLanguageProfileNotifySink
 )]
 pub(super) struct TextService {
     inner: RwLock<ChewingTextService>,
     tid: Cell<u32>,
     thread_mgr_sink_cookie: Cell<u32>,
+    thread_focus_sink_cookie: Cell<u32>,
     active_lang_profile_sink_cookie: Cell<u32>,
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
@@ -74,6 +76,7 @@ impl TextService {
             inner: RwLock::new(ChewingTextService::new()),
             tid: Cell::default(),
             thread_mgr_sink_cookie: Cell::new(TF_INVALID_COOKIE),
+            thread_focus_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             active_lang_profile_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
@@ -143,6 +146,8 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
             let source: ITfSource = thread_mgr.cast()?;
             self.thread_mgr_sink_cookie
                 .set(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
+            self.thread_focus_sink_cookie
+                .set(source.AdviseSink(&ITfThreadFocusSink::IID, self.as_interface_ref())?);
             self.active_lang_profile_sink_cookie.set(source.AdviseSink(
                 &ITfActiveLanguageProfileNotifySink::IID,
                 self.as_interface_ref(),
@@ -194,6 +199,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         unsafe {
             let source: ITfSource = thread_mgr.cast()?;
             source.UnadviseSink(self.thread_mgr_sink_cookie.replace(TF_INVALID_COOKIE))?;
+            source.UnadviseSink(self.thread_focus_sink_cookie.replace(TF_INVALID_COOKIE))?;
             source.UnadviseSink(
                 self.active_lang_profile_sink_cookie
                     .replace(TF_INVALID_COOKIE),
@@ -253,9 +259,8 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
                     return Err(E_UNEXPECTED.into());
                 }
             }
-        } else if let Some(doc_mgr) = pdimfocus.as_ref() {
-            let context = unsafe { doc_mgr.GetBase()? };
-            if let Err(error) = ts.on_focus(&context) {
+        } else if pdimfocus.is_some() {
+            if let Err(error) = ts.on_focus() {
                 error!("Unable to handle focus: {error:#}");
                 return Err(E_UNEXPECTED.into());
             }
@@ -268,6 +273,20 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     }
 
     fn OnPopContext(&self, _pic: Ref<ITfContext>) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl ITfThreadFocusSink_Impl for TextService_Impl {
+    fn OnSetThreadFocus(&self) -> Result<()> {
+        let mut ts = self.lock();
+        if let Err(error) = ts.on_focus() {
+            error!("Unable to handle focus: {error:#}");
+            return Err(E_UNEXPECTED.into());
+        }
+        Ok(())
+    }
+    fn OnKillThreadFocus(&self) -> Result<()> {
         Ok(())
     }
 }
