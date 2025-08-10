@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - Fallback to software renderer on Hyper-V
 - Space key is available as a shortcut key when not in composing mode
 - Shift-triggered mode switch threshold is lowered to 200 miliseconds
+- Auto shift cursor after candidate selection now moves the cursor to the
+  next phrase instead of the next word.
 
 ### 🚜 Refactor
 
