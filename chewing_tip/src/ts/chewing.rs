@@ -678,7 +678,7 @@ impl ChewingTextService {
             .unwrap_or(Duration::from_secs(1));
 
         if self.cfg.switch_lang_with_shift
-            && hold_duration < Duration::from_secs(1)
+            && hold_duration < Duration::from_millis(200)
             && last_is_shift
         {
             if dry_run {

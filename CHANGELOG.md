@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Correct IBM layout mapping
 - Fallback to software renderer on Hyper-V
 - Space key is available as a shortcut key when not in composing mode
+- Shift-triggered mode switch threshold is lowered to 200 miliseconds
 
 ### 🚜 Refactor
 
