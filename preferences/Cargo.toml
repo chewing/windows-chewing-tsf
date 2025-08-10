@@ -26,6 +26,7 @@ sysinfo = "0.36.1"
 [dependencies.slint]
 version = "1.8.0"
 features = [
+    "renderer-skia",
     "unstable-winit-030",
 ]
 
