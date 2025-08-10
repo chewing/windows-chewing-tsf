@@ -411,6 +411,11 @@ impl ChewingTextService {
                     debug!("key not handled - Numlock toggled and key is a numpad key");
                     return Ok(false);
                 }
+                // No need to handle VK_SPACE when not composing and not fullshape mode
+                // This make the space key available for other shortcuts
+                if ev.is_key(VK_SPACE) {
+                    return Ok(false);
+                }
             }
             if !ev.is_printable() {
                 debug!("key not handled - key is not printable");

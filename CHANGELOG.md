@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Add missing bopomofo mapping to the GinYieh layout
 - Correct IBM layout mapping
 - Fallback to software renderer on Hyper-V
+- Space key is available as a shortcut key when not in composing mode
 
 ### 🚜 Refactor
 
