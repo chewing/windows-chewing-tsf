@@ -671,7 +671,7 @@ impl ChewingTextService {
             return Ok(false);
         };
         let last_is_shift = self.last_keydown_code == VK_SHIFT.0 && ev.vk == VK_SHIFT.0;
-        let last_is_caps_lock = self.last_keydown_code == VK_CAPITAL.0 && ev.vk == VK_CAPITAL.0;
+        let last_is_caps_lock = ev.vk == VK_CAPITAL.0;
         let hold_duration = self
             .last_keydown_time
             .map(|t| t.elapsed())

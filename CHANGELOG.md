@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 - Auto shift cursor after candidate selection now moves the cursor to the
   next phrase instead of the next word.
 - Correctly detect application focus change and resync Caps Lock state
+- Caps Lock key now triggers mode change even when other keys were held at
+  the same time. (#440)
 
 ### 🚜 Refactor
 
