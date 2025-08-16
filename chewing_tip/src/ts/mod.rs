@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 mod chewing;
-mod config;
 mod display_attribute;
 mod edit_session;
 mod key_event;

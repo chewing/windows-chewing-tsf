@@ -1,5 +1,5 @@
 [workspace]
-members = ["chewing_tip", "editor", "preferences", "tsfreg", "xtask"]
+members = ["chewing_tip", "config", "editor", "preferences", "tsfreg", "xtask"]
 resolver = "3"
 
 [patch.crates-io]

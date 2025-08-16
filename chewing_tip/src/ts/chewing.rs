@@ -40,6 +40,7 @@ use chewing_capi::output::{
     chewing_commit_preedit_buf, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
+use chewing_tip_config::{Config, color_s};
 use log::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -82,7 +83,6 @@ use crate::ts::theme::{ThemeDetector, WindowsTheme};
 use crate::window::window_register_class;
 
 use super::CommandType;
-use super::config::Config;
 use super::edit_session::{EndComposition, SelectionRect, SetCompositionString, StartComposition};
 use super::key_event::KeyEvent;
 use super::lang_bar::LangBarButton;
@@ -358,7 +358,8 @@ impl ChewingTextService {
         if self.last_keydown_time.is_none() {
             self.last_keydown_time = Some(Instant::now());
         }
-        let enable_caps_lock = self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL);
+        let enable_caps_lock =
+            self.cfg.chewing_tsf.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL);
 
         if ev.is_key_down(VK_MENU) {
             // bypass IME. This might be a shortcut key used in the application
@@ -369,7 +370,8 @@ impl ChewingTextService {
             // bypass IME. This might be a shortcut key used in the application
             if self.is_composing() && ev.is_digits() {
                 // need to handle userphrase
-            } else if ev.is_key_down(VK_SHIFT) && self.cfg.easy_symbols_with_shift_ctrl {
+            } else if ev.is_key_down(VK_SHIFT) && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl
+            {
                 // need to handle easy symbol input
             } else {
                 debug!("key not handled - Ctrl modifier key was down");
@@ -385,7 +387,7 @@ impl ChewingTextService {
             {
                 if ev.is_key(VK_SPACE)
                     && ev.is_key_down(VK_SHIFT)
-                    && self.cfg.enable_fullwidth_toggle_key
+                    && self.cfg.chewing_tsf.enable_fullwidth_toggle_key
                 {
                     // need to handle mode switch
                 } else {
@@ -442,12 +444,13 @@ impl ChewingTextService {
             }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
             if ev.is_key_down(VK_SHIFT)
-                && (!self.cfg.full_shape_symbols || ev.is_alphabet())
-                && !self.cfg.easy_symbols_with_shift
-                && !(ev.is_key_down(VK_CONTROL) && self.cfg.easy_symbols_with_shift_ctrl)
+                && (!self.cfg.chewing_tsf.full_shape_symbols || ev.is_alphabet())
+                && !self.cfg.chewing_tsf.easy_symbols_with_shift
+                && !(ev.is_key_down(VK_CONTROL)
+                    && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl)
             {
                 momentary_english_mode = true;
-                if !self.cfg.upper_case_with_shift {
+                if !self.cfg.chewing_tsf.upper_case_with_shift {
                     invert_case = true;
                 }
             }
@@ -475,12 +478,12 @@ impl ChewingTextService {
             } else if ev.is_alphabet() {
                 unsafe {
                     let mut code = ev.code.to_ascii_lowercase();
-                    if ev.is_key_down(VK_SHIFT) && self.cfg.easy_symbols_with_shift {
+                    if ev.is_key_down(VK_SHIFT) && self.cfg.chewing_tsf.easy_symbols_with_shift {
                         code = ev.code.to_ascii_uppercase();
                     }
                     if ev.is_key_down(VK_SHIFT)
                         && ev.is_key_down(VK_CONTROL)
-                        && self.cfg.easy_symbols_with_shift_ctrl
+                        && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl
                     {
                         code = ev.code.to_ascii_uppercase();
                     }
@@ -505,7 +508,7 @@ impl ChewingTextService {
             }
         } else {
             let mut key_handled = false;
-            if self.cfg.cursor_cand_list {
+            if self.cfg.chewing_tsf.cursor_cand_list {
                 if let Some(candidate_list) = &self.candidate_list {
                     match candidate_list.filter_key_event(ev.vk) {
                         FilterKeyResult::HandledCommit => {
@@ -677,21 +680,21 @@ impl ChewingTextService {
             .map(|t| t.elapsed())
             .unwrap_or(Duration::from_secs(1));
 
-        if self.cfg.switch_lang_with_shift
+        if self.cfg.chewing_tsf.switch_lang_with_shift
             && hold_duration < Duration::from_millis(200)
             && last_is_shift
         {
             if dry_run {
                 return Ok(true);
             }
-            if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
+            if self.cfg.chewing_tsf.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
                 // Locked by CapsLock
                 let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
                     SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
                 };
-                if self.cfg.show_notification {
+                if self.cfg.chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
                 self.last_keydown_time = None;
@@ -701,13 +704,16 @@ impl ChewingTextService {
                 self.toggle_lang_mode()?;
                 let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
                     SYMBOL_MODE => HSTRING::from("英數模式"),
-                    CHINESE_MODE if self.cfg.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) => {
+                    CHINESE_MODE
+                        if self.cfg.chewing_tsf.enable_caps_lock
+                            && ev.is_key_toggled(VK_CAPITAL) =>
+                    {
                         HSTRING::from("英數模式 (CapsLock)")
                     }
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
                 };
-                if self.cfg.show_notification {
+                if self.cfg.chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
                 self.last_keydown_time = None;
@@ -716,7 +722,7 @@ impl ChewingTextService {
             }
         }
 
-        if self.cfg.enable_caps_lock && last_is_caps_lock {
+        if self.cfg.chewing_tsf.enable_caps_lock && last_is_caps_lock {
             if dry_run {
                 return Ok(true);
             }
@@ -726,7 +732,7 @@ impl ChewingTextService {
                 CHINESE_MODE => HSTRING::from("中文模式"),
                 _ => unreachable!(),
             };
-            if self.cfg.show_notification {
+            if self.cfg.chewing_tsf.show_notification {
                 self.show_message(context, &msg, Duration::from_millis(500))?;
             }
             self.last_keydown_time = None;
@@ -962,8 +968,8 @@ impl ChewingTextService {
                 let notification = Notification::new(hwnd, thread_mgr.clone())?;
                 notification.set_model(NotificationModel {
                     text: text.clone(),
-                    font_family: self.cfg.font_family.clone(),
-                    font_size: self.cfg.font_size as f32,
+                    font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
+                    font_size: self.cfg.chewing_tsf.font_size as f32,
                 });
                 if let Ok(rect) = self.get_selection_rect(context) {
                     notification.set_position(rect.left + 50, rect.bottom + 50);
@@ -1032,15 +1038,15 @@ impl ChewingTextService {
                 candidate_list.set_model(Model {
                     items,
                     selkeys: sel_keys.iter().take(n).map(|&k| k as u16).collect(),
-                    cand_per_row: self.cfg.cand_per_row as u32,
-                    font_family: self.cfg.font_family.clone(),
-                    font_size: self.cfg.font_size as f32,
-                    fg_color: self.cfg.font_fg_color,
-                    bg_color: self.cfg.font_bg_color,
-                    highlight_fg_color: self.cfg.font_highlight_fg_color,
-                    highlight_bg_color: self.cfg.font_highlight_bg_color,
-                    selkey_color: self.cfg.font_number_fg_color,
-                    use_cursor: self.cfg.cursor_cand_list,
+                    cand_per_row: self.cfg.chewing_tsf.cand_per_row as u32,
+                    font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
+                    font_size: self.cfg.chewing_tsf.font_size as f32,
+                    fg_color: color_s(&self.cfg.chewing_tsf.font_fg_color),
+                    bg_color: color_s(&self.cfg.chewing_tsf.font_bg_color),
+                    highlight_fg_color: color_s(&self.cfg.chewing_tsf.font_highlight_fg_color),
+                    highlight_bg_color: color_s(&self.cfg.chewing_tsf.font_highlight_bg_color),
+                    selkey_color: color_s(&self.cfg.chewing_tsf.font_number_fg_color),
+                    use_cursor: self.cfg.chewing_tsf.cursor_cand_list,
                     current_sel: 0,
                 });
             }
@@ -1152,12 +1158,12 @@ impl ChewingTextService {
         if let Some(ctx) = self.chewing_context {
             unsafe {
                 chewing_set_maxChiSymbolLen(ctx, 50);
-                if self.cfg.default_english || capslock {
+                if self.cfg.chewing_tsf.default_english || capslock {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 } else {
                     chewing_set_ChiEngMode(ctx, CHINESE_MODE);
                 }
-                if self.cfg.default_full_space {
+                if self.cfg.chewing_tsf.default_full_space {
                     chewing_set_ShapeMode(ctx, FULLSHAPE_MODE);
                 }
             }
@@ -1181,7 +1187,7 @@ impl ChewingTextService {
     }
 
     fn apply_config(&mut self) {
-        let cfg = &self.cfg;
+        let cfg = &self.cfg.chewing_tsf;
         if let Some(ctx) = self.chewing_context {
             unsafe {
                 if cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl {

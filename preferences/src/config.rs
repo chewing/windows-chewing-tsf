@@ -1,36 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::ptr::null_mut;
 use std::rc::Rc;
 use std::{env, fs, path::PathBuf};
 
 use anyhow::{Result, bail};
 use chewing::path::data_dir;
-use log::error;
-use slint::ComponentHandle;
+use chewing_tip_config::Config;
 use slint::ModelRc;
 use slint::VecModel;
-use windows::Win32::Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree};
-use windows::Win32::Security::Authorization::{
-    EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, SE_OBJECT_TYPE, SE_REGISTRY_KEY, SET_ACCESS,
-    SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_GROUP, TRUSTEE_IS_SID, TRUSTEE_W,
-};
-use windows::Win32::Security::{
-    AllocateAndInitializeSid, DACL_SECURITY_INFORMATION, FreeSid, PSECURITY_DESCRIPTOR, PSID,
-    SECURITY_APP_PACKAGE_AUTHORITY, SUB_CONTAINERS_AND_OBJECTS_INHERIT,
-};
-use windows::Win32::System::Registry::KEY_READ;
-use windows::Win32::System::SystemServices::{
-    SECURITY_APP_PACKAGE_BASE_RID, SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT,
-    SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE,
-};
-use windows::core::{PCWSTR, PWSTR, w};
-use windows_registry::{CURRENT_USER, Key};
+use slint::{ComponentHandle, SharedString};
 
 use crate::AboutWindow;
 use crate::ConfigWindow;
-
-const KEY_WOW64_64KEY: u32 = 0x0100;
 
 pub fn run() -> Result<()> {
     let about = AboutWindow::new()?;
@@ -65,22 +46,6 @@ pub fn run() -> Result<()> {
 
     ui.run()?;
     Ok(())
-}
-
-fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32> {
-    Ok(hk.get_u32(value_name)? as i32)
-}
-
-fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<()> {
-    Ok(hk.set_u32(value_name, value as u32)?)
-}
-
-fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool> {
-    Ok(hk.get_u32(value_name)? > 0)
-}
-
-fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<()> {
-    Ok(hk.set_u32(value_name, value as u32)?)
 }
 
 fn default_user_path_for_file(file: &str) -> PathBuf {
@@ -118,27 +83,8 @@ fn system_path_for_file(file: &str) -> Result<PathBuf> {
 }
 
 fn load_config(ui: &ConfigWindow) -> Result<()> {
-    // Init settings to default value
-    ui.set_cand_per_row(3);
-    ui.set_switch_lang_with_shift(true);
-    ui.set_enable_fullwidth_toggle_key(false);
-    ui.set_show_notification(true);
-    ui.set_add_phrase_forward(true);
-    ui.set_advance_after_selection(true);
-    ui.set_conv_engine(1);
-    ui.set_cand_per_page(9);
-    ui.set_cursor_cand_list(true);
-    ui.set_enable_caps_lock(true);
-    ui.set_full_shape_symbols(true);
-    ui.set_easy_symbols_with_shift(true);
-    ui.set_enable_auto_learn(true);
-    ui.set_font_size(16);
-    ui.set_font_family("Segoe UI".into());
-    ui.set_font_fg_color("000000".into());
-    ui.set_font_bg_color("FAFAFA".into());
-    ui.set_font_highlight_fg_color("FFFFFF".into());
-    ui.set_font_highlight_bg_color("000000".into());
-    ui.set_font_number_fg_color("0000FF".into());
+    let cfg = Config::from_reg()?;
+    let chewing_tsf = &cfg.chewing_tsf;
 
     if let Ok(path) = user_path_for_file("symbols.dat") {
         ui.set_symbols_dat(fs::read_to_string(path)?.into());
@@ -152,177 +98,81 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
         ui.set_swkb_dat(fs::read_to_string(path)?.into());
     }
 
-    let key = CURRENT_USER
-        .options()
-        .create()
-        .read()
-        .access(KEY_WOW64_64KEY)
-        .open("Software\\ChewingTextService")?;
-    // Load custom value from the registry
-    if let Ok(value) = reg_get_i32(&key, "KeyboardLayout") {
-        ui.set_keyboard_layout(value);
-    }
-    if let Ok(value) = reg_get_i32(&key, "CandPerRow") {
-        ui.set_cand_per_row(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "DefaultEnglish") {
-        ui.set_default_english(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "DefaultFullSpace") {
-        ui.set_default_full_space(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "ShowCandWithSpaceKey") {
-        ui.set_show_cand_with_space_key(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
-        ui.set_switch_lang_with_shift(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "EnableFullwidthToggleKey") {
-        ui.set_enable_fullwidth_toggle_key(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "ShowNotification") {
-        ui.set_show_notification(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "OutputSimpChinese") {
-        ui.set_output_simp_chinese(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "AddPhraseForward") {
-        ui.set_add_phrase_forward(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "PhraseChoiceRearward") {
-        ui.set_phrase_choice_rearward(value);
-    }
-    // if let Ok(value) = reg_get_bool(&key, "ColorCandWnd") {
-    //     ui.set_color_cand_wnd(value);
-    // }
-    if let Ok(value) = reg_get_bool(&key, "AdvanceAfterSelection") {
-        ui.set_advance_after_selection(value);
-    }
-    if let Ok(value) = reg_get_i32(&key, "DefFontSize") {
-        ui.set_font_size(value);
-    }
-    if let Ok(value) = key.get_string("DefFontFamily") {
-        ui.set_font_family(value.into());
-    }
-    if let Ok(value) = key.get_string("DefFontFgColor") {
-        ui.set_font_fg_color(value.into());
-    }
-    if let Ok(value) = key.get_string("DefFontBgColor") {
-        ui.set_font_bg_color(value.into());
-    }
-    if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
-        ui.set_font_highlight_fg_color(value.into());
-    }
-    if let Ok(value) = key.get_string("DefFontHighlightBgColor") {
-        ui.set_font_highlight_bg_color(value.into());
-    }
-    if let Ok(value) = key.get_string("DefFontNumberFgColor") {
-        ui.set_font_number_fg_color(value.into());
-    }
-    if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
-        ui.set_sel_key_type(value);
-    }
-    if let Ok(value) = reg_get_i32(&key, "ConvEngine") {
-        ui.set_conv_engine(value);
-    }
-    if let Ok(value) = reg_get_i32(&key, "SelAreaLen") {
-        ui.set_cand_per_page(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "CursorCandList") {
-        ui.set_cursor_cand_list(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "EnableCapsLock") {
-        ui.set_enable_caps_lock(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "FullShapeSymbols") {
-        ui.set_full_shape_symbols(value);
-    }
-    // if let Ok(value) = reg_get_bool(&key, "PhraseMark") {
-    //     ui.set_phrase_mark(value);
-    // }
-    if let Ok(value) = reg_get_bool(&key, "EscCleanAllBuf") {
-        ui.set_esc_clean_all_buf(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShift") {
-        ui.set_easy_symbols_with_shift(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShiftCtrl") {
-        ui.set_easy_symbols_with_shift_ctrl(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
-        ui.set_upper_case_with_shift(value);
-    }
-    if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
-        ui.set_enable_auto_learn(value);
-    }
+    ui.set_keyboard_layout(chewing_tsf.keyboard_layout);
+    ui.set_cand_per_row(chewing_tsf.cand_per_row);
+    ui.set_default_english(chewing_tsf.default_english);
+    ui.set_default_full_space(chewing_tsf.default_full_space);
+    ui.set_show_cand_with_space_key(chewing_tsf.show_cand_with_space_key);
+    ui.set_switch_lang_with_shift(chewing_tsf.switch_lang_with_shift);
+    ui.set_enable_fullwidth_toggle_key(chewing_tsf.enable_fullwidth_toggle_key);
+    ui.set_show_notification(chewing_tsf.show_notification);
+    ui.set_output_simp_chinese(chewing_tsf.output_simp_chinese);
+    ui.set_add_phrase_forward(chewing_tsf.add_phrase_forward);
+    ui.set_phrase_choice_rearward(chewing_tsf.phrase_choice_rearward);
+    ui.set_advance_after_selection(chewing_tsf.advance_after_selection);
+    ui.set_font_size(chewing_tsf.font_size);
+    ui.set_font_family(SharedString::from(&chewing_tsf.font_family));
+    ui.set_font_fg_color(SharedString::from(&chewing_tsf.font_fg_color));
+    ui.set_font_bg_color(SharedString::from(&chewing_tsf.font_bg_color));
+    ui.set_font_highlight_fg_color(SharedString::from(&chewing_tsf.font_highlight_fg_color));
+    ui.set_font_highlight_bg_color(SharedString::from(&chewing_tsf.font_highlight_bg_color));
+    ui.set_font_number_fg_color(SharedString::from(&chewing_tsf.font_number_fg_color));
+    ui.set_sel_key_type(chewing_tsf.sel_key_type);
+    ui.set_conv_engine(chewing_tsf.conv_engine);
+    ui.set_cand_per_page(chewing_tsf.cand_per_page);
+    ui.set_cursor_cand_list(chewing_tsf.cursor_cand_list);
+    ui.set_enable_caps_lock(chewing_tsf.enable_caps_lock);
+    ui.set_full_shape_symbols(chewing_tsf.full_shape_symbols);
+    ui.set_esc_clean_all_buf(chewing_tsf.esc_clean_all_buf);
+    ui.set_easy_symbols_with_shift(chewing_tsf.easy_symbols_with_shift);
+    ui.set_easy_symbols_with_shift_ctrl(chewing_tsf.easy_symbols_with_shift_ctrl);
+    ui.set_upper_case_with_shift(chewing_tsf.upper_case_with_shift);
+    ui.set_enable_auto_learn(chewing_tsf.enable_auto_learn);
 
     Ok(())
 }
 
-fn save_config(ui: &ConfigWindow) -> Result<()> {
-    let key = CURRENT_USER
-        .options()
-        .create()
-        .access(KEY_WOW64_64KEY)
-        .write()
-        .open("Software\\ChewingTextService")?;
+fn extract_config(ui: &ConfigWindow) -> Config {
+    let mut cfg = Config::default();
+    let chewing_tsf = &mut cfg.chewing_tsf;
 
-    let _ = reg_set_i32(&key, "KeyboardLayout", ui.get_keyboard_layout());
-    let _ = reg_set_i32(&key, "CandPerRow", ui.get_cand_per_row());
-    let _ = reg_set_bool(&key, "DefaultEnglish", ui.get_default_english());
-    let _ = reg_set_bool(&key, "DefaultFullSpace", ui.get_default_full_space());
-    let _ = reg_set_bool(
-        &key,
-        "ShowCandWithSpaceKey",
-        ui.get_show_cand_with_space_key(),
-    );
-    let _ = reg_set_bool(&key, "SwitchLangWithShift", ui.get_switch_lang_with_shift());
-    let _ = reg_set_bool(
-        &key,
-        "EnableFullwidthToggleKey",
-        ui.get_enable_fullwidth_toggle_key(),
-    );
-    let _ = reg_set_bool(&key, "ShowNotification", ui.get_show_notification());
-    let _ = reg_set_bool(&key, "OutputSimpChinese", ui.get_output_simp_chinese());
-    let _ = reg_set_bool(&key, "AddPhraseForward", ui.get_add_phrase_forward());
-    let _ = reg_set_bool(
-        &key,
-        "PhraseChoiceRearward",
-        ui.get_phrase_choice_rearward(),
-    );
-    // let _ = reg_set_i32(&key, "ColorCandWnd", ui.get_color_cand_wnd());
-    let _ = reg_set_bool(
-        &key,
-        "AdvanceAfterSelection",
-        ui.get_advance_after_selection(),
-    );
-    let _ = reg_set_i32(&key, "DefFontSize", ui.get_font_size());
-    let _ = key.set_string("DefFontFamily", ui.get_font_family());
-    let _ = key.set_string("DefFontFgColor", ui.get_font_fg_color());
-    let _ = key.set_string("DefFontBgColor", ui.get_font_bg_color());
-    let _ = key.set_string("DefFontHighlightFgColor", ui.get_font_highlight_fg_color());
-    let _ = key.set_string("DefFontHighlightBgColor", ui.get_font_highlight_bg_color());
-    let _ = key.set_string("DefFontNumberFgColor", ui.get_font_number_fg_color());
-    let _ = reg_set_i32(&key, "SelKeyType", ui.get_sel_key_type());
-    let _ = reg_set_i32(&key, "ConvEngine", ui.get_conv_engine());
-    let _ = reg_set_i32(&key, "SelAreaLen", ui.get_cand_per_page());
-    let _ = reg_set_bool(&key, "CursorCandList", ui.get_cursor_cand_list());
-    let _ = reg_set_bool(&key, "EnableCapsLock", ui.get_enable_caps_lock());
-    let _ = reg_set_bool(&key, "FullShapeSymbols", ui.get_full_shape_symbols());
-    // let _ = reg_set_bool(&key, "PhraseMark", ui.get_phrase_mark());
-    let _ = reg_set_bool(&key, "EscCleanAllBuf", ui.get_esc_clean_all_buf());
-    let _ = reg_set_bool(
-        &key,
-        "EasySymbolsWithShift",
-        ui.get_easy_symbols_with_shift(),
-    );
-    let _ = reg_set_bool(
-        &key,
-        "EasySymbolsWithShiftCtrl",
-        ui.get_easy_symbols_with_shift_ctrl(),
-    );
-    let _ = reg_set_bool(&key, "UpperCaseWithShift", ui.get_upper_case_with_shift());
-    let _ = reg_set_bool(&key, "EnableAutoLearn", ui.get_enable_auto_learn());
+    chewing_tsf.keyboard_layout = ui.get_keyboard_layout();
+    chewing_tsf.cand_per_row = ui.get_cand_per_row();
+    chewing_tsf.default_english = ui.get_default_english();
+    chewing_tsf.default_full_space = ui.get_default_full_space();
+    chewing_tsf.show_cand_with_space_key = ui.get_show_cand_with_space_key();
+    chewing_tsf.switch_lang_with_shift = ui.get_switch_lang_with_shift();
+    chewing_tsf.enable_fullwidth_toggle_key = ui.get_enable_fullwidth_toggle_key();
+    chewing_tsf.show_notification = ui.get_show_notification();
+    chewing_tsf.output_simp_chinese = ui.get_output_simp_chinese();
+    chewing_tsf.add_phrase_forward = ui.get_add_phrase_forward();
+    chewing_tsf.phrase_choice_rearward = ui.get_phrase_choice_rearward();
+    chewing_tsf.advance_after_selection = ui.get_advance_after_selection();
+    chewing_tsf.font_size = ui.get_font_size();
+    chewing_tsf.font_family = ui.get_font_family().to_string();
+    chewing_tsf.font_fg_color = ui.get_font_fg_color().to_string();
+    chewing_tsf.font_bg_color = ui.get_font_bg_color().to_string();
+    chewing_tsf.font_highlight_fg_color = ui.get_font_highlight_fg_color().to_string();
+    chewing_tsf.font_highlight_bg_color = ui.get_font_highlight_bg_color().to_string();
+    chewing_tsf.font_number_fg_color = ui.get_font_number_fg_color().to_string();
+    chewing_tsf.sel_key_type = ui.get_sel_key_type();
+    chewing_tsf.conv_engine = ui.get_conv_engine();
+    chewing_tsf.cand_per_page = ui.get_cand_per_page();
+    chewing_tsf.cursor_cand_list = ui.get_cursor_cand_list();
+    chewing_tsf.enable_caps_lock = ui.get_enable_caps_lock();
+    chewing_tsf.full_shape_symbols = ui.get_full_shape_symbols();
+    chewing_tsf.esc_clean_all_buf = ui.get_esc_clean_all_buf();
+    chewing_tsf.easy_symbols_with_shift = ui.get_easy_symbols_with_shift();
+    chewing_tsf.easy_symbols_with_shift_ctrl = ui.get_easy_symbols_with_shift_ctrl();
+    chewing_tsf.upper_case_with_shift = ui.get_upper_case_with_shift();
+    chewing_tsf.enable_auto_learn = ui.get_enable_auto_learn();
+
+    cfg
+}
+
+fn save_config(ui: &ConfigWindow) -> Result<()> {
+    let cfg = extract_config(&ui);
+    cfg.save_reg();
 
     let sys_symbols_dat = system_path_for_file("symbols.dat")
         .and_then(|path| Ok(fs::read_to_string(path)?))
@@ -342,96 +192,5 @@ fn save_config(ui: &ConfigWindow) -> Result<()> {
         fs::write(user_swkb_dat_path, ui.get_swkb_dat())?;
     }
 
-    // AppContainer app, like the SearchHost.exe powering the start menu search bar
-    // needs this to access the settings.
-    if let Err(error) = grant_app_container_access(
-        w!(r"CURRENT_USER\Software\ChewingTextService"),
-        SE_REGISTRY_KEY,
-        KEY_READ.0,
-    ) {
-        error!("Failed to grant app container access: {error:#}");
-    }
-
     Ok(())
-}
-
-fn grant_app_container_access(object: PCWSTR, typ: SE_OBJECT_TYPE, access: u32) -> Result<()> {
-    let mut success = false;
-    let mut old_acl_mut_ptr = null_mut();
-    let mut new_acl_mut_ptr = null_mut();
-    let mut sd = PSECURITY_DESCRIPTOR::default();
-    // Get old security descriptor
-    unsafe {
-        if GetNamedSecurityInfoW(
-            object,
-            typ,
-            DACL_SECURITY_INFORMATION,
-            None,
-            None,
-            Some(&mut old_acl_mut_ptr),
-            None,
-            &mut sd,
-        ) == ERROR_SUCCESS
-        {
-            // Create a well-known SID for the all appcontainers group.
-            let mut psid = PSID::default();
-            if AllocateAndInitializeSid(
-                &SECURITY_APP_PACKAGE_AUTHORITY,
-                SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT as u8,
-                SECURITY_APP_PACKAGE_BASE_RID as u32,
-                SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE as u32,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                &mut psid,
-            )
-            .is_ok()
-            {
-                let ea = EXPLICIT_ACCESS_W {
-                    grfAccessPermissions: access,
-                    grfAccessMode: SET_ACCESS,
-                    grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
-                    Trustee: TRUSTEE_W {
-                        TrusteeForm: TRUSTEE_IS_SID,
-                        TrusteeType: TRUSTEE_IS_GROUP,
-                        ptstrName: PWSTR::from_raw(psid.0.cast()),
-                        ..Default::default()
-                    },
-                };
-                // Add the new entry to the existing DACL
-                if SetEntriesInAclW(Some(&[ea]), Some(old_acl_mut_ptr), &mut new_acl_mut_ptr)
-                    == ERROR_SUCCESS
-                {
-                    // Set the new DACL back to the object
-                    if SetNamedSecurityInfoW(
-                        object,
-                        typ,
-                        DACL_SECURITY_INFORMATION,
-                        None,
-                        None,
-                        Some(new_acl_mut_ptr),
-                        None,
-                    ) == ERROR_SUCCESS
-                    {
-                        success = true;
-                    }
-                }
-                FreeSid(psid);
-            }
-        }
-        if !sd.is_invalid() {
-            LocalFree(Some(HLOCAL(sd.0)));
-        }
-        if !new_acl_mut_ptr.is_null() {
-            LocalFree(Some(HLOCAL(new_acl_mut_ptr.cast())));
-        }
-    }
-    if success {
-        Ok(())
-    } else {
-        bail!("Unable to update security descriptor");
-    }
 }

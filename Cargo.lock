@@ -195,9 +195,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.98"
+version = "1.0.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
+checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 
 [[package]]
 name = "arbitrary"
@@ -757,6 +757,7 @@ version = "25.8.1"
 dependencies = [
  "anyhow",
  "chewing",
+ "chewing_tip_config",
  "embed-resource",
  "log",
  "slint",
@@ -764,7 +765,6 @@ dependencies = [
  "sysinfo",
  "win_dbg_logger",
  "windows",
- "windows-registry",
  "winit",
 ]
 
@@ -786,6 +786,7 @@ dependencies = [
  "cc",
  "chewing",
  "chewing_capi",
+ "chewing_tip_config",
  "embed-resource",
  "getrandom 0.3.3",
  "log",
@@ -795,6 +796,17 @@ dependencies = [
  "windows-numerics",
  "windows-registry",
  "zhconv",
+]
+
+[[package]]
+name = "chewing_tip_config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "serde",
+ "windows",
+ "windows-registry",
 ]
 
 [[package]]
@@ -1245,6 +1257,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89a09f22a6c6069a18470eb92d2298acf25463f14256d24778e1230d789a2aec"
 dependencies = [
  "bitflags 2.9.1",
+ "block2 0.6.1",
+ "libc",
  "objc2 0.6.1",
 ]
 
