@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - Install shortcuts to startup menu.
+- Support exporting preferences to a TOML file.
 
 ### 🐛 Bug Fixes
 

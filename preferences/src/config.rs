@@ -3,9 +3,10 @@
 use std::rc::Rc;
 use std::{env, fs, path::PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use chewing::path::data_dir;
 use chewing_tip_config::Config;
+use rfd::{FileDialog, MessageButtons, MessageDialog, MessageLevel};
 use slint::ModelRc;
 use slint::VecModel;
 use slint::{ComponentHandle, SharedString};
@@ -43,9 +44,64 @@ pub fn run() -> Result<()> {
     ui.on_about(move || {
         about.show().unwrap();
     });
+    let ui_handle = ui.as_weak();
+    ui.on_menu_import(move || {
+        let ui = ui_handle.upgrade().unwrap();
+        if let Some(path) = FileDialog::new()
+            .set_directory(default_desktop_path())
+            .add_filter("TOML", &["toml"])
+            .set_file_name("新酷音設定.toml")
+            .pick_file()
+        {
+            match std::fs::read_to_string(path)
+                .context("無法讀取檔案")
+                .and_then(|t| toml::from_str::<Config>(&t).context("檔案內容錯誤"))
+            {
+                Ok(cfg) => {
+                    insert_config(&ui, &cfg);
+                }
+                Err(error) => {
+                    MessageDialog::new()
+                        .set_level(MessageLevel::Error)
+                        .set_title("錯誤")
+                        .set_description(format!("無法匯入檔案\n{error:#}"))
+                        .set_buttons(MessageButtons::Ok)
+                        .show();
+                }
+            }
+        }
+    });
+    let ui_handle = ui.as_weak();
+    ui.on_menu_export(move || {
+        let ui = ui_handle.upgrade().unwrap();
+        let cfg = extract_config(&ui);
+        if let Some(path) = FileDialog::new()
+            .set_directory(default_desktop_path())
+            .add_filter("TOML", &["toml"])
+            .set_file_name("新酷音設定.toml")
+            .save_file()
+        {
+            if let Err(error) = toml::to_string_pretty(&cfg)
+                .context("無法匯出設定檔")
+                .and_then(|t| std::fs::write(&path, &t).context("無法寫入檔案"))
+            {
+                MessageDialog::new()
+                    .set_level(MessageLevel::Error)
+                    .set_title("錯誤")
+                    .set_description(format!("無法匯出檔案\n{error:#}"))
+                    .set_buttons(MessageButtons::Ok)
+                    .show();
+            }
+        }
+    });
 
     ui.run()?;
     Ok(())
+}
+
+fn default_desktop_path() -> PathBuf {
+    let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
+    PathBuf::from(user_profile).join("Desktop")
 }
 
 fn default_user_path_for_file(file: &str) -> PathBuf {
@@ -84,7 +140,7 @@ fn system_path_for_file(file: &str) -> Result<PathBuf> {
 
 fn load_config(ui: &ConfigWindow) -> Result<()> {
     let cfg = Config::from_reg()?;
-    let chewing_tsf = &cfg.chewing_tsf;
+    insert_config(&ui, &cfg);
 
     if let Ok(path) = user_path_for_file("symbols.dat") {
         ui.set_symbols_dat(fs::read_to_string(path)?.into());
@@ -98,6 +154,11 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
         ui.set_swkb_dat(fs::read_to_string(path)?.into());
     }
 
+    Ok(())
+}
+
+fn insert_config(ui: &ConfigWindow, cfg: &Config) {
+    let chewing_tsf = &cfg.chewing_tsf;
     ui.set_keyboard_layout(chewing_tsf.keyboard_layout);
     ui.set_cand_per_row(chewing_tsf.cand_per_row);
     ui.set_default_english(chewing_tsf.default_english);
@@ -128,8 +189,6 @@ fn load_config(ui: &ConfigWindow) -> Result<()> {
     ui.set_easy_symbols_with_shift_ctrl(chewing_tsf.easy_symbols_with_shift_ctrl);
     ui.set_upper_case_with_shift(chewing_tsf.upper_case_with_shift);
     ui.set_enable_auto_learn(chewing_tsf.enable_auto_learn);
-
-    Ok(())
 }
 
 fn extract_config(ui: &ConfigWindow) -> Config {

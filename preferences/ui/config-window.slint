@@ -50,14 +50,22 @@ export component ConfigWindow inherits Window {
     callback apply-and-quit();
     callback cancel();
     callback about();
+    callback menu-export();
+    callback menu-import();
 
     MenuBar {
         Menu {
             title: "檔案";
             MenuItem {
-                title: "確定";
+                title: "匯入設定檔";
                 activated => {
-                    root.apply();
+                    root.menu-import();
+                }
+            }
+            MenuItem {
+                title: "匯出設定檔";
+                activated => {
+                    root.menu-export();
                 }
             }
             MenuItem {
