@@ -13,6 +13,9 @@
         UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
         <MajorUpgrade AllowDowngrades="yes" />
         <MediaTemplate CompressionLevel="high" EmbedCab="yes" />
+        <StandardDirectory Id="ProgramMenuFolder">
+            <Directory Id="ApplicationProgramsFolder" Name="新酷音輸入法 (TSF)" />
+        </StandardDirectory>
         <StandardDirectory Id="ProgramFiles64Folder">
             <Directory Id="INSTALLFOLDER64" Name="ChewingTextService">
                 <Directory Id="Dictionary" Name="Dictionary">
@@ -30,8 +33,17 @@
                     <!-- Remove NSIS Uninstaller -->
                     <RemoveFile Name="Uninstall.exe" On="install" />
                 </Component>
-                <File Source="ChewingPreferences.exe" Bitness="always64" />
-                <File Source="chewing-editor.exe" Bitness="always64" />
+                <Component Bitness="always64">
+                    <File Source="ChewingPreferences.exe" KeyPath="yes">
+                        <Shortcut Advertise="yes" Icon="icon.exe" Name="設定新酷音輸入法" Directory="ApplicationProgramsFolder" />
+                    </File>
+                    <RemoveFolder Directory="ApplicationProgramsFolder" On="uninstall" />
+                </Component>
+                <Component Bitness="always64">
+                    <File Source="chewing-editor.exe" KeyPath="yes">
+                        <Shortcut Advertise="yes" Icon="icon.exe" Name="編輯使用者詞庫" Directory="ApplicationProgramsFolder" />
+                    </File>
+                </Component>
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
                 <Component Bitness="always64">
@@ -77,6 +89,7 @@
                 </Component>
             </Directory>
         </StandardDirectory>
+        <Icon Id="icon.exe" SourceFile="chewing.ico" />
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
         <CustomAction Id="RegisterTSF" BinaryRef="tsfreg"
             ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;"
