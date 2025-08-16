@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🚀 Features
+
+- Install shortcuts to startup menu.
+
 ### 🐛 Bug Fixes
 
 - Add missing bopomofo mapping to the GinYieh layout
