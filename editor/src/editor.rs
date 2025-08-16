@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::iter;
+use std::path::PathBuf;
+use std::process::Command;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::RwLock;
+use std::{env, iter};
 
 use anyhow::{Result, anyhow};
 use chewing::dictionary::{
@@ -11,6 +13,7 @@ use chewing::dictionary::{
 };
 use chewing::dictionary::{DictionaryInfo, Phrase};
 use chewing::zhuyin::Syllable;
+use rfd::{FileDialog, MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
 use slint::{
     ComponentHandle, Model, ModelExt, ModelNotify, ModelRc, ModelTracker, SharedString,
     StandardListViewItem, VecModel,
@@ -32,6 +35,9 @@ pub fn run() -> Result<()> {
     about.on_done(move || {
         let about = about_handle.upgrade().unwrap();
         about.hide().unwrap();
+    });
+    ui.on_quit(move || {
+        slint::quit_event_loop().unwrap();
     });
     ui.on_about(move || {
         about.show().unwrap();
@@ -67,6 +73,107 @@ pub fn run() -> Result<()> {
         let ui = ui_handle.upgrade().unwrap();
         ui.global::<DictEntriesAdapter>().set_entries(dict_model);
     });
+    let ui_handle = ui.as_weak();
+    ui.on_edit_dict_import(move |row: ModelRc<StandardListViewItem>| {
+        let dict_item = row
+            .as_any()
+            .downcast_ref::<DictTableItemModel>()
+            .expect("row item should be a DictTableItemModel");
+        if let Ok(dict) = dict_item.1.read()
+            && let Some(dict_path) = dict.path()
+        {
+            let dict_path = dict_path.to_owned();
+            let ui_handle = ui_handle.clone();
+            // XXX spawn MessageDialog in a different thread to avoid lock-up
+            // slint's UI thread. In theory this is not necessary because
+            // MessageBox spins the event loop. But in practice this is required
+            // for current slint (1.12.1).
+            std::thread::spawn(move || {
+                let ok_cancel = MessageDialog::new()
+                    .set_level(MessageLevel::Warning)
+                    .set_title("警告")
+                    .set_description("匯入字典檔會覆蓋現有字典資料")
+                    .set_buttons(MessageButtons::OkCancel)
+                    .show();
+                if ok_cancel == MessageDialogResult::Cancel {
+                    return;
+                }
+                if let Some(src_path) = FileDialog::new()
+                    .set_directory(default_desktop_path())
+                    .add_filter("CSV", &["csv"])
+                    .pick_file()
+                {
+                    let chewing_cli = chewing_cli_path();
+                    if let Ok(output) = Command::new(chewing_cli)
+                        .arg("init")
+                        .arg("-k")
+                        .arg("--fix")
+                        .arg("--csv")
+                        .arg(src_path)
+                        .arg(dict_path)
+                        .output()
+                    {
+                        if !output.status.success() {
+                            let error = String::from_utf8_lossy(&output.stderr);
+                            MessageDialog::new()
+                                .set_level(MessageLevel::Error)
+                                .set_title("錯誤")
+                                .set_description(format!("無法匯入字典檔\n\n{error}"))
+                                .set_buttons(MessageButtons::Ok)
+                                .show();
+                            return;
+                        }
+                    }
+                }
+                let _ = ui_handle.upgrade_in_event_loop(|ui| {
+                    ui.set_dictionaries(dict_list_model().expect("unable to load dict info"));
+                });
+            });
+        }
+    });
+    ui.on_edit_dict_export(move |row: ModelRc<StandardListViewItem>| {
+        let dict_item = row
+            .as_any()
+            .downcast_ref::<DictTableItemModel>()
+            .expect("row item should be a DictTableItemModel");
+        if let Ok(dict) = dict_item.1.read()
+            && let Some(dict_path) = dict.path()
+        {
+            let dict_path = dict_path.to_owned();
+            // XXX spawn MessageDialog in a different thread to avoid lock-up
+            // slint's UI thread. In theory this is not necessary because
+            // MessageBox spins the event loop. But in practice this is required
+            // for current slint (1.12.1).
+            std::thread::spawn(move || {
+                if let Some(csv_path) = FileDialog::new()
+                    .set_directory(default_desktop_path())
+                    .add_filter("CSV", &["csv"])
+                    .save_file()
+                {
+                    let chewing_cli = chewing_cli_path();
+                    if let Ok(output) = Command::new(chewing_cli)
+                        .arg("dump")
+                        .arg("--csv")
+                        .arg(dict_path)
+                        .arg(csv_path)
+                        .output()
+                    {
+                        if !output.status.success() {
+                            let error = String::from_utf8_lossy(&output.stderr);
+                            MessageDialog::new()
+                                .set_level(MessageLevel::Error)
+                                .set_title("錯誤")
+                                .set_description(format!("無法匯出字典檔\n\n{error}"))
+                                .set_buttons(MessageButtons::Ok)
+                                .show();
+                            return;
+                        }
+                    }
+                }
+            });
+        }
+    });
+
     ui.global::<DictEntriesAdapter>()
         .on_filter_sort_model(filter_sort_model);
 
@@ -482,4 +589,24 @@ fn filter_sort_model(
     }
 
     model
+}
+
+fn default_desktop_path() -> PathBuf {
+    let user_profile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\unknown".into());
+    PathBuf::from(user_profile).join("Desktop")
+}
+
+fn program_dir() -> Result<PathBuf> {
+    Ok(PathBuf::from(
+        env::var("ProgramW6432")
+            .or_else(|_| env::var("ProgramFiles"))
+            .or_else(|_| env::var("FrogramFiles(x86)"))?,
+    )
+    .join("ChewingTextService"))
+}
+
+fn chewing_cli_path() -> PathBuf {
+    program_dir()
+        .map(|prog| prog.join("chewing-cli.exe"))
+        .unwrap_or_else(|_| PathBuf::from("chewing-cli.exe"))
 }

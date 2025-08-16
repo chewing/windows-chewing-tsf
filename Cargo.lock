@@ -744,6 +744,7 @@ dependencies = [
  "chewing",
  "embed-resource",
  "log",
+ "rfd",
  "slint",
  "slint-build",
  "sysinfo",

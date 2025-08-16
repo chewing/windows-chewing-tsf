@@ -48,6 +48,8 @@ export component EditorWindow inherits Window {
     callback reload-dict-info();
     callback info-clicked(row: [StandardListViewItem]);
     callback edit-dict-clicked(row: [StandardListViewItem]);
+    callback edit-dict-import(row: [StandardListViewItem]);
+    callback edit-dict-export(row: [StandardListViewItem]);
     callback edit-entry-new();
     callback edit-entry-delete();
     callback edit-dict-save() -> CallbackResult;
@@ -109,13 +111,21 @@ export component EditorWindow inherits Window {
                 //     text: "新增";
                 // }
 
-                // Button {
-                //     text: "匯入";
-                // }
+                Button {
+                    text: "匯入";
+                    enabled: table.current-row >= 0 && root.dictionaries[table.current-row][0].text == "個人";
+                    clicked => {
+                        root.edit-dict-import(root.dictionaries[table.current-row]);
+                    }
+                }
 
-                // Button {
-                //     text: "匯出";
-                // }
+                Button {
+                    text: "匯出";
+                    enabled: table.current-row >= 0;
+                    clicked => {
+                        root.edit-dict-export(root.dictionaries[table.current-row]);
+                    }
+                }
 
                 // Button {
                 //     text: "刪除";
