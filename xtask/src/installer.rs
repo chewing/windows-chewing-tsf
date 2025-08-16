@@ -77,7 +77,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         };
         cmd!(
             sh,
-            "cargo install --locked chewing-cli --root build --target {x86_64_target}"
+            "cargo install --locked chewing-cli --git https://github.com/chewing/libchewing --root build --target {x86_64_target}"
         )
         .run()?;
         cmd!(
