@@ -446,7 +446,7 @@ pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
     let mut rgb_u32 = u32::from_str_radix(rgb, 16).unwrap_or(0);
     let a = if rgb.len() > 6 {
         let a = rgb_u32 & 0xFF;
-        rgb_u32 = rgb_u32 >> 8;
+        rgb_u32 >>= 8;
         a as u16
     } else {
         255

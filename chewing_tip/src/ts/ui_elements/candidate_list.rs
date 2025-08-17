@@ -225,7 +225,7 @@ impl View for RenderedView {
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
-                model.font_size * scale,
+                model.font_size,
                 w!("zh-TW"),
             )?
         };
@@ -285,7 +285,6 @@ impl View for RenderedView {
         if model.items.is_empty() {
             return Ok(());
         }
-        let scale = get_scale_for_window(self.window.hwnd());
         let interop = unsafe { self.dwrite_factory.GetGdiInterop()? };
         let font_family = dwrite_family_from_gdi_name(&interop, &model.font_family)
             .unwrap_or_else(|_| model.font_family.clone());
@@ -297,7 +296,7 @@ impl View for RenderedView {
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
-                model.font_size * scale,
+                model.font_size,
                 w!("zh-TW"),
             )?
         };
@@ -324,6 +323,9 @@ impl View for RenderedView {
             )?;
         }
         let dpi = get_dpi_for_window(self.window.hwnd());
+        unsafe {
+            self.target.SetDpi(dpi, dpi);
+        }
         create_swapchain_bitmap(&self.swapchain, &self.target, dpi)?;
 
         // Begin drawing

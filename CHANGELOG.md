@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Correctly detect application focus change and resync Caps Lock state
 - Caps Lock key now triggers mode change even when other keys were held at
   the same time. (#440)
+- Correctly scale candidate window when main display is HiDPI
 
 ### 🚜 Refactor
 
