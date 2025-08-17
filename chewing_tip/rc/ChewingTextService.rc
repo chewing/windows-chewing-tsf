@@ -112,6 +112,7 @@ IDR_MENU MENU
 BEGIN
     POPUP "POPUP"
     BEGIN
+        MENUITEM "有新版本可以下載(&U)",                ID_CHECK_NEW_VER GRAYED
         MENUITEM "關於新酷音輸入法(&A)",                ID_ABOUT
         MENUITEM "參觀新酷音官方網站(&W)",               ID_WEBSITE
         MENUITEM "新酷音線上討論區(&G)",                ID_GROUP
@@ -134,17 +135,6 @@ BEGIN
         END
         MENUITEM "輸出全形英數字母 (&F)",             ID_SWITCH_SHAPE
         MENUITEM "輸出簡體中文 (&S)",                 ID_OUTPUT_SIMP_CHINESE
-    END
-    POPUP "EDIT"
-    BEGIN
-        MENUITEM "復原 (&U)",                     ID_EDIT_UNDO
-        MENUITEM SEPARATOR
-        MENUITEM "剪下 (&T)",                     ID_EDIT_CUT
-        MENUITEM "複製 (&C)",                     ID_EDIT_COPY
-        MENUITEM "貼上 (&P)",                     ID_EDIT_PASTE
-        MENUITEM "刪除 (&D)",                     ID_EDIT_DELETE
-        MENUITEM SEPARATOR
-        MENUITEM "全選 (&A)",                     ID_EDIT_SELALL
     END
 END
 

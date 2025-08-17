@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - Install shortcuts to startup menu.
 - Support exporting preferences to a TOML file.
 - Support import / export user dictionary as CSV file.
+- Support automatically checking for new updates. Update channel can
+  be configured from preferences.
 
 ### 🐛 Bug Fixes
 

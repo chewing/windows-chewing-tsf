@@ -45,6 +45,7 @@ export component ConfigWindow inherits Window {
     in-out property <int> keyboard-layout;
     in-out property <string> symbols-dat;
     in-out property <string> swkb-dat;
+    in-out property <string> auto-check-update-channel;
 
     callback apply();
     callback apply-and-quit();
@@ -461,6 +462,22 @@ export component ConfigWindow inherits Window {
                     Text {
                         text: "以上是快捷符號的設定檔，語法相當簡單：\n每一行的內容都是：「大寫字母」+ 「空格」 +「對應的符號或文字」。";
                         wrap: word-wrap;
+                    }
+                }
+            }
+
+            Tab {
+                title: "其他設定";
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 20px;
+                    alignment: start;
+                    Text {
+                        text: "自動檢查更新：";
+                    }
+                    ComboBox {
+                        model: ["停用", "穩定版", "預覽版"];
+                        current-value <=> auto-check-update-channel;
                     }
                 }
             }

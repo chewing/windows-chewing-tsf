@@ -21,6 +21,7 @@ pub(super) const ID_HASHED: u32 = 40016;
 pub(super) const ID_CONFIG: u32 = 40017;
 pub(super) const ID_OUTPUT_SIMP_CHINESE: u32 = 40027;
 pub(super) const ID_ABOUT: u32 = 40005;
+pub(super) const ID_CHECK_NEW_VER: u32 = 40006;
 pub(super) const ID_WEBSITE: u32 = 40007;
 pub(super) const ID_GROUP: u32 = 40008;
 pub(super) const ID_BUGREPORT: u32 = 40009;

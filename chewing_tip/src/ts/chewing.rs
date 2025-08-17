@@ -60,8 +60,9 @@ use windows::Win32::UI::TextServices::{
     TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED, MF_UNCHECKED,
-    TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
+    CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED,
+    MF_ENABLED, MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON,
+    TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::VK_SPACE,
@@ -860,6 +861,7 @@ impl ChewingTextService {
                         error!("unable to toggle simplified chinese: {error}");
                     }
                 }
+                ID_CHECK_NEW_VER => open_url(&self.cfg.chewing_tsf.update_info_url),
                 ID_ABOUT => open_url("chewing-preferences://about"),
                 ID_WEBSITE => open_url("https://chewing.im/"),
                 ID_GROUP => open_url("https://groups.google.com/group/chewing-devel"),
@@ -1301,6 +1303,16 @@ impl ChewingTextService {
             unsafe {
                 CheckMenuItem(self.popup_menu, ID_SWITCH_SHAPE, check_flag.0);
             }
+        }
+        unsafe {
+            let _ = EnableMenuItem(
+                self.popup_menu,
+                ID_CHECK_NEW_VER,
+                match self.cfg.chewing_tsf.update_info_url.as_str() {
+                    "" => MF_GRAYED,
+                    _ => MF_ENABLED,
+                },
+            );
         }
         Ok(())
     }

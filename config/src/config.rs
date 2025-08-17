@@ -68,6 +68,8 @@ pub struct ChewingTsfConfig {
     pub font_highlight_bg_color: String,
     pub font_number_fg_color: String,
     pub keyboard_layout: i32,
+    pub auto_check_update_channel: String,
+    pub update_info_url: String,
 }
 
 impl Default for ChewingTsfConfig {
@@ -103,6 +105,8 @@ impl Default for ChewingTsfConfig {
             font_highlight_bg_color: "000000FF".to_owned(),
             font_number_fg_color: "0000FFFF".to_owned(),
             keyboard_layout: 0,
+            auto_check_update_channel: "none".to_string(),
+            update_info_url: "".to_string(),
         }
     }
 }
@@ -224,6 +228,12 @@ impl Config {
         if let Ok(value) = reg_get_bool(&key, "EnableFullwidthToggleKey") {
             cfg.enable_fullwidth_toggle_key = value;
         }
+        if let Ok(value) = key.get_string("AutoCheckUpdateChannel") {
+            cfg.auto_check_update_channel = value;
+        }
+        if let Ok(value) = key.get_string("UpdateInfoUrl") {
+            cfg.update_info_url = value;
+        }
 
         Ok(Config { chewing_tsf: cfg })
     }
@@ -309,6 +319,10 @@ impl Config {
             chewing_tsf.upper_case_with_shift,
         );
         let _ = reg_set_bool(&key, "EnableAutoLearn", chewing_tsf.enable_auto_learn);
+        let _ = key.set_string(
+            "AutoCheckUpdateChannel",
+            &chewing_tsf.auto_check_update_channel,
+        );
 
         // AppContainer app, like the SearchHost.exe powering the start menu search bar
         // needs this to access the settings.

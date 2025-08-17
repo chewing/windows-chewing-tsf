@@ -1,0 +1,21 @@
+<releases>
+  <!-- https://www.freedesktop.org/software/appstream/docs/sect-Metadata-Releases.html -->
+  <release version="25.8.1.468" date="2025-08-17" type="development" urgency="low">
+    <url>https://github.com/chewing/windows-chewing-tsf/releases/tag/nightly-25.8.1.468</url>
+    <artifacts>
+      <artifact type="binary" platform="x86_64-windows-msvc">
+        <location>https://github.com/chewing/windows-chewing-tsf/releases/download/nightly-25.8.1.468/windows-chewing-tsf.msi</location>
+        <checksum type="sha256">3d31cb52739346fba754af1697e487284b9255e7a620632583c43093e9b95e6a</checksum>
+      </artifact>
+    </artifacts>
+  </release>
+  <release version="25.8.1.0" date="2025-07-31" type="stable" urgency="medium">
+    <url>https://github.com/chewing/windows-chewing-tsf/releases/tag/v25.8.1.0</url>
+    <artifacts>
+      <artifact type="binary" platform="x86_64-windows-msvc">
+        <location>https://github.com/chewing/windows-chewing-tsf/releases/download/v25.8.1.0/windows-chewing-tsf-25.8.1.0-installer.msi</location>
+        <checksum type="sha256">710f01d8957ab226f6b8ced47f921ce40d6fe12619ce34b576114012c150e6ee</checksum>
+      </artifact>
+    </artifacts>
+  </release>
+</releases>

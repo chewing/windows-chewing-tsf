@@ -189,6 +189,11 @@ fn insert_config(ui: &ConfigWindow, cfg: &Config) {
     ui.set_easy_symbols_with_shift_ctrl(chewing_tsf.easy_symbols_with_shift_ctrl);
     ui.set_upper_case_with_shift(chewing_tsf.upper_case_with_shift);
     ui.set_enable_auto_learn(chewing_tsf.enable_auto_learn);
+    ui.set_auto_check_update_channel(match chewing_tsf.auto_check_update_channel.as_str() {
+        "stable" => "穩定版".into(),
+        "development" => "預覽版".into(),
+        _ => "停用".into(),
+    });
 }
 
 fn extract_config(ui: &ConfigWindow) -> Config {
@@ -225,6 +230,11 @@ fn extract_config(ui: &ConfigWindow) -> Config {
     chewing_tsf.easy_symbols_with_shift_ctrl = ui.get_easy_symbols_with_shift_ctrl();
     chewing_tsf.upper_case_with_shift = ui.get_upper_case_with_shift();
     chewing_tsf.enable_auto_learn = ui.get_enable_auto_learn();
+    chewing_tsf.auto_check_update_channel = match ui.get_auto_check_update_channel().as_str() {
+        "穩定版" => "stable".into(),
+        "預覽版" => "development".into(),
+        _ => "none".into(),
+    };
 
     cfg
 }
