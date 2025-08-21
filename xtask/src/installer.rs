@@ -137,7 +137,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         }
     }
     sh.copy_file(
-        "chewing_tip/rc/im.chewing.Chewing.ico",
+        "tip/rc/im.chewing.Chewing.ico",
         "build/installer/chewing.ico",
     )?;
     sh.copy_file("build/bin/chewing-cli.exe", "build/installer")?;
