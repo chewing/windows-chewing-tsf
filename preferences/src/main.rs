@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 fn is_vm() -> bool {
     if let Some(mb) = sysinfo::Motherboard::new() {
         let name = mb.name().unwrap_or_default();
-        return ["Virtual Machine"].contains(&name.as_str());
+        return matches!(name.as_str(), "Virtual Machine" | "");
     }
     true
 }
