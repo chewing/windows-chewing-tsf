@@ -410,7 +410,7 @@ impl ChewingTextService {
                     }
                 }
                 // NumLock is on
-                if ev.is_key_toggled(VK_NUMLOCK) && ev.is_num_pad() {
+                if ev.is_key_toggled(VK_NUMLOCK) && ev.is_num_pad() && !ev.is_key_down(VK_CONTROL) {
                     debug!("key not handled - Numlock toggled and key is a numpad key");
                     return Ok(false);
                 }
