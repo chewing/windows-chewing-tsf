@@ -18,7 +18,7 @@ windows = { version = "0.61.0", features = [
 ] }
 win_dbg_logger = "0.1.0"
 winit = "0.30.11"
-sysinfo = "0.36.1"
+sysinfo = "0.37.0"
 rfd = { version = "0.15.4", default-features = false }
 toml = "0.9.5"
 
