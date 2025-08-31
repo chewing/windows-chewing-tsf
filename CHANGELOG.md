@@ -32,6 +32,10 @@ All notable changes to this project will be documented in this file.
   creation ([#420](https://github.com/chewing/windows-chewing-tsf/issues/420))
 - (dict) Dictionary are built directly from the libchewing-data repository
 
+### ⚙️ Miscellaneous Tasks
+
+- build: enable bundled sqlite library
+
 ## [25.8.1.0] - 2025-07-31
 
 ### 🚀 Features

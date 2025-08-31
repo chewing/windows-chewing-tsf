@@ -60,24 +60,13 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         i686_target_dir.join("debug")
     };
 
-    sh.set_var("SQLITE3_STATIC", "1");
     sh.set_var("RUSTFLAGS", "-Ctarget-feature=+crt-static");
 
-    // Ensure chewing-cli is installed
-    cmd!(sh, "chewing-cli -V").run()?;
-
     {
-        let _env = if matches!(flags.target, Some(Target::Msvc)) {
-            None
-        } else {
-            Some(sh.push_env(
-                "SQLITE3_LIB_DIR",
-                "/usr/x86_64-w64-mingw32/sys-root/mingw/lib/",
-            ))
-        };
         cmd!(
             sh,
-            "cargo install --locked chewing-cli --git https://github.com/chewing/libchewing --root build --target {x86_64_target}"
+            "cargo install --locked chewing-cli --git https://github.com/chewing/libchewing
+                 --root build --target {x86_64_target} --features sqlite-bundled"
         )
         .run()?;
         cmd!(
@@ -107,14 +96,6 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         .run()?;
     }
     {
-        let _env = if matches!(flags.target, Some(Target::Msvc)) {
-            None
-        } else {
-            Some(sh.push_env(
-                "SQLITE3_LIB_DIR",
-                "/usr/i686-w64-mingw32/sys-root/mingw/lib/",
-            ))
-        };
         cmd!(
             sh,
             "cargo build -p chewing_tip {release...} --target {i686_target}"
@@ -149,16 +130,19 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             sh.copy_file(file, "../../build/installer/Dictionary")?;
         }
     }
-    cmd!(
-        sh,
-        "chewing-cli init-database --csv data/dict/chewing/tsi.csv build/installer/Dictionary/tsi.dat"
-    )
-    .run()?;
-    cmd!(
-        sh,
-        "chewing-cli init-database --csv data/dict/chewing/word.csv build/installer/Dictionary/word.dat"
-    )
-    .run()?;
+    {
+        let _dir = sh.push_dir("build/bin");
+        cmd!(
+            sh,
+            "chewing-cli init --csv ../../data/dict/chewing/tsi.csv ../../build/installer/Dictionary/tsi.dat"
+        )
+        .run()?;
+        cmd!(
+            sh,
+            "chewing-cli init --csv ../../data/dict/chewing/word.csv ../../build/installer/Dictionary/word.dat"
+        )
+        .run()?;
+    }
 
     sh.create_dir("build/installer/x64")?;
     for file in ["chewing_tip.dll"] {

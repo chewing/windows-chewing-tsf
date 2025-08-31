@@ -15,7 +15,6 @@ All parts are licensed under GPL-3.0-or-later license.
 **Build natively on Windows using MSVC**
 
 * [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
-* [vcpkg](https://vcpkg.io/)
 * [Rust](https://rustup.rs/)
 
 **Cross compile on Windows using MinGW-W64**
@@ -36,7 +35,7 @@ All parts are licensed under GPL-3.0-or-later license.
     ```
 * Use this xtask command to build the installer
     ```
-    cargo xtask build-installer
+    cargo xtask build-installer --target msvc --release
     cargo xtask package-installer
     ```
 
