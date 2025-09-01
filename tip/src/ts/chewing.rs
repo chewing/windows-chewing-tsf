@@ -416,7 +416,7 @@ impl ChewingTextService {
                 }
                 // No need to handle VK_SPACE when not composing and not fullshape mode
                 // This make the space key available for other shortcuts
-                if ev.is_key(VK_SPACE) {
+                if ev.is_key(VK_SPACE) && !ev.is_key_down(VK_SHIFT) {
                     return Ok(false);
                 }
             }
