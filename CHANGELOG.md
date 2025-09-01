@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Support import / export user dictionary as CSV file.
 - Support automatically checking for new updates. Update channel can
   be configured from preferences.
+- Ctrl + Numpad numbers can be used as Ctrl + Num key to save user phrases.
 
 ### 🐛 Bug Fixes
 

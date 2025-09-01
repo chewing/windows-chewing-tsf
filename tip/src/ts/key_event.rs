@@ -2,7 +2,7 @@
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyboardState, ToAscii, VIRTUAL_KEY, VK_0, VK_9, VK_A, VK_CONTROL, VK_DIVIDE, VK_NUMPAD0,
-    VK_Z,
+    VK_NUMPAD9, VK_Z,
 };
 
 pub(super) struct KeyEvent {
@@ -47,7 +47,8 @@ impl KeyEvent {
         self.vk >= VK_A.0 && self.vk <= VK_Z.0
     }
     pub(super) fn is_digits(&self) -> bool {
-        self.vk >= VK_0.0 && self.vk <= VK_9.0
+        (self.vk >= VK_0.0 && self.vk <= VK_9.0)
+            || (self.vk >= VK_NUMPAD0.0 && self.vk <= VK_NUMPAD9.0)
     }
     pub(super) fn is_num_pad(&self) -> bool {
         self.vk >= VK_NUMPAD0.0 && self.vk <= VK_DIVIDE.0
