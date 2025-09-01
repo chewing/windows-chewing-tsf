@@ -29,9 +29,10 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn is_vm() -> bool {
-    if let Some(mb) = sysinfo::Motherboard::new() {
-        let name = mb.name().unwrap_or_default();
-        return matches!(name.as_str(), "Virtual Machine" | "");
-    }
-    true
+    use vm_detect::{Detection, vm_detect};
+
+    let detection = vm_detect();
+    detection.contains(Detection::HYPERVISOR_BIT)
+        || detection.contains(Detection::HYPERVISOR_CPU_VENDOR)
+        || detection.contains(Detection::UNEXPECTED_CPU_VENDOR)
 }

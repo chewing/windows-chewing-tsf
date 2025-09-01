@@ -15,4 +15,5 @@ features = [
   "Win32_Graphics_Direct2D_Common",
   "Win32_Security_Authorization",
   "Win32_System_Registry",
+  "Win32_System_SystemServices",
 ]

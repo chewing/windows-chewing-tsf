@@ -747,7 +747,7 @@ dependencies = [
  "rfd",
  "slint",
  "slint-build",
- "sysinfo",
+ "vm-detect",
  "win_dbg_logger",
  "winit",
 ]
@@ -764,8 +764,8 @@ dependencies = [
  "rfd",
  "slint",
  "slint-build",
- "sysinfo",
  "toml 0.9.5",
+ "vm-detect",
  "win_dbg_logger",
  "windows",
  "winit",
@@ -2998,15 +2998,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 
 [[package]]
-name = "ntapi"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
-dependencies = [
- "winapi",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3297,16 +3288,6 @@ checksum = "900831247d2fe1a09a683278e5384cfb8c80c79fe6b166f9d14bfdde0ea1b03c"
 dependencies = [
  "bitflags 2.9.3",
  "objc2 0.6.2",
- "objc2-core-foundation",
-]
-
-[[package]]
-name = "objc2-io-kit"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71c1c64d6120e51cd86033f67176b1cb66780c2efe34dec55176f77befd93c0a"
-dependencies = [
- "libc",
  "objc2-core-foundation",
 ]
 
@@ -4660,19 +4641,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sysinfo"
-version = "0.37.0"
-source = "git+https://github.com/kanru-contrib/sysinfo?branch=push-zmxoqnnswzvm#3c90fe6511280fadba8e2ae572fe4cae38d618e5"
-dependencies = [
- "libc",
- "memchr",
- "ntapi",
- "objc2-core-foundation",
- "objc2-io-kit",
- "windows",
-]
-
-[[package]]
 name = "system-deps"
 version = "6.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5247,6 +5215,15 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vm-detect"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80b16e2d871c2554540beb7aa6aa206d7db60c5e084111008c81059203057a4a"
+dependencies = [
+ "bitflags 2.9.3",
+]
 
 [[package]]
 name = "vswhom"

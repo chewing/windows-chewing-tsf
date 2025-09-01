@@ -5,7 +5,6 @@ resolver = "3"
 [patch.crates-io]
 chewing = { git = "https://github.com/chewing/libchewing" }
 chewing_capi = { git = "https://github.com/chewing/libchewing" }
-sysinfo = { git = "https://github.com/kanru-contrib/sysinfo", branch = "push-zmxoqnnswzvm" }
 
 [profile.release]
 lto = "thin"
