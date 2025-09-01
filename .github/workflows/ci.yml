@@ -42,7 +42,7 @@ jobs:
           rustup target add x86_64-pc-windows-gnu
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -78,7 +78,7 @@ jobs:
     runs-on: windows-latest
     name: Build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -125,7 +125,7 @@ jobs:
     needs: [build]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
@@ -140,7 +140,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Download Installer Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: Installer Artifact
           path: build/installer

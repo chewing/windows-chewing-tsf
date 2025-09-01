@@ -18,7 +18,7 @@ jobs:
   #   outputs:
   #     should_run: ${{ steps.should_run.outputs.should_run }}
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v5
   #     - name: print latest_commit
   #       run: echo ${{ github.sha }}
 
@@ -50,13 +50,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download Installer Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: Installer Artifact
           path: build/installer
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: Signed Installer
           path: dist
