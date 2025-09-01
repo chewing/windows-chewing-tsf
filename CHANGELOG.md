@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - Caps Lock key now triggers mode change even when other keys were held at
   the same time. (#440)
 - Correctly scale candidate window when main display is HiDPI
+- Input modes are remembered across focus change.
 
 ### 🚜 Refactor
 
