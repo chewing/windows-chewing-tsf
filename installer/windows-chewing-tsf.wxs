@@ -101,6 +101,7 @@
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
         <util:CloseApplication
             RebootPrompt="no"
+            CloseMessage="yes"
             EndSessionMessage="yes"
             Target="chewing-update-svc.exe"
             TerminateProcess="0" />

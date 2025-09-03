@@ -117,7 +117,7 @@ impl MainLoop {
                 0,
                 0,
                 0,
-                Some(HWND_MESSAGE),
+                None,
                 None,
                 Some(hinstance.into()),
                 None,
