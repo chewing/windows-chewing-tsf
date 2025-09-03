@@ -142,6 +142,11 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             "chewing-cli init --csv ../../data/dict/chewing/word.csv ../../build/installer/Dictionary/word.dat"
         )
         .run()?;
+        cmd!(
+            sh,
+            "chewing-cli init --csv ../../data/dict/chewing/alt.csv ../../build/installer/Dictionary/alt.dat"
+        )
+        .run()?;
     }
 
     sh.create_dir("build/installer/x64")?;

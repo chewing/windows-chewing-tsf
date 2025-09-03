@@ -24,6 +24,9 @@
                     <File Source="Dictionary\symbols.dat" Bitness="always64" />
                     <File Source="Dictionary\tsi.dat" Bitness="always64" />
                     <File Source="Dictionary\word.dat" Bitness="always64" />
+                    <Directory Name="dictionary.d">
+                        <File Source="Dictionary\alt.dat" Bitness="always64" />
+                    </Directory>
                 </Directory>
                 <Component Bitness="always64">
                     <File Source="x64\chewing_tip.dll">
