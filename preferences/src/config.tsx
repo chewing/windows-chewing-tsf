@@ -1,0 +1,40 @@
+export type ChewingTsfConfig = {
+    switch_lang_with_shift: boolean;
+    enable_fullwidth_toggle_key: boolean;
+    enable_caps_lock: boolean;
+    show_notification: boolean;
+    enable_auto_learn: boolean;
+    esc_clean_all_buf: boolean;
+    full_shape_symbols: boolean;
+    upper_case_with_shift: boolean;
+    add_phrase_forward: boolean;
+    phrase_choice_rearward: boolean;
+    easy_symbols_with_shift: boolean;
+    easy_symbols_with_shift_ctrl: boolean;
+    cursor_cand_list: boolean;
+    show_cand_with_space_key: boolean;
+    advance_after_selection: boolean;
+    default_full_space: boolean;
+    default_english: boolean;
+    output_simp_chinese: boolean;
+    sel_key_type: number;
+    conv_engine: number;
+    cand_per_row: number;
+    cand_per_page: number;
+    font_size: number;
+    font_family: string;
+    font_fg_color: string;
+    font_bg_color: string;
+    font_highlight_fg_color: string;
+    font_highlight_bg_color: string;
+    font_number_fg_color: string;
+    keyboard_layout: number;
+    auto_check_update_channel: string;
+    update_info_url: string;
+};
+
+export type Config = {
+    chewing_tsf: ChewingTsfConfig;
+    symbols_dat: string;
+    swkb_dat: string;
+};

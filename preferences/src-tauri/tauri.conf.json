@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "新酷音輸入法設定",
+  "version": "25.8.1",
+  "identifier": "im.chewing.Chewing.Preferences",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "removeUnusedCommands": true
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "新酷音輸入法設定",
+        "width": 670,
+        "height": 700,
+        "resizable": false,
+        "visible": false,
+        "maximizable": false,
+        "windowEffects": { "effects": ["mica"] }
+      },
+      {
+        "label": "about",
+        "parent": "main",
+        "url": "index.html#about",
+        "title": "關於新酷音輸入法",
+        "width": 400,
+        "height": 340,
+        "resizable": false,
+        "visible": false,
+        "closable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "windowEffects": { "effects": ["mica"] }
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

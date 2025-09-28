@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 
 use anyhow::{Result, bail};
-use slint::SharedString;
 use windows::Win32::{
     Foundation::LPARAM,
     Graphics::Gdi::{
@@ -39,8 +38,13 @@ unsafe extern "system" fn enum_font_callback(
     1 // Continue enumeration
 }
 
+#[tauri::command]
+pub fn get_system_fonts() -> Result<Vec<String>, String> {
+    enum_font_families().map_err(|e| e.to_string())
+}
+
 // Enumerate fonts with GDI because DirectWrite skips some localized names.
-pub fn enum_font_families() -> Result<Vec<SharedString>> {
+fn enum_font_families() -> Result<Vec<String>> {
     unsafe {
         // Get a device context for the screen
         let hdc = GetDC(None);
@@ -77,7 +81,7 @@ pub fn enum_font_families() -> Result<Vec<SharedString>> {
             bail!("Unable to enumerate fonts");
         }
 
-        let mut res: Vec<SharedString> = fonts.into_iter().map(|s| s.into()).collect();
+        let mut res: Vec<String> = fonts.into_iter().map(|s| s.into()).collect();
         res.sort_by(|a, b| {
             let a_localized = !a.is_ascii();
             let b_localized = !b.is_ascii();

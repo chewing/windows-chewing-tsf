@@ -2,8 +2,8 @@ name: Nightly Build
 
 env:
   VER_MAJOR: 25
-  VER_MINOR: 8
-  VER_PATCH: 1
+  VER_MINOR: 10
+  VER_PATCH: 0
 
 on:
   # schedule:

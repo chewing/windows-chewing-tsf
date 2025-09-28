@@ -34,6 +34,8 @@ use windows_registry::{CURRENT_USER, Key};
 #[derive(Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct Config {
     pub chewing_tsf: ChewingTsfConfig,
+    pub symbols_dat: String,
+    pub swkb_dat: String,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -235,7 +237,7 @@ impl Config {
             cfg.update_info_url = value;
         }
 
-        Ok(Config { chewing_tsf: cfg })
+        Ok(Config { chewing_tsf: cfg, symbols_dat: String::new(), swkb_dat: String::new() })
     }
     pub fn save_reg(&self) {
         let chewing_tsf = &self.chewing_tsf;

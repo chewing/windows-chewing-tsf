@@ -1,0 +1,40 @@
+[package]
+name = "chewing-preferences"
+license = "GPL-3.0-or-later"
+version = "25.8.1"
+edition = "2024"
+
+[[bin]]
+name = "ChewingPreferences"
+path = "src/main.rs"
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "chewing_preferences_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+chewing = "0.10.0"
+chewing_tip_config = { path = "../../config" }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows = { version = "0.61.0", features = [
+    "Win32_Graphics_Gdi"
+] }
+toml = "0.9.5"
+tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"

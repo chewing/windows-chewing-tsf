@@ -34,6 +34,7 @@ All notable changes to this project will be documented in this file.
 - (gfx) Use WARP renderer and cache the D3DDevice to speed up candidate window
   creation ([#420](https://github.com/chewing/windows-chewing-tsf/issues/420))
 - (dict) Dictionary are built directly from the libchewing-data repository
+- (prefs) Rewrite Preferences using tauri framework.
 
 ### ⚙️ Miscellaneous Tasks
 
