@@ -40,6 +40,7 @@ jobs:
           rustup set auto-self-update disable
           rustup target add i686-pc-windows-gnu
           rustup target add x86_64-pc-windows-gnu
+          cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - uses: actions/checkout@v5
@@ -83,6 +84,10 @@ jobs:
           submodules: true
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Install build dependencies
+        run: |
+          cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
 
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}
