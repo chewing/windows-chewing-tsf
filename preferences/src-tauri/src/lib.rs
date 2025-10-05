@@ -3,9 +3,9 @@ use self::config::import_config;
 use self::config::load_config;
 use self::config::save_config;
 use self::fonts::get_system_fonts;
+use tauri::menu::{MenuBuilder, SubmenuBuilder};
 use tauri::Emitter;
 use tauri::Manager;
-use tauri::menu::{MenuBuilder, SubmenuBuilder};
 
 mod config;
 mod fonts;
@@ -18,7 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let hide_main = std::env::args().any(|arg| {
-                ["/about", "--about", "chewing-preferences://about"].contains(&arg.as_str())
+                ["/about", "--about", "chewing-preferences://about/"].contains(&arg.as_str())
             });
             let file_menu = SubmenuBuilder::new(app, "檔案")
                 .text("import", "匯入設定檔...")
