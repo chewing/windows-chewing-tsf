@@ -54,6 +54,9 @@ jobs:
           cd preferences
           npm install
           cd ..
+          cd editor
+          npm install
+          cd ..
 
       - name: Generate nightly version info
         if: ${{ inputs.nightly }}
@@ -94,6 +97,9 @@ jobs:
       - name: Install NPM dependencies
         run: |
           cd preferences
+          npm install
+          cd ..
+          cd editor
           npm install
           cd ..
 

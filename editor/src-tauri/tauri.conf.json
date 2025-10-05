@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "新酷音輸入法設定",
+  "productName": "新酷音詞庫管理程式",
   "version": "25.10.0",
-  "identifier": "im.chewing.Chewing.Preferences",
+  "identifier": "im.chewing.Chewing.Editor",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,21 +13,21 @@
   "app": {
     "windows": [
       {
-        "title": "新酷音輸入法設定",
-        "width": 670,
-        "height": 700,
+        "title": "新酷音輸入法管理程式",
+        "width": 930,
+        "height": 600,
         "resizable": false,
-        "visible": false,
+        "visible": true,
         "maximizable": false,
-        "windowEffects": { "effects": ["mica"] }
+        "windowEffects": { "effects": ["mica"]}
       },
       {
         "label": "about",
         "parent": "main",
         "url": "index.html#about",
-        "title": "關於新酷音輸入法",
+        "title": "關於新酷音詞庫管理程式",
         "width": 400,
-        "height": 340,
+        "height": 450,
         "resizable": false,
         "visible": false,
         "closable": false,
