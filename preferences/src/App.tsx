@@ -127,7 +127,7 @@ function App() {
       unlisten_import.then((f) => f());
       unlisten_export.then((f) => f());
     };
-  }, []);
+  }, [config, symbols_dat, swkb_dat]);
 
   useEffect(() => {
     invoke('load_config').then((value) => {
