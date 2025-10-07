@@ -156,11 +156,13 @@ function App() {
     } as ChewingTsfConfig);
   }
 
-  const setNumberConfig = (event: SpinButtonChangeEvent, data: SpinButtonOnChangeData) => {
-    const target = event.target as HTMLInputElement;
+  const setNumberConfig = (name: string) => (_event: SpinButtonChangeEvent, data: SpinButtonOnChangeData) => {
+    const displayValue = parseInt(data.displayValue || '16');
+    const value = data.value || (Number.isNaN(displayValue) ? 16 : displayValue);
+    console.log(data);
     setConfig({
       ...config,
-      [target.name]: data.value
+      [name]: value
     } as ChewingTsfConfig);
   }
 
@@ -223,13 +225,13 @@ function App() {
     <div className={styles.content} role="tabpanel" aria-labelledby="Appearance">
       <div className={styles.column}>
         <Field label="每列顯示後選字個數：">
-          <SpinButton name="cand_per_row" value={config?.cand_per_row} min={1} max={10} step={1} onChange={setNumberConfig} />
+          <SpinButton value={config?.cand_per_row} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_row")} />
         </Field>
         <Field label="每頁顯示後選字個數：">
-          <SpinButton name="cand_per_page" value={config?.cand_per_page} min={1} max={10} step={1} onChange={setNumberConfig} />
+          <SpinButton value={config?.cand_per_page} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_page")} />
         </Field>
         <Field label="選字及訊息視窗文字大小：">
-          <SpinButton name="font_size" value={config?.font_size} step={1} onChange={setNumberConfig} />
+          <SpinButton value={config?.font_size} step={1} onChange={setNumberConfig("font_size")} />
         </Field>
         <Divider alignContent="start" style={{ marginBottom: "16px" }}>進階設定 (beta)</Divider>
         <Field label="選字視窗字型：">
