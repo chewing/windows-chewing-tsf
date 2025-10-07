@@ -32,7 +32,13 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "row",
     gap: "3px",
-  }
+  },
+  textarea: {
+    height: "450px",
+  },
+  texarea_inner: {
+    maxHeight: "unset",
+  },
 });
 
 function sel_key_type_to_value(sel_key_type: number): string {
@@ -300,7 +306,7 @@ function App() {
     <div className={styles.content} role="tabpanel" aria-labelledby="Symbols">
       <div className={styles.column}>
         <Field label="輸入中文時，按下 ` 鍵，會顯示下列的符號表：">
-          <Textarea value={symbols_dat} style={{ height: "250px" }}
+          <Textarea value={symbols_dat} className={styles.textarea} textarea={{ className: styles.texarea_inner }}
             onChange={(_ev, data) => setSymbolsDat(data.value)} />
         </Field>
         <Text>以上是符號表的設定檔，語法相當簡單：<br />每一行的內容都是：「分類名稱」＝「此分類下的所有符號」<br />您也可以一行只放一個符號，則該符號會被放在最上層選單。</Text>
@@ -312,7 +318,7 @@ function App() {
     <div className={styles.content} role="tabpanel" aria-labelledby="Shortcut">
       <div className={styles.column}>
         <Field label="輸入中文時，按下 Shift 鍵（或 Ctrl + Shift）加英文字母即可快速輸入文字：">
-          <Textarea value={swkb_dat} style={{ height: "250px" }}
+          <Textarea value={swkb_dat} className={styles.textarea} textarea={{ className: styles.texarea_inner }}
             onChange={(_ev, data) => setSwkbDat(data.value)} />
         </Field>
         <Text>以上是符號表的設定檔，語法相當簡單：<br />每一行的內容都是：「大寫字母」＋「空格」＋「對應的符號或文字」。</Text>
