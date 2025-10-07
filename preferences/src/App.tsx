@@ -162,9 +162,9 @@ function App() {
     } as ChewingTsfConfig);
   }
 
-  const setNumberConfig = (name: string) => (_event: SpinButtonChangeEvent, data: SpinButtonOnChangeData) => {
-    const displayValue = parseInt(data.displayValue || '16');
-    const value = data.value || (Number.isNaN(displayValue) ? 16 : displayValue);
+  const setNumberConfig = (name: string, fallback: number) => (_event: SpinButtonChangeEvent, data: SpinButtonOnChangeData) => {
+    const displayValue = parseInt(data.displayValue || fallback.toString());
+    const value = data.value || (Number.isNaN(displayValue) ? fallback : displayValue);
     console.log(data);
     setConfig({
       ...config,
@@ -231,13 +231,13 @@ function App() {
     <div className={styles.content} role="tabpanel" aria-labelledby="Appearance">
       <div className={styles.column}>
         <Field label="每列顯示後選字個數：">
-          <SpinButton value={config?.cand_per_row} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_row")} />
+          <SpinButton value={config?.cand_per_row} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_row", 3)} />
         </Field>
         <Field label="每頁顯示後選字個數：">
-          <SpinButton value={config?.cand_per_page} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_page")} />
+          <SpinButton value={config?.cand_per_page} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_page", 9)} />
         </Field>
         <Field label="選字及訊息視窗文字大小：">
-          <SpinButton value={config?.font_size} step={1} onChange={setNumberConfig("font_size")} />
+          <SpinButton value={config?.font_size} step={1} onChange={setNumberConfig("font_size", 16)} />
         </Field>
         <Divider alignContent="start" style={{ marginBottom: "16px" }}>進階設定 (beta)</Divider>
         <Field label="選字視窗字型：">
