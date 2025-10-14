@@ -76,11 +76,24 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         .run()?;
         {
             let _p = sh.push_dir("preferences");
+            let debug = if !flags.release {
+                Some("--debug")
+            } else {
+                None
+            };
             // FIXME https://github.com/matklad/xshell/issues/82
             if sh.path_exists("/usr/bin/npm") {
-                cmd!(sh, "npm run tauri -- build --target {x86_64_target}").run()?;
+                cmd!(
+                    sh,
+                    "npm run tauri -- build {debug...} --target {x86_64_target}"
+                )
+                .run()?;
             } else {
-                cmd!(sh, "npm.cmd run tauri -- build --target {x86_64_target}").run()?;
+                cmd!(
+                    sh,
+                    "npm.cmd run tauri -- build {debug...} --target {x86_64_target}"
+                )
+                .run()?;
             }
         }
         cmd!(
