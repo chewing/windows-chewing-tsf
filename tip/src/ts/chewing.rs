@@ -339,18 +339,17 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_focus(&mut self) -> Result<()> {
-        let ev = KeyEvent::default();
-        // XXX assumes there is only one keyboard
-        let capslock = ev.is_key_toggled(VK_CAPITAL);
-        if let Some(ctx) = self.chewing_context {
-            unsafe {
-                if self.cfg.chewing_tsf.enable_caps_lock && capslock {
-                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
-                } else {
-                    chewing_set_ChiEngMode(ctx, CHINESE_MODE);
-                }
-            }
-        }
+        // let ev = KeyEvent::default();
+        // let capslock = ev.is_key_toggled(VK_CAPITAL);
+        // if let Some(ctx) = self.chewing_context {
+        //     unsafe {
+        //         if self.cfg.chewing_tsf.enable_caps_lock && capslock {
+        //             chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
+        //         } else {
+        //             chewing_set_ChiEngMode(ctx, CHINESE_MODE);
+        //         }
+        //     }
+        // }
         Ok(())
     }
 
@@ -1167,7 +1166,6 @@ impl ChewingTextService {
         self.apply_config();
 
         let ev = KeyEvent::default();
-        // XXX assumes there is only one keyboard
         let capslock = ev.is_key_toggled(VK_CAPITAL);
         if let Some(ctx) = self.chewing_context {
             unsafe {
