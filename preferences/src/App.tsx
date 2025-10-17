@@ -294,10 +294,10 @@ function App() {
       </div>
       <div className={styles.column}>
         <Radio name="layout" value="12" checked={config?.keyboard_layout == 12} label="CARPLX" onChange={setLayout} />
-        <Radio name="layout" value="13" checked={config?.keyboard_layout == 16} label="Colemak" onChange={setLayout} />
-        <Radio name="layout" value="14" checked={config?.keyboard_layout == 13} label="Colemak-DH ANSI" onChange={setLayout} />
-        <Radio name="layout" value="15" checked={config?.keyboard_layout == 14} label="Colemak-DH Orth" onChange={setLayout} />
-        <Radio name="layout" value="16" checked={config?.keyboard_layout == 15} label="Workman" onChange={setLayout} />
+        <Radio name="layout" value="16" checked={config?.keyboard_layout == 16} label="Colemak" onChange={setLayout} />
+        <Radio name="layout" value="13" checked={config?.keyboard_layout == 13} label="Colemak-DH ANSI" onChange={setLayout} />
+        <Radio name="layout" value="14" checked={config?.keyboard_layout == 14} label="Colemak-DH Orth" onChange={setLayout} />
+        <Radio name="layout" value="15" checked={config?.keyboard_layout == 15} label="Workman" onChange={setLayout} />
       </div>
     </div>
   ));
