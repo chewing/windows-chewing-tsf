@@ -26,8 +26,8 @@ use chewing_capi::input::{
 };
 use chewing_capi::layout::chewing_set_KBType;
 use chewing_capi::modes::{
-    CHINESE_MODE, FULLSHAPE_MODE, HALFSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode,
-    chewing_get_ShapeMode, chewing_set_ChiEngMode, chewing_set_ShapeMode,
+    CHINESE_MODE, FULLSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode, chewing_get_ShapeMode,
+    chewing_set_ChiEngMode, chewing_set_ShapeMode,
 };
 use chewing_capi::output::{
     chewing_ack, chewing_aux_Check, chewing_aux_String, chewing_bopomofo_Check,
@@ -379,22 +379,6 @@ impl ChewingTextService {
         }
 
         if !self.is_composing() {
-            // don't do further handling in English + half shape mode
-            if self.lang_mode == SYMBOL_MODE
-                && self.shape_mode == HALFSHAPE_MODE
-                && !enable_caps_lock
-            {
-                if ev.is_key(VK_SPACE)
-                    && ev.is_key_down(VK_SHIFT)
-                    && self.cfg.chewing_tsf.enable_fullwidth_toggle_key
-                {
-                    // need to handle mode switch
-                } else {
-                    debug!("key not handled - in English mode");
-                    return Ok(false);
-                }
-            }
-
             // we always need further processing in full shape mode since all English chars,
             // numbers, and symbols need to be converted to full shape Chinese chars.
             if self.shape_mode != FULLSHAPE_MODE {
