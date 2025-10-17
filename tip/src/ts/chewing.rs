@@ -22,11 +22,7 @@ use chewing_capi::globals::{
     chewing_set_spaceAsSelection,
 };
 use chewing_capi::input::{
-    chewing_handle_Backspace, chewing_handle_Capslock, chewing_handle_CtrlNum,
-    chewing_handle_Default, chewing_handle_Del, chewing_handle_Down, chewing_handle_End,
-    chewing_handle_Enter, chewing_handle_Esc, chewing_handle_Home, chewing_handle_Left,
-    chewing_handle_Numlock, chewing_handle_PageDown, chewing_handle_PageUp, chewing_handle_Right,
-    chewing_handle_ShiftSpace, chewing_handle_Space, chewing_handle_Tab, chewing_handle_Up,
+    chewing_handle_Capslock, chewing_handle_KeyboardEvent, chewing_handle_ShiftSpace,
 };
 use chewing_capi::layout::chewing_set_KBType;
 use chewing_capi::modes::{
@@ -50,9 +46,7 @@ use windows::Win32::Storage::FileSystem::{
 };
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetFocus, VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE,
-    VK_F12, VK_HOME, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMLOCK, VK_PRIOR, VK_RETURN, VK_RIGHT,
-    VK_SHIFT, VK_TAB, VK_UP,
+    GetFocus, VK_CAPITAL, VK_CONTROL, VK_F12, VK_MENU, VK_NUMLOCK, VK_SHIFT,
 };
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
@@ -349,7 +343,7 @@ impl ChewingTextService {
     pub(super) fn on_keydown(
         &mut self,
         context: &ITfContext,
-        ev: KeyEvent,
+        mut ev: KeyEvent,
         dry_run: bool,
     ) -> Result<bool> {
         if let Err(error) = self.apply_config_if_changed() {
@@ -467,7 +461,7 @@ impl ChewingTextService {
                 unsafe {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 }
-                let code = if invert_case {
+                ev.code = if invert_case {
                     if ev.code.is_ascii_uppercase() {
                         ev.code.to_ascii_lowercase()
                     } else {
@@ -476,39 +470,15 @@ impl ChewingTextService {
                 } else {
                     ev.code
                 };
+                let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
                 unsafe {
-                    chewing_handle_Default(ctx, code as i32);
+                    chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                     chewing_set_ChiEngMode(ctx, old_lang_mode);
                 }
-            } else if ev.is_alphabet() {
-                unsafe {
-                    let mut code = ev.code.to_ascii_lowercase();
-                    if ev.is_key_down(VK_SHIFT) && self.cfg.chewing_tsf.easy_symbols_with_shift {
-                        code = ev.code.to_ascii_uppercase();
-                    }
-                    if ev.is_key_down(VK_SHIFT)
-                        && ev.is_key_down(VK_CONTROL)
-                        && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl
-                    {
-                        code = ev.code.to_ascii_uppercase();
-                    }
-                    chewing_handle_Default(ctx, code as i32);
-                }
-            } else if ev.is_key(VK_SPACE) {
-                unsafe {
-                    chewing_handle_Space(ctx);
-                }
-            } else if ev.is_key_down(VK_CONTROL) && ev.is_digits() {
-                unsafe {
-                    chewing_handle_CtrlNum(ctx, ev.code as i32);
-                }
-            } else if ev.is_key_toggled(VK_NUMLOCK) && ev.is_num_pad() {
-                unsafe {
-                    chewing_handle_Numlock(ctx, ev.code as i32);
-                }
             } else {
+                let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
                 unsafe {
-                    chewing_handle_Default(ctx, ev.code as i32);
+                    chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                 }
             }
         } else {
@@ -535,47 +505,9 @@ impl ChewingTextService {
             }
 
             if !key_handled {
-                match VIRTUAL_KEY(ev.vk) {
-                    VK_ESCAPE => unsafe {
-                        chewing_handle_Esc(ctx);
-                    },
-                    VK_RETURN => unsafe {
-                        chewing_handle_Enter(ctx);
-                    },
-                    VK_TAB => unsafe {
-                        chewing_handle_Tab(ctx);
-                    },
-                    VK_DELETE => unsafe {
-                        chewing_handle_Del(ctx);
-                    },
-                    VK_BACK => unsafe {
-                        chewing_handle_Backspace(ctx);
-                    },
-                    VK_UP => unsafe {
-                        chewing_handle_Up(ctx);
-                    },
-                    VK_DOWN => unsafe {
-                        chewing_handle_Down(ctx);
-                    },
-                    VK_LEFT => unsafe {
-                        chewing_handle_Left(ctx);
-                    },
-                    VK_RIGHT => unsafe {
-                        chewing_handle_Right(ctx);
-                    },
-                    VK_HOME => unsafe {
-                        chewing_handle_Home(ctx);
-                    },
-                    VK_END => unsafe {
-                        chewing_handle_End(ctx);
-                    },
-                    VK_PRIOR => unsafe {
-                        chewing_handle_PageUp(ctx);
-                    },
-                    VK_NEXT => unsafe {
-                        chewing_handle_PageDown(ctx);
-                    },
-                    _ => return Ok(false),
+                let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
+                unsafe {
+                    chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                 }
             }
         }
