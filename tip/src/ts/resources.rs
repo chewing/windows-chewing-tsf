@@ -13,6 +13,12 @@ pub(super) const IDI_CHI_DARK: u32 = 108;
 pub(super) const IDI_ENG_DARK: u32 = 109;
 pub(super) const IDI_SIMP: u32 = 110;
 pub(super) const IDI_SIMP_DARK: u32 = 111;
+pub(super) const IDI_CHI_DOT: u32 = 112;
+pub(super) const IDI_CHI_DARK_DOT: u32 = 113;
+pub(super) const IDI_ENG_DOT: u32 = 114;
+pub(super) const IDI_ENG_DARK_DOT: u32 = 115;
+pub(super) const IDI_SIMP_DOT: u32 = 116;
+pub(super) const IDI_SIMP_DARK_DOT: u32 = 117;
 
 pub(super) const ID_SWITCH_LANG: u32 = 101;
 pub(super) const ID_SWITCH_SHAPE: u32 = 102;

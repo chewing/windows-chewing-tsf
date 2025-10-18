@@ -261,20 +261,7 @@ impl ChewingTextService {
                 tooltip,
                 info.szDescription.len() as i32,
             );
-            let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
-                (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
-                (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
-                (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
-                (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
-                _ => IDI_CHI,
-            };
-            if self.output_simp_chinese {
-                icon_id = match icon_id {
-                    IDI_CHI => IDI_SIMP,
-                    IDI_CHI_DARK => IDI_SIMP_DARK,
-                    _ => icon_id,
-                }
-            }
+            let icon_id = self.get_lang_icon_id();
             let button = LangBarButton::new(
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
@@ -1059,6 +1046,33 @@ impl ChewingTextService {
         Ok(())
     }
 
+    fn get_lang_icon_id(&mut self) -> u32 {
+        let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
+            (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
+            (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
+            (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
+            (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
+            _ => IDI_CHI,
+        };
+        if self.output_simp_chinese {
+            icon_id = match icon_id {
+                IDI_CHI => IDI_SIMP,
+                IDI_CHI_DARK => IDI_SIMP_DARK,
+                _ => icon_id,
+            }
+        }
+        let show_dot = !self.cfg.chewing_tsf.update_info_url.is_empty();
+        match (icon_id, show_dot) {
+            (IDI_CHI, true) => IDI_CHI_DOT,
+            (IDI_CHI_DARK, true) => IDI_CHI_DARK_DOT,
+            (IDI_ENG, true) => IDI_ENG_DOT,
+            (IDI_ENG_DARK, true) => IDI_ENG_DARK_DOT,
+            (IDI_SIMP, true) => IDI_SIMP_DOT,
+            (IDI_SIMP_DARK, true) => IDI_SIMP_DARK_DOT,
+            _ => icon_id,
+        }
+    }
+
     fn current_context(&self) -> Option<ITfContext> {
         let Some(thread_mgr) = &self.thread_mgr else {
             return None;
@@ -1184,20 +1198,7 @@ impl ChewingTextService {
         let lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
         if lang_mode != self.lang_mode || check_simp_mode {
             self.lang_mode = lang_mode;
-            let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
-                (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
-                (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
-                (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
-                (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
-                _ => IDI_CHI,
-            };
-            if self.output_simp_chinese {
-                icon_id = match icon_id {
-                    IDI_CHI => IDI_SIMP,
-                    IDI_CHI_DARK => IDI_SIMP_DARK,
-                    _ => icon_id,
-                }
-            }
+            let icon_id = self.get_lang_icon_id();
             if let Some(button) = &self.switch_lang_button {
                 unsafe {
                     button.set_icon(LoadIconW(

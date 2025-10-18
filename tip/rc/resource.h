@@ -21,6 +21,12 @@
 #define IDI_ENG_DARK 109
 #define IDI_SIMP 110
 #define IDI_SIMP_DARK 111
+#define IDI_CHI_DOT 112
+#define IDI_CHI_DARK_DOT 113
+#define IDI_ENG_DOT 114
+#define IDI_ENG_DARK_DOT 115
+#define IDI_SIMP_DOT 116
+#define IDI_SIMP_DARK_DOT 117
 #define IDR_MENU1 108
 #define IDR_MENU2 109
 #define IDR_MENU 109
