@@ -1,6 +1,6 @@
 [workspace]
-members = ["tip", "config", "editor", "tsfreg", "update", "xtask"]
-exclude = ["preferences"]
+members = ["tip", "config", "tsfreg", "update", "xtask"]
+exclude = ["editor", "preferences"]
 resolver = "3"
 
 [patch.crates-io]

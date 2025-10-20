@@ -1,8 +1,0 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-fn main() {
-    slint_build::compile("ui/index.slint").expect("Slint build failed");
-    embed_resource::compile("editor.rc", embed_resource::NONE)
-        .manifest_optional()
-        .unwrap();
-}
