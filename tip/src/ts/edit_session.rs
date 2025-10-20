@@ -1,18 +1,64 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::cell::OnceCell;
+use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr;
 
 use log::{debug, error};
-use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::{FALSE, RECT};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
-    GUID_PROP_ATTRIBUTE, ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition,
-    ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, TF_ANCHOR_END, TF_ANCHOR_START,
-    TF_DEFAULT_SELECTION, TF_IAS_QUERYONLY, TF_SELECTION,
+    GUID_PROP_ATTRIBUTE, INSERT_TEXT_AT_SELECTION_FLAGS, ITfComposition, ITfCompositionSink,
+    ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
+    ITfRange, TF_AE_END, TF_ANCHOR_END, TF_ANCHOR_START, TF_DEFAULT_SELECTION, TF_IAS_QUERYONLY,
+    TF_SELECTION, TfActiveSelEnd,
 };
 use windows_core::{BOOL, HSTRING, Interface, Result, implement};
+
+fn set_selection(
+    context: &ITfContext,
+    ec: u32,
+    range: ITfRange,
+    active_sel_end: TfActiveSelEnd,
+) -> Result<()> {
+    let mut selections = [TF_SELECTION::default(); 1];
+    selections[0].range = ManuallyDrop::new(Some(range));
+    selections[0].style.ase = active_sel_end;
+    selections[0].style.fInterimChar = FALSE;
+    let result = unsafe { context.SetSelection(ec, &selections) };
+    let [TF_SELECTION { range, .. }] = selections;
+    ManuallyDrop::into_inner(range);
+    result
+}
+
+#[implement(ITfEditSession)]
+pub(super) struct InsertText {
+    context: ITfContext,
+    text: HSTRING,
+}
+
+impl InsertText {
+    pub(super) fn new(context: ITfContext, text: HSTRING) -> InsertText {
+        Self { context, text }
+    }
+}
+
+impl ITfEditSession_Impl for InsertText_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        unsafe {
+            let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
+            let range = insert_at_selection.InsertTextAtSelection(
+                ec,
+                INSERT_TEXT_AT_SELECTION_FLAGS(0),
+                &self.text,
+            )?;
+            range.Collapse(ec, TF_ANCHOR_END)?;
+            set_selection(&self.context, ec, range, TF_AE_END)?;
+        }
+        Ok(())
+    }
+}
 
 #[implement(ITfEditSession)]
 pub(super) struct StartComposition {
@@ -89,19 +135,10 @@ impl ITfEditSession_Impl for EndComposition_Impl<'_> {
             let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
             disp_attr_prop.Clear(ec, &range)?;
 
-            let mut selection = [TF_SELECTION::default(); 1];
-            let mut selection_len = 0;
-            self.context.GetSelection(
-                ec,
-                TF_DEFAULT_SELECTION,
-                &mut selection,
-                &mut selection_len,
-            )?;
-            if let Some(sel_range) = &selection[0].range.deref() {
-                sel_range.ShiftEndToRange(ec, &range, TF_ANCHOR_END)?;
-                sel_range.Collapse(ec, TF_ANCHOR_END)?;
-                self.context.SetSelection(ec, &selection)?;
-            }
+            let new_composition_start = range.Clone()?;
+            new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
+            self.composition.ShiftStart(ec, &new_composition_start)?;
+            set_selection(&self.context, ec, new_composition_start, TF_AE_END)?;
             self.composition.EndComposition(ec)?;
         }
         Ok(())
@@ -148,22 +185,12 @@ impl ITfEditSession_Impl for SetCompositionString_Impl<'_> {
                 error!("set display attribute failed: {error}");
             }
 
-            let mut selection = [TF_SELECTION::default(); 1];
-            let mut selection_len = 0;
-            self.context.GetSelection(
-                ec,
-                TF_DEFAULT_SELECTION,
-                &mut selection,
-                &mut selection_len,
-            )?;
-            if let Some(sel_range) = &selection[0].range.deref() {
-                sel_range.ShiftStartToRange(ec, &range, TF_ANCHOR_START)?;
-                sel_range.Collapse(ec, TF_ANCHOR_START)?;
-                let mut moved = 0;
-                sel_range.ShiftStart(ec, self.cursor, &mut moved, ptr::null())?;
-                sel_range.Collapse(ec, TF_ANCHOR_START)?;
-                self.context.SetSelection(ec, &selection)?;
-            }
+            let cursor_range = range.Clone()?;
+            let mut moved = 0;
+            cursor_range.Collapse(ec, TF_ANCHOR_START)?;
+            cursor_range.ShiftEnd(ec, self.cursor, &mut moved, ptr::null())?;
+            cursor_range.ShiftStart(ec, self.cursor, &mut moved, ptr::null())?;
+            set_selection(&self.context, ec, cursor_range, TF_AE_END)?;
         }
         Ok(())
     }

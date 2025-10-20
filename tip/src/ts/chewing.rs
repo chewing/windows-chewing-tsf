@@ -73,6 +73,7 @@ use zhconv::{Variant, zhconv};
 use crate::G_HINSTANCE;
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
+use crate::ts::edit_session::InsertText;
 use crate::ts::menu::Menu;
 use crate::ts::theme::{ThemeDetector, WindowsTheme};
 use crate::window::window_register_class;
@@ -492,6 +493,21 @@ impl ChewingTextService {
             return Ok(false);
         }
 
+        // Not composing so we can commit the text immediately
+        if !self.is_composing() && unsafe { chewing_commit_Check(ctx) } == 1 {
+            let ptr = unsafe { chewing_commit_String(ctx) };
+            let cstr = unsafe { CStr::from_ptr(ptr) };
+            let text = cstr.to_string_lossy().into_owned();
+            unsafe {
+                chewing_free(ptr.cast());
+                chewing_ack(ctx);
+            }
+            debug!("commit string {}", &text);
+            self.insert_text(context, &text)?;
+            debug!("commit string ok");
+            return Ok(true);
+        }
+
         if !self.is_composing() {
             self.start_composition(context)?;
         }
@@ -785,6 +801,27 @@ impl ChewingTextService {
                 _ => {}
             }
         }
+    }
+
+    fn insert_text(&mut self, context: &ITfContext, text: &str) -> Result<()> {
+        debug!("going to request immediate text insertion: {text}");
+        let htext = text.into();
+        let session = InsertText::new(context.clone(), htext).into_object();
+        unsafe {
+            match context.RequestEditSession(
+                self.tid,
+                session.as_interface(),
+                TF_ES_SYNC | TF_ES_READWRITE,
+            ) {
+                Err(error) => error!("failed to request edit session: {error}"),
+                Ok(res) => {
+                    if let Err(error) = res.ok() {
+                        error!("failed to set composition: {error}")
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn start_composition(&mut self, context: &ITfContext) -> Result<()> {
