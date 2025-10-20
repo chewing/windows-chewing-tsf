@@ -48,6 +48,11 @@ jobs:
           submodules: true
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            editor/src-tauri
+            preferences/src-tauri
 
       - name: Install NPM dependencies
         run: |
@@ -93,6 +98,11 @@ jobs:
           submodules: true
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            editor/src-tauri
+            preferences/src-tauri
 
       - name: Install NPM dependencies
         run: |
