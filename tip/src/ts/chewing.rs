@@ -642,7 +642,7 @@ impl ChewingTextService {
             if dry_run {
                 return Ok(true);
             }
-            self.toggle_lang_mode()?;
+            self.sync_lang_mode_with_capslock()?;
             let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
                 SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
                 CHINESE_MODE => HSTRING::from("中文模式"),
