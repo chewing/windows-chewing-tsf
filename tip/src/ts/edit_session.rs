@@ -203,6 +203,8 @@ impl ITfEditSession_Impl for SelectionRect_Impl {
                 }
             }
         }
+        let [TF_SELECTION { range, .. }] = selection;
+        ManuallyDrop::into_inner(range);
         Ok(())
     }
 }
