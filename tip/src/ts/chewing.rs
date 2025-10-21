@@ -50,8 +50,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
-    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
-    TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_MOD_CONTROL,
+    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
+    TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
+    TF_MOD_CONTROL,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED,
@@ -802,12 +803,12 @@ impl ChewingTextService {
             match context.RequestEditSession(
                 self.tid,
                 session.as_interface(),
-                TF_ES_SYNC | TF_ES_READWRITE,
+                TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
             ) {
                 Err(error) => error!("failed to request edit session: {error}"),
                 Ok(res) => {
                     if let Err(error) = res.ok() {
-                        error!("failed to set composition: {error}")
+                        error!("failed to insert text: {error}")
                     }
                 }
             }
@@ -819,19 +820,19 @@ impl ChewingTextService {
         let Some(composition) = &self.composition else {
             return Ok(());
         };
-        let session = EndComposition::new(context, composition).into_object();
-        debug!("end composition start");
-        unsafe {
-            context
-                .RequestEditSession(
-                    self.tid,
-                    session.as_interface(),
-                    TF_ES_SYNC | TF_ES_READWRITE,
-                )?
-                .ok()?;
+        {
+            let session = EndComposition::new(context.clone(), composition.clone()).into_object();
+            debug!("end composition start");
+            unsafe {
+                context
+                    .RequestEditSession(
+                        self.tid,
+                        session.as_interface(),
+                        TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+                    )?
+                    .ok()?;
+            }
         }
-        debug!("end composition");
-        drop(session);
         self.composition = None;
         Ok(())
     }
@@ -909,7 +910,7 @@ impl ChewingTextService {
     }
 
     fn get_selection_rect(&self, context: &ITfContext) -> Result<RECT> {
-        let session = SelectionRect::new(context).into_object();
+        let session = SelectionRect::new(context.clone()).into_object();
         unsafe {
             context
                 .RequestEditSession(self.tid, session.as_interface(), TF_ES_SYNC | TF_ES_READ)?

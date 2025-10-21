@@ -61,16 +61,13 @@ impl ITfEditSession_Impl for InsertText_Impl {
 }
 
 #[implement(ITfEditSession)]
-pub(super) struct EndComposition<'a> {
-    context: &'a ITfContext,
-    composition: &'a ITfComposition,
+pub(super) struct EndComposition {
+    context: ITfContext,
+    composition: ITfComposition,
 }
 
-impl<'a> EndComposition<'a> {
-    pub(super) fn new(
-        context: &'a ITfContext,
-        composition: &'a ITfComposition,
-    ) -> EndComposition<'a> {
+impl EndComposition {
+    pub(super) fn new(context: ITfContext, composition: ITfComposition) -> EndComposition {
         Self {
             context,
             composition,
@@ -78,7 +75,7 @@ impl<'a> EndComposition<'a> {
     }
 }
 
-impl ITfEditSession_Impl for EndComposition_Impl<'_> {
+impl ITfEditSession_Impl for EndComposition_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         unsafe {
             let range = self.composition.GetRange()?;
@@ -168,13 +165,13 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
 }
 
 #[implement(ITfEditSession)]
-pub(super) struct SelectionRect<'a> {
-    context: &'a ITfContext,
+pub(super) struct SelectionRect {
+    context: ITfContext,
     rect: OnceCell<RECT>,
 }
 
-impl<'a> SelectionRect<'a> {
-    pub(super) fn new(context: &'a ITfContext) -> SelectionRect<'a> {
+impl<'a> SelectionRect {
+    pub(super) fn new(context: ITfContext) -> SelectionRect {
         Self {
             context,
             rect: OnceCell::new(),
@@ -185,7 +182,7 @@ impl<'a> SelectionRect<'a> {
     }
 }
 
-impl ITfEditSession_Impl for SelectionRect_Impl<'_> {
+impl ITfEditSession_Impl for SelectionRect_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         let mut selection = [TF_SELECTION::default(); 1];
         let mut selection_len = 0;
