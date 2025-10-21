@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr;
@@ -61,56 +61,6 @@ impl ITfEditSession_Impl for InsertText_Impl {
 }
 
 #[implement(ITfEditSession)]
-pub(super) struct StartComposition {
-    context: ITfContext,
-    composition_sink: ITfCompositionSink,
-    composition: OnceCell<ITfComposition>,
-}
-
-impl StartComposition {
-    pub(super) fn new(
-        context: ITfContext,
-        composition_sink: ITfCompositionSink,
-    ) -> StartComposition {
-        Self {
-            context,
-            composition_sink,
-            composition: OnceCell::new(),
-        }
-    }
-    pub(super) fn composition(&self) -> Option<&ITfComposition> {
-        self.composition.get()
-    }
-}
-
-impl ITfEditSession_Impl for StartComposition_Impl {
-    fn DoEditSession(&self, ec: u32) -> Result<()> {
-        let context_composition: ITfContextComposition = self.context.cast()?;
-        let range = unsafe {
-            let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
-            insert_at_selection.InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?
-        };
-
-        debug!("range = {range:?}");
-
-        unsafe {
-            // XXX even though MS document says pSink is optional,
-            // StartComposition fails if NULL is passed.
-            let composition =
-                context_composition.StartComposition(ec, &range, &self.composition_sink);
-            if let Err(error) = &composition {
-                error!("unable to start composition: {error}");
-            }
-            // TODO test if we need to reset the selection as the remark in the original C++ code
-            if let Err(error) = self.composition.set(composition?) {
-                error!("unable to set composition: {error:?}");
-            }
-        }
-        Ok(())
-    }
-}
-
-#[implement(ITfEditSession)]
 pub(super) struct EndComposition<'a> {
     context: &'a ITfContext,
     composition: &'a ITfComposition,
@@ -146,51 +96,72 @@ impl ITfEditSession_Impl for EndComposition_Impl<'_> {
 }
 
 #[implement(ITfEditSession)]
-pub(super) struct SetCompositionString<'a> {
-    context: &'a ITfContext,
-    composition: &'a ITfComposition,
+pub(super) struct SetCompositionString {
+    context: ITfContext,
+    composition: RefCell<Option<ITfComposition>>,
+    composition_sink: ITfCompositionSink,
     da_atom: VARIANT,
-    text: &'a HSTRING,
+    text: HSTRING,
     cursor: i32,
 }
 
-impl<'a> SetCompositionString<'a> {
+impl SetCompositionString {
     pub(super) fn new(
-        context: &'a ITfContext,
-        composition: &'a ITfComposition,
+        context: ITfContext,
+        composition: Option<ITfComposition>,
+        composition_sink: ITfCompositionSink,
         da_atom: VARIANT,
-        text: &'a HSTRING,
+        text: HSTRING,
         cursor: i32,
-    ) -> SetCompositionString<'a> {
+    ) -> SetCompositionString {
         Self {
             context,
-            composition,
+            composition: RefCell::new(composition),
+            composition_sink,
             da_atom,
             text,
             cursor,
         }
     }
+    pub(super) fn composition(&self) -> Option<ITfComposition> {
+        self.composition.borrow().clone()
+    }
 }
 
-impl ITfEditSession_Impl for SetCompositionString_Impl<'_> {
+impl ITfEditSession_Impl for SetCompositionString_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         unsafe {
-            let range = self.composition.GetRange()?;
-            debug!("range {:?}", &range);
-            if let Err(error) = range.SetText(ec, 0, self.text) {
-                error!("set composition string failed: {error}");
+            if self.composition.borrow().is_none() {
+                let context_composition: ITfContextComposition = self.context.cast()?;
+                let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
+                let range = insert_at_selection.InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?;
+                // XXX even though MS document says pSink is optional,
+                // StartComposition fails if NULL is passed.
+                let composition =
+                    context_composition.StartComposition(ec, &range, &self.composition_sink);
+                if let Err(error) = &composition {
+                    error!("unable to start composition: {error}");
+                }
+                self.composition.replace(Some(composition?));
             }
-            let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-            if let Err(error) = disp_attr_prop.SetValue(ec, &range, &self.da_atom) {
-                error!("set display attribute failed: {error}");
-            }
+            if let Some(composition) = self.composition.borrow().as_ref() {
+                let range = composition.GetRange()?;
+                debug!("range {:?}", &range);
+                if let Err(error) = range.SetText(ec, 0, &self.text) {
+                    error!("set composition string failed: {error}");
+                }
+                let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
+                if let Err(error) = disp_attr_prop.SetValue(ec, &range, &self.da_atom) {
+                    error!("set display attribute failed: {error}");
+                }
 
-            let cursor_range = range.Clone()?;
-            let mut moved = 0;
-            cursor_range.Collapse(ec, TF_ANCHOR_START)?;
-            cursor_range.ShiftEnd(ec, self.cursor, &mut moved, ptr::null())?;
-            cursor_range.ShiftStart(ec, self.cursor, &mut moved, ptr::null())?;
-            set_selection(&self.context, ec, cursor_range, TF_AE_END)?;
+                let cursor_range = range.Clone()?;
+                let mut moved = 0;
+                cursor_range.Collapse(ec, TF_ANCHOR_START)?;
+                cursor_range.ShiftEnd(ec, self.cursor, &mut moved, ptr::null())?;
+                cursor_range.ShiftStart(ec, self.cursor, &mut moved, ptr::null())?;
+                set_selection(&self.context, ec, cursor_range, TF_AE_END)?;
+            }
         }
         Ok(())
     }

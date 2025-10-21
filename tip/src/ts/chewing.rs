@@ -79,7 +79,7 @@ use crate::ts::theme::{ThemeDetector, WindowsTheme};
 use crate::window::window_register_class;
 
 use super::CommandType;
-use super::edit_session::{EndComposition, SelectionRect, SetCompositionString, StartComposition};
+use super::edit_session::{EndComposition, SelectionRect, SetCompositionString};
 use super::key_event::KeyEvent;
 use super::lang_bar::LangBarButton;
 use super::resources::*;
@@ -508,12 +508,6 @@ impl ChewingTextService {
             return Ok(true);
         }
 
-        if !self.is_composing() {
-            self.start_composition(context)?;
-        }
-
-        debug!("started composition");
-
         self.update_candidates(context)?;
 
         debug!("updated candidates");
@@ -556,9 +550,6 @@ impl ChewingTextService {
 
         // has something in composition buffer
         if !composition_buf.is_empty() {
-            if !self.is_composing() {
-                self.start_composition(context)?;
-            }
             let cursor = unsafe { chewing_cursor_Current(ctx) };
             self.set_composition_string(context, &composition_buf, cursor)?;
         } else {
@@ -824,25 +815,6 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn start_composition(&mut self, context: &ITfContext) -> Result<()> {
-        debug!("going to request start composition");
-        if let Some(sink) = &self.composition_sink {
-            let session = StartComposition::new(context.clone(), sink.clone()).into_object();
-            unsafe {
-                context
-                    .RequestEditSession(
-                        self.tid,
-                        session.as_interface(),
-                        TF_ES_SYNC | TF_ES_READWRITE,
-                    )?
-                    .ok()?;
-                debug!("requested start composition");
-                self.composition = session.composition().cloned();
-            }
-        }
-        Ok(())
-    }
-
     fn end_composition(&mut self, context: &ITfContext) -> Result<()> {
         let Some(composition) = &self.composition else {
             return Ok(());
@@ -870,9 +842,6 @@ impl ChewingTextService {
         text: &str,
         cursor: i32,
     ) -> Result<()> {
-        let Some(composition) = &self.composition else {
-            return Ok(());
-        };
         debug!("set composition string to {text}");
         let htext = if self.output_simp_chinese {
             zhconv(text, Variant::ZhHans).into()
@@ -880,10 +849,11 @@ impl ChewingTextService {
             text.into()
         };
         let session = SetCompositionString::new(
-            context,
-            composition,
+            context.clone(),
+            self.composition.clone(),
+            self.composition_sink.clone().unwrap(),
             self.input_da_atom.clone(),
-            &htext,
+            htext,
             cursor,
         )
         .into_object();
@@ -898,6 +868,7 @@ impl ChewingTextService {
                     if let Err(error) = res.ok() {
                         error!("failed to set composition: {error}")
                     }
+                    self.composition = session.composition();
                 }
             }
         }
