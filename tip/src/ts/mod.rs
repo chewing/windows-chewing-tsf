@@ -59,10 +59,8 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
 pub(super) struct TextService {
     inner: RefCell<ChewingTextService>,
     tid: Cell<u32>,
-    thread_mgr_sink_cookie: Cell<u32>,
-    thread_focus_sink_cookie: Cell<u32>,
+    thread_cookies: RefCell<Vec<u32>>,
     thread_edit_sink_cookie: Cell<u32>,
-    active_lang_profile_sink_cookie: Cell<u32>,
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
 }
@@ -72,10 +70,8 @@ impl TextService {
         TextService {
             inner: RefCell::new(ChewingTextService::new()),
             tid: Cell::default(),
-            thread_mgr_sink_cookie: Cell::new(TF_INVALID_COOKIE),
-            thread_focus_sink_cookie: Cell::new(TF_INVALID_COOKIE),
+            thread_cookies: RefCell::new(vec![]),
             thread_edit_sink_cookie: Cell::new(TF_INVALID_COOKIE),
-            active_lang_profile_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
         }
@@ -129,6 +125,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         info!("Activate chewing_tip");
         self.tid.set(tid);
         let mut ts = self.inner.borrow_mut();
+        let mut thread_cookies = self.thread_cookies.borrow_mut();
         let thread_mgr = ptim.ok()?;
         let composition_sink = self.as_interface_ref();
 
@@ -136,11 +133,11 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         // Set up event sinks
         unsafe {
             let source: ITfSource = thread_mgr.cast()?;
-            self.thread_mgr_sink_cookie
-                .set(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
-            self.thread_focus_sink_cookie
-                .set(source.AdviseSink(&ITfThreadFocusSink::IID, self.as_interface_ref())?);
-            self.active_lang_profile_sink_cookie.set(source.AdviseSink(
+            thread_cookies
+                .push(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
+            thread_cookies
+                .push(source.AdviseSink(&ITfThreadFocusSink::IID, self.as_interface_ref())?);
+            thread_cookies.push(source.AdviseSink(
                 &ITfActiveLanguageProfileNotifySink::IID,
                 self.as_interface_ref(),
             )?);
@@ -155,14 +152,14 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
                 error!("Unable to register key event sink: {error:#}");
             }
             let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
-            let thread_compartment =
+            let openclose_compartment =
                 compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
             // FIXME move the initialization of keyboard openclose to open to TIP code
             let openclose: VARIANT = 1i32.into();
-            if let Err(error) = thread_compartment.SetValue(tid, &openclose) {
+            if let Err(error) = openclose_compartment.SetValue(tid, &openclose) {
                 error!("Unable to initialize keyboard openclose compartment: {error:#}");
             }
-            let source: ITfSource = thread_compartment.cast()?;
+            let source: ITfSource = openclose_compartment.cast()?;
             self.keyboard_openclose_cookie
                 .set(source.AdviseSink(&ITfCompartmentEventSink::IID, self.as_interface_ref())?);
         }
@@ -178,6 +175,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Deactivate(&self) -> Result<()> {
         info!("Deactivate chewing_tip");
         let mut ts = self.inner.borrow_mut();
+        let thread_cookies = self.thread_cookies.take();
 
         let thread_mgr = match ts.deactivate() {
             Ok(mgr) => mgr,
@@ -190,20 +188,17 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         // Remove event sinks
         unsafe {
             let source: ITfSource = thread_mgr.cast()?;
-            source.UnadviseSink(self.thread_mgr_sink_cookie.replace(TF_INVALID_COOKIE))?;
-            source.UnadviseSink(self.thread_focus_sink_cookie.replace(TF_INVALID_COOKIE))?;
-            source.UnadviseSink(
-                self.active_lang_profile_sink_cookie
-                    .replace(TF_INVALID_COOKIE),
-            )?;
+            for cookie in thread_cookies {
+                source.UnadviseSink(cookie)?;
+            }
             let source_single: ITfSourceSingle = thread_mgr.cast()?;
             source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
             let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
             keystroke_mgr.UnadviseKeyEventSink(self.tid.get())?;
             let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
-            let thread_compartment =
+            let openclose_compartment =
                 compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-            let source: ITfSource = thread_compartment.cast()?;
+            let source: ITfSource = openclose_compartment.cast()?;
             source.UnadviseSink(self.keyboard_openclose_cookie.get())?;
         }
 

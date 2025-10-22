@@ -1124,7 +1124,7 @@ impl ChewingTextService {
             if ctx.is_null() {
                 bail!("chewing context is null");
             }
-            log::set_max_level(log::LevelFilter::Debug);
+            log::set_max_level(log::LevelFilter::Info);
             self.chewing_context = Some(ctx);
         }
 
