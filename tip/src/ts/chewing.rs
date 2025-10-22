@@ -461,23 +461,23 @@ impl ChewingTextService {
             }
         } else {
             let mut key_handled = false;
-            if self.cfg.chewing_tsf.cursor_cand_list {
-                if let Some(candidate_list) = &self.candidate_list {
-                    match candidate_list.filter_key_event(ev.vk) {
-                        FilterKeyResult::HandledCommit => {
-                            let sel_key = candidate_list.current_sel();
-                            unsafe {
-                                chewing_cand_choose_by_index(ctx, sel_key as i32);
-                            }
-                            key_handled = true;
+            if self.cfg.chewing_tsf.cursor_cand_list
+                && let Some(candidate_list) = &self.candidate_list
+            {
+                match candidate_list.filter_key_event(ev.vk) {
+                    FilterKeyResult::HandledCommit => {
+                        let sel_key = candidate_list.current_sel();
+                        unsafe {
+                            chewing_cand_choose_by_index(ctx, sel_key as i32);
                         }
-                        FilterKeyResult::Handled => {
-                            candidate_list.show();
-                            return Ok(true);
-                        }
-                        FilterKeyResult::NotHandled => {
-                            // do nothing
-                        }
+                        key_handled = true;
+                    }
+                    FilterKeyResult::Handled => {
+                        candidate_list.show();
+                        return Ok(true);
+                    }
+                    FilterKeyResult::NotHandled => {
+                        // do nothing
                     }
                 }
             }
@@ -696,16 +696,16 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_compartment_change(&mut self, guid: &GUID) -> Result<()> {
-        if let Some(thread_mgr) = &self.thread_mgr {
-            if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
-                let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
-                unsafe {
-                    let thread_compartment =
-                        compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-                    let value = thread_compartment.GetValue()?;
-                    let openclose: i32 = (&value).try_into().unwrap_or_default();
-                    self.on_keyboard_status_changed(openclose != 0)?;
-                }
+        if let Some(thread_mgr) = &self.thread_mgr
+            && guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
+        {
+            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+            unsafe {
+                let thread_compartment =
+                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+                let value = thread_compartment.GetValue()?;
+                let openclose: i32 = (&value).try_into().unwrap_or_default();
+                self.on_keyboard_status_changed(openclose != 0)?;
             }
         }
         Ok(())
@@ -825,7 +825,7 @@ impl ChewingTextService {
         let Some(composition) = self.composition.take() else {
             return Ok(());
         };
-        self.pending_edit.take();
+        self.pending_edit.replace(None);
         {
             let session = EndComposition::new(context.clone(), composition).into_object();
             debug!("end composition start");
@@ -890,7 +890,7 @@ impl ChewingTextService {
 
     pub(super) fn on_end_edit(&self, context: &ITfContext) -> Result<()> {
         if unsafe { context.InWriteSession(self.tid)? }.as_bool() {
-            self.pending_edit.take();
+            self.pending_edit.replace(None);
         }
         Ok(())
     }
@@ -934,7 +934,7 @@ impl ChewingTextService {
                 .RequestEditSession(self.tid, session.as_interface(), TF_ES_SYNC | TF_ES_READ)?
                 .ok()?;
         }
-        session.rect().cloned().context("there is no selection")
+        Ok(session.rect())
     }
 
     fn update_candidates(&mut self, context: &ITfContext) -> Result<()> {

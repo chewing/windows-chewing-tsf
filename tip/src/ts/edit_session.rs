@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::{Cell, OnceCell, RefCell};
+use std::cell::{Cell, RefCell};
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr;
@@ -47,8 +47,8 @@ impl InsertText {
 
 impl ITfEditSession_Impl for InsertText_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
         unsafe {
-            let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
             let range = insert_at_selection.InsertTextAtSelection(
                 ec,
                 INSERT_TEXT_AT_SELECTION_FLAGS(0),
@@ -56,38 +56,6 @@ impl ITfEditSession_Impl for InsertText_Impl {
             )?;
             range.Collapse(ec, TF_ANCHOR_END)?;
             set_selection(&self.context, ec, range, TF_AE_END)?;
-        }
-        Ok(())
-    }
-}
-
-#[implement(ITfEditSession)]
-pub(super) struct EndComposition {
-    context: ITfContext,
-    composition: ITfComposition,
-}
-
-impl EndComposition {
-    pub(super) fn new(context: ITfContext, composition: ITfComposition) -> EndComposition {
-        Self {
-            context,
-            composition,
-        }
-    }
-}
-
-impl ITfEditSession_Impl for EndComposition_Impl {
-    fn DoEditSession(&self, ec: u32) -> Result<()> {
-        unsafe {
-            let range = self.composition.GetRange()?;
-            let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-            disp_attr_prop.Clear(ec, &range)?;
-
-            let new_composition_start = range.Clone()?;
-            new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
-            self.composition.ShiftStart(ec, &new_composition_start)?;
-            set_selection(&self.context, ec, new_composition_start, TF_AE_END)?;
-            self.composition.EndComposition(ec)?;
         }
         Ok(())
     }
@@ -167,19 +135,51 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
 }
 
 #[implement(ITfEditSession)]
-pub(super) struct SelectionRect {
+pub(super) struct EndComposition {
     context: ITfContext,
-    rect: OnceCell<RECT>,
+    composition: ITfComposition,
 }
 
-impl<'a> SelectionRect {
+impl EndComposition {
+    pub(super) fn new(context: ITfContext, composition: ITfComposition) -> EndComposition {
+        Self {
+            context,
+            composition,
+        }
+    }
+}
+
+impl ITfEditSession_Impl for EndComposition_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        unsafe {
+            let range = self.composition.GetRange()?;
+            let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
+            disp_attr_prop.Clear(ec, &range)?;
+
+            let new_composition_start = range.Clone()?;
+            new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
+            self.composition.ShiftStart(ec, &new_composition_start)?;
+            set_selection(&self.context, ec, new_composition_start, TF_AE_END)?;
+            self.composition.EndComposition(ec)?;
+        }
+        Ok(())
+    }
+}
+
+#[implement(ITfEditSession)]
+pub(super) struct SelectionRect {
+    context: ITfContext,
+    rect: Cell<RECT>,
+}
+
+impl SelectionRect {
     pub(super) fn new(context: ITfContext) -> SelectionRect {
         Self {
             context,
-            rect: OnceCell::new(),
+            rect: Cell::default(),
         }
     }
-    pub(super) fn rect(&self) -> Option<&RECT> {
+    pub(super) fn rect(&self) -> RECT {
         self.rect.get()
     }
 }
@@ -200,9 +200,7 @@ impl ITfEditSession_Impl for SelectionRect_Impl {
                 let mut rc = RECT::default();
                 let mut clipped = BOOL::default();
                 view.GetTextExt(ec, sel_range, &mut rc, &mut clipped)?;
-                if let Err(error) = self.rect.set(rc) {
-                    error!("unable to set rect: {error:?}");
-                }
+                self.rect.set(rc);
             }
         }
         let [TF_SELECTION { range, .. }] = selection;

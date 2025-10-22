@@ -123,11 +123,11 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
             CommandType::LeftClick
         };
         unsafe {
-            if let Ok(fn_provider) = self.thread_mgr.GetFunctionProvider(&CHEWING_TSF_CLSID) {
-                if let Ok(punk) = fn_provider.GetFunction(&GUID::zeroed(), &IFnRunCommand::IID) {
-                    let cb: IFnRunCommand = punk.cast()?;
-                    cb.on_command(self.command_id, cmd_type);
-                }
+            if let Ok(fn_provider) = self.thread_mgr.GetFunctionProvider(&CHEWING_TSF_CLSID)
+                && let Ok(punk) = fn_provider.GetFunction(&GUID::zeroed(), &IFnRunCommand::IID)
+            {
+                let cb: IFnRunCommand = punk.cast()?;
+                cb.on_command(self.command_id, cmd_type);
             }
         }
         Ok(())
@@ -145,11 +145,11 @@ impl ITfLangBarItemButton_Impl for LangBarButton_Impl {
 
     fn OnMenuSelect(&self, wid: u32) -> Result<()> {
         unsafe {
-            if let Ok(fn_provider) = self.thread_mgr.GetFunctionProvider(&CHEWING_TSF_CLSID) {
-                if let Ok(punk) = fn_provider.GetFunction(&GUID::zeroed(), &IFnRunCommand::IID) {
-                    let cb: IFnRunCommand = punk.cast()?;
-                    cb.on_command(wid, CommandType::Menu);
-                }
+            if let Ok(fn_provider) = self.thread_mgr.GetFunctionProvider(&CHEWING_TSF_CLSID)
+                && let Ok(punk) = fn_provider.GetFunction(&GUID::zeroed(), &IFnRunCommand::IID)
+            {
+                let cb: IFnRunCommand = punk.cast()?;
+                cb.on_command(wid, CommandType::Menu);
             }
         }
         Ok(())
@@ -244,10 +244,9 @@ fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
                     &text_buffer,
                     &mut sub_menu,
                 )
-            } {
-                if let Some(sub_menu) = sub_menu {
-                    build_menu(&sub_menu, mi.hSubMenu)?;
-                }
+            } && let Some(sub_menu) = sub_menu
+            {
+                build_menu(&sub_menu, mi.hSubMenu)?;
             }
         }
     }

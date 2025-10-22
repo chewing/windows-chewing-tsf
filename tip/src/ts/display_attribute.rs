@@ -31,10 +31,10 @@ impl ITfDisplayAttributeProvider_Impl for DisplayAttributeProvider_Impl {
         }
         let guid = unsafe { *guid };
         let guid_u128 = guid.to_u128();
-        if let Ok(attrs) = ATTRS.read() {
-            if let Some(da) = attrs.get(&guid_u128) {
-                return Ok(DisplayAttributeInfo::new(guid, *da).into());
-            }
+        if let Ok(attrs) = ATTRS.read()
+            && let Some(da) = attrs.get(&guid_u128)
+        {
+            return Ok(DisplayAttributeInfo::new(guid, *da).into());
         }
         Err(E_FAIL.into())
     }
@@ -61,10 +61,10 @@ pub(super) fn get_display_attribute_info(guid: *const GUID) -> Result<ITfDisplay
         return Err(E_INVALIDARG.into());
     };
     let guid_u128 = guid.to_u128();
-    if let Ok(attrs) = ATTRS.read() {
-        if let Some(da) = attrs.get(&guid_u128) {
-            return Ok(DisplayAttributeInfo::new(*guid, *da).into());
-        }
+    if let Ok(attrs) = ATTRS.read()
+        && let Some(da) = attrs.get(&guid_u128)
+    {
+        return Ok(DisplayAttributeInfo::new(*guid, *da).into());
     }
     Err(E_FAIL.into())
 }

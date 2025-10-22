@@ -1,15 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-mod chewing;
-mod display_attribute;
-mod edit_session;
-mod key_event;
-mod lang_bar;
-mod menu;
-mod resources;
-mod theme;
-mod ui_elements;
-
 use std::cell::{Cell, RefCell};
 
 use display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
@@ -26,6 +16,16 @@ use windows_core::{
 
 use self::chewing::ChewingTextService;
 use self::key_event::KeyEvent;
+
+mod chewing;
+mod display_attribute;
+mod edit_session;
+mod key_event;
+mod lang_bar;
+mod menu;
+mod resources;
+mod theme;
+mod ui_elements;
 
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 const GUID_INPUT_DISPLAY_ATTRIBUTE: GUID = GUID::from_u128(0xEEA32958_DC57_4542_9FC833C74F5CAAA9);
@@ -119,10 +119,7 @@ impl ITfFunctionProvider_Impl for TextService_Impl {
 
 impl IFnRunCommand_Impl for TextService_Impl {
     unsafe fn on_command(&self, id: u32, cmd_type: CommandType) {
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         ts.on_command(id, cmd_type);
     }
 }
@@ -131,10 +128,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
         info!("Activate chewing_tip");
         self.tid.set(tid);
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         let thread_mgr = ptim.ok()?;
         let composition_sink = self.as_interface_ref();
 
@@ -183,10 +177,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
 
     fn Deactivate(&self) -> Result<()> {
         info!("Deactivate chewing_tip");
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
 
         let thread_mgr = match ts.deactivate() {
             Ok(mgr) => mgr,
@@ -245,10 +236,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         if self.key_busy.get() {
             return Ok(());
         }
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         if pdimfocus.is_null() {
             if let Some(doc_mgr) = pdimprevfocus.as_ref() {
                 // From MSTF doc: To simplify this process and prevent
@@ -298,10 +286,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
 
 impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         if let Err(error) = ts.on_focus() {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
@@ -320,13 +305,12 @@ impl ITfTextEditSink_Impl for TextService_Impl {
         _ecreadonly: u32,
         _peditrecord: Ref<ITfEditRecord>,
     ) -> Result<()> {
-        if let Some(context) = pic.as_ref() {
-            if let Ok(ts) = self.inner.try_borrow() {
-                if let Err(error) = ts.on_end_edit(context) {
-                    error!("Unable to handle OnEndEdit: {error:#}");
-                    return Err(E_UNEXPECTED.into());
-                }
-            }
+        if let Some(context) = pic.as_ref()
+            && let Ok(ts) = self.inner.try_borrow()
+            && let Err(error) = ts.on_end_edit(context)
+        {
+            error!("Unable to handle OnEndEdit: {error:#}");
+            return Err(E_UNEXPECTED.into());
         }
         Ok(())
     }
@@ -338,10 +322,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keydown(pic.ok()?, ev, true) {
             Ok(v) => v,
@@ -354,10 +335,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keyup(pic.ok()?, ev, true) {
             Ok(v) => v,
@@ -371,10 +349,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         self.key_busy.set(true);
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keydown(pic.ok()?, ev, false) {
             Ok(v) => v,
@@ -388,10 +363,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         self.key_busy.set(false);
-        let mut ts = {
-            let this = &self;
-            this.inner.borrow_mut()
-        };
+        let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keyup(pic.ok()?, ev, false) {
             Ok(v) => v,
@@ -405,10 +377,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
-            let mut ts = {
-                let this = &self;
-                this.inner.borrow_mut()
-            };
+            let mut ts = self.inner.borrow_mut();
             let handled = ts.on_preserved_key(rguid);
             Ok(handled.into())
         } else {
@@ -428,10 +397,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // grabbed by others, we're ``forced'' to terminate current composition.
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
-        if let Ok(mut ts) = {
-            let this = &self;
-            this.inner.try_borrow_mut()
-        } {
+        if let Ok(mut ts) = self.inner.try_borrow_mut() {
             ts.on_composition_terminated();
         }
         Ok(())
@@ -442,13 +408,11 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!("received compartment change event: {rguid:?}");
-            let mut ts = {
-                let this = &self;
-                this.inner.borrow_mut()
-            };
-            if let Err(error) = ts.on_compartment_change(rguid) {
-                error!("Unable to handle compartment change: {error:#}");
-                return Err(E_UNEXPECTED.into());
+            if let Ok(mut ts) = self.inner.try_borrow_mut() {
+                if let Err(error) = ts.on_compartment_change(rguid) {
+                    error!("Unable to handle compartment change: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
             }
         }
         Ok(())

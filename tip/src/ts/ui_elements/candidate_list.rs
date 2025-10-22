@@ -517,13 +517,13 @@ impl CandidateList {
                 ..Default::default()
             };
             let has_monitor_info = unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info) };
-            if has_monitor_info.as_bool() {
-                if let Ok(size) = view.calculate_client_rect(&self.model.borrow()) {
-                    // constraint window to screen
-                    debug!("calculate client rect set_pos: {size:?}");
-                    x = x.min(monitor_info.rcMonitor.right - size.hw_width as i32 - 10);
-                    y = y.min(monitor_info.rcMonitor.bottom - size.hw_height as i32 - 10);
-                }
+            if has_monitor_info.as_bool()
+                && let Ok(size) = view.calculate_client_rect(&self.model.borrow())
+            {
+                // constraint window to screen
+                debug!("calculate client rect set_pos: {size:?}");
+                x = x.min(monitor_info.rcMonitor.right - size.hw_width as i32 - 10);
+                y = y.min(monitor_info.rcMonitor.bottom - size.hw_height as i32 - 10);
             }
             window.set_position(x, y);
         }
