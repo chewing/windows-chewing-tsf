@@ -342,10 +342,10 @@ impl ChewingTextService {
         if let Err(error) = self.apply_config_if_changed() {
             error!("unable to load config: {error}");
         }
-        if self.chewing_context.is_none() {
-            error!("on_keydown but chewing context is null");
+        let Some(ctx) = self.chewing_context else {
+            error!("chewing context is null");
             return Ok(false);
-        }
+        };
         let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
         debug!("on_keydown: {evt:?}");
         self.last_keydown_code = ev.vk;
@@ -408,10 +408,6 @@ impl ChewingTextService {
             return Ok(true);
         }
 
-        let Some(ctx) = self.chewing_context else {
-            error!("chewing context is null");
-            return Ok(false);
-        };
         if ev.is_printable() {
             let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
             let mut momentary_english_mode = false;
