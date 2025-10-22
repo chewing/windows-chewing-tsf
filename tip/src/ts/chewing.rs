@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use core::slice;
+use std::cell::RefCell;
 use std::ffi::{CStr, c_int, c_void};
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
+use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -52,7 +54,7 @@ use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
     TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
-    TF_MOD_CONTROL,
+    TF_MOD_CONTROL, TF_S_ASYNC,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED,
@@ -120,8 +122,9 @@ pub(super) struct ChewingTextService {
     notification: Option<ComObject<Notification>>,
     candidate_list: Option<ComObject<CandidateList>>,
     thread_mgr: Option<ITfThreadMgr>,
-    composition: Option<ITfComposition>,
+    composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: Option<ITfCompositionSink>,
+    pending_edit: RefCell<Option<ComObject<SetCompositionString>>>,
     input_da_atom: VARIANT,
     menu: Menu,
     popup_menu: HMENU,
@@ -302,7 +305,7 @@ impl ChewingTextService {
         self.ime_mode_button = None;
         self.remove_buttons()?;
         self.remove_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
-        self.composition = None;
+        self.composition.replace(None);
         self.hide_candidates();
         self.hide_message();
 
@@ -342,6 +345,8 @@ impl ChewingTextService {
             error!("on_keydown but chewing context is null");
             return Ok(false);
         }
+        let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
+        debug!("on_keydown: {evt:?}");
         self.last_keydown_code = ev.vk;
         if self.last_keydown_time.is_none() {
             self.last_keydown_time = Some(Instant::now());
@@ -680,7 +685,7 @@ impl ChewingTextService {
                 }
             }
         }
-        self.composition = None;
+        self.composition.replace(None);
     }
 
     pub(super) fn on_preserved_key(&mut self, guid: &GUID) -> bool {
@@ -817,11 +822,12 @@ impl ChewingTextService {
     }
 
     fn end_composition(&mut self, context: &ITfContext) -> Result<()> {
-        let Some(composition) = &self.composition else {
+        let Some(composition) = self.composition.take() else {
             return Ok(());
         };
+        self.pending_edit.take();
         {
-            let session = EndComposition::new(context.clone(), composition.clone()).into_object();
+            let session = EndComposition::new(context.clone(), composition).into_object();
             debug!("end composition start");
             unsafe {
                 context
@@ -833,7 +839,6 @@ impl ChewingTextService {
                     .ok()?;
             }
         }
-        self.composition = None;
         Ok(())
     }
 
@@ -849,31 +854,44 @@ impl ChewingTextService {
         } else {
             text.into()
         };
-        let session = SetCompositionString::new(
-            context.clone(),
-            self.composition.clone(),
-            self.composition_sink.clone().unwrap(),
-            self.input_da_atom.clone(),
-            htext,
-            cursor,
-        )
-        .into_object();
-        unsafe {
-            match context.RequestEditSession(
-                self.tid,
-                session.as_interface(),
-                TF_ES_SYNC | TF_ES_READWRITE,
-            ) {
-                Err(error) => error!("failed to request edit session: {error}"),
-                Ok(res) => {
-                    if let Err(error) = res.ok() {
-                        error!("failed to set composition: {error}")
+        if let Some(ref session) = *self.pending_edit.borrow() {
+            debug!("Reuse existing edit session: {htext} {cursor}");
+            session.update(htext, cursor);
+        } else {
+            let session = SetCompositionString::new(
+                context.clone(),
+                self.composition.clone(),
+                self.composition_sink.clone().unwrap(),
+                self.input_da_atom.clone(),
+                htext,
+                cursor,
+            )
+            .into_object();
+            unsafe {
+                match context.RequestEditSession(
+                    self.tid,
+                    session.as_interface(),
+                    TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+                ) {
+                    Err(error) => error!("failed to request edit session: {error}"),
+                    Ok(res) => {
+                        if let Err(error) = res.ok() {
+                            error!("failed to set composition: {error}")
+                        }
+                        if res == TF_S_ASYNC {
+                            self.pending_edit.borrow_mut().replace(session);
+                        }
                     }
-                    self.composition = session.composition();
                 }
             }
         }
-        debug!("done compose {text}");
+        Ok(())
+    }
+
+    pub(super) fn on_end_edit(&self, context: &ITfContext) -> Result<()> {
+        if unsafe { context.InWriteSession(self.tid)? }.as_bool() {
+            self.pending_edit.take();
+        }
         Ok(())
     }
 
@@ -1093,7 +1111,7 @@ impl ChewingTextService {
     }
 
     fn is_composing(&self) -> bool {
-        self.composition.is_some()
+        self.composition.borrow().is_some()
     }
 
     fn init_chewing_context(&mut self) -> anyhow::Result<()> {
@@ -1106,7 +1124,7 @@ impl ChewingTextService {
             if ctx.is_null() {
                 bail!("chewing context is null");
             }
-            log::set_max_level(log::LevelFilter::Info);
+            log::set_max_level(log::LevelFilter::Debug);
             self.chewing_context = Some(ctx);
         }
 

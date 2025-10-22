@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::{OnceCell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::ptr;
+use std::rc::Rc;
 
 use log::{debug, error};
 use windows::Win32::Foundation::{FALSE, RECT};
@@ -95,17 +96,17 @@ impl ITfEditSession_Impl for EndComposition_Impl {
 #[implement(ITfEditSession)]
 pub(super) struct SetCompositionString {
     context: ITfContext,
-    composition: RefCell<Option<ITfComposition>>,
+    composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
     da_atom: VARIANT,
-    text: HSTRING,
-    cursor: i32,
+    text: Cell<HSTRING>,
+    cursor: Cell<i32>,
 }
 
 impl SetCompositionString {
     pub(super) fn new(
         context: ITfContext,
-        composition: Option<ITfComposition>,
+        composition: Rc<RefCell<Option<ITfComposition>>>,
         composition_sink: ITfCompositionSink,
         da_atom: VARIANT,
         text: HSTRING,
@@ -113,15 +114,16 @@ impl SetCompositionString {
     ) -> SetCompositionString {
         Self {
             context,
-            composition: RefCell::new(composition),
+            composition,
             composition_sink,
             da_atom,
-            text,
-            cursor,
+            text: Cell::new(text),
+            cursor: Cell::new(cursor),
         }
     }
-    pub(super) fn composition(&self) -> Option<ITfComposition> {
-        self.composition.borrow().clone()
+    pub(super) fn update(&self, text: HSTRING, cursor: i32) {
+        self.text.set(text);
+        self.cursor.set(cursor);
     }
 }
 
@@ -129,6 +131,7 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         unsafe {
             if self.composition.borrow().is_none() {
+                debug!("starting a new composition");
                 let context_composition: ITfContextComposition = self.context.cast()?;
                 let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
                 let range = insert_at_selection.InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?;
@@ -143,8 +146,7 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
             }
             if let Some(composition) = self.composition.borrow().as_ref() {
                 let range = composition.GetRange()?;
-                debug!("range {:?}", &range);
-                if let Err(error) = range.SetText(ec, 0, &self.text) {
+                if let Err(error) = range.SetText(ec, 0, &self.text.take()) {
                     error!("set composition string failed: {error}");
                 }
                 let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
@@ -155,8 +157,8 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
                 let cursor_range = range.Clone()?;
                 let mut moved = 0;
                 cursor_range.Collapse(ec, TF_ANCHOR_START)?;
-                cursor_range.ShiftEnd(ec, self.cursor, &mut moved, ptr::null())?;
-                cursor_range.ShiftStart(ec, self.cursor, &mut moved, ptr::null())?;
+                cursor_range.ShiftEnd(ec, self.cursor.get(), &mut moved, ptr::null())?;
+                cursor_range.ShiftStart(ec, self.cursor.get(), &mut moved, ptr::null())?;
                 set_selection(&self.context, ec, cursor_range, TF_AE_END)?;
             }
         }

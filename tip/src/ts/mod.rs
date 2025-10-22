@@ -10,10 +10,7 @@ mod resources;
 mod theme;
 mod ui_elements;
 
-use std::{
-    cell::Cell,
-    sync::{RwLock, RwLockWriteGuard},
-};
+use std::cell::{Cell, RefCell};
 
 use display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
 use log::{debug, error, info};
@@ -60,10 +57,11 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
     ITfActiveLanguageProfileNotifySink
 )]
 pub(super) struct TextService {
-    inner: RwLock<ChewingTextService>,
+    inner: RefCell<ChewingTextService>,
     tid: Cell<u32>,
     thread_mgr_sink_cookie: Cell<u32>,
     thread_focus_sink_cookie: Cell<u32>,
+    thread_edit_sink_cookie: Cell<u32>,
     active_lang_profile_sink_cookie: Cell<u32>,
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
@@ -72,20 +70,15 @@ pub(super) struct TextService {
 impl TextService {
     pub(super) fn new() -> TextService {
         TextService {
-            inner: RwLock::new(ChewingTextService::new()),
+            inner: RefCell::new(ChewingTextService::new()),
             tid: Cell::default(),
             thread_mgr_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             thread_focus_sink_cookie: Cell::new(TF_INVALID_COOKIE),
+            thread_edit_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             active_lang_profile_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
         }
-    }
-    #[track_caller]
-    fn lock(&self) -> RwLockWriteGuard<'_, ChewingTextService> {
-        self.inner
-            .write()
-            .expect("failed to acquire lock on chewing_tip")
     }
 }
 
@@ -126,7 +119,10 @@ impl ITfFunctionProvider_Impl for TextService_Impl {
 
 impl IFnRunCommand_Impl for TextService_Impl {
     unsafe fn on_command(&self, id: u32, cmd_type: CommandType) {
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         ts.on_command(id, cmd_type);
     }
 }
@@ -135,7 +131,10 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
         info!("Activate chewing_tip");
         self.tid.set(tid);
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         let thread_mgr = ptim.ok()?;
         let composition_sink = self.as_interface_ref();
 
@@ -184,7 +183,10 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
 
     fn Deactivate(&self) -> Result<()> {
         info!("Deactivate chewing_tip");
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
 
         let thread_mgr = match ts.deactivate() {
             Ok(mgr) => mgr,
@@ -243,7 +245,10 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         if self.key_busy.get() {
             return Ok(());
         }
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         if pdimfocus.is_null() {
             if let Some(doc_mgr) = pdimprevfocus.as_ref() {
                 // From MSTF doc: To simplify this process and prevent
@@ -257,11 +262,26 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
                     error!("Unable to kill focus: {error:#}");
                     return Err(E_UNEXPECTED.into());
                 }
+                if self.thread_edit_sink_cookie.get() != TF_INVALID_COOKIE {
+                    let source: ITfSource = context.cast()?;
+                    unsafe {
+                        source.UnadviseSink(self.thread_edit_sink_cookie.get())?;
+                        self.thread_edit_sink_cookie.set(TF_INVALID_COOKIE);
+                    }
+                }
             }
         } else if pdimfocus.is_some() {
             if let Err(error) = ts.on_focus() {
                 error!("Unable to handle focus: {error:#}");
                 return Err(E_UNEXPECTED.into());
+            }
+            if let Some(doc_mgr) = pdimfocus.as_ref() {
+                let context = unsafe { doc_mgr.GetBase()? };
+                let source: ITfSource = context.cast()?;
+                unsafe {
+                    self.thread_edit_sink_cookie
+                        .set(source.AdviseSink(&ITfTextEditSink::IID, self.as_interface_ref())?);
+                }
             }
         }
         Ok(())
@@ -278,7 +298,10 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
 
 impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         if let Err(error) = ts.on_focus() {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
@@ -293,11 +316,18 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
 impl ITfTextEditSink_Impl for TextService_Impl {
     fn OnEndEdit(
         &self,
-        _pic: Ref<ITfContext>,
+        pic: Ref<ITfContext>,
         _ecreadonly: u32,
         _peditrecord: Ref<ITfEditRecord>,
     ) -> Result<()> {
-        // TODO
+        if let Some(context) = pic.as_ref() {
+            if let Ok(ts) = self.inner.try_borrow() {
+                if let Err(error) = ts.on_end_edit(context) {
+                    error!("Unable to handle OnEndEdit: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -308,7 +338,10 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keydown(pic.ok()?, ev, true) {
             Ok(v) => v,
@@ -321,7 +354,10 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keyup(pic.ok()?, ev, true) {
             Ok(v) => v,
@@ -335,7 +371,10 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         self.key_busy.set(true);
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keydown(pic.ok()?, ev, false) {
             Ok(v) => v,
@@ -349,7 +388,10 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         self.key_busy.set(false);
-        let mut ts = self.lock();
+        let mut ts = {
+            let this = &self;
+            this.inner.borrow_mut()
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keyup(pic.ok()?, ev, false) {
             Ok(v) => v,
@@ -363,7 +405,10 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
-            let mut ts = self.lock();
+            let mut ts = {
+                let this = &self;
+                this.inner.borrow_mut()
+            };
             let handled = ts.on_preserved_key(rguid);
             Ok(handled.into())
         } else {
@@ -383,8 +428,12 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // grabbed by others, we're ``forced'' to terminate current composition.
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
-        let mut ts = self.lock();
-        ts.on_composition_terminated();
+        if let Ok(mut ts) = {
+            let this = &self;
+            this.inner.try_borrow_mut()
+        } {
+            ts.on_composition_terminated();
+        }
         Ok(())
     }
 }
@@ -393,7 +442,10 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!("received compartment change event: {rguid:?}");
-            let mut ts = self.lock();
+            let mut ts = {
+                let this = &self;
+                this.inner.borrow_mut()
+            };
             if let Err(error) = ts.on_compartment_change(rguid) {
                 error!("Unable to handle compartment change: {error:#}");
                 return Err(E_UNEXPECTED.into());
