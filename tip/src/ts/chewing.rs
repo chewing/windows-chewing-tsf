@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
+use chewing::input::keysym::Keysym;
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
     chewing_cand_TotalChoice, chewing_cand_choose_by_index, chewing_cand_close,
@@ -335,7 +336,7 @@ impl ChewingTextService {
     pub(super) fn on_keydown(
         &mut self,
         context: &ITfContext,
-        mut ev: KeyEvent,
+        ev: KeyEvent,
         dry_run: bool,
     ) -> Result<bool> {
         if let Err(error) = self.apply_config_if_changed() {
@@ -345,7 +346,7 @@ impl ChewingTextService {
             error!("on_keydown but chewing context is null");
             return Ok(false);
         }
-        let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
+        let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
         debug!("on_keydown: {evt:?}");
         self.last_keydown_code = ev.vk;
         if self.last_keydown_time.is_none() {
@@ -415,8 +416,11 @@ impl ChewingTextService {
             let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
             let mut momentary_english_mode = false;
             let mut invert_case = false;
-            // If caps lock is on, temprarily change to English mode
-            if enable_caps_lock {
+            // Only invert case if the SYMBOL_MODE is not forced by CapsLock
+            if self.lang_mode == SYMBOL_MODE
+                && ev.is_key_toggled(VK_CAPITAL)
+                && !self.cfg.chewing_tsf.enable_caps_lock
+            {
                 invert_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
@@ -439,22 +443,21 @@ impl ChewingTextService {
                 unsafe {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 }
-                ev.code = if invert_case {
-                    if ev.code.is_ascii_uppercase() {
-                        ev.code.to_ascii_lowercase()
+                evt.ksym = if invert_case && evt.ksym.is_ascii() {
+                    let code = evt.ksym.to_unicode();
+                    if code.is_ascii_uppercase() {
+                        Keysym::from(code.to_ascii_lowercase())
                     } else {
-                        ev.code.to_ascii_uppercase()
+                        Keysym::from(code.to_ascii_uppercase())
                     }
                 } else {
-                    ev.code
+                    evt.ksym
                 };
-                let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
                 unsafe {
                     chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                     chewing_set_ChiEngMode(ctx, old_lang_mode);
                 }
             } else {
-                let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
                 unsafe {
                     chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                 }
@@ -483,7 +486,6 @@ impl ChewingTextService {
             }
 
             if !key_handled {
-                let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
                 unsafe {
                     chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                 }
