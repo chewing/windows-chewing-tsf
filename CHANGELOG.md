@@ -18,7 +18,6 @@ All notable changes to this project will be documented in this file.
 
 - Add missing bopomofo mapping to the GinYieh layout
 - Correct IBM layout mapping
-- Fallback to software renderer on Hyper-V or other virtual machines
 - Space key is available as a shortcut key when not in composing mode
 - Shift-triggered mode switch threshold is lowered to 200 miliseconds
 - Auto shift cursor after candidate selection now moves the cursor to the
@@ -36,6 +35,7 @@ All notable changes to this project will be documented in this file.
   creation ([#420](https://github.com/chewing/windows-chewing-tsf/issues/420))
 - (dict) Dictionary are built directly from the libchewing-data repository
 - (prefs) Rewrite Preferences using tauri framework.
+- (editor) Rewrite Editor using tauri framework.
 
 ### ⚙️ Miscellaneous Tasks
 
