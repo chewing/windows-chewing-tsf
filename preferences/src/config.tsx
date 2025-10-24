@@ -1,5 +1,6 @@
 export type ChewingTsfConfig = {
     switch_lang_with_shift: boolean;
+    shift_key_sensitivity: number;
     enable_fullwidth_toggle_key: boolean;
     enable_caps_lock: boolean;
     show_notification: boolean;

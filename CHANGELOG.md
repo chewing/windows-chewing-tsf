@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
   be configured from preferences.
 - Ctrl + Numpad numbers can be used as Ctrl + Num key to save user phrases.
 - Install alt.dat (alternative sound) dictionary.
+- Support Shift key long-press sensitivity setting.
 
 ### 🐛 Bug Fixes
 

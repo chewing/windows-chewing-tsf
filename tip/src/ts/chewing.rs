@@ -616,7 +616,8 @@ impl ChewingTextService {
             .unwrap_or(Duration::from_secs(1));
 
         if self.cfg.chewing_tsf.switch_lang_with_shift
-            && hold_duration < Duration::from_millis(200)
+            && hold_duration
+                < Duration::from_millis(self.cfg.chewing_tsf.shift_key_sensitivity as u64)
             && last_is_shift
         {
             if dry_run {

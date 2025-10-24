@@ -41,6 +41,7 @@ pub struct Config {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ChewingTsfConfig {
     pub switch_lang_with_shift: bool,
+    pub shift_key_sensitivity: i32,
     pub enable_fullwidth_toggle_key: bool,
     pub enable_caps_lock: bool,
     pub show_notification: bool,
@@ -78,6 +79,7 @@ impl Default for ChewingTsfConfig {
     fn default() -> Self {
         Self {
             switch_lang_with_shift: true,
+            shift_key_sensitivity: 200,
             enable_fullwidth_toggle_key: false,
             enable_caps_lock: true,
             show_notification: true,
@@ -158,6 +160,9 @@ impl Config {
         if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
             cfg.switch_lang_with_shift = value;
         }
+        if let Ok(value) = reg_get_i32(&key, "ShiftKeySensitivity") {
+            cfg.shift_key_sensitivity = value;
+        }
         if let Ok(value) = reg_get_bool(&key, "ShowNotification") {
             cfg.show_notification = value;
         }
@@ -237,7 +242,11 @@ impl Config {
             cfg.update_info_url = value;
         }
 
-        Ok(Config { chewing_tsf: cfg, symbols_dat: String::new(), swkb_dat: String::new() })
+        Ok(Config {
+            chewing_tsf: cfg,
+            symbols_dat: String::new(),
+            swkb_dat: String::new(),
+        })
     }
     pub fn save_reg(&self) {
         let chewing_tsf = &self.chewing_tsf;
@@ -266,6 +275,11 @@ impl Config {
             &key,
             "SwitchLangWithShift",
             chewing_tsf.switch_lang_with_shift,
+        );
+        let _ = reg_set_i32(
+            &key,
+            "ShiftKeySensitivity",
+            chewing_tsf.shift_key_sensitivity,
         );
         let _ = reg_set_bool(
             &key,

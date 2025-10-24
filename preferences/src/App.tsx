@@ -1,4 +1,4 @@
-import { Button, FluentProvider, webLightTheme, makeStyles, TabList, Tab, Checkbox, Field, Dropdown, Option, TabValue, SelectTabEvent, SelectTabData, SpinButton, Divider, Combobox, Input, Textarea, Text, Radio, CheckboxOnChangeData, OptionOnSelectData, SpinButtonChangeEvent, SpinButtonOnChangeData, InputOnChangeData, RadioGroupOnChangeData } from '@fluentui/react-components';
+import { Button, FluentProvider, webLightTheme, makeStyles, TabList, Tab, Checkbox, Field, Dropdown, Option, TabValue, SelectTabEvent, SelectTabData, SpinButton, Combobox, Input, Textarea, Text, Radio, CheckboxOnChangeData, OptionOnSelectData, SpinButtonChangeEvent, SpinButtonOnChangeData, InputOnChangeData, RadioGroupOnChangeData, Slider, Tooltip } from '@fluentui/react-components';
 import { invoke } from '@tauri-apps/api/core';
 import React, { useEffect } from 'react';
 import { ChewingTsfConfig, Config } from './config';
@@ -94,6 +94,7 @@ function App() {
   const [config, setConfig] = React.useState<ChewingTsfConfig>();
   const [symbols_dat, setSymbolsDat] = React.useState<string>("");
   const [swkb_dat, setSwkbDat] = React.useState<string>("");
+  const [showAdvanced, setShowAdvanced] = React.useState<boolean>(false);
 
   useEffect(() => {
     const unlisten_import = listen('import', async () => {
@@ -222,6 +223,15 @@ function App() {
               <Option value='2'>模糊智慧選詞</Option>
             </Dropdown>
           </Field>
+          <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
+            <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
+            <Tooltip content="設定按住 Shift 鍵的時間長度，超過此時間視為長壓，取消切換中英模式。" relationship={'label'}>
+              <Field label={`Shift 長壓敏感度：${config?.shift_key_sensitivity || 200} ms`}>
+                <Slider value={config?.shift_key_sensitivity || 200} min={100} max={1000} step={100}
+                  onChange={(_ev, data) => { setConfig({ ...config, shift_key_sensitivity: data.value } as ChewingTsfConfig); }} />
+              </Field>
+            </Tooltip>
+          </details>
         </div>
       </div>
     </div>
@@ -239,7 +249,6 @@ function App() {
         <Field label="選字及訊息視窗文字大小：">
           <SpinButton value={config?.font_size} step={1} onChange={setNumberConfig("font_size", 16)} />
         </Field>
-        <Divider alignContent="start" style={{ marginBottom: "16px" }}>進階設定 (beta)</Divider>
         <Field label="選字視窗字型：">
           <Combobox value={config?.font_family} selectedOptions={[config?.font_family || '']}
             onOptionSelect={(_ev, data: OptionOnSelectData) => { setConfig({ ...config, font_family: data.optionValue } as ChewingTsfConfig); }} >
@@ -248,21 +257,24 @@ function App() {
             ))}
           </Combobox>
         </Field>
-        <Field label="文字顏色 (RGB)" orientation='horizontal'>
-          <Input name="font_fg_color" value={config?.font_fg_color} onChange={setStringConfig} />
-        </Field>
-        <Field label="選字背景顏色 (RGB)" orientation='horizontal'>
-          <Input name="font_bg_color" value={config?.font_bg_color} onChange={setStringConfig} />
-        </Field>
-        <Field label="焦點文字顏色 (RGB)" orientation='horizontal'>
-          <Input name="font_highlight_fg_color" value={config?.font_highlight_fg_color} onChange={setStringConfig} />
-        </Field>
-        <Field label="焦點背景顏色 (RGB)" orientation='horizontal'>
-          <Input name="font_highlight_bg_color" value={config?.font_highlight_bg_color} onChange={setStringConfig} />
-        </Field>
-        <Field label="數字顏色 (RGB)" orientation='horizontal'>
-          <Input name="font_number_fg_color" value={config?.font_number_fg_color} onChange={setStringConfig} />
-        </Field>
+        <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
+          <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
+          <Field label="文字顏色 (RGB)" orientation='horizontal'>
+            <Input name="font_fg_color" value={config?.font_fg_color} onChange={setStringConfig} />
+          </Field>
+          <Field label="選字背景顏色 (RGB)" orientation='horizontal'>
+            <Input name="font_bg_color" value={config?.font_bg_color} onChange={setStringConfig} />
+          </Field>
+          <Field label="焦點文字顏色 (RGB)" orientation='horizontal'>
+            <Input name="font_highlight_fg_color" value={config?.font_highlight_fg_color} onChange={setStringConfig} />
+          </Field>
+          <Field label="焦點背景顏色 (RGB)" orientation='horizontal'>
+            <Input name="font_highlight_bg_color" value={config?.font_highlight_bg_color} onChange={setStringConfig} />
+          </Field>
+          <Field label="數字顏色 (RGB)" orientation='horizontal'>
+            <Input name="font_number_fg_color" value={config?.font_number_fg_color} onChange={setStringConfig} />
+          </Field>
+        </details>
       </div>
     </div>
   ));
