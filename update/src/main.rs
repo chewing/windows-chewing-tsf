@@ -78,6 +78,10 @@ fn check_for_update() {
                     return;
                 }
             }
+            // no new releases were found, clear update url
+            if let Err(error) = config::set_update_info_url("") {
+                log::error!("Unable to set update info URL: {error:#}");
+            }
         }
         Err(error) => {
             log::error!("Unable to fetch release metadata: {error:#}");
