@@ -11,8 +11,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.95"
-chewing = { version = "0.10.0", features = ["sqlite-bundled"] }
-chewing_capi = { version = "0.10.0", features = ["sqlite-bundled"] }
+chewing = { workspace = true, features = ["sqlite-bundled"] }
+chewing_capi = { workspace = true, features = ["sqlite-bundled"] }
 chewing_tip_config = { path = "../config" }
 log = "0.4.22"
 win_dbg_logger = "0.1.0"

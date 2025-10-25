@@ -3,9 +3,9 @@ members = ["tip", "config", "tsfreg", "update", "xtask"]
 exclude = ["editor", "preferences"]
 resolver = "3"
 
-[patch.crates-io]
-chewing = { git = "https://github.com/chewing/libchewing" }
-chewing_capi = { git = "https://github.com/chewing/libchewing" }
+[workspace.dependencies]
+chewing = "0.11.0-alpha.1"
+chewing_capi = "0.11.0-alpha.1"
 
 [profile.release]
 lto = "thin"
