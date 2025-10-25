@@ -8,9 +8,8 @@ import { message, open, save } from '@tauri-apps/plugin-dialog';
 
 const useStyles = makeStyles({
   root: {
-    overflow: "hidden",
+    position: "relative",
     margin: "5px 0px 0px 5px",
-    height: "670px",
   },
   content: {
     margin: "16px",
@@ -27,14 +26,15 @@ const useStyles = makeStyles({
   },
   action: {
     position: "absolute",
-    bottom: "16px",
+    bottom: "-4em",
     right: "16px",
+    paddingBottom: "1em",
     display: "flex",
     flexDirection: "row",
     gap: "3px",
   },
   textarea: {
-    height: "450px",
+    height: "60vh",
   },
   texarea_inner: {
     maxHeight: "unset",

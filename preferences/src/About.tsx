@@ -12,6 +12,9 @@ const useStyles = makeStyles({
         margin: "16px",
         display: "flex",
         flexDirection: "row",
+        "@media (width < 20em)": {
+            flexDirection: "column",
+        },
     },
     column: {
         display: "flex",
@@ -22,9 +25,9 @@ const useStyles = makeStyles({
         marginRight: "16px",
     },
     action: {
-        position: "absolute",
-        bottom: "16px",
-        right: "16px",
+        width: "vw",
+        margin: "10px",
+        justifyContent: "end",
         display: "flex",
         flexDirection: "row",
         gap: "3px",

@@ -16,7 +16,7 @@
         "title": "新酷音輸入法管理程式",
         "width": 930,
         "height": 600,
-        "resizable": false,
+        "resizable": true,
         "visible": true,
         "maximizable": false,
         "windowEffects": { "effects": ["mica"]}
@@ -28,7 +28,7 @@
         "title": "關於新酷音詞庫管理程式",
         "width": 400,
         "height": 450,
-        "resizable": false,
+        "resizable": true,
         "visible": false,
         "closable": false,
         "maximizable": false,
