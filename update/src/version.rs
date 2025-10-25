@@ -122,3 +122,23 @@ pub const fn hi_word(v: u32) -> u16 {
 pub const fn lo_word(v: u32) -> u16 {
     (v & 0xffff) as _
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::version::{parse_version, version_gt};
+
+    #[test]
+    fn parse_version_test() {
+        let ver = "25.10.0.477";
+        let ver_tuple = parse_version(ver);
+        assert_eq!((25, 10, 0, 477), ver_tuple);
+    }
+
+    #[test]
+    fn compare_test() {
+        let v1 = "25.10.0.476";
+        let v2 = "25.10.0.477";
+        assert!(!version_gt(v1, v2));
+        assert!(version_gt(v2, v1));
+    }
+}
