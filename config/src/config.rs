@@ -71,6 +71,7 @@ pub struct ChewingTsfConfig {
     pub font_highlight_bg_color: String,
     pub font_number_fg_color: String,
     pub keyboard_layout: i32,
+    pub simulate_english_layout: i32,
     pub auto_check_update_channel: String,
     pub update_info_url: String,
 }
@@ -109,6 +110,7 @@ impl Default for ChewingTsfConfig {
             font_highlight_bg_color: "000000FF".to_owned(),
             font_number_fg_color: "0000FFFF".to_owned(),
             keyboard_layout: 0,
+            simulate_english_layout: 0,
             auto_check_update_channel: "none".to_string(),
             update_info_url: "".to_string(),
         }
@@ -144,6 +146,9 @@ impl Config {
         // Load custom value from the registry
         if let Ok(value) = reg_get_i32(&key, "KeyboardLayout") {
             cfg.keyboard_layout = value;
+        }
+        if let Ok(value) = reg_get_i32(&key, "SimulateEnglishLayout") {
+            cfg.simulate_english_layout = value;
         }
         if let Ok(value) = reg_get_i32(&key, "CandPerRow") {
             cfg.cand_per_row = value;
@@ -263,6 +268,11 @@ impl Config {
         };
 
         let _ = reg_set_i32(&key, "KeyboardLayout", chewing_tsf.keyboard_layout);
+        let _ = reg_set_i32(
+            &key,
+            "SimulateEnglishLayout",
+            chewing_tsf.simulate_english_layout,
+        );
         let _ = reg_set_i32(&key, "CandPerRow", chewing_tsf.cand_per_row);
         let _ = reg_set_bool(&key, "DefaultEnglish", chewing_tsf.default_english);
         let _ = reg_set_bool(&key, "DefaultFullSpace", chewing_tsf.default_full_space);

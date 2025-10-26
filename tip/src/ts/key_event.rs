@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use chewing::input::keycode::Keycode;
+use chewing::input::keymap::{
+    INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
+    INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, map_ascii, map_keycode,
+};
 use chewing::input::{KeyboardEvent, keysym::*};
-// use chewing::input::keymap::{
-//     INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
-//     INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP,
-// };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyboardState, ToAscii, VIRTUAL_KEY, VK_CAPITAL, VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK,
     VK_SHIFT,
@@ -57,42 +57,48 @@ impl KeyEvent {
     fn is_key_toggled(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & 1 != 0
     }
-}
-
-impl From<KeyEvent> for KeyboardEvent {
-    fn from(value: KeyEvent) -> Self {
+    pub(super) fn to_keyboard_event(&self, kbtype: i32) -> KeyboardEvent {
         let keycode = SCANCODE_MAP
-            .binary_search_by_key(&value.scan_code, |&(w, _)| w)
+            .binary_search_by_key(&self.scan_code, |&(w, _)| w)
             .ok()
             .map(|idx| Keycode(SCANCODE_MAP[idx].1))
             .unwrap_or_default();
+        let keymap = KB_KEYMAP_MAP
+            .iter()
+            .find(|it| it.0 == kbtype)
+            .map(|it| it.1);
         let keysym = VKEY_MAP
-            .binary_search_by_key(&value.vk, |&(k, _)| k)
+            .binary_search_by_key(&self.vk, |&(k, _)| k)
             .ok()
             .map(|idx| VKEY_MAP[idx].1)
-            .unwrap_or_else(|| Keysym(value.ascii_code as u32));
+            .unwrap_or_else(|| {
+                if let Some(keymap) = keymap {
+                    map_keycode(&keymap, keycode, self.is_key_down(VK_SHIFT)).ksym
+                } else {
+                    Keysym(self.ascii_code as u32)
+                }
+            });
         KeyboardEvent::builder()
             .code(keycode)
             .ksym(keysym)
-            .shift_if(value.is_key_down(VK_SHIFT))
-            .control_if(value.is_key_down(VK_CONTROL))
-            .alt_if(value.is_key_down(VK_MENU))
-            .caps_lock_if(value.is_key_toggled(VK_CAPITAL))
-            .num_lock_if(value.is_key_toggled(VK_NUMLOCK))
-            .super_if(value.is_key_down(VK_LWIN))
+            .shift_if(self.is_key_down(VK_SHIFT))
+            .control_if(self.is_key_down(VK_CONTROL))
+            .alt_if(self.is_key_down(VK_MENU))
+            .caps_lock_if(self.is_key_toggled(VK_CAPITAL))
+            .num_lock_if(self.is_key_toggled(VK_NUMLOCK))
+            .super_if(self.is_key_down(VK_LWIN))
             .build()
     }
 }
 
-// const KB_KEYMAP_MAP: &[(i32, &[(u8, KeyboardEvent)])] = &[
-//     (6, &INVERTED_DVORAK_MAP),
-//     (7, &INVERTED_DVORAK_MAP),
-//     (12, &INVERTED_QGMLWY_MAP),
-//     (13, &INVERTED_COLEMAK_DH_ANSI_MAP),
-//     (14, &INVERTED_COLEMAK_DH_ORTH_MAP),
-//     (15, &INVERTED_WORKMAN_MAP),
-//     (16, &INVERTED_COLEMAK_MAP),
-// ];
+const KB_KEYMAP_MAP: &[(i32, &[(u8, KeyboardEvent)])] = &[
+    (1, &INVERTED_DVORAK_MAP),
+    (2, &INVERTED_QGMLWY_MAP),
+    (3, &INVERTED_COLEMAK_MAP),
+    (4, &INVERTED_COLEMAK_DH_ANSI_MAP),
+    (5, &INVERTED_COLEMAK_DH_ORTH_MAP),
+    (6, &INVERTED_WORKMAN_MAP),
+];
 
 // Windows Set 1 scancode to X11 keycode mapping
 const SCANCODE_MAP: &[(u16, u8)] = &[

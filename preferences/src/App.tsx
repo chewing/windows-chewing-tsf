@@ -73,6 +73,27 @@ function conv_engine_to_value(conv_engine: number): string {
   }
 }
 
+function simulate_english_layout_to_value(layout: number): string {
+  switch (layout) {
+    case 0:
+      return '無';
+    case 1:
+      return 'Dvorak';
+    case 2:
+      return 'Carplx (QGMLWY)';
+    case 3:
+      return 'Colemak';
+    case 4:
+      return 'Colemak-DH ANSI';
+    case 5:
+      return 'Colemak-DH Orth';
+    case 6:
+      return 'Workman';
+    default:
+      return '無';
+  }
+}
+
 function update_channel_to_value(channel: string): string {
   switch (channel) {
     case 'disable':
@@ -297,19 +318,29 @@ function App() {
         <Radio name="layout" value="5" checked={config?.keyboard_layout == 5} label="倚天 26 鍵" onChange={setLayout} />
       </div>
       <div className={styles.column}>
-        <Radio name="layout" value="6" checked={config?.keyboard_layout == 6} label="DVORAK" onChange={setLayout} />
-        <Radio name="layout" value="7" checked={config?.keyboard_layout == 7} label="DVORAK 許氏" onChange={setLayout} />
         <Radio name="layout" value="8" checked={config?.keyboard_layout == 8} label="大千 26 鍵" onChange={setLayout} />
         <Radio name="layout" value="9" checked={config?.keyboard_layout == 9} label="漢語拼音" onChange={setLayout} />
         <Radio name="layout" value="10" checked={config?.keyboard_layout == 10} label="台灣華語羅馬拼音" onChange={setLayout} />
         <Radio name="layout" value="11" checked={config?.keyboard_layout == 11} label="注音二式" onChange={setLayout} />
       </div>
       <div className={styles.column}>
-        <Radio name="layout" value="12" checked={config?.keyboard_layout == 12} label="CARPLX" onChange={setLayout} />
-        <Radio name="layout" value="16" checked={config?.keyboard_layout == 16} label="Colemak" onChange={setLayout} />
-        <Radio name="layout" value="13" checked={config?.keyboard_layout == 13} label="Colemak-DH ANSI" onChange={setLayout} />
-        <Radio name="layout" value="14" checked={config?.keyboard_layout == 14} label="Colemak-DH Orth" onChange={setLayout} />
-        <Radio name="layout" value="15" checked={config?.keyboard_layout == 15} label="Workman" onChange={setLayout} />
+        <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
+          <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
+          <Tooltip content="模擬英文鍵盤布局可能會讓某些網頁快捷鍵失效" relationship={'label'}>
+            <Field label={`模擬英文鍵盤布局：`}>
+              <Dropdown value={simulate_english_layout_to_value(config?.simulate_english_layout || 0)} selectedOptions={[config?.simulate_english_layout?.toString() || '0']}
+                onOptionSelect={(_ev, data) => { setConfig({ ...config, simulate_english_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
+                <Option value='0'>無</Option>
+                <Option value='1'>Dvorak</Option>
+                <Option value='2'>Carplx (QGMLWY)</Option>
+                <Option value='3'>Colemak</Option>
+                <Option value='4'>Colemak-DH ANSI</Option>
+                <Option value='5'>Colemak-DH Orth</Option>
+                <Option value='6'>Workman</Option>
+              </Dropdown>
+            </Field>
+          </Tooltip>
+        </details>
       </div>
     </div>
   ));

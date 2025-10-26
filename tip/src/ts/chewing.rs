@@ -342,15 +342,13 @@ impl ChewingTextService {
             error!("chewing context is null");
             return Ok(false);
         };
-        let mut evt = KeyboardEvent::from(ev);
+        let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
+        let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
         debug!("on_keydown: {evt:?}");
         self.last_keydown = evt;
         if self.last_keydown_time.is_none() {
             self.last_keydown_time = Some(Instant::now());
         }
-        let enable_caps_lock =
-            self.cfg.chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock);
-
         if evt.is_state_on(KeyState::Alt) {
             // bypass IME. This might be a shortcut key used in the application
             debug!("key not handled - Alt modifier key was down");
@@ -369,49 +367,30 @@ impl ChewingTextService {
                 return Ok(false);
             }
         }
-
         if !self.is_composing() {
-            // don't do further handling in English + half shape mode
+            // don't do further handling in pure English + half shape mode
             if self.lang_mode == SYMBOL_MODE
                 && self.shape_mode == HALFSHAPE_MODE
-                && !enable_caps_lock
+                && !simulate_english_layout
             {
                 if evt.ksym == SYM_SPACE
                     && evt.is_state_on(KeyState::Shift)
                     && self.cfg.chewing_tsf.enable_fullwidth_toggle_key
                 {
-                    // need to handle mode switch
+                    // need to handle fullwidth mode switch
+                } else if evt.is_state_on(KeyState::CapsLock)
+                    && self.cfg.chewing_tsf.enable_caps_lock
+                {
+                    // need to invert case
                 } else {
                     debug!("key not handled - in English mode");
                     return Ok(false);
                 }
             }
-
-            // we always need further processing in full shape mode since all English chars,
-            // numbers, and symbols need to be converted to full shape Chinese chars.
-            if self.shape_mode != FULLSHAPE_MODE {
-                // Caps lock is on => English mode
-                if enable_caps_lock {
-                    // We only need to handle printable keys because we need to
-                    // convert them to upper case.
-                    if !evt.ksym.is_atoz() {
-                        debug!("key not handled - Capslock key toggled");
-                        return Ok(false);
-                    }
-                }
-                // NumLock is on
-                if evt.is_state_on(KeyState::NumLock)
-                    && evt.ksym.is_keypad()
-                    && !evt.is_state_on(KeyState::Control)
-                {
-                    debug!("key not handled - Numlock toggled and key is a numpad key");
-                    return Ok(false);
-                }
-                // No need to handle VK_SPACE when not composing and not fullshape mode
-                // This make the space key available for other shortcuts
-                if evt.ksym == SYM_SPACE && !evt.is_state_on(KeyState::Shift) {
-                    return Ok(false);
-                }
+            // No need to handle VK_SPACE when not composing and not fullshape mode
+            // This make the space key available for other shortcuts
+            if evt.ksym == SYM_SPACE && !evt.is_state_on(KeyState::Shift) {
+                return Ok(false);
             }
             if !evt.ksym.is_unicode() {
                 debug!("key not handled - key is not printable");
@@ -428,10 +407,10 @@ impl ChewingTextService {
             let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
             let mut momentary_english_mode = false;
             let mut invert_case = false;
-            // Only invert case if the SYMBOL_MODE is not forced by CapsLock
+            // Invert case if the SYMBOL_MODE is forced by CapsLock
             if self.lang_mode == SYMBOL_MODE
                 && evt.is_state_on(KeyState::CapsLock)
-                && !self.cfg.chewing_tsf.enable_caps_lock
+                && self.cfg.chewing_tsf.enable_caps_lock
             {
                 invert_case = true;
             }
@@ -608,7 +587,7 @@ impl ChewingTextService {
         let Some(ctx) = self.chewing_context else {
             return Ok(false);
         };
-        let evt = KeyboardEvent::from(ev);
+        let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
             || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
         let last_is_caps_lock = evt.ksym == SYM_CAPSLOCK;
@@ -1066,7 +1045,8 @@ impl ChewingTextService {
 
     fn sync_lang_mode_with_capslock(&mut self) -> Result<()> {
         if let Some(ctx) = self.chewing_context {
-            let evt = KeyboardEvent::from(KeyEvent::default());
+            let evt =
+                KeyEvent::default().to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
             unsafe {
                 if evt.is_state_on(KeyState::CapsLock) {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
@@ -1148,7 +1128,8 @@ impl ChewingTextService {
 
         self.apply_config();
 
-        let evt = KeyboardEvent::from(KeyEvent::default());
+        let evt =
+            KeyEvent::default().to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let capslock = evt.is_state_on(KeyState::CapsLock);
         if let Some(ctx) = self.chewing_context {
             unsafe {

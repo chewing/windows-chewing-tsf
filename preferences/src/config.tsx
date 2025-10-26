@@ -30,6 +30,7 @@ export type ChewingTsfConfig = {
     font_highlight_bg_color: string;
     font_number_fg_color: string;
     keyboard_layout: number;
+    simulate_english_layout: number;
     auto_check_update_channel: string;
     update_info_url: string;
 };
