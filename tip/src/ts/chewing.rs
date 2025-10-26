@@ -1126,7 +1126,8 @@ impl ChewingTextService {
     }
 
     fn is_composing(&self) -> bool {
-        self.composition.borrow().is_some()
+        // when candidate window is shown we are composing even without a composition
+        self.composition.borrow().is_some() || self.candidate_list.is_some()
     }
 
     fn init_chewing_context(&mut self) -> anyhow::Result<()> {

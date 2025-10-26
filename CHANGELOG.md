@@ -28,6 +28,7 @@ All notable changes to this project will be documented in this file.
   the same time. (#440)
 - Correctly scale candidate window when main display is HiDPI
 - Input modes are remembered across focus change.
+- Fixed Numpad numbers sometimes can't be used to select candidates.
 
 ### 🚜 Refactor
 
