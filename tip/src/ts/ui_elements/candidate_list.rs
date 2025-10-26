@@ -3,6 +3,7 @@
 use std::cell::{Cell, RefCell};
 
 use anyhow::{Context, Result};
+use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, SYM_UP};
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
@@ -27,7 +28,6 @@ use windows::Win32::{
         },
     },
     UI::{
-        Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_DOWN, VK_LEFT, VK_RETURN, VK_RIGHT, VK_UP},
         TextServices::{
             ITfCandidateListUIElement, ITfCandidateListUIElement_Impl, ITfDocumentMgr,
             ITfThreadMgr, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr, TF_CLUIE_COUNT,
@@ -463,34 +463,34 @@ impl CandidateList {
             error!("Failed to update UI element: {error}");
         }
     }
-    pub(crate) fn filter_key_event(&self, key_code: u16) -> FilterKeyResult {
+    pub(crate) fn filter_key_event(&self, ksym: Keysym) -> FilterKeyResult {
         let mut res = FilterKeyResult::NotHandled;
         {
             let mut model = self.model.borrow_mut();
             let old_sel = model.current_sel;
             let cand_per_row = model.cand_per_row as usize;
-            match VIRTUAL_KEY(key_code) {
-                VK_UP => {
+            match ksym {
+                SYM_UP => {
                     if model.current_sel >= cand_per_row {
                         model.current_sel -= cand_per_row;
                     }
                 }
-                VK_DOWN => {
+                SYM_DOWN => {
                     if model.current_sel + cand_per_row < model.items.len() {
                         model.current_sel += cand_per_row;
                     }
                 }
-                VK_LEFT => {
+                SYM_LEFT => {
                     if model.current_sel >= 1 {
                         model.current_sel -= 1;
                     }
                 }
-                VK_RIGHT => {
+                SYM_RIGHT => {
                     if model.current_sel < model.items.len() - 1 {
                         model.current_sel += 1;
                     }
                 }
-                VK_RETURN => {
+                SYM_RETURN => {
                     res = FilterKeyResult::HandledCommit;
                 }
                 _ => res = FilterKeyResult::NotHandled,

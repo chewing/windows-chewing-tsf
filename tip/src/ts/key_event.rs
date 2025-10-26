@@ -1,22 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use chewing::input::KeyboardEvent;
 use chewing::input::keycode::Keycode;
-use chewing::input::keymap::{
-    INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
-    INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, QWERTY_MAP,
-};
-use chewing::input::keymap::{INVERTED_DVORAK_MAP, map_keycode};
-use chewing::input::keysym::Keysym;
+use chewing::input::{KeyboardEvent, keysym::*};
+// use chewing::input::keymap::{
+//     INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
+//     INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP,
+// };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyboardState, ToAscii, VIRTUAL_KEY, VK_0, VK_9, VK_A, VK_CAPITAL, VK_CONTROL, VK_DIVIDE,
-    VK_LWIN, VK_MENU, VK_NUMLOCK, VK_NUMPAD0, VK_NUMPAD9, VK_SHIFT, VK_Z,
+    GetKeyboardState, ToAscii, VIRTUAL_KEY, VK_CAPITAL, VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK,
+    VK_SHIFT,
 };
 
 pub(super) struct KeyEvent {
-    pub(super) vk: u16,
-    pub(super) scan_code: u16,
-    pub(super) code: u8,
+    vk: u16,
+    scan_code: u16,
+    ascii_code: u8,
     key_state: [u8; 256],
 }
 
@@ -49,75 +47,52 @@ impl KeyEvent {
         KeyEvent {
             vk,
             scan_code,
-            code,
+            ascii_code: code,
             key_state,
         }
     }
-    pub(super) fn is_alphabet(&self) -> bool {
-        self.vk >= VK_A.0 && self.vk <= VK_Z.0
-    }
-    pub(super) fn is_digits(&self) -> bool {
-        (self.vk >= VK_0.0 && self.vk <= VK_9.0)
-            || (self.vk >= VK_NUMPAD0.0 && self.vk <= VK_NUMPAD9.0)
-    }
-    pub(super) fn is_num_pad(&self) -> bool {
-        self.vk >= VK_NUMPAD0.0 && self.vk <= VK_DIVIDE.0
-    }
-    pub(super) fn is_printable(&self) -> bool {
-        !self.code.is_ascii_control()
-    }
-    pub(super) fn is_key(&self, vk: VIRTUAL_KEY) -> bool {
-        self.vk == vk.0
-    }
-    pub(super) fn is_key_down(&self, vk: VIRTUAL_KEY) -> bool {
+    fn is_key_down(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & (1 << 7) != 0
     }
-    pub(super) fn is_key_toggled(&self, vk: VIRTUAL_KEY) -> bool {
+    fn is_key_toggled(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & 1 != 0
     }
-    pub(super) fn to_keyboard_event(&self, kbtype: i32) -> KeyboardEvent {
+}
+
+impl From<KeyEvent> for KeyboardEvent {
+    fn from(value: KeyEvent) -> Self {
         let keycode = SCANCODE_MAP
-            .binary_search_by_key(&self.scan_code, |&(w, _)| w)
+            .binary_search_by_key(&value.scan_code, |&(w, _)| w)
             .ok()
             .map(|idx| Keycode(SCANCODE_MAP[idx].1))
             .unwrap_or_default();
-        let keymap = KB_KEYMAP_MAP
-            .iter()
-            .find(|item| item.0 == kbtype)
-            .map(|it| it.1)
-            .unwrap_or(&QWERTY_MAP);
-        let keysym = if self.is_printable() {
-            let evt = map_keycode(keymap, keycode, self.is_key_down(VK_SHIFT));
-            evt.ksym
-        } else {
-            VKEY_MAP
-                .binary_search_by_key(&self.vk, |&(k, _)| k)
-                .ok()
-                .map(|idx| Keysym(VKEY_MAP[idx].1))
-                .unwrap_or_default()
-        };
+        let keysym = VKEY_MAP
+            .binary_search_by_key(&value.vk, |&(k, _)| k)
+            .ok()
+            .map(|idx| VKEY_MAP[idx].1)
+            .unwrap_or_else(|| Keysym(value.ascii_code as u32));
         KeyboardEvent::builder()
             .code(keycode)
             .ksym(keysym)
-            .shift_if(self.is_key_down(VK_SHIFT))
-            .control_if(self.is_key_down(VK_CONTROL))
-            .alt_if(self.is_key_down(VK_MENU))
-            .caps_lock_if(self.is_key_toggled(VK_CAPITAL))
-            .num_lock_if(self.is_key_toggled(VK_NUMLOCK))
-            .super_if(self.is_key_down(VK_LWIN))
+            .shift_if(value.is_key_down(VK_SHIFT))
+            .control_if(value.is_key_down(VK_CONTROL))
+            .alt_if(value.is_key_down(VK_MENU))
+            .caps_lock_if(value.is_key_toggled(VK_CAPITAL))
+            .num_lock_if(value.is_key_toggled(VK_NUMLOCK))
+            .super_if(value.is_key_down(VK_LWIN))
             .build()
     }
 }
 
-const KB_KEYMAP_MAP: &[(i32, &[(u8, KeyboardEvent)])] = &[
-    (6, &INVERTED_DVORAK_MAP),
-    (7, &INVERTED_DVORAK_MAP),
-    (12, &INVERTED_QGMLWY_MAP),
-    (13, &INVERTED_COLEMAK_DH_ANSI_MAP),
-    (14, &INVERTED_COLEMAK_DH_ORTH_MAP),
-    (15, &INVERTED_WORKMAN_MAP),
-    (16, &INVERTED_COLEMAK_MAP),
-];
+// const KB_KEYMAP_MAP: &[(i32, &[(u8, KeyboardEvent)])] = &[
+//     (6, &INVERTED_DVORAK_MAP),
+//     (7, &INVERTED_DVORAK_MAP),
+//     (12, &INVERTED_QGMLWY_MAP),
+//     (13, &INVERTED_COLEMAK_DH_ANSI_MAP),
+//     (14, &INVERTED_COLEMAK_DH_ORTH_MAP),
+//     (15, &INVERTED_WORKMAN_MAP),
+//     (16, &INVERTED_COLEMAK_MAP),
+// ];
 
 // Windows Set 1 scancode to X11 keycode mapping
 const SCANCODE_MAP: &[(u16, u8)] = &[
@@ -226,64 +201,59 @@ const SCANCODE_MAP: &[(u16, u8)] = &[
     (0xE05D, 135), // Menu
 ];
 
-const VKEY_MAP: &[(u16, u32)] = &[
-    (0x08, 0xFF08),
-    (0x09, 0xFF09),
-    (0x0D, 0xFF0D),
-    (0x10, 0xFFE1),
-    (0x11, 0xFFE3),
-    (0x12, 0xFFE9),
-    (0x13, 0xFF13),
-    (0x14, 0xFFE5),
-    (0x1B, 0xFF1B),
-    (0x20, 0x0020),
-    (0x21, 0xFF55),
-    (0x22, 0xFF56),
-    (0x23, 0xFF57),
-    (0x24, 0xFF50),
-    (0x25, 0xFF51),
-    (0x26, 0xFF52),
-    (0x27, 0xFF53),
-    (0x28, 0xFF54),
-    (0x2C, 0xFF61),
-    (0x2D, 0xFF63),
-    (0x2E, 0xFFFF),
-    (0x5B, 0xFFEB),
-    (0x5C, 0xFFEC),
-    (0x5D, 0xFF67),
-    (0x60, 0xFFB0),
-    (0x61, 0xFFB1),
-    (0x62, 0xFFB2),
-    (0x63, 0xFFB3),
-    (0x64, 0xFFB4),
-    (0x65, 0xFFB5),
-    (0x66, 0xFFB6),
-    (0x67, 0xFFB7),
-    (0x68, 0xFFB8),
-    (0x69, 0xFFB9),
-    (0x6A, 0xFFAA),
-    (0x6B, 0xFFAB),
-    (0x6D, 0xFFAD),
-    (0x6E, 0xFFAE),
-    (0x6F, 0xFFAF),
-    (0x70, 0xFFBE),
-    (0x71, 0xFFBF),
-    (0x72, 0xFFC0),
-    (0x73, 0xFFC1),
-    (0x74, 0xFFC2),
-    (0x75, 0xFFC3),
-    (0x76, 0xFFC4),
-    (0x77, 0xFFC5),
-    (0x78, 0xFFC6),
-    (0x79, 0xFFC7),
-    (0x7A, 0xFFC8),
-    (0x7B, 0xFFC9),
-    (0x90, 0xFF7F),
-    (0x91, 0xFF14),
-    (0xA0, 0xFFE1),
-    (0xA1, 0xFFE2),
-    (0xA2, 0xFFE3),
-    (0xA3, 0xFFE4),
-    (0xA4, 0xFFE9),
-    (0xA5, 0xFFEA),
+const VKEY_MAP: &[(u16, Keysym)] = &[
+    (0x08, SYM_BACKSPACE),
+    (0x09, SYM_TAB),
+    (0x0D, SYM_RETURN),
+    (0x10, SYM_LEFTSHIFT),
+    (0x11, SYM_LEFTCTRL),
+    (0x12, SYM_LEFTALT),
+    (0x14, SYM_CAPSLOCK),
+    (0x1B, SYM_ESC),
+    (0x20, SYM_SPACE),
+    (0x21, SYM_PAGEUP),
+    (0x22, SYM_PAGEDOWN),
+    (0x23, SYM_END),
+    (0x24, SYM_HOME),
+    (0x25, SYM_LEFT),
+    (0x26, SYM_UP),
+    (0x27, SYM_RIGHT),
+    (0x28, SYM_DOWN),
+    (0x2E, SYM_DELETE),
+    (0x5B, SYM_LEFTMETA),
+    (0x5C, SYM_RIGHTMETA),
+    (0x60, SYM_KP0),
+    (0x61, SYM_KP1),
+    (0x62, SYM_KP2),
+    (0x63, SYM_KP3),
+    (0x64, SYM_KP4),
+    (0x65, SYM_KP5),
+    (0x66, SYM_KP6),
+    (0x67, SYM_KP7),
+    (0x68, SYM_KP8),
+    (0x69, SYM_KP9),
+    (0x6A, SYM_KPMULTIPLY),
+    (0x6B, SYM_KPADD),
+    (0x6D, SYM_KPSUBTRACT),
+    (0x6E, SYM_KPDECIMAL),
+    (0x6F, SYM_KPDIVIDE),
+    (0x70, SYM_F1),
+    (0x71, SYM_F2),
+    (0x72, SYM_F3),
+    (0x73, SYM_F4),
+    (0x74, SYM_F5),
+    (0x75, SYM_F6),
+    (0x76, SYM_F7),
+    (0x77, SYM_F8),
+    (0x78, SYM_F9),
+    (0x79, SYM_F10),
+    (0x7A, SYM_F11),
+    (0x7B, SYM_F12),
+    (0x90, SYM_NUMLOCK),
+    (0xA0, SYM_LEFTSHIFT),
+    (0xA1, SYM_RIGHTSHIFT),
+    (0xA2, SYM_LEFTCTRL),
+    (0xA3, SYM_RIGHTCTRL),
+    (0xA4, SYM_LEFTALT),
+    (0xA5, SYM_RIGHTALT),
 ];

@@ -12,7 +12,8 @@ use std::time::{Duration, Instant};
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
-use chewing::input::keysym::Keysym;
+use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
+use chewing::input::{KeyState, KeyboardEvent};
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
     chewing_cand_TotalChoice, chewing_cand_choose_by_index, chewing_cand_close,
@@ -48,26 +49,21 @@ use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
 use windows::Win32::System::Variant::VARIANT;
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetFocus, VK_CAPITAL, VK_CONTROL, VK_F12, VK_MENU, VK_NUMLOCK, VK_SHIFT,
-};
+use windows::Win32::UI::Input::KeyboardAndMouse::{GetFocus, VK_F12};
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
     TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
     TF_MOD_CONTROL, TF_S_ASYNC,
 };
+use windows::Win32::UI::TextServices::{
+    ITfComposition, ITfKeystrokeMgr, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
+    TF_LANGBARITEMINFO, TF_PRESERVEDKEY,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED,
     MF_ENABLED, MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON,
     TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
-};
-use windows::Win32::UI::{
-    Input::KeyboardAndMouse::VK_SPACE,
-    TextServices::{
-        ITfComposition, ITfKeystrokeMgr, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
-        TF_LANGBARITEMINFO, TF_PRESERVEDKEY,
-    },
 };
 use windows_core::{
     BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR,
@@ -110,7 +106,7 @@ pub(super) struct ChewingTextService {
     lang_mode: i32,
     shape_mode: i32,
     output_simp_chinese: bool,
-    last_keydown_code: u16,
+    last_keydown: KeyboardEvent,
     last_keydown_time: Option<Instant>,
     cfg: Config,
     chewing_context: Option<*mut ChewingContext>,
@@ -346,25 +342,26 @@ impl ChewingTextService {
             error!("chewing context is null");
             return Ok(false);
         };
-        let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.keyboard_layout);
+        let mut evt = KeyboardEvent::from(ev);
         debug!("on_keydown: {evt:?}");
-        self.last_keydown_code = ev.vk;
+        self.last_keydown = evt;
         if self.last_keydown_time.is_none() {
             self.last_keydown_time = Some(Instant::now());
         }
         let enable_caps_lock =
-            self.cfg.chewing_tsf.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL);
+            self.cfg.chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock);
 
-        if ev.is_key_down(VK_MENU) {
+        if evt.is_state_on(KeyState::Alt) {
             // bypass IME. This might be a shortcut key used in the application
             debug!("key not handled - Alt modifier key was down");
             return Ok(false);
         }
-        if ev.is_key_down(VK_CONTROL) {
+        if evt.is_state_on(KeyState::Control) {
             // bypass IME. This might be a shortcut key used in the application
-            if self.is_composing() && ev.is_digits() {
+            if self.is_composing() && evt.ksym.is_digit() {
                 // need to handle userphrase
-            } else if ev.is_key_down(VK_SHIFT) && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl
+            } else if evt.is_state_on(KeyState::Shift)
+                && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl
             {
                 // need to handle easy symbol input
             } else {
@@ -379,8 +376,8 @@ impl ChewingTextService {
                 && self.shape_mode == HALFSHAPE_MODE
                 && !enable_caps_lock
             {
-                if ev.is_key(VK_SPACE)
-                    && ev.is_key_down(VK_SHIFT)
+                if evt.ksym == SYM_SPACE
+                    && evt.is_state_on(KeyState::Shift)
                     && self.cfg.chewing_tsf.enable_fullwidth_toggle_key
                 {
                     // need to handle mode switch
@@ -397,23 +394,26 @@ impl ChewingTextService {
                 if enable_caps_lock {
                     // We only need to handle printable keys because we need to
                     // convert them to upper case.
-                    if !ev.is_alphabet() {
+                    if !evt.ksym.is_atoz() {
                         debug!("key not handled - Capslock key toggled");
                         return Ok(false);
                     }
                 }
                 // NumLock is on
-                if ev.is_key_toggled(VK_NUMLOCK) && ev.is_num_pad() && !ev.is_key_down(VK_CONTROL) {
+                if evt.is_state_on(KeyState::NumLock)
+                    && evt.ksym.is_keypad()
+                    && !evt.is_state_on(KeyState::Control)
+                {
                     debug!("key not handled - Numlock toggled and key is a numpad key");
                     return Ok(false);
                 }
                 // No need to handle VK_SPACE when not composing and not fullshape mode
                 // This make the space key available for other shortcuts
-                if ev.is_key(VK_SPACE) && !ev.is_key_down(VK_SHIFT) {
+                if evt.ksym == SYM_SPACE && !evt.is_state_on(KeyState::Shift) {
                     return Ok(false);
                 }
             }
-            if !ev.is_printable() {
+            if !evt.ksym.is_unicode() {
                 debug!("key not handled - key is not printable");
                 return Ok(false);
             }
@@ -424,22 +424,22 @@ impl ChewingTextService {
             return Ok(true);
         }
 
-        if ev.is_printable() {
+        if evt.ksym.is_unicode() {
             let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
             let mut momentary_english_mode = false;
             let mut invert_case = false;
             // Only invert case if the SYMBOL_MODE is not forced by CapsLock
             if self.lang_mode == SYMBOL_MODE
-                && ev.is_key_toggled(VK_CAPITAL)
+                && evt.is_state_on(KeyState::CapsLock)
                 && !self.cfg.chewing_tsf.enable_caps_lock
             {
                 invert_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
-            if ev.is_key_down(VK_SHIFT)
-                && (!self.cfg.chewing_tsf.full_shape_symbols || ev.is_alphabet())
+            if evt.is_state_on(KeyState::Shift)
+                && (!self.cfg.chewing_tsf.full_shape_symbols || evt.ksym.is_atoz())
                 && !self.cfg.chewing_tsf.easy_symbols_with_shift
-                && !(ev.is_key_down(VK_CONTROL)
+                && !(evt.is_state_on(KeyState::Control)
                     && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl)
             {
                 momentary_english_mode = true;
@@ -447,7 +447,7 @@ impl ChewingTextService {
                     invert_case = true;
                 }
             }
-            if ev.is_key(VK_SPACE) && ev.is_key_down(VK_SHIFT) {
+            if evt.ksym == SYM_SPACE && evt.is_state_on(KeyState::Shift) {
                 unsafe {
                     chewing_handle_ShiftSpace(ctx);
                 }
@@ -479,7 +479,7 @@ impl ChewingTextService {
             if self.cfg.chewing_tsf.cursor_cand_list
                 && let Some(candidate_list) = &self.candidate_list
             {
-                match candidate_list.filter_key_event(ev.vk) {
+                match candidate_list.filter_key_event(evt.ksym) {
                     FilterKeyResult::HandledCommit => {
                         let sel_key = candidate_list.current_sel();
                         unsafe {
@@ -608,8 +608,10 @@ impl ChewingTextService {
         let Some(ctx) = self.chewing_context else {
             return Ok(false);
         };
-        let last_is_shift = self.last_keydown_code == VK_SHIFT.0 && ev.vk == VK_SHIFT.0;
-        let last_is_caps_lock = ev.vk == VK_CAPITAL.0;
+        let evt = KeyboardEvent::from(ev);
+        let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
+            || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
+        let last_is_caps_lock = evt.ksym == SYM_CAPSLOCK;
         let hold_duration = self
             .last_keydown_time
             .map(|t| t.elapsed())
@@ -623,7 +625,7 @@ impl ChewingTextService {
             if dry_run {
                 return Ok(true);
             }
-            if self.cfg.chewing_tsf.enable_caps_lock && ev.is_key_toggled(VK_CAPITAL) {
+            if self.cfg.chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock) {
                 // Locked by CapsLock
                 let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
                     SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
@@ -634,7 +636,7 @@ impl ChewingTextService {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
                 self.last_keydown_time = None;
-                self.last_keydown_code = 0;
+                self.last_keydown = KeyboardEvent::default();
                 return Ok(true);
             } else {
                 self.toggle_lang_mode()?;
@@ -642,7 +644,7 @@ impl ChewingTextService {
                     SYMBOL_MODE => HSTRING::from("英數模式"),
                     CHINESE_MODE
                         if self.cfg.chewing_tsf.enable_caps_lock
-                            && ev.is_key_toggled(VK_CAPITAL) =>
+                            && evt.is_state_on(KeyState::CapsLock) =>
                     {
                         HSTRING::from("英數模式 (CapsLock)")
                     }
@@ -653,7 +655,7 @@ impl ChewingTextService {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
                 self.last_keydown_time = None;
-                self.last_keydown_code = 0;
+                self.last_keydown = KeyboardEvent::default();
                 return Ok(true);
             }
         }
@@ -672,12 +674,12 @@ impl ChewingTextService {
                 self.show_message(context, &msg, Duration::from_millis(500))?;
             }
             self.last_keydown_time = None;
-            self.last_keydown_code = 0;
+            self.last_keydown = KeyboardEvent::default();
             return Ok(true);
         }
 
         self.last_keydown_time = None;
-        self.last_keydown_code = 0;
+        self.last_keydown = KeyboardEvent::default();
         Ok(false)
     }
 
@@ -1064,9 +1066,9 @@ impl ChewingTextService {
 
     fn sync_lang_mode_with_capslock(&mut self) -> Result<()> {
         if let Some(ctx) = self.chewing_context {
-            let ev = KeyEvent::default();
+            let evt = KeyboardEvent::from(KeyEvent::default());
             unsafe {
-                if ev.is_key_toggled(VK_CAPITAL) {
+                if evt.is_state_on(KeyState::CapsLock) {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 } else {
                     chewing_set_ChiEngMode(ctx, CHINESE_MODE);
@@ -1140,14 +1142,14 @@ impl ChewingTextService {
             if ctx.is_null() {
                 bail!("chewing context is null");
             }
-            log::set_max_level(log::LevelFilter::Info);
+            log::set_max_level(log::LevelFilter::Debug);
             self.chewing_context = Some(ctx);
         }
 
         self.apply_config();
 
-        let ev = KeyEvent::default();
-        let capslock = ev.is_key_toggled(VK_CAPITAL);
+        let evt = KeyboardEvent::from(KeyEvent::default());
+        let capslock = evt.is_state_on(KeyState::CapsLock);
         if let Some(ctx) = self.chewing_context {
             unsafe {
                 chewing_set_maxChiSymbolLen(ctx, 50);
