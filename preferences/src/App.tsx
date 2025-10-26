@@ -226,7 +226,7 @@ function App() {
         <Checkbox label="預設輸出簡體中文（或使用 Ctrl + F12 切換）" name='output_simp_chinese' checked={config?.output_simp_chinese} onChange={setBooleanConfig} />
         <div style={{ marginLeft: "10px", marginTop: "10px" }}>
           <Field label="選字鍵：">
-            <Dropdown value={sel_key_type_to_value(config?.sel_key_type || 0)} selectedOptions={[config?.sel_key_type?.toString() || '0']}
+            <Dropdown value={sel_key_type_to_value(config!.sel_key_type)} selectedOptions={[config!.sel_key_type.toString()]}
               onOptionSelect={(_ev, data) => { setConfig({ ...config, sel_key_type: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
               <Option value='0'>1234567890</Option>
               <Option value='1'>asdfghjkl;</Option>
@@ -237,7 +237,7 @@ function App() {
             </Dropdown>
           </Field>
           <Field label="模式：">
-            <Dropdown value={conv_engine_to_value(config?.conv_engine || 1)} selectedOptions={[config?.conv_engine?.toString() || '1']}
+            <Dropdown value={conv_engine_to_value(config!.conv_engine)} selectedOptions={[config!.conv_engine.toString()]}
               onOptionSelect={(_ev, data) => { setConfig({ ...config, conv_engine: parseInt(data.optionValue || '1') } as ChewingTsfConfig); }}>
               <Option value='0'>簡單注音</Option>
               <Option value='1'>智慧選詞</Option>
