@@ -3,7 +3,7 @@
 use chewing::input::keycode::Keycode;
 use chewing::input::keymap::{
     INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
-    INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, map_ascii, map_keycode,
+    INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, map_keycode,
 };
 use chewing::input::{KeyboardEvent, keysym::*};
 use windows::Win32::UI::Input::KeyboardAndMouse::{

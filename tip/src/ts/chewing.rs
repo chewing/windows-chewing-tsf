@@ -25,9 +25,7 @@ use chewing_capi::globals::{
     chewing_set_escCleanAllBuf, chewing_set_maxChiSymbolLen, chewing_set_phraseChoiceRearward,
     chewing_set_spaceAsSelection,
 };
-use chewing_capi::input::{
-    chewing_handle_Capslock, chewing_handle_KeyboardEvent, chewing_handle_ShiftSpace,
-};
+use chewing_capi::input::{chewing_handle_KeyboardEvent, chewing_handle_ShiftSpace};
 use chewing_capi::layout::chewing_set_KBType;
 use chewing_capi::modes::{
     CHINESE_MODE, FULLSHAPE_MODE, HALFSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode,
@@ -286,11 +284,6 @@ impl ChewingTextService {
         if let Err(error) = self.init_chewing_context() {
             error!("unable to initialize chewing: {error}");
         }
-
-        if let Err(error) = self.update_lang_buttons(false) {
-            error!("unable to update lang buttons: {error}");
-        }
-
         Ok(())
     }
 
@@ -323,9 +316,7 @@ impl ChewingTextService {
 
     pub(super) fn on_focus(&mut self) -> Result<()> {
         self.apply_config_if_changed()?;
-        if self.cfg.chewing_tsf.enable_caps_lock {
-            self.sync_lang_mode_with_capslock()?;
-        }
+        self.sync_lang_mode()?;
         Ok(())
     }
 
@@ -483,10 +474,6 @@ impl ChewingTextService {
             }
         }
 
-        if let Err(error) = self.update_lang_buttons(false) {
-            error!("unable to update lang bar button: {error}")
-        }
-
         if unsafe { chewing_keystroke_CheckIgnore(ctx) } == 1 {
             debug!("early return - chewing ignored key");
             return Ok(false);
@@ -587,6 +574,12 @@ impl ChewingTextService {
         let Some(ctx) = self.chewing_context else {
             return Ok(false);
         };
+        // HACK: we cannot update the openclose compartment in the OnChange
+        // handler, so we sync once more in the keyup handler when enable_caps_lock is true
+        // to ensure the compartment matches the input mode.
+        if self.cfg.chewing_tsf.enable_caps_lock {
+            let _ = self.sync_lang_mode();
+        }
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
             || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
@@ -604,9 +597,10 @@ impl ChewingTextService {
             if dry_run {
                 return Ok(true);
             }
+            // TODO: simplify this
             if self.cfg.chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock) {
                 // Locked by CapsLock
-                let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
+                let msg = match self.lang_mode {
                     SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
                     CHINESE_MODE => HSTRING::from("中文模式"),
                     _ => unreachable!(),
@@ -619,7 +613,7 @@ impl ChewingTextService {
                 return Ok(true);
             } else {
                 self.toggle_lang_mode()?;
-                let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
+                let msg = match self.lang_mode {
                     SYMBOL_MODE => HSTRING::from("英數模式"),
                     CHINESE_MODE
                         if self.cfg.chewing_tsf.enable_caps_lock
@@ -643,7 +637,7 @@ impl ChewingTextService {
             if dry_run {
                 return Ok(true);
             }
-            self.sync_lang_mode_with_capslock()?;
+            self.sync_lang_mode()?;
             let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
                 SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
                 CHINESE_MODE => HSTRING::from("中文模式"),
@@ -709,17 +703,15 @@ impl ChewingTextService {
 
     fn on_keyboard_status_changed(&mut self, opened: bool) -> Result<()> {
         if opened {
-            self.init_chewing_context()?;
+            self.lang_mode = CHINESE_MODE;
         } else {
             let context = self
                 .current_context()
                 .context("unable to get current ITfContext")?;
             self.on_kill_focus(&context)?;
-            self.free_chewing_context();
+            self.lang_mode = SYMBOL_MODE;
         }
-        if let Some(ime_icon) = &self.ime_mode_button {
-            ime_icon.set_enabled(opened)?;
-        }
+        self.sync_lang_mode()?;
         Ok(())
     }
 
@@ -1015,7 +1007,7 @@ impl ChewingTextService {
         unsafe {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
-        self.update_lang_buttons(true)?;
+        self.update_lang_buttons()?;
         Ok(())
     }
 
@@ -1038,35 +1030,52 @@ impl ChewingTextService {
             unsafe {
                 CheckMenuItem(self.popup_menu, ID_SWITCH_SHAPE, check_flag.0);
             }
-            self.update_lang_buttons(true)?;
+            self.update_lang_buttons()?;
         }
         Ok(())
     }
 
-    fn sync_lang_mode_with_capslock(&mut self) -> Result<()> {
+    fn sync_lang_mode(&mut self) -> Result<()> {
         if let Some(ctx) = self.chewing_context {
             let evt =
                 KeyEvent::default().to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
-            unsafe {
+            if self.cfg.chewing_tsf.enable_caps_lock {
                 if evt.is_state_on(KeyState::CapsLock) {
-                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
+                    self.lang_mode = SYMBOL_MODE;
                 } else {
-                    chewing_set_ChiEngMode(ctx, CHINESE_MODE);
+                    self.lang_mode = CHINESE_MODE;
                 }
             }
-            self.update_lang_buttons(true)?;
+            unsafe {
+                chewing_set_ChiEngMode(ctx, self.lang_mode);
+            }
+            self.update_lang_buttons()?;
+        }
+        if let Some(thread_mgr) = &self.thread_mgr {
+            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+            unsafe {
+                let compartment =
+                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+                let openclose: i32 = match self.lang_mode {
+                    CHINESE_MODE => 1,
+                    SYMBOL_MODE => 0,
+                    _ => unreachable!(),
+                };
+                // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
+                let _ = compartment.SetValue(self.tid, &openclose.into());
+            }
         }
         Ok(())
     }
 
     fn toggle_lang_mode(&mut self) -> Result<()> {
-        if let Some(ctx) = self.chewing_context {
-            unsafe {
-                // HACK: send capslock to switch mode
-                chewing_handle_Capslock(ctx);
-            }
-            self.update_lang_buttons(false)?;
-        }
+        self.lang_mode = match self.lang_mode {
+            SYMBOL_MODE => CHINESE_MODE,
+            CHINESE_MODE => SYMBOL_MODE,
+            _ => unreachable!(),
+        };
+        self.sync_lang_mode()?;
+
         Ok(())
     }
 
@@ -1124,24 +1133,20 @@ impl ChewingTextService {
             }
             log::set_max_level(log::LevelFilter::Debug);
             self.chewing_context = Some(ctx);
-        }
 
-        self.apply_config();
+            self.apply_config();
 
-        let evt =
-            KeyEvent::default().to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
-        let capslock = evt.is_state_on(KeyState::CapsLock);
-        if let Some(ctx) = self.chewing_context {
             unsafe {
                 chewing_set_maxChiSymbolLen(ctx, 50);
-                if self.cfg.chewing_tsf.default_english
-                    || (self.cfg.chewing_tsf.enable_caps_lock && capslock)
-                {
-                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
-                } else {
-                    chewing_set_ChiEngMode(ctx, CHINESE_MODE);
-                }
-                if self.cfg.chewing_tsf.default_full_space {
+            }
+            self.lang_mode = if self.cfg.chewing_tsf.default_english {
+                SYMBOL_MODE
+            } else {
+                CHINESE_MODE
+            };
+            self.sync_lang_mode()?;
+            if self.cfg.chewing_tsf.default_full_space {
+                unsafe {
                     chewing_set_ShapeMode(ctx, FULLSHAPE_MODE);
                 }
             }
@@ -1211,35 +1216,30 @@ impl ChewingTextService {
         unsafe {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
-        let _ = self.update_lang_buttons(true);
+        let _ = self.update_lang_buttons();
     }
 
-    fn update_lang_buttons(&mut self, check_simp_mode: bool) -> Result<()> {
+    fn update_lang_buttons(&mut self) -> Result<()> {
         let Some(ctx) = self.chewing_context else {
             error!("update_lang_buttons called with null chewing context");
             return Ok(());
         };
-
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
-        let lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
-        if lang_mode != self.lang_mode || check_simp_mode {
-            self.lang_mode = lang_mode;
-            let icon_id = self.get_lang_icon_id();
-            if let Some(button) = &self.switch_lang_button {
-                unsafe {
-                    button.set_icon(LoadIconW(
-                        Some(g_hinstance),
-                        PCWSTR::from_raw(icon_id as *const u16),
-                    )?)?;
-                }
+        let icon_id = self.get_lang_icon_id();
+        if let Some(button) = &self.switch_lang_button {
+            unsafe {
+                button.set_icon(LoadIconW(
+                    Some(g_hinstance),
+                    PCWSTR::from_raw(icon_id as *const u16),
+                )?)?;
             }
-            if let Some(button) = &self.ime_mode_button {
-                unsafe {
-                    button.set_icon(LoadIconW(
-                        Some(g_hinstance),
-                        PCWSTR::from_raw(icon_id as *const u16),
-                    )?)?;
-                }
+        }
+        if let Some(button) = &self.ime_mode_button {
+            unsafe {
+                button.set_icon(LoadIconW(
+                    Some(g_hinstance),
+                    PCWSTR::from_raw(icon_id as *const u16),
+                )?)?;
             }
         }
         let shape_mode = unsafe { chewing_get_ShapeMode(ctx) };
