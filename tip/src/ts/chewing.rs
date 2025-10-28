@@ -49,10 +49,11 @@ use windows::Win32::Storage::FileSystem::{
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetFocus, VK_F12};
 use windows::Win32::UI::TextServices::{
+    GUID_COMPARTMENT_EMPTYCONTEXT, GUID_COMPARTMENT_KEYBOARD_DISABLED,
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
     TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
-    TF_MOD_CONTROL, TF_S_ASYNC,
+    TF_MOD_CONTROL, TF_S_ASYNC, TF_SD_READONLY,
 };
 use windows::Win32::UI::TextServices::{
     ITfComposition, ITfKeystrokeMgr, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
@@ -333,6 +334,32 @@ impl ChewingTextService {
             error!("chewing context is null");
             return Ok(false);
         };
+        let status = unsafe { context.GetStatus()? };
+        if status.dwDynamicFlags & TF_SD_READONLY != 0 {
+            debug!("key not handled - readonly document");
+            return Ok(false);
+        }
+        let compartment_mgr: ITfCompartmentMgr = context.cast()?;
+        unsafe {
+            if let Ok(empty_context) =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_EMPTYCONTEXT)
+            {
+                let value = i32::try_from(&empty_context.GetValue()?)?;
+                if value == 1 {
+                    debug!("key not handled - empty context");
+                    return Ok(false);
+                }
+            }
+            if let Ok(disabled) =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_DISABLED)
+            {
+                let value = i32::try_from(&disabled.GetValue()?)?;
+                if value == 1 {
+                    debug!("key not handled - keyboard disabled");
+                    return Ok(false);
+                }
+            }
+        }
         let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
         debug!("on_keydown: {evt:?}");

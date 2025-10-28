@@ -214,10 +214,12 @@ impl ITfTextInputProcessorEx_Impl for TextService_Impl {
 
 impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     fn OnInitDocumentMgr(&self, _pdim: Ref<ITfDocumentMgr>) -> Result<()> {
+        debug!("OnInitDocumentMgr");
         Ok(())
     }
 
     fn OnUninitDocumentMgr(&self, _pdim: Ref<ITfDocumentMgr>) -> Result<()> {
+        debug!("OnInitDocumentMgr");
         Ok(())
     }
 
@@ -226,6 +228,11 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         pdimfocus: Ref<ITfDocumentMgr>,
         pdimprevfocus: Ref<ITfDocumentMgr>,
     ) -> Result<()> {
+        debug!(
+            "OnSetFocus, focus = {}, prevfocus = {}",
+            !pdimfocus.is_null(),
+            !pdimprevfocus.is_null()
+        );
         // Excel switches document upon first key down. Skip this superflos
         // focus change.
         if self.key_busy.get() {
@@ -271,16 +278,19 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     }
 
     fn OnPushContext(&self, _pic: Ref<ITfContext>) -> Result<()> {
+        debug!("OnPushContext");
         Ok(())
     }
 
     fn OnPopContext(&self, _pic: Ref<ITfContext>) -> Result<()> {
+        debug!("OnPopContext");
         Ok(())
     }
 }
 
 impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
+        debug!("OnSetThreadFocus");
         let mut ts = self.inner.borrow_mut();
         if let Err(error) = ts.on_focus() {
             error!("Unable to handle focus: {error:#}");
@@ -289,6 +299,7 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
         Ok(())
     }
     fn OnKillThreadFocus(&self) -> Result<()> {
+        debug!("OnKillThreadFocus");
         Ok(())
     }
 }
@@ -300,6 +311,7 @@ impl ITfTextEditSink_Impl for TextService_Impl {
         _ecreadonly: u32,
         _peditrecord: Ref<ITfEditRecord>,
     ) -> Result<()> {
+        debug!("OnEndEdit");
         if let Some(context) = pic.as_ref()
             && let Ok(ts) = self.inner.try_borrow()
             && let Err(error) = ts.on_end_edit(context)
@@ -313,10 +325,12 @@ impl ITfTextEditSink_Impl for TextService_Impl {
 
 impl ITfKeyEventSink_Impl for TextService_Impl {
     fn OnSetFocus(&self, _fforeground: BOOL) -> Result<()> {
+        debug!("ITfKeyEventSink::OnSetFocus({_fforeground:?})");
         Ok(())
     }
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        debug!("OnTestKeyDown {wparam:?} {lparam:?}");
         let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keydown(pic.ok()?, ev, true) {
@@ -330,6 +344,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        debug!("OnTestKeyUp {wparam:?} {lparam:?}");
         let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keyup(pic.ok()?, ev, true) {
@@ -343,6 +358,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        debug!("OnKeyDown {wparam:?} {lparam:?}");
         self.key_busy.set(true);
         let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
@@ -357,6 +373,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        debug!("OnKeyUp {wparam:?} {lparam:?}");
         self.key_busy.set(false);
         let mut ts = self.inner.borrow_mut();
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
@@ -371,6 +388,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
+        debug!("OnPreservedKey");
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             let mut ts = self.inner.borrow_mut();
             let handled = ts.on_preserved_key(rguid);
@@ -387,6 +405,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         _ecwrite: u32,
         _pcomposition: Ref<ITfComposition>,
     ) -> Result<()> {
+        debug!("OnCompositionTerminated");
         // This is called by TSF when our composition is terminated by others.
         // For example, when the user click on another text editor and the input focus is
         // grabbed by others, we're ``forced'' to terminate current composition.
@@ -421,6 +440,7 @@ impl ITfActiveLanguageProfileNotifySink_Impl for TextService_Impl {
         _guidprofile: *const GUID,
         _factivated: BOOL,
     ) -> Result<()> {
+        debug!("ITfActiveLanguageProfileNotifySink::OnActivated");
         Ok(())
     }
 }
