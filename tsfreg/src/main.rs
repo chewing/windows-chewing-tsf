@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#![windows_subsystem = "windows"]
 
 use std::{env, process};
 
