@@ -38,7 +38,6 @@ use chewing_capi::output::{
     chewing_commit_preedit_buf, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
-use chewing_tip_config::{Config, color_s};
 use log::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -70,6 +69,7 @@ use windows_core::{
 use zhconv::{Variant, zhconv};
 
 use crate::G_HINSTANCE;
+use crate::config::{Config, color_s};
 use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use crate::ts::display_attribute::register_display_attribute;
 use crate::ts::edit_session::InsertText;

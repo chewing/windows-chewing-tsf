@@ -121,27 +121,16 @@ dependencies = [
  "cc",
  "chewing",
  "chewing_capi",
- "chewing_tip_config",
  "embed-resource",
  "getrandom 0.3.4",
  "log",
+ "serde",
  "win_dbg_logger",
  "windows",
  "windows-core",
  "windows-numerics",
  "windows-registry",
  "zhconv",
-]
-
-[[package]]
-name = "chewing_tip_config"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "log",
- "serde",
- "windows",
- "windows-registry",
 ]
 
 [[package]]

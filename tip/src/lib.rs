@@ -10,6 +10,7 @@ use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTAC
 use windows_core::{ComObjectInner, GUID, HRESULT, IUnknown, Interface};
 
 mod com;
+pub mod config;
 mod gfx;
 mod ts;
 mod window;
