@@ -37,11 +37,11 @@ fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> 
     }
 }
 
-pub(super) fn d3d11_device() -> Result<ID3D11Device> {
+pub(crate) fn d3d11_device() -> Result<ID3D11Device> {
     LazyLock::force(&DEVICE).to_owned()
 }
 
-pub(super) fn create_render_target(
+pub(crate) fn create_render_target(
     factory: &ID2D1Factory1,
     device: &ID3D11Device,
 ) -> Result<ID2D1DeviceContext> {
@@ -52,12 +52,12 @@ pub(super) fn create_render_target(
     }
 }
 
-pub(super) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
+pub(crate) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
     let dxdevice = device.cast::<IDXGIDevice>()?;
     unsafe { dxdevice.GetAdapter()?.GetParent() }
 }
 
-pub(super) fn create_swapchain_bitmap(
+pub(crate) fn create_swapchain_bitmap(
     swapchain: &IDXGISwapChain1,
     target: &ID2D1DeviceContext,
     dpi: f32,
@@ -83,7 +83,7 @@ pub(super) fn create_swapchain_bitmap(
     Ok(())
 }
 
-pub(super) fn create_swapchain(
+pub(crate) fn create_swapchain(
     device: &ID3D11Device,
     width: u32,
     height: u32,
@@ -108,7 +108,7 @@ pub(super) fn create_swapchain(
     unsafe { factory.CreateSwapChainForComposition(device, &props, None) }
 }
 
-pub(super) fn setup_direct_composition(
+pub(crate) fn setup_direct_composition(
     device: &ID3D11Device,
     window: HWND,
     swapchain: &IDXGISwapChain,
@@ -125,18 +125,18 @@ pub(super) fn setup_direct_composition(
     }
 }
 
-pub(super) fn get_dpi_for_window(hwnd: HWND) -> f32 {
+pub(crate) fn get_dpi_for_window(hwnd: HWND) -> f32 {
     unsafe {
         let dpi = GetDpiForWindow(hwnd);
         if dpi == 0 { 96.0 } else { dpi as f32 }
     }
 }
 
-pub(super) fn get_scale_for_window(hwnd: HWND) -> f32 {
+pub(crate) fn get_scale_for_window(hwnd: HWND) -> f32 {
     get_dpi_for_window(hwnd) / 96.0
 }
 
-pub(super) fn dwrite_family_from_gdi_name(
+pub(crate) fn dwrite_family_from_gdi_name(
     interop: &IDWriteGdiInterop,
     family_name: &HSTRING,
 ) -> anyhow::Result<HSTRING> {

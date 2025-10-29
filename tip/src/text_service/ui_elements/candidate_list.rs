@@ -46,14 +46,15 @@ use windows_core::{
 };
 
 use crate::{
-    gfx::{
+    ui::gfx::{
         create_render_target, create_swapchain, create_swapchain_bitmap, d3d11_device,
         dwrite_family_from_gdi_name, get_dpi_for_window, get_scale_for_window,
         setup_direct_composition,
     },
-    ts::ui_elements::message_box::draw_message_box,
-    window::{IWndProc, IWndProc_Impl, Window},
+    ui::window::{IWndProc, IWndProc_Impl, Window},
 };
+
+use super::message_box::draw_message_box;
 
 #[implement(ITfUIElement, ITfCandidateListUIElement, IWndProc)]
 pub(crate) struct CandidateList {

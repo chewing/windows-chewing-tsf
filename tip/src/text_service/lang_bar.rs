@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{cell::Cell, collections::BTreeMap, sync::RwLock};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+};
 
 use windows::Win32::{
     Foundation::{E_FAIL, E_INVALIDARG, POINT, RECT},
@@ -22,8 +25,7 @@ use windows::Win32::{
 };
 use windows_core::{BOOL, BSTR, GUID, IUnknown, Interface, PWSTR, Ref, Result, implement};
 
-use crate::ts::CHEWING_TSF_CLSID;
-
+use super::CHEWING_TSF_CLSID;
 use super::{CommandType, IFnRunCommand};
 
 #[implement(ITfLangBarItem, ITfLangBarItemButton, ITfSource)]
@@ -35,7 +37,7 @@ pub(super) struct LangBarButton {
     menu: HMENU,
     command_id: u32,
     thread_mgr: ITfThreadMgr,
-    sinks: RwLock<BTreeMap<u32, ITfLangBarItemSink>>,
+    sinks: RefCell<BTreeMap<u32, ITfLangBarItemSink>>,
 }
 
 impl Drop for LangBarButton {
@@ -63,7 +65,7 @@ impl LangBarButton {
             menu,
             command_id,
             thread_mgr,
-            sinks: RwLock::new(BTreeMap::new()),
+            sinks: RefCell::new(BTreeMap::new()),
         }
     }
     pub(super) fn set_icon(&self, icon: HICON) -> Result<()> {
@@ -174,7 +176,7 @@ impl ITfSource_Impl for LangBarButton_Impl {
                 return Err(E_FAIL.into());
             };
             let sink: ITfLangBarItemSink = punk.unwrap().cast()?;
-            if let Ok(mut sinks) = self.sinks.write() {
+            if let Ok(mut sinks) = self.sinks.try_borrow_mut() {
                 sinks.insert(cookie, sink);
                 return Ok(cookie);
             }
@@ -183,7 +185,7 @@ impl ITfSource_Impl for LangBarButton_Impl {
     }
 
     fn UnadviseSink(&self, dwcookie: u32) -> Result<()> {
-        if let Ok(mut sinks) = self.sinks.write() {
+        if let Ok(mut sinks) = self.sinks.try_borrow_mut() {
             sinks.remove(&dwcookie);
             return Ok(());
         }
@@ -193,7 +195,7 @@ impl ITfSource_Impl for LangBarButton_Impl {
 
 impl LangBarButton {
     fn update_sinks(&self, dwflags: u32) -> Result<()> {
-        if let Ok(sinks) = self.sinks.read() {
+        if let Ok(sinks) = self.sinks.try_borrow() {
             for sink in sinks.values() {
                 unsafe { sink.OnUpdate(dwflags)? };
             }

@@ -55,7 +55,7 @@ impl ThemeDetector {
 
 #[allow(unused)]
 #[derive(Debug)]
-pub struct ThemeInfo {
+pub(crate) struct ThemeInfo {
     pub system_theme: WindowsTheme,
     pub app_theme: WindowsTheme,
     pub overall_theme: WindowsTheme,

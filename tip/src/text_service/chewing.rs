@@ -68,20 +68,20 @@ use windows_core::{
 };
 use zhconv::{Variant, zhconv};
 
-use crate::G_HINSTANCE;
+use crate::com::G_HINSTANCE;
 use crate::config::{Config, color_s};
-use crate::ts::GUID_INPUT_DISPLAY_ATTRIBUTE;
-use crate::ts::display_attribute::register_display_attribute;
-use crate::ts::edit_session::InsertText;
-use crate::ts::menu::Menu;
-use crate::ts::theme::{ThemeDetector, WindowsTheme};
-use crate::window::window_register_class;
+use crate::ui::window::window_register_class;
 
 use super::CommandType;
+use super::GUID_INPUT_DISPLAY_ATTRIBUTE;
+use super::display_attribute::register_display_attribute;
+use super::edit_session::InsertText;
 use super::edit_session::{EndComposition, SelectionRect, SetCompositionString};
 use super::key_event::KeyEvent;
 use super::lang_bar::LangBarButton;
+use super::menu::Menu;
 use super::resources::*;
+use super::theme::{ThemeDetector, WindowsTheme};
 use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, NotificationModel};
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);

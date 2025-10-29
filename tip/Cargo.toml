@@ -15,10 +15,11 @@ chewing = { workspace = true, features = ["sqlite-bundled"] }
 chewing_capi = { workspace = true, features = ["sqlite-bundled"] }
 log = "0.4.22"
 win_dbg_logger = "0.1.0"
-windows-core = "0.61.0"
-windows-numerics = "0.2.0"
-windows-registry = "0.5.1"
-windows = { version = "0.61.0", features = [
+windows-core = "0.62.2"
+windows-numerics = "0.3.1"
+windows-link = "0.2.1"
+windows-registry = "0.6.1"
+windows = { version = "0.62.2", features = [
     "Foundation_Numerics",
     "Foundation",
     "System",
@@ -51,7 +52,6 @@ windows = { version = "0.61.0", features = [
 getrandom = "0.3.1"
 zhconv = { version = "0.3.3", default-features = false, features = ["opencc"] }
 serde = { version = "1.0.228", features = ["derive"] }
-windows-link = "0.2.1"
 
 [features]
 nightly = []

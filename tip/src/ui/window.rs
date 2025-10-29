@@ -12,7 +12,7 @@ use windows::Win32::{Foundation::*, UI::HiDpi::SetThreadDpiAwarenessContext};
 use windows::Win32::{Graphics::Gdi::*, UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::core::*;
 
-use crate::G_HINSTANCE;
+use crate::com::G_HINSTANCE;
 
 thread_local! {
     static HWND_MAP: RefCell<HashMap<*mut c_void, Weak<IWndProc>>> = RefCell::new(HashMap::new());

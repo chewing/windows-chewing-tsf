@@ -25,7 +25,7 @@ impl Default for KeyEvent {
 }
 
 impl KeyEvent {
-    pub fn new(vk: u16, lparam: isize) -> KeyEvent {
+    pub(super) fn new(vk: u16, lparam: isize) -> KeyEvent {
         let scan_code = ((lparam & 0xff0000) >> 16) as u16;
         let mut key_state = [0u8; 256];
         let mut code = 0;

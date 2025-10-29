@@ -2,7 +2,6 @@
 
 use std::cell::{Cell, RefCell};
 
-use display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
 use log::{debug, error, info};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
@@ -15,6 +14,7 @@ use windows_core::{
 };
 
 use self::chewing::ChewingTextService;
+use self::display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
 use self::key_event::KeyEvent;
 
 mod chewing;
