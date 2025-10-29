@@ -74,6 +74,7 @@ pub struct ChewingTsfConfig {
     pub simulate_english_layout: i32,
     pub auto_check_update_channel: String,
     pub update_info_url: String,
+    pub last_update_check_time: u64,
 }
 
 impl Default for ChewingTsfConfig {
@@ -111,8 +112,9 @@ impl Default for ChewingTsfConfig {
             font_number_fg_color: "0000FFFF".to_owned(),
             keyboard_layout: 0,
             simulate_english_layout: 0,
-            auto_check_update_channel: "none".to_string(),
+            auto_check_update_channel: "stable".to_string(),
             update_info_url: "".to_string(),
+            last_update_check_time: 0,
         }
     }
 }
@@ -245,6 +247,9 @@ impl Config {
         }
         if let Ok(value) = key.get_string("UpdateInfoUrl") {
             cfg.update_info_url = value;
+        }
+        if let Ok(value) = key.get_u64("LastUpdateCheckTime") {
+            cfg.last_update_check_time = value;
         }
 
         Ok(Config {

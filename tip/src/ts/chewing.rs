@@ -8,7 +8,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -285,6 +285,18 @@ impl ChewingTextService {
         if let Err(error) = self.init_chewing_context() {
             error!("unable to initialize chewing: {error}");
         }
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .as_ref()
+            .map(Duration::as_secs)
+            .unwrap_or_default();
+        if self.cfg.chewing_tsf.auto_check_update_channel != "none"
+            && now.abs_diff(self.cfg.chewing_tsf.last_update_check_time) > 3600
+        {
+            open_url("chewing-update-svc://check-now");
+        }
+
         Ok(())
     }
 

@@ -1,3 +1,5 @@
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use anyhow::Result;
 use windows_registry::CURRENT_USER;
 
@@ -29,5 +31,16 @@ pub(crate) fn set_update_info_url(url: &str) -> Result<()> {
     } else {
         key.set_string("UpdateInfoUrl", &url)?;
     }
+    Ok(())
+}
+
+pub(crate) fn set_last_update_check_time() -> Result<()> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .as_ref()
+        .map(Duration::as_secs)
+        .unwrap_or_default();
+    let key = CURRENT_USER.create(r"Software\ChewingTextService")?;
+    key.set_u64("LastUpdateCheckTime", now)?;
     Ok(())
 }

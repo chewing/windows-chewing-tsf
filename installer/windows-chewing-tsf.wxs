@@ -78,11 +78,18 @@
                     <RegistryKey Root="HKCR" Key="chewing-editor\shell\open\command">
                         <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing-editor.exe&quot; &quot;%1&quot;" />
                     </RegistryKey>
-                    <!-- Update Service -->
-                    <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
-                        <RegistryValue Type="string"
-                                       Name="ChewingUpdateSvc"
-                                       Value="[INSTALLFOLDER64]chewing-update-svc.exe" />
+                    <!-- Main protocol key -->
+                    <RegistryKey Root="HKCR" Key="chewing-update-svc">
+                        <RegistryValue Type="string" Value="URL:Chewing Update Service" />
+                        <RegistryValue Name="URL Protocol" Type="string" Value="" />
+                    </RegistryKey>
+                    <!-- Default icon -->
+                    <RegistryKey Root="HKCR" Key="chewing-update-svc\DefaultIcon">
+                        <RegistryValue Type="string" Value="[INSTALLFOLDER64]chewing-update-svc.exe,0" />
+                    </RegistryKey>
+                    <!-- Shell command -->
+                    <RegistryKey Root="HKCR" Key="chewing-update-svc\shell\open\command">
+                        <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing-update-svc.exe&quot; &quot;%1&quot;" />
                     </RegistryKey>
                 </Component>
             </Directory>
@@ -102,24 +109,12 @@
         </StandardDirectory>
         <Icon Id="icon.exe" SourceFile="chewing.ico" />
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
-        <util:CloseApplication
-            RebootPrompt="no"
-            CloseMessage="yes"
-            EndSessionMessage="yes"
-            Target="chewing-update-svc.exe"
-            TerminateProcess="0" />
         <CustomAction Id="RegisterTSF" BinaryRef="tsfreg"
             ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;"
             Impersonate="no" Execute="deferred" Return="check" />
         <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
         <CustomAction Id="EnableTIP" BinaryRef="tsfreg" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
         <CustomAction Id="DisableTIP" BinaryRef="tsfreg" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
-        <CustomAction Id="RunChewingUpdateSvc"
-            Directory="INSTALLFOLDER64"
-            ExeCommand="[INSTALLFOLDER64]chewing-update-svc.exe"
-            Impersonate="yes"
-            Execute="immediate"
-            Return="asyncNoWait" />
         <InstallExecuteSequence>
             <Custom Action="RegisterTSF" After="WriteRegistryValues"
                 Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
@@ -129,8 +124,6 @@
                 Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
             <Custom Action="DisableTIP" Before="UnregisterTSF"
                 Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
-            <Custom Action="RunChewingUpdateSvc" After="InstallFinalize"
-                Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
         </InstallExecuteSequence>
         <ui:WixUI Id="WixUI_Minimal" />
         <WixVariable Id="WixUILicenseRtf" Value="gpl-notice.rtf" />

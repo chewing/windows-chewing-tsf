@@ -39,12 +39,3 @@ preferences.
 Whenever a new update is detected, `chewing-update-svc` shall store the update
 URL to the registry key `HKCU\Software\ChewingTextService`, attribute name
 UpdateAvailable. Otherwise, this attribute should be removed.
-
-## Background Execution
-
-The `chewing-update-svc` should be added to the
-`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` registry key so it runs
-automatically after start-up for all users.
-
-After startup, the service should immediately check for new updates. Then it
-should check updates every hour, sleep in between.

@@ -96,7 +96,7 @@ function simulate_english_layout_to_value(layout: number): string {
 
 function update_channel_to_value(channel: string): string {
   switch (channel) {
-    case 'disable':
+    case 'none':
       return '停用';
     case 'stable':
       return '穩定版';
@@ -375,7 +375,7 @@ function App() {
         <Field label="自動檢查更新：">
           <Dropdown value={update_channel_to_value(config?.auto_check_update_channel || 'stable')} selectedOptions={[config?.auto_check_update_channel || 'stable']}
             onOptionSelect={(_ev, data) => { setConfig({ ...config, auto_check_update_channel: data.optionValue || 'stable' } as ChewingTsfConfig); }} >
-            <Option value='disable'>停用</Option>
+            <Option value='none'>停用</Option>
             <Option value='stable'>穩定版</Option>
             <Option value='development'>預覽版</Option>
           </Dropdown>

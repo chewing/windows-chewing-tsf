@@ -11,8 +11,6 @@ ureq = { version = "3.1.0", features = ["platform-verifier"] }
 win_dbg_logger = "0.1.0"
 windows-registry = "0.5.3"
 windows = { version = "0.61.0", features = [
-    "Win32_Graphics_Gdi",
     "Win32_Storage_FileSystem",
     "Win32_System_LibraryLoader",
-    "Win32_UI_WindowsAndMessaging",
 ] }
