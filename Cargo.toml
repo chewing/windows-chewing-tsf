@@ -1,5 +1,5 @@
 [workspace]
-members = ["tip", "tsfreg", "update", "xtask"]
+members = ["tip", "update", "xtask"]
 exclude = ["editor", "preferences"]
 resolver = "3"
 

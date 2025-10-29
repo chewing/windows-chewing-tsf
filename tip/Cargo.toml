@@ -22,6 +22,7 @@ windows = { version = "0.61.0", features = [
     "Foundation_Numerics",
     "Foundation",
     "System",
+    "Win32_Globalization",
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_Direct2D",
     "Win32_Graphics_Direct3D",
@@ -50,6 +51,10 @@ windows = { version = "0.61.0", features = [
 getrandom = "0.3.1"
 zhconv = { version = "0.3.3", default-features = false, features = ["opencc"] }
 serde = { version = "1.0.228", features = ["derive"] }
+windows-link = "0.2.1"
+
+[features]
+nightly = []
 
 [build-dependencies]
 anyhow = "1.0.95"

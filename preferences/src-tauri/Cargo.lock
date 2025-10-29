@@ -520,6 +520,7 @@ dependencies = [
  "win_dbg_logger",
  "windows",
  "windows-core 0.61.2",
+ "windows-link 0.2.1",
  "windows-numerics",
  "windows-registry",
  "zhconv",
