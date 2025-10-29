@@ -696,20 +696,16 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_composition_terminated(&mut self) {
+        if self.candidate_list.is_some() {
+            self.hide_candidates();
+        }
         if let Some(ctx) = self.chewing_context {
-            if self.candidate_list.is_some() {
-                self.hide_candidates();
-                unsafe {
-                    chewing_cand_close(ctx);
-                }
-            }
-            if unsafe { chewing_bopomofo_Check(ctx) } == 1 {
-                unsafe {
+            unsafe {
+                chewing_cand_close(ctx);
+                if chewing_bopomofo_Check(ctx) == 1 {
                     chewing_clean_bopomofo_buf(ctx);
                 }
-            }
-            if unsafe { chewing_buffer_Check(ctx) } == 1 {
-                unsafe {
+                if chewing_buffer_Check(ctx) == 1 {
                     chewing_commit_preedit_buf(ctx);
                 }
             }
@@ -758,10 +754,8 @@ impl ChewingTextService {
         if matches!(cmd_type, CommandType::RightClick) {
             if id == ID_MODE_ICON {
                 let mut pos = POINT::default();
-                unsafe {
-                    let _ = GetCursorPos(&mut pos);
-                }
                 let ret = unsafe {
+                    let _ = GetCursorPos(&mut pos);
                     TrackPopupMenu(
                         self.popup_menu,
                         TPM_NONOTIFY
@@ -923,26 +917,26 @@ impl ChewingTextService {
     }
 
     fn show_message(&mut self, context: &ITfContext, text: &HSTRING, dur: Duration) -> Result<()> {
-        unsafe {
+        let hwnd = unsafe {
             let view = context.GetActiveView()?;
             // UILess console may not have valid HWND
-            let hwnd = view.GetWnd().unwrap_or_default();
-            if let Some(thread_mgr) = &self.thread_mgr {
-                let notification = Notification::new(hwnd, thread_mgr.clone())?;
-                notification.set_model(NotificationModel {
-                    text: text.clone(),
-                    font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
-                    font_size: self.cfg.chewing_tsf.font_size as f32,
-                });
-                if let Ok(rect) = self.get_selection_rect(context) {
-                    notification.set_position(rect.left + 50, rect.bottom + 50);
-                    // HACK set position again to use correct DPI setting
-                    notification.set_position(rect.left + 50, rect.bottom + 50);
-                }
-                notification.show();
-                notification.set_timer(dur);
-                self.notification = Some(notification);
+            view.GetWnd().unwrap_or_default()
+        };
+        if let Some(thread_mgr) = &self.thread_mgr {
+            let notification = Notification::new(hwnd, thread_mgr.clone())?;
+            notification.set_model(NotificationModel {
+                text: text.clone(),
+                font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
+                font_size: self.cfg.chewing_tsf.font_size as f32,
+            });
+            if let Ok(rect) = self.get_selection_rect(context) {
+                notification.set_position(rect.left + 50, rect.bottom + 50);
+                // HACK set position again to use correct DPI setting
+                notification.set_position(rect.left + 50, rect.bottom + 50);
             }
+            notification.show();
+            notification.set_timer(dur);
+            self.notification = Some(notification);
         }
         Ok(())
     }
