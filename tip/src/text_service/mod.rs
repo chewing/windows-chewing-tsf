@@ -57,7 +57,7 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
     ITfActiveLanguageProfileNotifySink
 )]
 pub(super) struct TextService {
-    inner: RefCell<ChewingTextService>,
+    inner: RefCell<Option<ChewingTextService>>,
     tid: Cell<u32>,
     thread_cookies: RefCell<Vec<u32>>,
     thread_edit_sink_cookie: Cell<u32>,
@@ -68,7 +68,7 @@ pub(super) struct TextService {
 impl TextService {
     pub(super) fn new() -> TextService {
         TextService {
-            inner: RefCell::new(ChewingTextService::new()),
+            inner: RefCell::default(),
             tid: Cell::default(),
             thread_cookies: RefCell::new(vec![]),
             thread_edit_sink_cookie: Cell::new(TF_INVALID_COOKIE),
@@ -116,7 +116,9 @@ impl ITfFunctionProvider_Impl for TextService_Impl {
 impl IFnRunCommand_Impl for TextService_Impl {
     unsafe fn on_command(&self, id: u32, cmd_type: CommandType) {
         let mut ts = self.inner.borrow_mut();
-        ts.on_command(id, cmd_type);
+        if let Some(ts) = ts.as_mut() {
+            ts.on_command(id, cmd_type);
+        }
     }
 }
 
@@ -127,7 +129,13 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         let mut ts = self.inner.borrow_mut();
         let mut thread_cookies = self.thread_cookies.borrow_mut();
         let thread_mgr = ptim.ok()?;
-        let composition_sink = self.as_interface_ref();
+        let composition_sink: InterfaceRef<ITfCompositionSink> = self.as_interface_ref();
+        let Ok(cts) =
+            ChewingTextService::new(thread_mgr.clone(), tid, composition_sink.cast_object()?)
+        else {
+            return Err(E_UNEXPECTED.into());
+        };
+        ts.replace(cts);
 
         let punk: InterfaceRef<IUnknown> = self.as_interface_ref();
         // Set up event sinks
@@ -164,44 +172,33 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
                 .set(source.AdviseSink(&ITfCompartmentEventSink::IID, self.as_interface_ref())?);
         }
 
-        if let Err(error) = ts.activate(thread_mgr, tid, composition_sink) {
-            error!("Unable to activate chewing_tip: {error:#}");
-            return Err(E_UNEXPECTED.into());
-        }
-
         Ok(())
     }
 
     fn Deactivate(&self) -> Result<()> {
         info!("Deactivate chewing_tip");
-        let mut ts = self.inner.borrow_mut();
         let thread_cookies = self.thread_cookies.take();
 
-        let thread_mgr = match ts.deactivate() {
-            Ok(mgr) => mgr,
-            Err(error) => {
-                error!("Unable to deactivate chewing_tip: {error:#}");
-                return Err(E_UNEXPECTED.into());
-            }
-        };
+        if let Some(ts) = self.inner.borrow_mut().take() {
+            let thread_mgr = ts.deactivate();
 
-        // Remove event sinks
-        unsafe {
-            let source: ITfSource = thread_mgr.cast()?;
-            for cookie in thread_cookies {
-                source.UnadviseSink(cookie)?;
+            // Remove event sinks
+            unsafe {
+                let source: ITfSource = thread_mgr.cast()?;
+                for cookie in thread_cookies {
+                    source.UnadviseSink(cookie)?;
+                }
+                let source_single: ITfSourceSingle = thread_mgr.cast()?;
+                source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
+                let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
+                keystroke_mgr.UnadviseKeyEventSink(self.tid.get())?;
+                let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+                let openclose_compartment =
+                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+                let source: ITfSource = openclose_compartment.cast()?;
+                source.UnadviseSink(self.keyboard_openclose_cookie.get())?;
             }
-            let source_single: ITfSourceSingle = thread_mgr.cast()?;
-            source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
-            let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
-            keystroke_mgr.UnadviseKeyEventSink(self.tid.get())?;
-            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
-            let openclose_compartment =
-                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-            let source: ITfSource = openclose_compartment.cast()?;
-            source.UnadviseSink(self.keyboard_openclose_cookie.get())?;
         }
-
         Ok(())
     }
 }
@@ -239,6 +236,9 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
             return Ok(());
         }
         let mut ts = self.inner.borrow_mut();
+        let Some(ts) = ts.as_mut() else {
+            return Ok(());
+        };
         if pdimfocus.is_null() {
             if let Some(doc_mgr) = pdimprevfocus.as_ref() {
                 // From MSTF doc: To simplify this process and prevent
@@ -292,6 +292,9 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
         debug!("OnSetThreadFocus");
         let mut ts = self.inner.borrow_mut();
+        let Some(ts) = ts.as_mut() else {
+            return Ok(());
+        };
         if let Err(error) = ts.on_focus() {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
@@ -314,6 +317,7 @@ impl ITfTextEditSink_Impl for TextService_Impl {
         debug!("OnEndEdit");
         if let Some(context) = pic.as_ref()
             && let Ok(ts) = self.inner.try_borrow()
+            && let Some(ts) = ts.as_ref()
             && let Err(error) = ts.on_end_edit(context)
         {
             error!("Unable to handle OnEndEdit: {error:#}");
@@ -332,6 +336,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!("OnTestKeyDown {wparam:?} {lparam:?}");
         let mut ts = self.inner.borrow_mut();
+        let Some(ts) = ts.as_mut() else {
+            return Ok(FALSE);
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keydown(pic.ok()?, ev, true) {
             Ok(v) => v,
@@ -346,6 +353,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!("OnTestKeyUp {wparam:?} {lparam:?}");
         let mut ts = self.inner.borrow_mut();
+        let Some(ts) = ts.as_mut() else {
+            return Ok(FALSE);
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_keyup(pic.ok()?, ev, true) {
             Ok(v) => v,
@@ -361,6 +371,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         debug!("OnKeyDown {wparam:?} {lparam:?}");
         self.key_busy.set(true);
         let mut ts = self.inner.borrow_mut();
+        let Some(ts) = ts.as_mut() else {
+            return Ok(FALSE);
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keydown(pic.ok()?, ev, false) {
             Ok(v) => v,
@@ -376,6 +389,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         debug!("OnKeyUp {wparam:?} {lparam:?}");
         self.key_busy.set(false);
         let mut ts = self.inner.borrow_mut();
+        let Some(ts) = ts.as_mut() else {
+            return Ok(FALSE);
+        };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keyup(pic.ok()?, ev, false) {
             Ok(v) => v,
@@ -391,6 +407,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         debug!("OnPreservedKey");
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             let mut ts = self.inner.borrow_mut();
+            let Some(ts) = ts.as_mut() else {
+                return Ok(FALSE);
+            };
             let handled = ts.on_preserved_key(rguid);
             Ok(handled.into())
         } else {
@@ -412,6 +431,9 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
         if let Ok(mut ts) = self.inner.try_borrow_mut() {
+            let Some(ts) = ts.as_mut() else {
+                return Ok(());
+            };
             ts.on_composition_terminated();
         }
         Ok(())
@@ -423,6 +445,9 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!("received compartment change event: {rguid:?}");
             if let Ok(mut ts) = self.inner.try_borrow_mut() {
+                let Some(ts) = ts.as_mut() else {
+                    return Ok(());
+                };
                 if let Err(error) = ts.on_compartment_change(rguid) {
                     error!("Unable to handle compartment change: {error:#}");
                     return Err(E_UNEXPECTED.into());

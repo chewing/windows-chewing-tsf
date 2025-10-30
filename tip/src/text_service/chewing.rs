@@ -63,13 +63,12 @@ use windows::Win32::UI::WindowsAndMessaging::{
     MF_ENABLED, MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON,
     TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
 };
-use windows_core::{
-    BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, InterfaceRef, PCWSTR, PWSTR,
-};
+use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR, PWSTR};
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
 use crate::config::{Config, color_s};
+use crate::text_service::TextService;
 use crate::ui::window::window_register_class;
 
 use super::CommandType;
@@ -100,62 +99,75 @@ const SEL_KEYS: [&CStr; 6] = [
     c"1234qweras",
 ];
 
-#[derive(Default)]
+#[derive(Debug)]
+enum ShiftKeyState {
+    Down(Instant),
+    Up,
+}
+
+impl ShiftKeyState {
+    fn release(&mut self, dry_run: bool) -> Duration {
+        let duration = match self {
+            ShiftKeyState::Down(instant) => instant.elapsed(),
+            ShiftKeyState::Up => Duration::MAX,
+        };
+        if !dry_run {
+            *self = ShiftKeyState::Up;
+        }
+        duration
+    }
+}
+
 pub(super) struct ChewingTextService {
+    // === readonly ===
+    thread_mgr: ITfThreadMgr,
+    tid: u32,
+    input_da_atom: VARIANT,
+    _menu: Menu,
+    popup_menu: HMENU,
+    preserved_keys: BTreeMap<u128, TF_PRESERVEDKEY>,
+    lang_bar_buttons: Vec<ITfLangBarItemButton>,
+
+    // === mutable ===
     lang_mode: i32,
     shape_mode: i32,
     output_simp_chinese: bool,
     last_keydown: KeyboardEvent,
-    last_keydown_time: Option<Instant>,
+    shift_key_state: ShiftKeyState,
     cfg: Config,
     chewing_context: Option<*mut ChewingContext>,
-
-    preserved_keys: BTreeMap<u128, TF_PRESERVEDKEY>,
-    lang_bar_buttons: Vec<ITfLangBarItemButton>,
-    switch_lang_button: Option<ComObject<LangBarButton>>,
-    switch_shape_button: Option<ComObject<LangBarButton>>,
-    ime_mode_button: Option<ComObject<LangBarButton>>,
+    switch_lang_button: ComObject<LangBarButton>,
+    switch_shape_button: ComObject<LangBarButton>,
+    ime_mode_button: ComObject<LangBarButton>,
     notification: Option<ComObject<Notification>>,
     candidate_list: Option<ComObject<CandidateList>>,
-    thread_mgr: Option<ITfThreadMgr>,
     composition: Rc<RefCell<Option<ITfComposition>>>,
-    composition_sink: Option<ITfCompositionSink>,
+    composition_sink: ITfCompositionSink,
     pending_edit: RefCell<Option<ComObject<SetCompositionString>>>,
-    input_da_atom: VARIANT,
-    menu: Menu,
-    popup_menu: HMENU,
-    tid: u32,
 }
 
 impl ChewingTextService {
-    pub(super) fn new() -> ChewingTextService {
-        Default::default()
-    }
-
-    pub(super) fn activate(
-        &mut self,
-        thread_mgr: &ITfThreadMgr,
+    pub(super) fn new(
+        thread_mgr: ITfThreadMgr,
         tid: u32,
-        composition_sink: InterfaceRef<ITfCompositionSink>,
-    ) -> Result<()> {
-        self.thread_mgr = Some(thread_mgr.clone());
-        self.tid = tid;
-        self.composition_sink = Some(composition_sink.to_owned());
-        self.add_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
+        ts: ComObject<TextService>,
+    ) -> Result<ChewingTextService> {
         let da = TF_DISPLAYATTRIBUTE {
             lsStyle: TF_LS_DOT,
             bAttr: TF_ATTR_INPUT,
             ..Default::default()
         };
-        self.input_da_atom = register_display_attribute(&GUID_INPUT_DISPLAY_ATTRIBUTE, da)?;
+        let input_da_atom = register_display_attribute(&GUID_INPUT_DISPLAY_ATTRIBUTE, da)?;
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
+        let menu = Menu::load(g_hinstance, IDR_MENU);
 
         window_register_class();
 
+        let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
         info!("Detected theme info: {:?}", ThemeDetector::get_theme_info());
         info!("Add language bar buttons to switch Chinese/English modes");
-        unsafe {
+        let switch_lang_button = unsafe {
             let mut info = TF_LANGBARITEMINFO {
                 clsidService: CLSID_TEXT_SERVICE,
                 guidItem: GUID_MODE_BUTTON,
@@ -178,12 +190,12 @@ impl ChewingTextService {
                 thread_mgr.clone(),
             )
             .into_object();
-            self.switch_lang_button = Some(button.clone());
-            self.add_button(button.to_interface())?;
-        }
+            lang_bar_item_mgr.AddItem(button.as_interface())?;
+            button
+        };
 
         info!("Add language bar buttons to toggle full shape/half shape modes");
-        unsafe {
+        let switch_shape_button = unsafe {
             let mut info = TF_LANGBARITEMINFO {
                 clsidService: CLSID_TEXT_SERVICE,
                 guidItem: GUID_SHAPE_TYPE_BUTTON,
@@ -209,12 +221,12 @@ impl ChewingTextService {
                 thread_mgr.clone(),
             )
             .into_object();
-            self.switch_shape_button = Some(button.clone());
-            self.add_button(button.to_interface())?;
-        }
+            lang_bar_item_mgr.AddItem(button.as_interface())?;
+            button
+        };
 
         info!("Add button for settings and others, may open a popup menu");
-        unsafe {
+        let (settings_button, popup_menu) = unsafe {
             let mut info = TF_LANGBARITEMINFO {
                 clsidService: CLSID_TEXT_SERVICE,
                 guidItem: GUID_SETTINGS_BUTTON,
@@ -229,8 +241,7 @@ impl ChewingTextService {
                 info.szDescription.len() as i32,
             );
             // TODO we can define the menu in code
-            self.menu = Menu::load(g_hinstance, IDR_MENU);
-            self.popup_menu = self.menu.sub_menu(0);
+            let popup_menu = menu.sub_menu(0);
             let button = LangBarButton::new(
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
@@ -238,17 +249,18 @@ impl ChewingTextService {
                     Some(g_hinstance),
                     PCWSTR::from_raw(IDI_CONFIG as *const u16),
                 )?,
-                self.popup_menu,
+                popup_menu,
                 0,
                 thread_mgr.clone(),
             )
             .into_object();
-            self.add_button(button.to_interface())?;
-        }
+            lang_bar_item_mgr.AddItem(button.as_interface())?;
+            (button, popup_menu)
+        };
 
         // Windows 8 systray IME mode icon
         info!("Add systray IME mode icon to switch Chinese/English modes");
-        unsafe {
+        let ime_mode_button = unsafe {
             let mut info = TF_LANGBARITEMINFO {
                 clsidService: CLSID_TEXT_SERVICE,
                 guidItem: GUID_LBI_INPUTMODE,
@@ -262,27 +274,57 @@ impl ChewingTextService {
                 tooltip,
                 info.szDescription.len() as i32,
             );
-            let icon_id = self.get_lang_icon_id();
             let button = LangBarButton::new(
                 info,
                 BSTR::from_wide(tooltip.as_wide()),
-                LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?,
+                LoadIconW(Some(g_hinstance), PCWSTR::from_raw(IDI_CHI as *const u16))?,
                 HMENU::default(),
                 ID_MODE_ICON,
                 thread_mgr.clone(),
             )
             .into_object();
-            button.set_enabled(true)?;
-            self.ime_mode_button = Some(button.clone());
-            self.add_button(button.to_interface())?;
-        }
+            lang_bar_item_mgr.AddItem(button.as_interface())?;
+            button
+        };
+        let lang_bar_buttons = vec![
+            switch_lang_button.cast()?,
+            switch_shape_button.cast()?,
+            settings_button.cast()?,
+            ime_mode_button.cast()?,
+        ];
 
-        if let Err(error) = self.cfg.reload_if_needed() {
+        let mut cts = ChewingTextService {
+            thread_mgr,
+            tid,
+            composition_sink: ts.cast()?,
+            input_da_atom,
+            _menu: menu,
+            popup_menu,
+            lang_mode: Default::default(),
+            shape_mode: Default::default(),
+            output_simp_chinese: Default::default(),
+            last_keydown: Default::default(),
+            shift_key_state: ShiftKeyState::Up,
+            cfg: Default::default(),
+            chewing_context: Default::default(),
+            preserved_keys: Default::default(),
+            lang_bar_buttons,
+            switch_lang_button,
+            switch_shape_button,
+            ime_mode_button,
+            notification: Default::default(),
+            candidate_list: Default::default(),
+            composition: Default::default(),
+            pending_edit: Default::default(),
+        };
+        cts.add_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
+
+        if let Err(error) = cts.cfg.reload_if_needed() {
             error!("unable to load config: {error}");
         }
 
         // FIXME error handling
-        if let Err(error) = self.init_chewing_context() {
+        if let Err(error) = cts.init_chewing_context() {
             error!("unable to initialize chewing: {error}");
         }
 
@@ -291,31 +333,35 @@ impl ChewingTextService {
             .as_ref()
             .map(Duration::as_secs)
             .unwrap_or_default();
-        if self.cfg.chewing_tsf.auto_check_update_channel != "none"
-            && now.abs_diff(self.cfg.chewing_tsf.last_update_check_time) > 3600
+        if cts.cfg.chewing_tsf.auto_check_update_channel != "none"
+            && now.abs_diff(cts.cfg.chewing_tsf.last_update_check_time) > 3600
         {
             open_url("chewing-update-svc://check-now");
         }
-
-        Ok(())
+        Ok(cts)
     }
 
-    pub(super) fn deactivate(&mut self) -> Result<ITfThreadMgr> {
-        self.tid = 0;
-        self.free_chewing_context();
-        self.switch_lang_button = None;
-        self.switch_shape_button = None;
-        self.ime_mode_button = None;
-        self.remove_buttons()?;
-        self.remove_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
-        self.composition.replace(None);
-        self.hide_candidates();
-        self.hide_message();
-
+    pub(super) fn deactivate(mut self) -> ITfThreadMgr {
+        {
+            let this = &mut self;
+            if let Some(ctx) = this.chewing_context.take() {
+                unsafe {
+                    chewing_delete(ctx);
+                }
+            }
+        };
+        if let Err(error) = self.remove_buttons() {
+            error!("failed to remove buttons: {error:#}");
+        }
+        if let Err(error) =
+            self.remove_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)
+        {
+            error!("failed to remove preserved key: {error:#}");
+        }
         // TSF doc: The corresponding ITfTextInputProcessor::Deactivate
         // method that shuts down the text service must release all references
         // to the ptim parameter.
-        self.thread_mgr.take().context("there is no thread manager")
+        self.thread_mgr
     }
 
     pub(super) fn on_kill_focus(&mut self, context: &ITfContext) -> Result<()> {
@@ -376,8 +422,10 @@ impl ChewingTextService {
         let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
         debug!("on_keydown: {evt:?}");
         self.last_keydown = evt;
-        if self.last_keydown_time.is_none() {
-            self.last_keydown_time = Some(Instant::now());
+        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
+            && matches!(self.shift_key_state, ShiftKeyState::Up)
+        {
+            self.shift_key_state = ShiftKeyState::Down(Instant::now());
         }
         if evt.is_state_on(KeyState::Alt) {
             // bypass IME. This might be a shortcut key used in the application
@@ -623,15 +671,11 @@ impl ChewingTextService {
         let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
             || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
         let last_is_caps_lock = evt.ksym == SYM_CAPSLOCK;
-        let hold_duration = self
-            .last_keydown_time
-            .map(|t| t.elapsed())
-            .unwrap_or(Duration::from_secs(1));
 
         if self.cfg.chewing_tsf.switch_lang_with_shift
-            && hold_duration
-                < Duration::from_millis(self.cfg.chewing_tsf.shift_key_sensitivity as u64)
             && last_is_shift
+            && self.shift_key_state.release(dry_run)
+                < Duration::from_millis(self.cfg.chewing_tsf.shift_key_sensitivity as u64)
         {
             if dry_run {
                 return Ok(true);
@@ -647,7 +691,6 @@ impl ChewingTextService {
                 if self.cfg.chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
-                self.last_keydown_time = None;
                 self.last_keydown = KeyboardEvent::default();
                 return Ok(true);
             } else {
@@ -666,7 +709,6 @@ impl ChewingTextService {
                 if self.cfg.chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
-                self.last_keydown_time = None;
                 self.last_keydown = KeyboardEvent::default();
                 return Ok(true);
             }
@@ -685,12 +727,10 @@ impl ChewingTextService {
             if self.cfg.chewing_tsf.show_notification {
                 self.show_message(context, &msg, Duration::from_millis(500))?;
             }
-            self.last_keydown_time = None;
             self.last_keydown = KeyboardEvent::default();
             return Ok(true);
         }
 
-        self.last_keydown_time = None;
         self.last_keydown = KeyboardEvent::default();
         Ok(false)
     }
@@ -721,10 +761,8 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_compartment_change(&mut self, guid: &GUID) -> Result<()> {
-        if let Some(thread_mgr) = &self.thread_mgr
-            && guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
-        {
-            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+        if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
+            let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
             unsafe {
                 let thread_compartment =
                     compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
@@ -882,7 +920,7 @@ impl ChewingTextService {
             let session = SetCompositionString::new(
                 context.clone(),
                 self.composition.clone(),
-                self.composition_sink.clone().unwrap(),
+                self.composition_sink.clone(),
                 self.input_da_atom.clone(),
                 htext,
                 cursor,
@@ -922,22 +960,20 @@ impl ChewingTextService {
             // UILess console may not have valid HWND
             view.GetWnd().unwrap_or_default()
         };
-        if let Some(thread_mgr) = &self.thread_mgr {
-            let notification = Notification::new(hwnd, thread_mgr.clone())?;
-            notification.set_model(NotificationModel {
-                text: text.clone(),
-                font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
-                font_size: self.cfg.chewing_tsf.font_size as f32,
-            });
-            if let Ok(rect) = self.get_selection_rect(context) {
-                notification.set_position(rect.left + 50, rect.bottom + 50);
-                // HACK set position again to use correct DPI setting
-                notification.set_position(rect.left + 50, rect.bottom + 50);
-            }
-            notification.show();
-            notification.set_timer(dur);
-            self.notification = Some(notification);
+        let notification = Notification::new(hwnd, self.thread_mgr.clone())?;
+        notification.set_model(NotificationModel {
+            text: text.clone(),
+            font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
+            font_size: self.cfg.chewing_tsf.font_size as f32,
+        });
+        if let Ok(rect) = self.get_selection_rect(context) {
+            notification.set_position(rect.left + 50, rect.bottom + 50);
+            // HACK set position again to use correct DPI setting
+            notification.set_position(rect.left + 50, rect.bottom + 50);
         }
+        notification.show();
+        notification.set_timer(dur);
+        self.notification = Some(notification);
         Ok(())
     }
 
@@ -971,10 +1007,8 @@ impl ChewingTextService {
             let view = unsafe { context.GetActiveView()? };
             // UILess console may not have valid HWND
             let hwnd = unsafe { view.GetWnd().unwrap_or_default() };
-            if let Some(thread_mgr) = &self.thread_mgr {
-                let candidate_list = CandidateList::new(hwnd, thread_mgr.clone())?;
-                self.candidate_list = Some(candidate_list);
-            }
+            let candidate_list = CandidateList::new(hwnd, self.thread_mgr.clone())?;
+            self.candidate_list = Some(candidate_list);
         }
 
         if let Some(candidate_list) = &self.candidate_list {
@@ -1084,19 +1118,17 @@ impl ChewingTextService {
             }
             self.update_lang_buttons()?;
         }
-        if let Some(thread_mgr) = &self.thread_mgr {
-            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
-            unsafe {
-                let compartment =
-                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-                let openclose: i32 = match self.lang_mode {
-                    CHINESE_MODE => 1,
-                    SYMBOL_MODE => 0,
-                    _ => unreachable!(),
-                };
-                // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
-                let _ = compartment.SetValue(self.tid, &openclose.into());
-            }
+        let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
+        unsafe {
+            let compartment =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+            let openclose: i32 = match self.lang_mode {
+                CHINESE_MODE => 1,
+                SYMBOL_MODE => 0,
+                _ => unreachable!(),
+            };
+            // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
+            let _ = compartment.SetValue(self.tid, &openclose.into());
         }
         Ok(())
     }
@@ -1112,7 +1144,7 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn get_lang_icon_id(&mut self) -> u32 {
+    fn get_lang_icon_id(&self) -> u32 {
         let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode) {
             (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
             (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
@@ -1140,11 +1172,8 @@ impl ChewingTextService {
     }
 
     fn current_context(&self) -> Option<ITfContext> {
-        let Some(thread_mgr) = &self.thread_mgr else {
-            return None;
-        };
         unsafe {
-            let doc_mgr = thread_mgr.GetFocus().ok()?;
+            let doc_mgr = self.thread_mgr.GetFocus().ok()?;
             doc_mgr.GetTop().ok()
         }
     }
@@ -1185,14 +1214,6 @@ impl ChewingTextService {
             }
         }
         Ok(())
-    }
-
-    fn free_chewing_context(&mut self) {
-        if let Some(ctx) = self.chewing_context.take() {
-            unsafe {
-                chewing_delete(ctx);
-            }
-        }
     }
 
     fn apply_config_if_changed(&mut self) -> anyhow::Result<()> {
@@ -1259,21 +1280,15 @@ impl ChewingTextService {
         };
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let icon_id = self.get_lang_icon_id();
-        if let Some(button) = &self.switch_lang_button {
-            unsafe {
-                button.set_icon(LoadIconW(
-                    Some(g_hinstance),
-                    PCWSTR::from_raw(icon_id as *const u16),
-                )?)?;
-            }
-        }
-        if let Some(button) = &self.ime_mode_button {
-            unsafe {
-                button.set_icon(LoadIconW(
-                    Some(g_hinstance),
-                    PCWSTR::from_raw(icon_id as *const u16),
-                )?)?;
-            }
+        unsafe {
+            self.switch_lang_button.set_icon(LoadIconW(
+                Some(g_hinstance),
+                PCWSTR::from_raw(icon_id as *const u16),
+            )?)?;
+            self.ime_mode_button.set_icon(LoadIconW(
+                Some(g_hinstance),
+                PCWSTR::from_raw(icon_id as *const u16),
+            )?)?;
         }
         let shape_mode = unsafe { chewing_get_ShapeMode(ctx) };
         if shape_mode != self.shape_mode {
@@ -1283,13 +1298,11 @@ impl ChewingTextService {
             } else {
                 IDI_HALF_SHAPE
             };
-            if let Some(button) = &self.switch_shape_button {
-                unsafe {
-                    button.set_icon(LoadIconW(
-                        Some(g_hinstance),
-                        PCWSTR::from_raw(icon_id as *const u16),
-                    )?)?;
-                }
+            unsafe {
+                self.switch_shape_button.set_icon(LoadIconW(
+                    Some(g_hinstance),
+                    PCWSTR::from_raw(icon_id as *const u16),
+                )?)?;
             }
             let check_flag = if self.shape_mode == FULLSHAPE_MODE {
                 MF_CHECKED
@@ -1319,13 +1332,11 @@ impl ChewingTextService {
             uModifiers: modifiers,
         };
         self.preserved_keys.insert(guid.to_u128(), preserved_key);
-        if let Some(thread_mgr) = &self.thread_mgr {
-            let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
-            if let Err(error) =
-                unsafe { keystroke_mgr.PreserveKey(self.tid, &guid, &preserved_key, &[]) }
-            {
-                error!("unable to add preserved key: {error}");
-            }
+        let keystroke_mgr: ITfKeystrokeMgr = self.thread_mgr.cast()?;
+        if let Err(error) =
+            unsafe { keystroke_mgr.PreserveKey(self.tid, &guid, &preserved_key, &[]) }
+        {
+            error!("unable to add preserved key: {error}");
         }
         Ok(())
     }
@@ -1336,33 +1347,18 @@ impl ChewingTextService {
             uModifiers: modifiers,
         };
         self.preserved_keys.remove(&guid.to_u128());
-        if let Some(thread_mgr) = &self.thread_mgr {
-            let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
-            if let Err(error) = unsafe { keystroke_mgr.UnpreserveKey(&guid, &preserved_key) } {
-                error!("unable to remove preserved key: {error}");
-            }
-        }
-        Ok(())
-    }
-
-    fn add_button(&mut self, button: ITfLangBarItemButton) -> Result<()> {
-        self.lang_bar_buttons.push(button.clone());
-        if let Some(thread_mgr) = &self.thread_mgr {
-            let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
-            if let Err(error) = unsafe { lang_bar_item_mgr.AddItem(&button) } {
-                error!("unable to add lang bar item: {error}");
-            }
+        let keystroke_mgr: ITfKeystrokeMgr = self.thread_mgr.cast()?;
+        if let Err(error) = unsafe { keystroke_mgr.UnpreserveKey(&guid, &preserved_key) } {
+            error!("unable to remove preserved key: {error}");
         }
         Ok(())
     }
 
     fn remove_buttons(&mut self) -> Result<()> {
-        if let Some(thread_mgr) = &self.thread_mgr {
-            let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
-            for button in self.lang_bar_buttons.drain(0..) {
-                if let Err(error) = unsafe { lang_bar_item_mgr.RemoveItem(&button) } {
-                    error!("unable to remove lang bar item: {error}");
-                }
+        let lang_bar_item_mgr: ITfLangBarItemMgr = self.thread_mgr.cast()?;
+        for button in self.lang_bar_buttons.drain(0..) {
+            if let Err(error) = unsafe { lang_bar_item_mgr.RemoveItem(&button) } {
+                error!("unable to remove lang bar item: {error}");
             }
         }
         Ok(())
