@@ -6,7 +6,7 @@ use std::ffi::{CStr, c_int, c_void};
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -52,7 +52,7 @@ use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
     TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
-    TF_MOD_CONTROL, TF_S_ASYNC, TF_SD_READONLY,
+    TF_MOD_CONTROL, TF_SD_READONLY,
 };
 use windows::Win32::UI::TextServices::{
     ITfComposition, ITfKeystrokeMgr, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
@@ -118,6 +118,11 @@ impl ShiftKeyState {
     }
 }
 
+pub(super) struct CommitString {
+    pub(super) text: HSTRING,
+    pub(super) cursor: i32,
+}
+
 pub(super) struct ChewingTextService {
     // === readonly ===
     thread_mgr: ITfThreadMgr,
@@ -143,7 +148,7 @@ pub(super) struct ChewingTextService {
     candidate_list: Option<ComObject<CandidateList>>,
     composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
-    pending_edit: RefCell<Option<ComObject<SetCompositionString>>>,
+    pending_edit: Weak<RefCell<CommitString>>,
 }
 
 impl ChewingTextService {
@@ -315,7 +320,7 @@ impl ChewingTextService {
             notification: Default::default(),
             candidate_list: Default::default(),
             composition: Default::default(),
-            pending_edit: Default::default(),
+            pending_edit: Weak::new(),
         };
         cts.add_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
 
@@ -875,7 +880,7 @@ impl ChewingTextService {
         let Some(composition) = self.composition.take() else {
             return Ok(());
         };
-        self.pending_edit.replace(None);
+        self.pending_edit = Weak::new();
         {
             let session = EndComposition::new(context.clone(), composition).into_object();
             debug!("end composition start");
@@ -904,19 +909,25 @@ impl ChewingTextService {
         } else {
             text.into()
         };
-        if let Some(ref session) = *self.pending_edit.borrow() {
+        if let Some(cell) = self.pending_edit.upgrade() {
             debug!("Reuse existing edit session: {htext} {cursor}");
-            session.update(htext, cursor);
+            let mut pending = cell.borrow_mut();
+            pending.text = htext;
+            pending.cursor = cursor;
         } else {
+            let pending = Rc::new(RefCell::new(CommitString {
+                text: htext,
+                cursor,
+            }));
             let session = SetCompositionString::new(
                 context.clone(),
                 self.composition.clone(),
                 self.composition_sink.clone(),
                 self.input_da_atom.clone(),
-                htext,
-                cursor,
+                pending.clone(),
             )
             .into_object();
+            self.pending_edit = Rc::downgrade(&pending);
             unsafe {
                 match context.RequestEditSession(
                     self.tid,
@@ -928,19 +939,9 @@ impl ChewingTextService {
                         if let Err(error) = res.ok() {
                             error!("failed to set composition: {error}")
                         }
-                        if res == TF_S_ASYNC {
-                            self.pending_edit.borrow_mut().replace(session);
-                        }
                     }
                 }
             }
-        }
-        Ok(())
-    }
-
-    pub(super) fn on_end_edit(&self, context: &ITfContext) -> Result<()> {
-        if unsafe { context.InWriteSession(self.tid)? }.as_bool() {
-            self.pending_edit.replace(None);
         }
         Ok(())
     }

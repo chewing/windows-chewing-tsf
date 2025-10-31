@@ -50,7 +50,6 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
     ITfDisplayAttributeProvider,
     ITfFunctionProvider,
     ITfKeyEventSink,
-    ITfTextEditSink,
     ITfTextInputProcessorEx,
     ITfThreadMgrEventSink,
     ITfThreadFocusSink,
@@ -60,7 +59,6 @@ pub(super) struct TextService {
     inner: RefCell<Option<ChewingTextService>>,
     tid: Cell<u32>,
     thread_cookies: RefCell<Vec<u32>>,
-    thread_edit_sink_cookie: Cell<u32>,
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
 }
@@ -71,7 +69,6 @@ impl TextService {
             inner: RefCell::default(),
             tid: Cell::default(),
             thread_cookies: RefCell::new(vec![]),
-            thread_edit_sink_cookie: Cell::new(TF_INVALID_COOKIE),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
         }
@@ -252,26 +249,11 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
                     error!("Unable to kill focus: {error:#}");
                     return Err(E_UNEXPECTED.into());
                 }
-                if self.thread_edit_sink_cookie.get() != TF_INVALID_COOKIE {
-                    let source: ITfSource = context.cast()?;
-                    unsafe {
-                        source.UnadviseSink(self.thread_edit_sink_cookie.get())?;
-                        self.thread_edit_sink_cookie.set(TF_INVALID_COOKIE);
-                    }
-                }
             }
         } else if pdimfocus.is_some() {
             if let Err(error) = ts.on_focus() {
                 error!("Unable to handle focus: {error:#}");
                 return Err(E_UNEXPECTED.into());
-            }
-            if let Some(doc_mgr) = pdimfocus.as_ref() {
-                let context = unsafe { doc_mgr.GetBase()? };
-                let source: ITfSource = context.cast()?;
-                unsafe {
-                    self.thread_edit_sink_cookie
-                        .set(source.AdviseSink(&ITfTextEditSink::IID, self.as_interface_ref())?);
-                }
             }
         }
         Ok(())
@@ -303,26 +285,6 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
     }
     fn OnKillThreadFocus(&self) -> Result<()> {
         debug!("OnKillThreadFocus");
-        Ok(())
-    }
-}
-
-impl ITfTextEditSink_Impl for TextService_Impl {
-    fn OnEndEdit(
-        &self,
-        pic: Ref<ITfContext>,
-        _ecreadonly: u32,
-        _peditrecord: Ref<ITfEditRecord>,
-    ) -> Result<()> {
-        debug!("OnEndEdit");
-        if let Some(context) = pic.as_ref()
-            && let Ok(ts) = self.inner.try_borrow()
-            && let Some(ts) = ts.as_ref()
-            && let Err(error) = ts.on_end_edit(context)
-        {
-            error!("Unable to handle OnEndEdit: {error:#}");
-            return Err(E_UNEXPECTED.into());
-        }
         Ok(())
     }
 }

@@ -17,6 +17,8 @@ use windows::Win32::UI::TextServices::{
 };
 use windows_core::{BOOL, HSTRING, Interface, Result, implement};
 
+use super::chewing::CommitString;
+
 fn set_selection(
     context: &ITfContext,
     ec: u32,
@@ -67,8 +69,7 @@ pub(super) struct SetCompositionString {
     composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
     da_atom: VARIANT,
-    text: Cell<HSTRING>,
-    cursor: Cell<i32>,
+    pending: Rc<RefCell<CommitString>>,
 }
 
 impl SetCompositionString {
@@ -77,21 +78,15 @@ impl SetCompositionString {
         composition: Rc<RefCell<Option<ITfComposition>>>,
         composition_sink: ITfCompositionSink,
         da_atom: VARIANT,
-        text: HSTRING,
-        cursor: i32,
+        pending: Rc<RefCell<CommitString>>,
     ) -> SetCompositionString {
         Self {
             context,
             composition,
             composition_sink,
             da_atom,
-            text: Cell::new(text),
-            cursor: Cell::new(cursor),
+            pending,
         }
-    }
-    pub(super) fn update(&self, text: HSTRING, cursor: i32) {
-        self.text.set(text);
-        self.cursor.set(cursor);
     }
 }
 
@@ -113,8 +108,9 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
                 self.composition.replace(Some(composition?));
             }
             if let Some(composition) = self.composition.borrow().as_ref() {
+                let pending = self.pending.borrow();
                 let range = composition.GetRange()?;
-                if let Err(error) = range.SetText(ec, 0, &self.text.take()) {
+                if let Err(error) = range.SetText(ec, 0, &pending.text) {
                     error!("set composition string failed: {error}");
                 }
                 let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
@@ -125,8 +121,8 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
                 let cursor_range = range.Clone()?;
                 let mut moved = 0;
                 cursor_range.Collapse(ec, TF_ANCHOR_START)?;
-                cursor_range.ShiftEnd(ec, self.cursor.get(), &mut moved, ptr::null())?;
-                cursor_range.ShiftStart(ec, self.cursor.get(), &mut moved, ptr::null())?;
+                cursor_range.ShiftEnd(ec, pending.cursor, &mut moved, ptr::null())?;
+                cursor_range.ShiftStart(ec, pending.cursor, &mut moved, ptr::null())?;
                 set_selection(&self.context, ec, cursor_range, TF_AE_END)?;
             }
         }
