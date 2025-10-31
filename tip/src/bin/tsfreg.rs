@@ -15,7 +15,7 @@ use windows::{
 use windows_registry::LOCAL_MACHINE;
 
 // https://learn.microsoft.com/en-us/windows/win32/tsf/installlayoutortip
-windows_link::link!("input.dll" "system" fn InstallLayoutOrTip(psz: *const u16, dwFlags: u32));
+windows_core::link!("input.dll" "system" fn InstallLayoutOrTip(psz: *const u16, dwFlags: u32));
 const ILOT_INSTALL: u32 = 0x00000000;
 const ILOT_UNINSTALL: u32 = 0x00000001;
 

@@ -17,7 +17,6 @@ log = "0.4.22"
 win_dbg_logger = "0.1.0"
 windows-core = "0.62.2"
 windows-numerics = "0.3.1"
-windows-link = "0.2.1"
 windows-registry = "0.6.1"
 windows = { version = "0.62.2", features = [
     "Foundation_Numerics",

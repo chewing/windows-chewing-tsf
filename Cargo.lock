@@ -128,7 +128,6 @@ dependencies = [
  "win_dbg_logger",
  "windows",
  "windows-core",
- "windows-link",
  "windows-numerics",
  "windows-registry",
  "zhconv",
