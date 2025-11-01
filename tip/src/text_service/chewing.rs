@@ -12,8 +12,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
+use chewing::input::KeyState;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
-use chewing::input::{KeyState, KeyboardEvent};
 use chewing_capi::candidates::{
     chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
     chewing_cand_TotalChoice, chewing_cand_choose_by_index, chewing_cand_close,
@@ -102,6 +102,7 @@ const SEL_KEYS: [&CStr; 6] = [
 #[derive(Debug)]
 enum ShiftKeyState {
     Down(Instant),
+    Consumed,
     Up,
 }
 
@@ -109,7 +110,7 @@ impl ShiftKeyState {
     fn release(&mut self) -> Duration {
         let duration = match self {
             ShiftKeyState::Down(instant) => instant.elapsed(),
-            ShiftKeyState::Up => Duration::MAX,
+            ShiftKeyState::Consumed | ShiftKeyState::Up => Duration::MAX,
         };
         *self = ShiftKeyState::Up;
         duration
@@ -136,7 +137,6 @@ pub(super) struct ChewingTextService {
     shape_mode: i32,
     output_simp_chinese: bool,
     open: bool,
-    last_keydown: KeyboardEvent,
     shift_key_state: ShiftKeyState,
     cfg: Config,
     chewing_context: *mut ChewingContext,
@@ -308,7 +308,6 @@ impl ChewingTextService {
             shape_mode: Default::default(),
             open: true,
             output_simp_chinese: Default::default(),
-            last_keydown: Default::default(),
             shift_key_state: ShiftKeyState::Up,
             cfg: Default::default(),
             chewing_context: Default::default(),
@@ -382,9 +381,15 @@ impl ChewingTextService {
     pub(super) fn on_test_keydown(&mut self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
-        // Save last_keydown here, this might be our last chance seeing this key.
-        self.last_keydown = evt;
-        debug!("on_filter_keydown: {evt:?}");
+        // Determine shift key state here, this might be our last chance seeing this key.
+        if evt.ksym != SYM_LEFTSHIFT
+            && evt.ksym != SYM_RIGHTSHIFT
+            && evt.is_state_on(KeyState::Shift)
+        {
+            self.shift_key_state = ShiftKeyState::Consumed;
+        }
+        debug!("on_test_keydown: {evt:?}");
+        debug!("shift_key_state: {:?}", self.shift_key_state);
         //
         // Step 1. apply any config changes
         //
@@ -656,8 +661,7 @@ impl ChewingTextService {
 
         let ctx = self.chewing_context;
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
-        let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
-            || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
+        let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
 
         debug!("last_is_shift: {last_is_shift}, last_is_capslock: {last_is_capslock}");
@@ -709,12 +713,6 @@ impl ChewingTextService {
             }
         }
 
-        // If shift key is down then don't clear the last key.
-        // When typing fast, this sequence is common
-        // 'A' Down, 'Shift' Down, 'A' Up, 'Shift' Up
-        if !evt.is_state_on(KeyState::Shift) {
-            self.last_keydown = KeyboardEvent::default();
-        }
         Ok(true)
     }
 
