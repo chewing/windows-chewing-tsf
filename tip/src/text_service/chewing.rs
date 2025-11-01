@@ -137,6 +137,7 @@ pub(super) struct ChewingTextService {
     lang_mode: i32,
     shape_mode: i32,
     output_simp_chinese: bool,
+    open: bool,
     last_keydown: KeyboardEvent,
     shift_key_state: ShiftKeyState,
     cfg: Config,
@@ -307,6 +308,7 @@ impl ChewingTextService {
             popup_menu,
             lang_mode: Default::default(),
             shape_mode: Default::default(),
+            open: true,
             output_simp_chinese: Default::default(),
             last_keydown: Default::default(),
             shift_key_state: ShiftKeyState::Up,
@@ -425,6 +427,10 @@ impl ChewingTextService {
         {
             self.shift_key_state = ShiftKeyState::Down(Instant::now());
             return Ok(true);
+        }
+        if self.cfg.chewing_tsf.enable_caps_lock && !self.open {
+            // Disable all processing when disabled
+            return Ok(false);
         }
         if evt.is_state_on(KeyState::Alt) {
             // bypass IME. This might be a shortcut key used in the application
@@ -658,16 +664,15 @@ impl ChewingTextService {
         dry_run: bool,
     ) -> Result<bool> {
         let ctx = self.chewing_context;
-        // HACK: we cannot update the openclose compartment in the OnChange
-        // handler, so we sync once more in the keyup handler when enable_caps_lock is true
-        // to ensure the compartment matches the input mode.
-        if self.cfg.chewing_tsf.enable_caps_lock {
-            let _ = self.sync_lang_mode();
-        }
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
             || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
         let last_is_caps_lock = evt.ksym == SYM_CAPSLOCK;
+
+        if self.cfg.chewing_tsf.enable_caps_lock && !self.open {
+            // Disable all processing when disabled
+            return Ok(false);
+        }
 
         if self.cfg.chewing_tsf.switch_lang_with_shift
             && last_is_shift
@@ -771,6 +776,7 @@ impl ChewingTextService {
     }
 
     fn on_keyboard_status_changed(&mut self, opened: bool) -> Result<()> {
+        self.open = opened;
         if opened {
             self.lang_mode = CHINESE_MODE;
         } else {
@@ -1107,17 +1113,20 @@ impl ChewingTextService {
         }
         self.update_lang_buttons()?;
 
-        let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
-        unsafe {
-            let compartment =
-                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-            let openclose: i32 = match self.lang_mode {
-                CHINESE_MODE => 1,
-                SYMBOL_MODE => 0,
-                _ => unreachable!(),
-            };
-            // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
-            let _ = compartment.SetValue(self.tid, &openclose.into());
+        // The OpenClose compartment is not synced when CapsLock English mode is enabled
+        if !self.cfg.chewing_tsf.enable_caps_lock {
+            let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
+            unsafe {
+                let compartment =
+                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+                let openclose: i32 = match self.lang_mode {
+                    CHINESE_MODE => 1,
+                    SYMBOL_MODE => 0,
+                    _ => unreachable!(),
+                };
+                // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
+                let _ = compartment.SetValue(self.tid, &openclose.into());
+            }
         }
         Ok(())
     }
@@ -1272,6 +1281,9 @@ impl ChewingTextService {
                 Some(g_hinstance),
                 PCWSTR::from_raw(icon_id as *const u16),
             )?)?;
+            if self.cfg.chewing_tsf.enable_caps_lock {
+                let _ = self.ime_mode_button.set_enabled(self.open);
+            }
         }
         let shape_mode = unsafe { chewing_get_ShapeMode(ctx) };
         if shape_mode != self.shape_mode {
