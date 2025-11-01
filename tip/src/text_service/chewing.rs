@@ -34,8 +34,8 @@ use chewing_capi::modes::{
 use chewing_capi::output::{
     chewing_ack, chewing_aux_Check, chewing_aux_String, chewing_bopomofo_Check,
     chewing_bopomofo_String_static, chewing_buffer_Check, chewing_buffer_String,
-    chewing_clean_bopomofo_buf, chewing_commit_Check, chewing_commit_String,
-    chewing_commit_preedit_buf, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
+    chewing_clean_bopomofo_buf, chewing_clean_preedit_buf, chewing_commit_Check,
+    chewing_commit_String, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
 use log::{debug, error, info};
@@ -422,10 +422,11 @@ impl ChewingTextService {
         debug!("on_keydown: {evt:?}");
         self.last_keydown = evt;
         if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
-            && matches!(self.shift_key_state, ShiftKeyState::Up)
             && self.cfg.chewing_tsf.switch_lang_with_shift
         {
-            self.shift_key_state = ShiftKeyState::Down(Instant::now());
+            if matches!(self.shift_key_state, ShiftKeyState::Up) {
+                self.shift_key_state = ShiftKeyState::Down(Instant::now());
+            }
             return Ok(true);
         }
         if self.cfg.chewing_tsf.enable_caps_lock && !self.open {
@@ -748,7 +749,7 @@ impl ChewingTextService {
                 chewing_clean_bopomofo_buf(ctx);
             }
             if chewing_buffer_Check(ctx) == 1 {
-                chewing_commit_preedit_buf(ctx);
+                chewing_clean_preedit_buf(ctx);
             }
         }
         self.composition.replace(None);
@@ -1129,6 +1130,15 @@ impl ChewingTextService {
                 };
                 // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
                 let _ = compartment.SetValue(self.tid, &openclose.into());
+                // XXX: In CUAS mode changing the openclose compartment value might terminate
+                // the current composition. We can't recursively handle the callback yet,
+                // so check the composition here.
+                let composition = self.composition.borrow().clone();
+                if let Some(composition) = composition {
+                    if composition.GetRange().is_err() {
+                        self.on_composition_terminated();
+                    }
+                }
             }
         }
         Ok(())
