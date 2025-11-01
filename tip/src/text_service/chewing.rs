@@ -780,9 +780,12 @@ impl ChewingTextService {
         if opened {
             self.lang_mode = CHINESE_MODE;
         } else {
-            let context = self
-                .current_context()
-                .context("unable to get current ITfContext")?;
+            let context = unsafe {
+                self.thread_mgr
+                    .GetFocus()
+                    .and_then(|doc_mgr| doc_mgr.GetTop())
+            }
+            .context("unable to get current ITfContext")?;
             self.on_kill_focus(&context)?;
             self.lang_mode = SYMBOL_MODE;
         }
@@ -952,6 +955,16 @@ impl ChewingTextService {
         Ok(())
     }
 
+    fn get_selection_rect(&self, context: &ITfContext) -> Result<RECT> {
+        let session = SelectionRect::new(context.clone()).into_object();
+        unsafe {
+            context
+                .RequestEditSession(self.tid, session.as_interface(), TF_ES_SYNC | TF_ES_READ)?
+                .ok()?;
+        }
+        Ok(session.rect())
+    }
+
     fn show_message(&mut self, context: &ITfContext, text: &HSTRING, dur: Duration) -> Result<()> {
         let hwnd = unsafe {
             let view = context.GetActiveView()?;
@@ -980,16 +993,6 @@ impl ChewingTextService {
             notification.set_timer(Duration::ZERO);
             notification.end_ui_element();
         }
-    }
-
-    fn get_selection_rect(&self, context: &ITfContext) -> Result<RECT> {
-        let session = SelectionRect::new(context.clone()).into_object();
-        unsafe {
-            context
-                .RequestEditSession(self.tid, session.as_interface(), TF_ES_SYNC | TF_ES_READ)?
-                .ok()?;
-        }
-        Ok(session.rect())
     }
 
     fn update_candidates(&mut self, context: &ITfContext) -> Result<()> {
@@ -1166,13 +1169,6 @@ impl ChewingTextService {
             (IDI_SIMP, true) => IDI_SIMP_DOT,
             (IDI_SIMP_DARK, true) => IDI_SIMP_DARK_DOT,
             _ => icon_id,
-        }
-    }
-
-    fn current_context(&self) -> Option<ITfContext> {
-        unsafe {
-            let doc_mgr = self.thread_mgr.GetFocus().ok()?;
-            doc_mgr.GetTop().ok()
         }
     }
 
