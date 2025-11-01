@@ -145,7 +145,7 @@ jobs:
         run: |
           cargo xtask build-installer --release --target msvc
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: Installer Artifact
           path: build/installer
@@ -173,7 +173,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Download Installer Artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: Installer Artifact
           path: build/installer
@@ -184,7 +184,7 @@ jobs:
           cargo xtask package-installer
 
       - id: upload-unsigned
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Unsigned Installer
           path: |
