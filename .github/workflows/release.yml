@@ -28,11 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Download Installer Artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: Installer Artifact
           path: build/installer
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           name: Signed Installer
           path: dist
@@ -43,7 +43,7 @@ jobs:
           mv dist/windows-chewing-tsf.msi dist/windows-chewing-tsf-$REF_NAME.msi
           mv dist/windows-chewing-tsf.msi.sha256 dist/windows-chewing-tsf-$REF_NAME.msi.sha256
       - name: GH Release
-        uses: softprops/action-gh-release@v2.3.3
+        uses: softprops/action-gh-release@v2.4.1
         with:
           tag_name: v${{github.ref_name}}
           name: 穩定版 ${{github.ref_name}}
