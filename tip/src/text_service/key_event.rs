@@ -11,6 +11,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_SHIFT,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub(super) struct KeyEvent {
     vk: u16,
     scan_code: u16,
@@ -57,7 +58,7 @@ impl KeyEvent {
     fn is_key_toggled(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & 1 != 0
     }
-    pub(super) fn to_keyboard_event(&self, kbtype: i32) -> KeyboardEvent {
+    pub(super) fn to_keyboard_event(self, kbtype: i32) -> KeyboardEvent {
         let keycode = SCANCODE_MAP
             .binary_search_by_key(&self.scan_code, |&(w, _)| w)
             .ok()
@@ -73,7 +74,7 @@ impl KeyEvent {
             .map(|idx| VKEY_MAP[idx].1)
             .unwrap_or_else(|| {
                 if let Some(keymap) = keymap {
-                    map_keycode(&keymap, keycode, self.is_key_down(VK_SHIFT)).ksym
+                    map_keycode(keymap, keycode, self.is_key_down(VK_SHIFT)).ksym
                 } else {
                     Keysym(self.ascii_code as u32)
                 }

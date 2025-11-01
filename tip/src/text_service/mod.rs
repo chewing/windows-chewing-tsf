@@ -250,11 +250,11 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
                     return Err(E_UNEXPECTED.into());
                 }
             }
-        } else if pdimfocus.is_some() {
-            if let Err(error) = ts.on_focus() {
-                error!("Unable to handle focus: {error:#}");
-                return Err(E_UNEXPECTED.into());
-            }
+        } else if pdimfocus.is_some()
+            && let Err(error) = ts.on_focus()
+        {
+            error!("Unable to handle focus: {error:#}");
+            return Err(E_UNEXPECTED.into());
         }
         Ok(())
     }
@@ -302,7 +302,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
             return Ok(FALSE);
         };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let should_handle = match ts.on_keydown(pic.ok()?, ev, true) {
+        let should_handle = match ts.on_test_keydown(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
                 error!("Unable to handle OnTestKeyDown: {error:#}");
@@ -319,7 +319,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
             return Ok(FALSE);
         };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let should_handle = match ts.on_keyup(pic.ok()?, ev, true) {
+        let should_handle = match ts.on_test_keyup(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
                 error!("Unable to handle OnTestKeyUp: {error:#}");
@@ -337,7 +337,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
             return Ok(FALSE);
         };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let handled = match ts.on_keydown(pic.ok()?, ev, false) {
+        let handled = match ts.on_keydown(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
                 error!("Unable to handle OnKeyDown: {error:#}");
@@ -355,7 +355,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
             return Ok(FALSE);
         };
         let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
-        let handled = match ts.on_keyup(pic.ok()?, ev, false) {
+        let handled = match ts.on_keyup(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
                 error!("Unable to handle OnKeyUp: {error:#}");

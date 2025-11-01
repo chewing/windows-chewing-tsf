@@ -133,18 +133,16 @@ fn main() -> Result<()> {
             process::exit(1);
         }
 
-        if let Some("-r") = env::args().nth(1).as_ref().map(|s| s.as_str()) {
+        if let Some("-r") = env::args().nth(1).as_deref() {
             let icon_path = env::args().nth(2).expect("缺少 IconPath");
             register(icon_path)?;
-        } else if let Some("-i") = env::args().nth(1).as_ref().map(|s| s.as_str()) {
+        } else if let Some("-i") = env::args().nth(1).as_deref() {
             enable();
-        } else if let Some("-d") = env::args().nth(1).as_ref().map(|s| s.as_str()) {
+        } else if let Some("-d") = env::args().nth(1).as_deref() {
             disable();
-        } else {
-            if let Err(err) = unregister() {
-                println!("警告：無法解除輸入法註冊，反安裝可能無法正常完成。");
-                println!("錯誤訊息：{:?}", err);
-            }
+        } else if let Err(err) = unregister() {
+            println!("警告：無法解除輸入法註冊，反安裝可能無法正常完成。");
+            println!("錯誤訊息：{:?}", err);
         }
     }
 

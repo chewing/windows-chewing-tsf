@@ -106,14 +106,12 @@ enum ShiftKeyState {
 }
 
 impl ShiftKeyState {
-    fn release(&mut self, dry_run: bool) -> Duration {
+    fn release(&mut self) -> Duration {
         let duration = match self {
             ShiftKeyState::Down(instant) => instant.elapsed(),
             ShiftKeyState::Up => Duration::MAX,
         };
-        if !dry_run {
-            *self = ShiftKeyState::Up;
-        }
+        *self = ShiftKeyState::Up;
         duration
     }
 }
@@ -381,16 +379,39 @@ impl ChewingTextService {
         Ok(())
     }
 
-    pub(super) fn on_keydown(
-        &mut self,
-        context: &ITfContext,
-        ev: KeyEvent,
-        dry_run: bool,
-    ) -> Result<bool> {
+    pub(super) fn on_test_keydown(&mut self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+        let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
+        let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
+        // Save last_keydown here, this might be our last chance seeing this key.
+        self.last_keydown = evt;
+        debug!("on_filter_keydown: {evt:?}");
+        //
+        // Step 1. apply any config changes
+        //
         if let Err(error) = self.apply_config_if_changed() {
             error!("unable to load config: {error}");
         }
-        let ctx = self.chewing_context;
+        //
+        // Step 2. handle any mode change related keydown
+        //
+        //
+        // Step 2.1 handle switch lang with Shift
+        //
+        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
+            && self.cfg.chewing_tsf.switch_lang_with_shift
+        {
+            return Ok(true);
+        }
+        //
+        // Step 2.2 handle switch lang with CapsLock
+        //
+        if self.cfg.chewing_tsf.enable_caps_lock && !self.open {
+            // Disable all processing when disabled
+            return Ok(false);
+        }
+        //
+        // Step 3. ignore key events if the document is readonly or inactive
+        //
         let status = unsafe { context.GetStatus()? };
         if status.dwDynamicFlags & TF_SD_READONLY != 0 {
             debug!("key not handled - readonly document");
@@ -417,22 +438,9 @@ impl ChewingTextService {
                 }
             }
         }
-        let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
-        let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
-        debug!("on_keydown: {evt:?}");
-        self.last_keydown = evt;
-        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
-            && self.cfg.chewing_tsf.switch_lang_with_shift
-        {
-            if matches!(self.shift_key_state, ShiftKeyState::Up) {
-                self.shift_key_state = ShiftKeyState::Down(Instant::now());
-            }
-            return Ok(true);
-        }
-        if self.cfg.chewing_tsf.enable_caps_lock && !self.open {
-            // Disable all processing when disabled
-            return Ok(false);
-        }
+        //
+        // Step 4. ignore key events if they might be shortcut keys
+        //
         if evt.is_state_on(KeyState::Alt) {
             // bypass IME. This might be a shortcut key used in the application
             debug!("key not handled - Alt modifier key was down");
@@ -442,10 +450,12 @@ impl ChewingTextService {
             // bypass IME. This might be a shortcut key used in the application
             if self.is_composing() && evt.ksym.is_digit() {
                 // need to handle userphrase
+                return Ok(true);
             } else if evt.is_state_on(KeyState::Shift)
                 && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl
             {
                 // need to handle easy symbol input
+                return Ok(true);
             } else {
                 debug!("key not handled - Ctrl modifier key was down");
                 return Ok(false);
@@ -462,10 +472,12 @@ impl ChewingTextService {
                     && self.cfg.chewing_tsf.enable_fullwidth_toggle_key
                 {
                     // need to handle fullwidth mode switch
+                    return Ok(true);
                 } else if evt.is_state_on(KeyState::CapsLock)
                     && self.cfg.chewing_tsf.enable_caps_lock
                 {
                     // need to invert case
+                    return Ok(true);
                 } else {
                     debug!("key not handled - in English mode");
                     return Ok(false);
@@ -481,14 +493,26 @@ impl ChewingTextService {
                 return Ok(false);
             }
         }
+        Ok(true)
+    }
 
-        if dry_run {
-            debug!("early return in dry_run mode - key should be handled");
-            return Ok(true);
+    pub(super) fn on_keydown(&mut self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+        if !self.on_test_keydown(context, ev)? {
+            return Ok(false);
+        }
+        let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
+        debug!("on_keydown: {evt:?}");
+
+        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
+            && self.cfg.chewing_tsf.switch_lang_with_shift
+            && matches!(self.shift_key_state, ShiftKeyState::Up)
+        {
+            debug!("shift_key_state = Down");
+            self.shift_key_state = ShiftKeyState::Down(Instant::now());
         }
 
+        let ctx = self.chewing_context;
         if evt.ksym.is_unicode() {
-            let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
             let mut momentary_english_mode = false;
             let mut invert_case = false;
             // Invert case if the SYMBOL_MODE is forced by CapsLock
@@ -515,6 +539,7 @@ impl ChewingTextService {
                     chewing_handle_ShiftSpace(ctx);
                 }
             } else if self.lang_mode == SYMBOL_MODE || momentary_english_mode {
+                let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
                 unsafe {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 }
@@ -605,45 +630,7 @@ impl ChewingTextService {
             debug!("commit string ok");
         }
 
-        let mut composition_buf = String::new();
-        if unsafe { chewing_buffer_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_buffer_String(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let text = cstr.to_string_lossy().into_owned();
-            unsafe {
-                chewing_free(ptr.cast());
-            }
-            composition_buf.push_str(&text);
-        }
-        if unsafe { chewing_bopomofo_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_bopomofo_String_static(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let pos = unsafe { chewing_cursor_Current(ctx) } as usize;
-            let idx = composition_buf
-                .char_indices()
-                .nth(pos)
-                .map(|pair| pair.0)
-                .unwrap_or(composition_buf.len());
-            composition_buf.insert_str(idx, &cstr.to_string_lossy());
-        }
-
-        // has something in composition buffer
-        if !composition_buf.is_empty() {
-            let cursor = unsafe { chewing_cursor_Current(ctx) };
-            self.set_composition_string(context, &composition_buf, cursor)?;
-        } else {
-            // nothing left in composition buffer, terminate composition status
-            if self.is_composing() {
-                self.set_composition_string(context, "", 0)?;
-            }
-            // We also need to make sure that the candidate window is not
-            // currently shown. When typing symbols with ` key, it's possible
-            // that the composition string empty, while the candidate window is
-            // shown. We should not terminate the composition in this case.
-            if self.candidate_list.is_none() {
-                self.end_composition(context)?;
-            }
-        }
+        self.update_preedit(context, ctx)?;
 
         if unsafe { chewing_aux_Check(ctx) } == 1 {
             let ptr = unsafe { chewing_aux_String(ctx) };
@@ -658,31 +645,28 @@ impl ChewingTextService {
         Ok(true)
     }
 
-    pub(super) fn on_keyup(
-        &mut self,
-        context: &ITfContext,
-        ev: KeyEvent,
-        dry_run: bool,
-    ) -> Result<bool> {
+    pub(super) fn on_test_keyup(&self, _context: &ITfContext, _ev: KeyEvent) -> Result<bool> {
+        Ok(true)
+    }
+
+    pub(super) fn on_keyup(&mut self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+        if !self.on_test_keyup(context, ev)? {
+            return Ok(false);
+        }
+
         let ctx = self.chewing_context;
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let last_is_shift = (self.last_keydown.ksym == SYM_LEFTSHIFT && evt.ksym == SYM_LEFTSHIFT)
             || (self.last_keydown.ksym == SYM_RIGHTSHIFT && evt.ksym == SYM_RIGHTSHIFT);
-        let last_is_caps_lock = evt.ksym == SYM_CAPSLOCK;
+        let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
 
-        if self.cfg.chewing_tsf.enable_caps_lock && !self.open {
-            // Disable all processing when disabled
-            return Ok(false);
-        }
+        debug!("last_is_shift: {last_is_shift}, last_is_capslock: {last_is_capslock}");
 
-        if self.cfg.chewing_tsf.switch_lang_with_shift
-            && last_is_shift
-            && self.shift_key_state.release(dry_run)
+        if last_is_shift
+            && self.shift_key_state.release()
                 < Duration::from_millis(self.cfg.chewing_tsf.shift_key_sensitivity as u64)
+            && self.cfg.chewing_tsf.switch_lang_with_shift
         {
-            if dry_run {
-                return Ok(true);
-            }
             // TODO: simplify this
             if self.cfg.chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock) {
                 // Locked by CapsLock
@@ -694,8 +678,6 @@ impl ChewingTextService {
                 if self.cfg.chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
-                self.last_keydown = KeyboardEvent::default();
-                return Ok(true);
             } else {
                 self.toggle_lang_mode()?;
                 let msg = match self.lang_mode {
@@ -712,15 +694,10 @@ impl ChewingTextService {
                 if self.cfg.chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
-                self.last_keydown = KeyboardEvent::default();
-                return Ok(true);
             }
         }
 
-        if self.cfg.chewing_tsf.enable_caps_lock && last_is_caps_lock {
-            if dry_run {
-                return Ok(true);
-            }
+        if self.cfg.chewing_tsf.enable_caps_lock && last_is_capslock {
             self.sync_lang_mode()?;
             let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
                 SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
@@ -730,12 +707,15 @@ impl ChewingTextService {
             if self.cfg.chewing_tsf.show_notification {
                 self.show_message(context, &msg, Duration::from_millis(500))?;
             }
-            self.last_keydown = KeyboardEvent::default();
-            return Ok(true);
         }
 
-        self.last_keydown = KeyboardEvent::default();
-        Ok(false)
+        // If shift key is down then don't clear the last key.
+        // When typing fast, this sequence is common
+        // 'A' Down, 'Shift' Down, 'A' Up, 'Shift' Up
+        if !evt.is_state_on(KeyState::Shift) {
+            self.last_keydown = KeyboardEvent::default();
+        }
+        Ok(true)
     }
 
     pub(super) fn on_composition_terminated(&mut self) {
@@ -863,6 +843,49 @@ impl ChewingTextService {
                 _ => {}
             }
         }
+    }
+
+    fn update_preedit(&mut self, context: &ITfContext, ctx: *mut ChewingContext) -> Result<()> {
+        let mut composition_buf = String::new();
+        if unsafe { chewing_buffer_Check(ctx) } == 1 {
+            let ptr = unsafe { chewing_buffer_String(ctx) };
+            let cstr = unsafe { CStr::from_ptr(ptr) };
+            let text = cstr.to_string_lossy().into_owned();
+            unsafe {
+                chewing_free(ptr.cast());
+            }
+            composition_buf.push_str(&text);
+        }
+        if unsafe { chewing_bopomofo_Check(ctx) } == 1 {
+            let ptr = unsafe { chewing_bopomofo_String_static(ctx) };
+            let cstr = unsafe { CStr::from_ptr(ptr) };
+            let pos = unsafe { chewing_cursor_Current(ctx) } as usize;
+            let idx = composition_buf
+                .char_indices()
+                .nth(pos)
+                .map(|pair| pair.0)
+                .unwrap_or(composition_buf.len());
+            composition_buf.insert_str(idx, &cstr.to_string_lossy());
+        }
+
+        // has something in composition buffer
+        if !composition_buf.is_empty() {
+            let cursor = unsafe { chewing_cursor_Current(ctx) };
+            self.set_composition_string(context, &composition_buf, cursor)?;
+        } else {
+            // nothing left in composition buffer, terminate composition status
+            if self.is_composing() {
+                self.set_composition_string(context, "", 0)?;
+            }
+            // We also need to make sure that the candidate window is not
+            // currently shown. When typing symbols with ` key, it's possible
+            // that the composition string empty, while the candidate window is
+            // shown. We should not terminate the composition in this case.
+            if self.candidate_list.is_none() {
+                self.end_composition(context)?;
+            }
+        }
+        Ok(())
     }
 
     fn insert_text(&mut self, context: &ITfContext, text: &str) -> Result<()> {
@@ -1128,16 +1151,26 @@ impl ChewingTextService {
                     SYMBOL_MODE => 0,
                     _ => unreachable!(),
                 };
+                // Setting compartment value to closed might terminate the composition.
+                // If we have bopomofo in the preedit buffer we should clear it first.
+                if self.lang_mode == SYMBOL_MODE {
+                    let context = self
+                        .thread_mgr
+                        .GetFocus()
+                        .and_then(|doc_mgr| doc_mgr.GetTop())
+                        .context("unable to get current ITfContext")?;
+                    self.update_preedit(&context, ctx)?;
+                }
                 // ignore E_UNEXPECTED if called in ITfCompartmentEventSink::OnChange
                 let _ = compartment.SetValue(self.tid, &openclose.into());
                 // XXX: In CUAS mode changing the openclose compartment value might terminate
                 // the current composition. We can't recursively handle the callback yet,
                 // so check the composition here.
                 let composition = self.composition.borrow().clone();
-                if let Some(composition) = composition {
-                    if composition.GetRange().is_err() {
-                        self.on_composition_terminated();
-                    }
+                if let Some(composition) = composition
+                    && composition.GetRange().is_err()
+                {
+                    self.on_composition_terminated();
                 }
             }
         }
