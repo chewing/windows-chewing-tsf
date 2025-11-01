@@ -29,6 +29,8 @@ All notable changes to this project will be documented in this file.
 - Correctly scale candidate window when main display is HiDPI
 - Input modes are remembered across focus change.
 - Fixed Numpad numbers sometimes can't be used to select candidates.
+- Fixed a bug when switching from Chinese to English mode, the input state
+  could be stuck in entering bopomofo.
 
 ### 🚜 Refactor
 
