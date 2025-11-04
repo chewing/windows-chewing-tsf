@@ -85,6 +85,15 @@ impl LangBarButton {
         self.update_sinks(TF_LBI_STATUS)?;
         Ok(())
     }
+
+    fn update_sinks(&self, dwflags: u32) -> Result<()> {
+        if let Ok(sinks) = self.sinks.try_borrow() {
+            for sink in sinks.values() {
+                unsafe { sink.OnUpdate(dwflags)? };
+            }
+        }
+        Ok(())
+    }
 }
 
 impl ITfLangBarItem_Impl for LangBarButton_Impl {
@@ -190,17 +199,6 @@ impl ITfSource_Impl for LangBarButton_Impl {
             return Ok(());
         }
         Err(E_FAIL.into())
-    }
-}
-
-impl LangBarButton {
-    fn update_sinks(&self, dwflags: u32) -> Result<()> {
-        if let Ok(sinks) = self.sinks.try_borrow() {
-            for sink in sinks.values() {
-                unsafe { sink.OnUpdate(dwflags)? };
-            }
-        }
-        Ok(())
     }
 }
 
