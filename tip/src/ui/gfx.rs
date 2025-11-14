@@ -16,12 +16,8 @@ use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::HiDpi::*;
 use windows::core::*;
 
-static DEVICE: LazyLock<Result<ID3D11Device>> = LazyLock::new(|| {
-    create_device_with_type(D3D_DRIVER_TYPE_HARDWARE).or_else(|e| {
-        log::error!("Failed to create hardware D3D11Device, fallback to WARP: {e:?}");
-        create_device_with_type(D3D_DRIVER_TYPE_WARP)
-    })
-});
+static DEVICE: LazyLock<Result<ID3D11Device>> =
+    LazyLock::new(|| create_device_with_type(D3D_DRIVER_TYPE_WARP));
 
 fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device> {
     let mut device = None;
