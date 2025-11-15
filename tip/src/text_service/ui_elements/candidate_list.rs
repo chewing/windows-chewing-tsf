@@ -553,13 +553,16 @@ impl CandidateList {
                     }
                 }
                 SYM_LEFT => {
-                    if model.current_sel >= 1 {
-                        model.current_sel -= 1;
+                    if cand_per_row > 1 {
+                        model.current_sel = model.current_sel.saturating_sub(1);
                     }
                 }
                 SYM_RIGHT => {
-                    if model.current_sel < model.items.len() - 1 {
-                        model.current_sel += 1;
+                    if cand_per_row > 1 {
+                        model.current_sel = model
+                            .current_sel
+                            .saturating_add(1)
+                            .clamp(0, model.items.len() - 1);
                     }
                 }
                 SYM_RETURN => {
