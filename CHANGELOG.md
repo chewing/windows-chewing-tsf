@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - Ctrl + Numpad numbers can be used as Ctrl + Num key to save user phrases.
 - Install alt.dat (alternative sound) dictionary.
 - Support Shift key long-press sensitivity setting.
+- Show current page number next to the candidate window.
+- Enable left/right arrow key for page navigation when using single column layout.
 
 ### 🐛 Bug Fixes
 
