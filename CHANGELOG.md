@@ -34,6 +34,7 @@ All notable changes to this project will be documented in this file.
 - Fixed Numpad numbers sometimes can't be used to select candidates.
 - Fixed a bug when switching from Chinese to English mode, the input state
   could be stuck in entering bopomofo.
+- Workaround some applications that use WPF and send 0 scan_code (e.g. Fork).
 
 ### 🚜 Refactor
 

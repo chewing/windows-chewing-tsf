@@ -7,8 +7,8 @@ use chewing::input::keymap::{
 };
 use chewing::input::{KeyboardEvent, keysym::*};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyboardState, ToAscii, VIRTUAL_KEY, VK_CAPITAL, VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK,
-    VK_SHIFT,
+    GetKeyboardState, MAPVK_VK_TO_VSC, MapVirtualKeyW, ToAscii, VIRTUAL_KEY, VK_CAPITAL,
+    VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK, VK_SHIFT,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -27,7 +27,14 @@ impl Default for KeyEvent {
 
 impl KeyEvent {
     pub(super) fn new(vk: u16, lparam: isize) -> KeyEvent {
-        let scan_code = ((lparam & 0xff0000) >> 16) as u16;
+        let scan_code = {
+            let mut scan_code = ((lparam & 0xff0000) >> 16) as u16;
+            if scan_code == 0 {
+                // Workaround some applications that use WPF and send 0 scan_code (e.g. Fork)
+                scan_code = unsafe { MapVirtualKeyW(vk as u32, MAPVK_VK_TO_VSC) } as u16;
+            }
+            scan_code
+        };
         let mut key_state = [0u8; 256];
         let mut code = 0;
         unsafe {
