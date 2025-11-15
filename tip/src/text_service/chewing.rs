@@ -15,9 +15,10 @@ use anyhow::{Context, Result, bail};
 use chewing::input::KeyState;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing_capi::candidates::{
-    chewing_cand_ChoicePerPage, chewing_cand_Enumerate, chewing_cand_String,
-    chewing_cand_TotalChoice, chewing_cand_choose_by_index, chewing_cand_close,
-    chewing_cand_hasNext, chewing_get_selKey, chewing_set_candPerPage,
+    chewing_cand_ChoicePerPage, chewing_cand_CurrentPage, chewing_cand_Enumerate,
+    chewing_cand_String, chewing_cand_TotalChoice, chewing_cand_TotalPage,
+    chewing_cand_choose_by_index, chewing_cand_close, chewing_cand_hasNext, chewing_get_selKey,
+    chewing_set_candPerPage,
 };
 use chewing_capi::globals::{
     AUTOLEARN_DISABLED, AUTOLEARN_ENABLED, chewing_config_set_int, chewing_config_set_str,
@@ -1062,10 +1063,14 @@ impl ChewingTextService {
                     items.push(CStr::from_ptr(ptr).to_string_lossy().into_owned());
                     chewing_free(ptr.cast());
                 }
+                let total_page = chewing_cand_TotalPage(ctx) as u32;
+                let current_page = chewing_cand_CurrentPage(ctx) as u32 + 1;
                 candidate_list.set_model(Model {
                     items,
                     selkeys: sel_keys.iter().take(n).map(|&k| k as u16).collect(),
                     cand_per_row: self.cfg.borrow().chewing_tsf.cand_per_row as u32,
+                    total_page,
+                    current_page,
                     font_family: HSTRING::from(&self.cfg.borrow().chewing_tsf.font_family),
                     font_size: self.cfg.borrow().chewing_tsf.font_size as f32,
                     fg_color: color_s(&self.cfg.borrow().chewing_tsf.font_fg_color),

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    ops::Div,
+};
 
 use anyhow::{Context, Result};
 use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, SYM_UP};
@@ -69,6 +72,8 @@ pub(crate) struct CandidateList {
 pub(crate) struct Model {
     pub(crate) items: Vec<String>,
     pub(crate) selkeys: Vec<u16>,
+    pub(crate) total_page: u32,
+    pub(crate) current_page: u32,
     pub(crate) font_family: HSTRING,
     pub(crate) font_size: f32,
     pub(crate) cand_per_row: u32,
@@ -230,6 +235,17 @@ impl View for RenderedView {
                 w!("zh-TW"),
             )?
         };
+        let page_number_format = unsafe {
+            self.dwrite_factory.CreateTextFormat(
+                &font_family,
+                None,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                model.font_size.div(1.5).clamp(0.0, f32::MAX),
+                w!("zh-TW"),
+            )?
+        };
         // Recalculate the size of the window
         let margin: f32 = 10.0;
         let mut selkey_width: f32 = 0.0;
@@ -259,6 +275,16 @@ impl View for RenderedView {
         }
         selkey_width += 1.0;
 
+        let page_number = HSTRING::from(format!("{} / {}", model.current_page, model.total_page));
+
+        // Calculate the size of the page_numer box
+        let mut metrics = DWRITE_TEXT_METRICS::default();
+        unsafe {
+            self.dwrite_factory
+                .CreateTextLayout(&page_number, &page_number_format, f32::MAX, f32::MAX)?
+                .GetMetrics(&mut metrics)?;
+        }
+
         let items_len = model.items.len() as f32;
         let cand_per_row = items_len
             .min(model.cand_per_row as f32)
@@ -268,10 +294,12 @@ impl View for RenderedView {
             + (cand_per_row - 1.0) * COL_SPACING
             + 2.0 * margin;
         let height = rows * item_height + (rows - 1.0) * ROW_SPACING + 2.0 * margin;
+        let window_width = width.max(metrics.width + margin);
+        let window_height = height + metrics.height + margin + 2.0;
 
         // Convert to HW pixels
-        let hw_width = (width * scale + 25.0).ceil();
-        let hw_height = (height * scale + 25.0).ceil();
+        let hw_width = (window_width * scale + 25.0).ceil();
+        let hw_height = (window_height * scale + 25.0).ceil();
         Ok(RenderedMetrics {
             width,
             height,
@@ -298,6 +326,17 @@ impl View for RenderedView {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 model.font_size,
+                w!("zh-TW"),
+            )?
+        };
+        let page_number_format = unsafe {
+            self.dwrite_factory.CreateTextFormat(
+                &font_family,
+                None,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                model.font_size.div(1.5).clamp(0.0, f32::MAX),
                 w!("zh-TW"),
             )?
         };
@@ -334,12 +373,50 @@ impl View for RenderedView {
         unsafe {
             dc.BeginDraw();
 
-            draw_message_box(dc, 0.0, 0.0, width, height, model.bg_color)?;
-
             let mut col = 0;
             let margin = 10.0;
             let mut x = margin;
             let mut y = margin;
+
+            let page_number =
+                HSTRING::from(format!("{} / {}", model.current_page, model.total_page));
+
+            // Calculate the size of the page_numer box
+            let mut metrics = DWRITE_TEXT_METRICS::default();
+            self.dwrite_factory
+                .CreateTextLayout(&page_number, &page_number_format, f32::MAX, f32::MAX)?
+                .GetMetrics(&mut metrics)?;
+
+            // Draw the background of the main message box
+            draw_message_box(dc, 0.0, 0.0, width, height, model.bg_color)?;
+            // Draw the background of the page_number box
+            draw_message_box(
+                dc,
+                width - metrics.width - margin,
+                height + 2.0,
+                metrics.width + margin,
+                metrics.height + margin,
+                model.bg_color,
+            )?;
+
+            let selkey_brush = dc.CreateSolidColorBrush(&model.selkey_color, None)?;
+            let text_brush = dc.CreateSolidColorBrush(&model.fg_color, None)?;
+            let highlight_brush = dc.CreateSolidColorBrush(&model.highlight_bg_color, None)?;
+            let selected_text_brush = dc.CreateSolidColorBrush(&model.highlight_fg_color, None)?;
+
+            dc.DrawText(
+                &page_number,
+                &page_number_format,
+                &D2D_RECT_F {
+                    left: width - metrics.width - margin / 2.0,
+                    top: height + 2.0 + margin / 2.0,
+                    right: f32::MAX,
+                    bottom: f32::MAX,
+                },
+                &text_brush,
+                D2D1_DRAW_TEXT_OPTIONS_NONE,
+                DWRITE_MEASURING_MODE_NATURAL,
+            );
 
             for i in 0..model.items.len() {
                 let mut text_rect = D2D_RECT_F {
@@ -351,7 +428,6 @@ impl View for RenderedView {
                 let mut selkey = "?.".to_string().encode_utf16().collect::<Vec<_>>();
                 selkey[0] = model.selkeys.get(i.clamp(0, 9)).cloned().unwrap_or(0x3F);
 
-                let selkey_brush = dc.CreateSolidColorBrush(&model.selkey_color, None)?;
                 dc.DrawText(
                     &selkey,
                     &text_format,
@@ -365,11 +441,6 @@ impl View for RenderedView {
                 text_rect.right = text_rect.left + text_width;
 
                 if let Some(item) = model.items.get(i) {
-                    let text_brush = dc.CreateSolidColorBrush(&model.fg_color, None)?;
-                    let highlight_brush =
-                        dc.CreateSolidColorBrush(&model.highlight_bg_color, None)?;
-                    let selected_text_brush =
-                        dc.CreateSolidColorBrush(&model.highlight_fg_color, None)?;
                     let text = HSTRING::from(item);
 
                     if model.use_cursor && i == model.current_sel {

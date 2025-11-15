@@ -7,6 +7,7 @@ use windows::Win32::Graphics::Direct2D::{
     D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS_NONE, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_ROUNDED_RECT,
     ID2D1DeviceContext,
 };
+use windows_numerics::Vector2;
 
 pub(super) fn draw_message_box(
     dc: &ID2D1DeviceContext,
@@ -54,10 +55,10 @@ pub(super) fn draw_message_box(
         };
         let shadow_rect = D2D1_ROUNDED_RECT {
             rect: D2D_RECT_F {
-                left: left + blur_radius,
-                top: top + blur_radius,
-                right: left + width + blur_radius,
-                bottom: top + height + blur_radius,
+                left: blur_radius,
+                top: blur_radius,
+                right: width + blur_radius,
+                bottom: height + blur_radius,
             },
             radiusX: corner_radius,
             radiusY: corner_radius,
@@ -71,7 +72,7 @@ pub(super) fn draw_message_box(
         let blur_output = gaussian_blur_effect.GetOutput()?;
         dc.DrawImage(
             &blur_output,
-            None,
+            Some(&Vector2 { X: left, Y: top }),
             None,
             D2D1_INTERPOLATION_MODE_LINEAR,
             D2D1_COMPOSITE_MODE_SOURCE_OVER,
