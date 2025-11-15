@@ -652,15 +652,11 @@ impl ChewingTextService {
         Ok(true)
     }
 
-    pub(super) fn on_test_keyup(&self, _context: &ITfContext, _ev: KeyEvent) -> Result<bool> {
-        Ok(true)
+    pub(super) fn on_test_keyup(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+        self.on_keyup(context, ev)
     }
 
     pub(super) fn on_keyup(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
-        if !self.on_test_keyup(context, ev)? {
-            return Ok(false);
-        }
-
         let ctx = self.chewing_context;
         let evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
@@ -716,7 +712,11 @@ impl ChewingTextService {
             }
         }
 
-        Ok(true)
+        // It is usually harmless to bubble up the keyup event but can be problematic if
+        // keyup of a corresponding keydown doesn't match. Shortcut might be stuck, and
+        // key repeat might not stop. So we always return `false` and handle keyup in
+        // `on_test_keyup`.
+        Ok(false)
     }
 
     pub(super) fn on_preserved_key(&self, guid: &GUID) -> bool {
