@@ -1301,6 +1301,11 @@ impl ChewingTextService {
                 c"chewing.enable_fullwidth_toggle_key".as_ptr(),
                 cfg.enable_fullwidth_toggle_key as i32,
             );
+            chewing_config_set_int(
+                ctx,
+                c"chewing.sort_candidates_by_frequency".as_ptr(),
+                cfg.sort_candidates_by_frequency as i32,
+            );
         }
         self.output_simp_chinese.set(cfg.output_simp_chinese);
         let check_flag = if self.output_simp_chinese.get() {

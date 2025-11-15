@@ -216,6 +216,7 @@ function App() {
         <Checkbox label="按住 Shift 輸入快捷符號" name='easy_symbols_with_shift' checked={config?.easy_symbols_with_shift} onChange={setBooleanConfig} />
         <Checkbox label="按住 Shift + Ctrl 輸入快捷符號" name='easy_symbols_with_shift_ctrl' checked={config?.easy_symbols_with_shift_ctrl} onChange={setBooleanConfig} />
         <Checkbox label="自動學習常用詞與新詞" name='enable_auto_learn' checked={config?.enable_auto_learn} onChange={setBooleanConfig} />
+        <Checkbox label="依照常用程度排序手動選字選單" name='sort_candidates_by_frequency' checked={config?.sort_candidates_by_frequency} onChange={setBooleanConfig} />
       </div>
       <div className={styles.column}>
         <Checkbox label="使用方向鍵移動游標選字" name='cursor_cand_list' checked={config?.cursor_cand_list} onChange={setBooleanConfig} />

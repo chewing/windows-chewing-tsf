@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Support Shift key long-press sensitivity setting.
 - Show current page number next to the candidate window.
 - Enable left/right arrow key for page navigation when using single column layout.
+- Support sorting candidates by frequency.
 
 ### 🐛 Bug Fixes
 

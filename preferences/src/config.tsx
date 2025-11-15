@@ -13,6 +13,7 @@ export type ChewingTsfConfig = {
     easy_symbols_with_shift: boolean;
     easy_symbols_with_shift_ctrl: boolean;
     cursor_cand_list: boolean;
+    sort_candidates_by_frequency: boolean;
     show_cand_with_space_key: boolean;
     advance_after_selection: boolean;
     default_full_space: boolean;

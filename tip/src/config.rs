@@ -54,6 +54,7 @@ pub struct ChewingTsfConfig {
     pub easy_symbols_with_shift: bool,
     pub easy_symbols_with_shift_ctrl: bool,
     pub cursor_cand_list: bool,
+    pub sort_candidates_by_frequency: bool,
     pub show_cand_with_space_key: bool,
     pub advance_after_selection: bool,
     pub default_full_space: bool,
@@ -94,6 +95,7 @@ impl Default for ChewingTsfConfig {
             easy_symbols_with_shift: true,
             easy_symbols_with_shift_ctrl: false,
             cursor_cand_list: true,
+            sort_candidates_by_frequency: false,
             show_cand_with_space_key: false,
             advance_after_selection: true,
             default_full_space: false,
@@ -218,6 +220,9 @@ impl Config {
         if let Ok(value) = reg_get_bool(&key, "CursorCandList") {
             cfg.cursor_cand_list = value;
         }
+        if let Ok(value) = reg_get_bool(&key, "SortCandidatesByFrequency") {
+            cfg.sort_candidates_by_frequency = value;
+        }
         if let Ok(value) = reg_get_bool(&key, "EnableCapsLock") {
             cfg.enable_caps_lock = value;
         }
@@ -331,6 +336,11 @@ impl Config {
         let _ = reg_set_i32(&key, "ConvEngine", chewing_tsf.conv_engine);
         let _ = reg_set_i32(&key, "SelAreaLen", chewing_tsf.cand_per_page);
         let _ = reg_set_bool(&key, "CursorCandList", chewing_tsf.cursor_cand_list);
+        let _ = reg_set_bool(
+            &key,
+            "SortCandidatesByFrequency",
+            chewing_tsf.sort_candidates_by_frequency,
+        );
         let _ = reg_set_bool(&key, "EnableCapsLock", chewing_tsf.enable_caps_lock);
         let _ = reg_set_bool(&key, "FullShapeSymbols", chewing_tsf.full_shape_symbols);
         let _ = reg_set_bool(&key, "EscCleanAllBuf", chewing_tsf.esc_clean_all_buf);
