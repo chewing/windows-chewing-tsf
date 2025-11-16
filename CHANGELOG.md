@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Show current page number next to the candidate window.
 - Enable left/right arrow key for page navigation when using single column layout.
 - Support sorting candidates by frequency.
+- Support import PIME personal dictionary from chewing editor.
 
 ### 🐛 Bug Fixes
 

@@ -100,13 +100,21 @@ function DictionaryExplorer(props: DictionaryExplorerProps) {
             kind: "warning",
         });
         const path = await open({
-            filters: [{
+            filters: [
+              {
                 name: "CSV",
                 extensions: ["csv"]
-            }]
+              },
+              {
+                name: "PIME 詞庫",
+                extensions: ["sqlite3"]
+              }
+            ]
         });
         if (path) {
-            invoke("import_file", { path: path }).catch((e) => {
+            invoke("import_file", { path: path }).then(() => {
+                message("匯入完成", { title: "完成", kind: "info" })
+            }).catch((e) => {
                 message(e, { title: "錯誤", kind: "error" })
             });
         }
