@@ -36,6 +36,9 @@ All notable changes to this project will be documented in this file.
 - Fixed a bug when switching from Chinese to English mode, the input state
   could be stuck in entering bopomofo.
 - Workaround some applications that use WPF and send 0 scan_code (e.g. Fork).
+- Fixed the frequency estimation function used by phrase learning to really
+  take last used time into consideration. Also assign higher frequency to
+  newly learned phrases.
 
 ### 🚜 Refactor
 

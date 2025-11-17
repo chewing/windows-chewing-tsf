@@ -80,9 +80,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chewing"
-version = "0.11.0-alpha.4"
+version = "0.11.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb98c5b016e639fd15bc8a928bd19b9acd152090209b6e9427d7f8417fcabc18"
+checksum = "16eac7ebc816a4bacea6f798d2ed6fc2be64b8ef1acdaf006437a6ba809fde22"
 dependencies = [
  "der",
  "log",
@@ -104,9 +104,9 @@ dependencies = [
 
 [[package]]
 name = "chewing_capi"
-version = "0.11.0-alpha.4"
+version = "0.11.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95ac5a5c48b945a1465223d547a100db8fb2903a40c31423af9a996f48a2524e"
+checksum = "4bec7698278afccc1db2b9aa2c26f5a2167eacba79df702d6597a07fd0a5d909"
 dependencies = [
  "chewing",
  "env_logger",
