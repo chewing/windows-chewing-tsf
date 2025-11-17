@@ -1,8 +1,10 @@
 use anyhow::Result;
 use chewing::dictionary::Dictionary;
+use chewing::dictionary::SingleDictionaryLoader;
 use chewing::dictionary::SystemDictionaryLoader;
 use chewing::dictionary::TrieBuf;
 use chewing::dictionary::UserDictionaryLoader;
+use chewing::path::{find_files_by_ext, sys_path_from_env_var};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -34,21 +36,20 @@ impl DictionaryItem {
     }
 }
 
+// TODO call chewing-cli
 #[tauri::command]
 pub(super) fn explore() -> Result<Vec<DictionaryItem>, String> {
     fn inner() -> Result<Vec<DictionaryItem>> {
-        let sys_loader = SystemDictionaryLoader::new();
+        let loader = SingleDictionaryLoader::new();
+        let search_path = sys_path_from_env_var();
+        let files = find_files_by_ext(&search_path, &["dat", "sqlite3"]);
+        let dictionaries = files
+            .iter()
+            .filter(|file_name| !file_name.ends_with("chewing.dat"))
+            .filter_map(|file_name| loader.guess_format_and_load(&file_name).ok())
+            .map(|dict| DictionaryItem::new("系統", dict.as_ref()));
         let user_loader = UserDictionaryLoader::new();
-        Ok(sys_loader
-            .load()?
-            .into_iter()
-            .map(|dict| DictionaryItem::new("系統", dict.as_ref()))
-            .chain(
-                sys_loader
-                    .load_drop_in()?
-                    .into_iter()
-                    .map(|dict| DictionaryItem::new("擴充", dict.as_ref())),
-            )
+        Ok(dictionaries
             .chain(
                 user_loader
                     .load()
