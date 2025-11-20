@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::ptr::null_mut;
+use std::{fmt::Display, ptr::null_mut, str::FromStr};
 
-use anyhow::{Result, bail};
+use anyhow::{Error, Result, bail};
 use log::error;
 use serde::{Deserialize, Serialize};
 use windows::{
@@ -73,6 +73,7 @@ pub struct ChewingTsfConfig {
     pub font_number_fg_color: String,
     pub keyboard_layout: i32,
     pub simulate_english_layout: i32,
+    pub keybind: Vec<KeybindValue>,
     pub auto_check_update_channel: String,
     pub update_info_url: String,
     pub last_update_check_time: u64,
@@ -114,6 +115,10 @@ impl Default for ChewingTsfConfig {
             font_number_fg_color: "0000FFFF".to_owned(),
             keyboard_layout: 0,
             simulate_english_layout: 0,
+            keybind: vec![KeybindValue {
+                key: "Ctrl+F12".to_string(),
+                action: "toggle_simplified_chinese".to_string(),
+            }],
             auto_check_update_channel: "stable".to_string(),
             update_info_url: "".to_string(),
             last_update_check_time: 0,
@@ -256,6 +261,12 @@ impl Config {
         if let Ok(value) = key.get_u64("LastUpdateCheckTime") {
             cfg.last_update_check_time = value;
         }
+        if let Ok(values) = key.get_multi_string("Keybind") {
+            cfg.keybind = values
+                .into_iter()
+                .flat_map(|value| KeybindValue::from_str(&value))
+                .collect();
+        }
 
         Ok(Config {
             chewing_tsf: cfg,
@@ -364,6 +375,15 @@ impl Config {
             "AutoCheckUpdateChannel",
             &chewing_tsf.auto_check_update_channel,
         );
+        let _ = key.set_multi_string(
+            "Keybind".to_string(),
+            chewing_tsf
+                .keybind
+                .iter()
+                .map(|kb| format!("{}={}", kb.key, kb.action))
+                .collect::<Vec<String>>()
+                .as_slice(),
+        );
 
         // AppContainer app, like the SearchHost.exe powering the start menu search bar
         // needs this to access the settings.
@@ -374,6 +394,32 @@ impl Config {
         ) {
             error!("Failed to grant app container access: {error:#}");
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+pub struct KeybindValue {
+    pub key: String,
+    pub action: String,
+}
+
+impl FromStr for KeybindValue {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (key, action) = s
+            .split_once('=')
+            .ok_or_else(|| Error::msg("missing seperator ="))?;
+        Ok(KeybindValue {
+            key: key.to_string(),
+            action: action.to_string(),
+        })
+    }
+}
+
+impl Display for KeybindValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}={}", self.key.trim(), self.action.trim())
     }
 }
 

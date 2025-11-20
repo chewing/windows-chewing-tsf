@@ -6,10 +6,10 @@ use std::ffi::{CStr, c_int, c_void};
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
+use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
 use chewing::input::KeyState;
@@ -47,17 +47,16 @@ use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
 };
 use windows::Win32::System::Variant::VARIANT;
-use windows::Win32::UI::Input::KeyboardAndMouse::{GetFocus, VK_F12};
+use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_EMPTYCONTEXT, GUID_COMPARTMENT_KEYBOARD_DISABLED,
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
     TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
-    TF_MOD_CONTROL, TF_SD_READONLY,
+    TF_SD_READONLY,
 };
 use windows::Win32::UI::TextServices::{
-    ITfComposition, ITfKeystrokeMgr, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
-    TF_LANGBARITEMINFO, TF_PRESERVEDKEY,
+    ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr, TF_LANGBARITEMINFO,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED,
@@ -69,6 +68,7 @@ use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
 use crate::config::{Config, color_s};
+use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::ui::window::window_register_class;
 
@@ -130,7 +130,6 @@ pub(super) struct ChewingTextService {
     input_da_atom: VARIANT,
     _menu: Menu,
     popup_menu: HMENU,
-    preserved_keys: BTreeMap<u128, TF_PRESERVEDKEY>,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
 
     // === mutable ===
@@ -139,6 +138,7 @@ pub(super) struct ChewingTextService {
     open: Cell<bool>,
     shift_key_state: RefCell<ShiftKeyState>,
     cfg: RefCell<Config>,
+    keybindings: RefCell<Vec<Keybinding>>,
     chewing_context: *mut ChewingContext,
     switch_lang_button: ComObject<LangBarButton>,
     switch_shape_button: ComObject<LangBarButton>,
@@ -314,8 +314,8 @@ impl ChewingTextService {
             output_simp_chinese: Default::default(),
             shift_key_state: RefCell::new(ShiftKeyState::Up),
             cfg: RefCell::new(cfg),
+            keybindings: RefCell::new(vec![]),
             chewing_context: Default::default(),
-            preserved_keys: Default::default(),
             lang_bar_buttons,
             switch_lang_button,
             switch_shape_button,
@@ -325,7 +325,6 @@ impl ChewingTextService {
             composition: Default::default(),
             pending_edit: RefCell::new(Weak::new()),
         };
-        cts.add_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)?;
 
         // FIXME error handling
         if let Err(error) = cts.init_chewing_context() {
@@ -351,11 +350,6 @@ impl ChewingTextService {
         }
         if let Err(error) = self.remove_buttons() {
             error!("failed to remove buttons: {error:#}");
-        }
-        if let Err(error) =
-            self.remove_preserved_key(VK_F12.0 as u32, TF_MOD_CONTROL, GUID_CONTROL_F12)
-        {
-            error!("failed to remove preserved key: {error:#}");
         }
         // TSF doc: The corresponding ITfTextInputProcessor::Deactivate
         // method that shuts down the text service must release all references
@@ -413,6 +407,12 @@ impl ChewingTextService {
         if self.cfg.borrow().chewing_tsf.enable_caps_lock && !self.open.get() {
             // Disable all processing when disabled
             return Ok(false);
+        }
+        //
+        // Step 2.3 handle any keybindings
+        //
+        if self.keybindings.borrow().iter().any(|kb| kb.matches(&evt)) {
+            return Ok(true);
         }
         //
         // Step 3. ignore key events if the document is readonly or inactive
@@ -517,6 +517,19 @@ impl ChewingTextService {
             debug!("shift_key_state = Down");
             self.shift_key_state
                 .replace(ShiftKeyState::Down(Instant::now()));
+        }
+
+        // Handle keybindings
+        if let Some(keybinding) = self.keybindings.borrow().iter().find(|kb| kb.matches(&evt)) {
+            match keybinding.action.as_str() {
+                "toggle_simplified_chinese" => {
+                    self.toggle_simp_chinese()?;
+                }
+                act => {
+                    error!("Unsupported keybinding action: {act}");
+                }
+            }
+            return Ok(true);
         }
 
         let ctx = self.chewing_context;
@@ -1317,6 +1330,12 @@ impl ChewingTextService {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
         let _ = self.update_lang_buttons();
+        let keybindings = cfg
+            .keybind
+            .iter()
+            .filter_map(|kb| Keybinding::try_from(kb).ok())
+            .collect();
+        self.keybindings.replace(keybindings);
     }
 
     fn update_lang_buttons(&self) -> Result<()> {
@@ -1368,34 +1387,6 @@ impl ChewingTextService {
                     _ => MF_ENABLED,
                 },
             );
-        }
-        Ok(())
-    }
-
-    fn add_preserved_key(&mut self, keycode: u32, modifiers: u32, guid: GUID) -> Result<()> {
-        let preserved_key = TF_PRESERVEDKEY {
-            uVKey: keycode,
-            uModifiers: modifiers,
-        };
-        self.preserved_keys.insert(guid.to_u128(), preserved_key);
-        let keystroke_mgr: ITfKeystrokeMgr = self.thread_mgr.cast()?;
-        if let Err(error) =
-            unsafe { keystroke_mgr.PreserveKey(self.tid, &guid, &preserved_key, &[]) }
-        {
-            error!("unable to add preserved key: {error}");
-        }
-        Ok(())
-    }
-
-    fn remove_preserved_key(&mut self, keycode: u32, modifiers: u32, guid: GUID) -> Result<()> {
-        let preserved_key = TF_PRESERVEDKEY {
-            uVKey: keycode,
-            uModifiers: modifiers,
-        };
-        self.preserved_keys.remove(&guid.to_u128());
-        let keystroke_mgr: ITfKeystrokeMgr = self.thread_mgr.cast()?;
-        if let Err(error) = unsafe { keystroke_mgr.UnpreserveKey(&guid, &preserved_key) } {
-            error!("unable to remove preserved key: {error}");
         }
         Ok(())
     }

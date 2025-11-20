@@ -32,9 +32,15 @@ export type ChewingTsfConfig = {
     font_number_fg_color: string;
     keyboard_layout: number;
     simulate_english_layout: number;
+    keybind: [KeybindValue];
     auto_check_update_channel: string;
     update_info_url: string;
 };
+
+export type KeybindValue = {
+    key: string;
+    action: string;
+}
 
 export type Config = {
     chewing_tsf: ChewingTsfConfig;

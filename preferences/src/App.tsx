@@ -1,7 +1,7 @@
-import { Button, FluentProvider, webLightTheme, makeStyles, TabList, Tab, Checkbox, Field, Dropdown, Option, TabValue, SelectTabEvent, SelectTabData, SpinButton, Combobox, Input, Textarea, Text, Radio, CheckboxOnChangeData, OptionOnSelectData, SpinButtonChangeEvent, SpinButtonOnChangeData, InputOnChangeData, RadioGroupOnChangeData, Slider, Tooltip } from '@fluentui/react-components';
+import { Button, FluentProvider, webLightTheme, makeStyles, TabList, Tab, Checkbox, Field, Dropdown, Option, TabValue, SelectTabEvent, SelectTabData, SpinButton, Combobox, Input, Textarea, Text, CheckboxOnChangeData, OptionOnSelectData, SpinButtonChangeEvent, SpinButtonOnChangeData, InputOnChangeData, Slider, Tooltip } from '@fluentui/react-components';
 import { invoke } from '@tauri-apps/api/core';
 import React, { useEffect } from 'react';
-import { ChewingTsfConfig, Config } from './config';
+import { ChewingTsfConfig, Config, KeybindValue } from './config';
 import { exit } from '@tauri-apps/plugin-process';
 import { listen } from '@tauri-apps/api/event';
 import { message, open, save } from '@tauri-apps/plugin-dialog';
@@ -94,6 +94,22 @@ function simulate_english_layout_to_value(layout: number): string {
   }
 }
 
+function keyboard_layout_to_value(layout: number): string {
+  switch (layout) {
+    case 0: return "預設";
+    case 1: return "許氏鍵盤";
+    case 2: return "IBM 鍵盤";
+    case 3: return "精業鍵盤";
+    case 4: return "倚天鍵盤";
+    case 5: return "倚天 26 鍵";
+    case 8: return "大千 26 鍵";
+    case 9: return "漢語拼音";
+    case 10: return "台灣華語羅馬拼音";
+    case 11: return "注音二式";
+    default: return "預設";
+  }
+}
+
 function update_channel_to_value(channel: string): string {
   switch (channel) {
     case 'none':
@@ -105,6 +121,18 @@ function update_channel_to_value(channel: string): string {
     default:
       return '穩定版';
   }
+}
+
+function keybind_for(keybind: [KeybindValue] | undefined, action: string): string {
+  if (keybind === undefined) {
+    return "";
+  }
+  for (const item of keybind) {
+    if (item.action == action) {
+      return item.key;
+    }
+  }
+  return "";
 }
 
 function App() {
@@ -198,6 +226,15 @@ function App() {
     setConfig({
       ...config,
       [ev.target.name]: data.value
+    } as ChewingTsfConfig);
+  }
+  
+  const setKeybindConfig = (ev: React.ChangeEvent<HTMLInputElement>, data: InputOnChangeData) => {
+    setConfig({
+      ...config,
+      keybind: [
+        { key: data.value, action: ev.target.name }
+      ]
     } as ChewingTsfConfig);
   }
 
@@ -300,31 +337,25 @@ function App() {
       </div>
     </div>
   ));
-
-  const setLayout = (_ev: any, data: RadioGroupOnChangeData) => {
-    setConfig({
-      ...config,
-      keyboard_layout: parseInt(data.value)
-    } as ChewingTsfConfig);
-  }
-
+  
   const Layout = React.memo(() => (
     <div className={styles.content} role="tabpanel" aria-labelledby="Layout">
-      <div className={styles.column}>
-        <Radio name="layout" value="0" checked={config?.keyboard_layout == 0} label="預設" onChange={setLayout} />
-        <Radio name="layout" value="1" checked={config?.keyboard_layout == 1} label="許氏鍵盤" onChange={setLayout} />
-        <Radio name="layout" value="2" checked={config?.keyboard_layout == 2} label="IBM 鍵盤" onChange={setLayout} />
-        <Radio name="layout" value="3" checked={config?.keyboard_layout == 3} label="精業鍵盤" onChange={setLayout} />
-        <Radio name="layout" value="4" checked={config?.keyboard_layout == 4} label="倚天鍵盤" onChange={setLayout} />
-        <Radio name="layout" value="5" checked={config?.keyboard_layout == 5} label="倚天 26 鍵" onChange={setLayout} />
-      </div>
-      <div className={styles.column}>
-        <Radio name="layout" value="8" checked={config?.keyboard_layout == 8} label="大千 26 鍵" onChange={setLayout} />
-        <Radio name="layout" value="9" checked={config?.keyboard_layout == 9} label="漢語拼音" onChange={setLayout} />
-        <Radio name="layout" value="10" checked={config?.keyboard_layout == 10} label="台灣華語羅馬拼音" onChange={setLayout} />
-        <Radio name="layout" value="11" checked={config?.keyboard_layout == 11} label="注音二式" onChange={setLayout} />
-      </div>
-      <div className={styles.column}>
+    <div className={styles.column}>
+        <Field label={`中文鍵盤布局：`}>
+          <Dropdown value={keyboard_layout_to_value(config?.keyboard_layout || 0)} selectedOptions={[config?.keyboard_layout?.toString() || '0']}
+            onOptionSelect={(_ev, data) => { setConfig({ ...config, keyboard_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
+            <Option value="0">預設</Option>
+            <Option value="1">許氏鍵盤</Option>
+            <Option value="2">IBM 鍵盤</Option>
+            <Option value="3">精業鍵盤</Option>
+            <Option value="4">倚天鍵盤</Option>
+            <Option value="5">倚天 26 鍵</Option>
+            <Option value="8">大千 26 鍵</Option>
+            <Option value="9">漢語拼音</Option>
+            <Option value="10">台灣華語羅馬拼音</Option>
+            <Option value="11">注音二式</Option>
+          </Dropdown>
+        </Field>
         <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
           <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
           <Tooltip content="模擬英文鍵盤布局可能會讓某些網頁快捷鍵失效" relationship={'label'}>
@@ -341,6 +372,10 @@ function App() {
               </Dropdown>
             </Field>
           </Tooltip>
+          全域快捷鍵：
+          <Field label="輸出簡體中文" orientation='horizontal'>
+            <Input name="toggle_simplified_chinese" value={keybind_for(config?.keybind, 'toggle_simplified_chinese')} onChange={setKeybindConfig} />
+          </Field>
         </details>
       </div>
     </div>

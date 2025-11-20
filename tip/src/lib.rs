@@ -2,5 +2,6 @@
 
 mod com;
 pub mod config;
+mod keybind;
 mod text_service;
 mod ui;

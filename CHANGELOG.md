@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Enable left/right arrow key for page navigation when using single column layout.
 - Support sorting candidates by frequency.
 - Support import PIME personal dictionary from chewing editor.
+- Limited support for customize keybindings.
 
 ### 🐛 Bug Fixes
 

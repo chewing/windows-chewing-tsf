@@ -1,7 +1,6 @@
 use anyhow::Result;
 use chewing::dictionary::Dictionary;
 use chewing::dictionary::SingleDictionaryLoader;
-use chewing::dictionary::SystemDictionaryLoader;
 use chewing::dictionary::TrieBuf;
 use chewing::dictionary::UserDictionaryLoader;
 use chewing::path::{find_files_by_ext, sys_path_from_env_var};
