@@ -238,188 +238,6 @@ function App() {
     } as ChewingTsfConfig);
   }
 
-  const InputBehaviors = () => (
-    <div className={styles.content} role="tabpanel" aria-labelledby="InputBehaviors">
-      <div className={styles.column}>
-        <Checkbox label="使用 Shift 快速切換中英文" name='switch_lang_with_shift' checked={config?.switch_lang_with_shift} onChange={setBooleanConfig} />
-        <Checkbox label="使用 CapsLock 快速切換中英文" name='enable_caps_lock' checked={config?.enable_caps_lock} onChange={setBooleanConfig} />
-        <Checkbox label="顯示中/英切換通知訊息" name='show_notification' checked={config?.show_notification} onChange={setBooleanConfig} />
-        <Checkbox label="使用 Esc 清空編輯區字串" name='esc_clean_all_buf' checked={config?.esc_clean_all_buf} onChange={setBooleanConfig} />
-        <Checkbox label="使用 Shift 輸入全形標點符號" name='full_shape_symbols' checked={config?.full_shape_symbols} onChange={setBooleanConfig} />
-        <Checkbox label="使用 Shift + Space 快速切換全形英文字母" name='enable_fullwidth_toggle_key' checked={config?.enable_fullwidth_toggle_key} onChange={setBooleanConfig} />
-        <Checkbox label="按住 Shift 輸入大寫英文字母" name='upper_case_with_shift' checked={config?.upper_case_with_shift} onChange={setBooleanConfig} />
-        <Checkbox label="Ctrl + 數字儲存游標前方的詞" name='add_phrase_forward' checked={config?.add_phrase_forward} onChange={setBooleanConfig} />
-        <Checkbox label="啟用向後詞彙選詞模式" name='phrase_choice_rearward' checked={config?.phrase_choice_rearward} onChange={setBooleanConfig} />
-        <Checkbox label="按住 Shift 輸入快捷符號" name='easy_symbols_with_shift' checked={config?.easy_symbols_with_shift} onChange={setBooleanConfig} />
-        <Checkbox label="按住 Shift + Ctrl 輸入快捷符號" name='easy_symbols_with_shift_ctrl' checked={config?.easy_symbols_with_shift_ctrl} onChange={setBooleanConfig} />
-        <Checkbox label="自動學習常用詞與新詞" name='enable_auto_learn' checked={config?.enable_auto_learn} onChange={setBooleanConfig} />
-        <Checkbox label="依照常用程度排序手動選字選單" name='sort_candidates_by_frequency' checked={config?.sort_candidates_by_frequency} onChange={setBooleanConfig} />
-      </div>
-      <div className={styles.column}>
-        <Checkbox label="使用方向鍵移動游標選字" name='cursor_cand_list' checked={config?.cursor_cand_list} onChange={setBooleanConfig} />
-        <Checkbox label="按空白鍵叫出選字視窗" name='show_cand_with_space_key' checked={config?.show_cand_with_space_key} onChange={setBooleanConfig} />
-        <Checkbox label="選字完畢自動跳到下一個字" name='advance_after_selection' checked={config?.advance_after_selection} onChange={setBooleanConfig} />
-        <Checkbox label="預設以全形模式啟動" name='default_full_space' checked={config?.default_full_space} onChange={setBooleanConfig} />
-        <Checkbox label="預設以英文模式啟動" name='default_english' checked={config?.default_english} onChange={setBooleanConfig} />
-        <Checkbox label="預設輸出簡體中文（或使用 Ctrl + F12 切換）" name='output_simp_chinese' checked={config?.output_simp_chinese} onChange={setBooleanConfig} />
-        <div style={{ marginLeft: "10px", marginTop: "10px" }}>
-          <Field label="選字鍵：">
-            <Dropdown value={sel_key_type_to_value(config?.sel_key_type)} selectedOptions={[config?.sel_key_type.toString() || '']}
-              onOptionSelect={(_ev, data) => { setConfig({ ...config, sel_key_type: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
-              <Option value='0'>1234567890</Option>
-              <Option value='1'>asdfghjkl;</Option>
-              <Option value='2'>asdfzxcv89</Option>
-              <Option value='3'>asdfjkl789</Option>
-              <Option value='4'>aoeuhtn789</Option>
-              <Option value='5'>1234qweras</Option>
-            </Dropdown>
-          </Field>
-          <Field label="模式：">
-            <Dropdown value={conv_engine_to_value(config?.conv_engine)} selectedOptions={[config?.conv_engine.toString() || '']}
-              onOptionSelect={(_ev, data) => { setConfig({ ...config, conv_engine: parseInt(data.optionValue || '1') } as ChewingTsfConfig); }}>
-              <Option value='0'>簡單注音</Option>
-              <Option value='1'>智慧選詞</Option>
-              <Option value='2'>模糊智慧選詞</Option>
-            </Dropdown>
-          </Field>
-          <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
-            <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
-            <Tooltip content="設定按住 Shift 鍵的時間長度，超過此時間視為長壓，取消切換中英模式。" relationship={'label'}>
-              <Field label={`Shift 長壓敏感度：${config?.shift_key_sensitivity || 200} ms`}>
-                <Slider value={config?.shift_key_sensitivity || 200} min={100} max={1000} step={100}
-                  onChange={(_ev, data) => { setConfig({ ...config, shift_key_sensitivity: data.value } as ChewingTsfConfig); }} />
-              </Field>
-            </Tooltip>
-          </details>
-        </div>
-      </div>
-    </div>
-  );
-
-  const Appearance = React.memo(() => (
-    <div className={styles.content} role="tabpanel" aria-labelledby="Appearance">
-      <div className={styles.column}>
-        <Field label="每列顯示後選字個數：">
-          <SpinButton value={config?.cand_per_row} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_row", 3)} />
-        </Field>
-        <Field label="每頁顯示後選字個數：">
-          <SpinButton value={config?.cand_per_page} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_page", 9)} />
-        </Field>
-        <Field label="選字及訊息視窗文字大小：">
-          <SpinButton value={config?.font_size} step={1} onChange={setNumberConfig("font_size", 16)} />
-        </Field>
-        <Field label="選字視窗字型：">
-          <Combobox value={config?.font_family} selectedOptions={[config?.font_family || '']}
-            onOptionSelect={(_ev, data: OptionOnSelectData) => { setConfig({ ...config, font_family: data.optionValue } as ChewingTsfConfig); }} >
-            {systemFonts.map((font) => (
-              <Option value={font} style={{ fontFamily: font }}>{font}</Option>
-            ))}
-          </Combobox>
-        </Field>
-        <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
-          <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
-          <Field label="文字顏色 (RGB)" orientation='horizontal'>
-            <Input name="font_fg_color" value={config?.font_fg_color} onChange={setStringConfig} />
-          </Field>
-          <Field label="選字背景顏色 (RGB)" orientation='horizontal'>
-            <Input name="font_bg_color" value={config?.font_bg_color} onChange={setStringConfig} />
-          </Field>
-          <Field label="焦點文字顏色 (RGB)" orientation='horizontal'>
-            <Input name="font_highlight_fg_color" value={config?.font_highlight_fg_color} onChange={setStringConfig} />
-          </Field>
-          <Field label="焦點背景顏色 (RGB)" orientation='horizontal'>
-            <Input name="font_highlight_bg_color" value={config?.font_highlight_bg_color} onChange={setStringConfig} />
-          </Field>
-          <Field label="數字顏色 (RGB)" orientation='horizontal'>
-            <Input name="font_number_fg_color" value={config?.font_number_fg_color} onChange={setStringConfig} />
-          </Field>
-        </details>
-      </div>
-    </div>
-  ));
-  
-  const Layout = React.memo(() => (
-    <div className={styles.content} role="tabpanel" aria-labelledby="Layout">
-    <div className={styles.column}>
-        <Field label={`中文鍵盤布局：`}>
-          <Dropdown value={keyboard_layout_to_value(config?.keyboard_layout || 0)} selectedOptions={[config?.keyboard_layout?.toString() || '0']}
-            onOptionSelect={(_ev, data) => { setConfig({ ...config, keyboard_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
-            <Option value="0">預設</Option>
-            <Option value="1">許氏鍵盤</Option>
-            <Option value="2">IBM 鍵盤</Option>
-            <Option value="3">精業鍵盤</Option>
-            <Option value="4">倚天鍵盤</Option>
-            <Option value="5">倚天 26 鍵</Option>
-            <Option value="8">大千 26 鍵</Option>
-            <Option value="9">漢語拼音</Option>
-            <Option value="10">台灣華語羅馬拼音</Option>
-            <Option value="11">注音二式</Option>
-          </Dropdown>
-        </Field>
-        <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
-          <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
-          <Tooltip content="模擬英文鍵盤布局可能會讓某些網頁快捷鍵失效" relationship={'label'}>
-            <Field label={`模擬英文鍵盤布局：`}>
-              <Dropdown value={simulate_english_layout_to_value(config?.simulate_english_layout || 0)} selectedOptions={[config?.simulate_english_layout?.toString() || '0']}
-                onOptionSelect={(_ev, data) => { setConfig({ ...config, simulate_english_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
-                <Option value='0'>無</Option>
-                <Option value='1'>Dvorak</Option>
-                <Option value='2'>Carplx (QGMLWY)</Option>
-                <Option value='3'>Colemak</Option>
-                <Option value='4'>Colemak-DH ANSI</Option>
-                <Option value='5'>Colemak-DH Orth</Option>
-                <Option value='6'>Workman</Option>
-              </Dropdown>
-            </Field>
-          </Tooltip>
-          全域快捷鍵：
-          <Field label="輸出簡體中文" orientation='horizontal'>
-            <Input name="toggle_simplified_chinese" value={keybind_for(config?.keybind, 'toggle_simplified_chinese')} onChange={setKeybindConfig} />
-          </Field>
-        </details>
-      </div>
-    </div>
-  ));
-
-  const Symbols = React.memo(() => (
-    <div className={styles.content} role="tabpanel" aria-labelledby="Symbols">
-      <div className={styles.column}>
-        <Field label="輸入中文時，按下 ` 鍵，會顯示下列的符號表：">
-          <Textarea value={symbols_dat} className={styles.textarea} textarea={{ className: styles.texarea_inner }}
-            onChange={(_ev, data) => setSymbolsDat(data.value)} />
-        </Field>
-        <Text>以上是符號表的設定檔，語法相當簡單：<br />每一行的內容都是：「分類名稱」＝「此分類下的所有符號」<br />您也可以一行只放一個符號，則該符號會被放在最上層選單。</Text>
-      </div>
-    </div>
-  ));
-
-  const Shortcut = React.memo(() => (
-    <div className={styles.content} role="tabpanel" aria-labelledby="Shortcut">
-      <div className={styles.column}>
-        <Field label="輸入中文時，按下 Shift 鍵（或 Ctrl + Shift）加英文字母即可快速輸入文字：">
-          <Textarea value={swkb_dat} className={styles.textarea} textarea={{ className: styles.texarea_inner }}
-            onChange={(_ev, data) => setSwkbDat(data.value)} />
-        </Field>
-        <Text>以上是符號表的設定檔，語法相當簡單：<br />每一行的內容都是：「大寫字母」＋「空格」＋「對應的符號或文字」。</Text>
-      </div>
-    </div>
-  ));
-
-  const Others = React.memo(() => (
-    <div className={styles.content} role="tabpanel" aria-labelledby="Others">
-      <div className={styles.column}>
-        <Field label="自動檢查更新：">
-          <Dropdown value={update_channel_to_value(config?.auto_check_update_channel || 'stable')} selectedOptions={[config?.auto_check_update_channel || 'stable']}
-            onOptionSelect={(_ev, data) => { setConfig({ ...config, auto_check_update_channel: data.optionValue || 'stable' } as ChewingTsfConfig); }} >
-            <Option value='none'>停用</Option>
-            <Option value='stable'>穩定版</Option>
-            <Option value='development'>預覽版</Option>
-          </Dropdown>
-        </Field>
-      </div>
-    </div>
-  ));
-
   const save_config = () => invoke("save_config", { config: { chewing_tsf: config, symbols_dat, swkb_dat } });
 
   return (
@@ -433,12 +251,12 @@ function App() {
           <Tab value="5">快捷符號</Tab>
           <Tab value="6">其他設定</Tab>
         </TabList>
-        {selectedTab === "1" && <InputBehaviors />}
-        {selectedTab === "2" && <Appearance />}
-        {selectedTab === "3" && <Layout />}
-        {selectedTab === "4" && <Symbols />}
-        {selectedTab === "5" && <Shortcut />}
-        {selectedTab === "6" && <Others />}
+        {selectedTab === "1" && config && <InputBehaviors config={config} styles={styles} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced} setConfig={setConfig} setBooleanConfig={setBooleanConfig} />}
+        {selectedTab === "2" && config && <Appearance config={config} styles={styles} systemFonts={systemFonts} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced} setConfig={setConfig} setStringConfig={setStringConfig} setNumberConfig={setNumberConfig} />}
+        {selectedTab === "3" && config && <Layout config={config} styles={styles} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced} setConfig={setConfig} setKeybindConfig={setKeybindConfig} />}
+        {selectedTab === "4" && config && <Symbols styles={styles} symbols_dat={symbols_dat} setSymbolsDat={setSymbolsDat} />}
+        {selectedTab === "5" && config && <Shortcut styles={styles} swkb_dat={swkb_dat} setSwkbDat={setSwkbDat} />}
+        {selectedTab === "6" && config && <Others config={config} styles={styles} setConfig={setConfig} />}
         <div className={styles.action}>
           <Button onClick={() => { save_config().then(() => exit(0)) }}>確定</Button>
           <Button onClick={() => exit(0)}>取消</Button>
@@ -448,5 +266,187 @@ function App() {
     </FluentProvider>
   );
 }
+
+const InputBehaviors = ({ config, styles, showAdvanced, setShowAdvanced, setConfig, setBooleanConfig }) => (
+  <div className={styles.content} role="tabpanel" aria-labelledby="InputBehaviors">
+    <div className={styles.column}>
+      <Checkbox label="使用 Shift 快速切換中英文" name='switch_lang_with_shift' checked={config?.switch_lang_with_shift} onChange={setBooleanConfig} />
+      <Checkbox label="使用 CapsLock 快速切換中英文" name='enable_caps_lock' checked={config?.enable_caps_lock} onChange={setBooleanConfig} />
+      <Checkbox label="顯示中/英切換通知訊息" name='show_notification' checked={config?.show_notification} onChange={setBooleanConfig} />
+      <Checkbox label="使用 Esc 清空編輯區字串" name='esc_clean_all_buf' checked={config?.esc_clean_all_buf} onChange={setBooleanConfig} />
+      <Checkbox label="使用 Shift 輸入全形標點符號" name='full_shape_symbols' checked={config?.full_shape_symbols} onChange={setBooleanConfig} />
+      <Checkbox label="使用 Shift + Space 快速切換全形英文字母" name='enable_fullwidth_toggle_key' checked={config?.enable_fullwidth_toggle_key} onChange={setBooleanConfig} />
+      <Checkbox label="按住 Shift 輸入大寫英文字母" name='upper_case_with_shift' checked={config?.upper_case_with_shift} onChange={setBooleanConfig} />
+      <Checkbox label="Ctrl + 數字儲存游標前方的詞" name='add_phrase_forward' checked={config?.add_phrase_forward} onChange={setBooleanConfig} />
+      <Checkbox label="啟用向後詞彙選詞模式" name='phrase_choice_rearward' checked={config?.phrase_choice_rearward} onChange={setBooleanConfig} />
+      <Checkbox label="按住 Shift 輸入快捷符號" name='easy_symbols_with_shift' checked={config?.easy_symbols_with_shift} onChange={setBooleanConfig} />
+      <Checkbox label="按住 Shift + Ctrl 輸入快捷符號" name='easy_symbols_with_shift_ctrl' checked={config?.easy_symbols_with_shift_ctrl} onChange={setBooleanConfig} />
+      <Checkbox label="自動學習常用詞與新詞" name='enable_auto_learn' checked={config?.enable_auto_learn} onChange={setBooleanConfig} />
+      <Checkbox label="依照常用程度排序手動選字選單" name='sort_candidates_by_frequency' checked={config?.sort_candidates_by_frequency} onChange={setBooleanConfig} />
+    </div>
+    <div className={styles.column}>
+      <Checkbox label="使用方向鍵移動游標選字" name='cursor_cand_list' checked={config?.cursor_cand_list} onChange={setBooleanConfig} />
+      <Checkbox label="按空白鍵叫出選字視窗" name='show_cand_with_space_key' checked={config?.show_cand_with_space_key} onChange={setBooleanConfig} />
+      <Checkbox label="選字完畢自動跳到下一個字" name='advance_after_selection' checked={config?.advance_after_selection} onChange={setBooleanConfig} />
+      <Checkbox label="預設以全形模式啟動" name='default_full_space' checked={config?.default_full_space} onChange={setBooleanConfig} />
+      <Checkbox label="預設以英文模式啟動" name='default_english' checked={config?.default_english} onChange={setBooleanConfig} />
+      <Checkbox label="預設輸出簡體中文（或使用 Ctrl + F12 切換）" name='output_simp_chinese' checked={config?.output_simp_chinese} onChange={setBooleanConfig} />
+      <div style={{ marginLeft: "10px", marginTop: "10px" }}>
+        <Field label="選字鍵：">
+          <Dropdown value={sel_key_type_to_value(config?.sel_key_type)} selectedOptions={[config?.sel_key_type.toString() || '']}
+            onOptionSelect={(_ev, data) => { setConfig({ ...config, sel_key_type: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
+            <Option value='0'>1234567890</Option>
+            <Option value='1'>asdfghjkl;</Option>
+            <Option value='2'>asdfzxcv89</Option>
+            <Option value='3'>asdfjkl789</Option>
+            <Option value='4'>aoeuhtn789</Option>
+            <Option value='5'>1234qweras</Option>
+          </Dropdown>
+        </Field>
+        <Field label="模式：">
+          <Dropdown value={conv_engine_to_value(config?.conv_engine)} selectedOptions={[config?.conv_engine.toString() || '']}
+            onOptionSelect={(_ev, data) => { setConfig({ ...config, conv_engine: parseInt(data.optionValue || '1') } as ChewingTsfConfig); }}>
+            <Option value='0'>簡單注音</Option>
+            <Option value='1'>智慧選詞</Option>
+            <Option value='2'>模糊智慧選詞</Option>
+          </Dropdown>
+        </Field>
+        <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
+          <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
+          <Tooltip content="設定按住 Shift 鍵的時間長度，超過此時間視為長壓，取消切換中英模式。" relationship={'label'}>
+            <Field label={`Shift 長壓敏感度：${config?.shift_key_sensitivity || 200} ms`}>
+              <Slider value={config?.shift_key_sensitivity || 200} min={100} max={1000} step={100}
+                onChange={(_ev, data) => { setConfig({ ...config, shift_key_sensitivity: data.value } as ChewingTsfConfig); }} />
+            </Field>
+          </Tooltip>
+        </details>
+      </div>
+    </div>
+  </div>
+);
+
+const Appearance = ({ config, styles, systemFonts, showAdvanced, setShowAdvanced, setConfig, setStringConfig, setNumberConfig, }) => (
+  <div className={styles.content} role="tabpanel" aria-labelledby="Appearance">
+    <div className={styles.column}>
+      <Field label="每列顯示後選字個數：">
+        <SpinButton value={config?.cand_per_row} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_row", 3)} />
+      </Field>
+      <Field label="每頁顯示後選字個數：">
+        <SpinButton value={config?.cand_per_page} min={1} max={10} step={1} onChange={setNumberConfig("cand_per_page", 9)} />
+      </Field>
+      <Field label="選字及訊息視窗文字大小：">
+        <SpinButton value={config?.font_size} step={1} onChange={setNumberConfig("font_size", 16)} />
+      </Field>
+      <Field label="選字視窗字型：">
+        <Combobox value={config?.font_family} selectedOptions={[config?.font_family || '']}
+          onOptionSelect={(_ev, data: OptionOnSelectData) => { setConfig({ ...config, font_family: data.optionValue } as ChewingTsfConfig); }} >
+          {systemFonts.map((font) => (
+            <Option value={font} style={{ fontFamily: font }}>{font}</Option>
+          ))}
+        </Combobox>
+      </Field>
+      <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
+        <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
+        <Field label="文字顏色 (RGB)" orientation='horizontal'>
+          <Input name="font_fg_color" value={config?.font_fg_color} onChange={setStringConfig} />
+        </Field>
+        <Field label="選字背景顏色 (RGB)" orientation='horizontal'>
+          <Input name="font_bg_color" value={config?.font_bg_color} onChange={setStringConfig} />
+        </Field>
+        <Field label="焦點文字顏色 (RGB)" orientation='horizontal'>
+          <Input name="font_highlight_fg_color" value={config?.font_highlight_fg_color} onChange={setStringConfig} />
+        </Field>
+        <Field label="焦點背景顏色 (RGB)" orientation='horizontal'>
+          <Input name="font_highlight_bg_color" value={config?.font_highlight_bg_color} onChange={setStringConfig} />
+        </Field>
+        <Field label="數字顏色 (RGB)" orientation='horizontal'>
+          <Input name="font_number_fg_color" value={config?.font_number_fg_color} onChange={setStringConfig} />
+        </Field>
+      </details>
+    </div>
+  </div>
+);
+
+const Layout = ({ config, styles, showAdvanced, setShowAdvanced, setConfig, setKeybindConfig }) => (
+  <div className={styles.content} role="tabpanel" aria-labelledby="Layout">
+  <div className={styles.column}>
+      <Field label={`中文鍵盤布局：`}>
+        <Dropdown value={keyboard_layout_to_value(config?.keyboard_layout || 0)} selectedOptions={[config?.keyboard_layout?.toString() || '0']}
+          onOptionSelect={(_ev, data) => { setConfig({ ...config, keyboard_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
+          <Option value="0">預設</Option>
+          <Option value="1">許氏鍵盤</Option>
+          <Option value="2">IBM 鍵盤</Option>
+          <Option value="3">精業鍵盤</Option>
+          <Option value="4">倚天鍵盤</Option>
+          <Option value="5">倚天 26 鍵</Option>
+          <Option value="8">大千 26 鍵</Option>
+          <Option value="9">漢語拼音</Option>
+          <Option value="10">台灣華語羅馬拼音</Option>
+          <Option value="11">注音二式</Option>
+        </Dropdown>
+      </Field>
+      <details open={showAdvanced} onToggle={(ev) => setShowAdvanced(ev.currentTarget.open)}>
+        <summary style={{ marginBottom: "10px", cursor: "pointer" }}>進階設定...</summary>
+        <Tooltip content="模擬英文鍵盤布局可能會讓某些網頁快捷鍵失效" relationship={'label'}>
+          <Field label={`模擬英文鍵盤布局：`}>
+            <Dropdown value={simulate_english_layout_to_value(config?.simulate_english_layout || 0)} selectedOptions={[config?.simulate_english_layout?.toString() || '0']}
+              onOptionSelect={(_ev, data) => { setConfig({ ...config, simulate_english_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
+              <Option value='0'>無</Option>
+              <Option value='1'>Dvorak</Option>
+              <Option value='2'>Carplx (QGMLWY)</Option>
+              <Option value='3'>Colemak</Option>
+              <Option value='4'>Colemak-DH ANSI</Option>
+              <Option value='5'>Colemak-DH Orth</Option>
+              <Option value='6'>Workman</Option>
+            </Dropdown>
+          </Field>
+        </Tooltip>
+        全域快捷鍵：
+        <Field label="輸出簡體中文" orientation='horizontal'>
+          <Input key='abc' name="toggle_simplified_chinese" value={keybind_for(config?.keybind, 'toggle_simplified_chinese')} onChange={setKeybindConfig} />
+        </Field>
+      </details>
+    </div>
+  </div>
+);
+
+const Symbols = ({ styles, symbols_dat, setSymbolsDat }) => (
+  <div className={styles.content} role="tabpanel" aria-labelledby="Symbols">
+    <div className={styles.column}>
+      <Field label="輸入中文時，按下 ` 鍵，會顯示下列的符號表：">
+        <Textarea value={symbols_dat} className={styles.textarea} textarea={{ className: styles.texarea_inner }}
+          onChange={(_ev, data) => setSymbolsDat(data.value)} />
+      </Field>
+      <Text>以上是符號表的設定檔，語法相當簡單：<br />每一行的內容都是：「分類名稱」＝「此分類下的所有符號」<br />您也可以一行只放一個符號，則該符號會被放在最上層選單。</Text>
+    </div>
+  </div>
+);
+
+const Shortcut = ({ styles, swkb_dat, setSwkbDat }) => (
+  <div className={styles.content} role="tabpanel" aria-labelledby="Shortcut">
+    <div className={styles.column}>
+      <Field label="輸入中文時，按下 Shift 鍵（或 Ctrl + Shift）加英文字母即可快速輸入文字：">
+        <Textarea value={swkb_dat} className={styles.textarea} textarea={{ className: styles.texarea_inner }}
+          onChange={(_ev, data) => setSwkbDat(data.value)} />
+      </Field>
+      <Text>以上是符號表的設定檔，語法相當簡單：<br />每一行的內容都是：「大寫字母」＋「空格」＋「對應的符號或文字」。</Text>
+    </div>
+  </div>
+);
+
+const Others = ({ config, styles, setConfig }) => (
+  <div className={styles.content} role="tabpanel" aria-labelledby="Others">
+    <div className={styles.column}>
+      <Field label="自動檢查更新：">
+        <Dropdown value={update_channel_to_value(config?.auto_check_update_channel || 'stable')} selectedOptions={[config?.auto_check_update_channel || 'stable']}
+          onOptionSelect={(_ev, data) => { setConfig({ ...config, auto_check_update_channel: data.optionValue || 'stable' } as ChewingTsfConfig); }} >
+          <Option value='none'>停用</Option>
+          <Option value='stable'>穩定版</Option>
+          <Option value='development'>預覽版</Option>
+        </Dropdown>
+      </Field>
+    </div>
+  </div>
+);
 
 export default App;
