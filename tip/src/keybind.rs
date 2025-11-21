@@ -23,7 +23,7 @@ impl TryFrom<&KeybindValue> for Keybinding {
 
 impl Keybinding {
     pub(crate) fn matches(&self, evt: &KeyboardEvent) -> bool {
-        self.key.ksym == evt.ksym
+        (self.key.ksym == evt.ksym || self.key.ksym == SYM_NONE)
             && [
                 KeyState::Alt,
                 KeyState::Control,
@@ -36,15 +36,10 @@ impl Keybinding {
 }
 
 fn key_from_str(s: &str) -> Option<KeyboardEvent> {
-    let mut parts = s.split('+').rev();
+    let parts = s.split('+').rev();
     let mut builder = KeyboardEvent::builder();
-    if let Some(key) = parts.next() {
-        // Last part should be the Keysym
-        builder.ksym(keysym_from_str(key)?);
-    }
-    // Other parts should be modifiers
-    for modifier in parts {
-        match modifier.trim().to_lowercase().as_str() {
+    for key in parts {
+        match key.trim().to_lowercase().as_str() {
             "ctrl" | "control" => {
                 builder.control();
             }
@@ -57,7 +52,11 @@ fn key_from_str(s: &str) -> Option<KeyboardEvent> {
             "super" | "cmd" | "command" => {
                 builder.super_if(true);
             }
-            _ => (),
+            _ => {
+                if let Some(ksym) = keysym_from_str(key) {
+                    builder.ksym(ksym);
+                }
+            }
         }
     }
     Some(builder.build())
@@ -86,6 +85,7 @@ fn keysym_from_str(s: &str) -> Option<Keysym> {
         "Backspace" => SYM_BACKSPACE,
         "CapsLock" => SYM_CAPSLOCK,
         "Enter" | "Return" => SYM_RETURN,
+        "Space" => SYM_SPACE,
         _ if s.chars().count() == 1 => Keysym::from_char(s.chars().next().unwrap()),
         _ => return None,
     };
@@ -96,20 +96,36 @@ fn keysym_from_str(s: &str) -> Option<Keysym> {
 mod tests {
     use chewing::input::{
         KeyboardEvent,
-        keysym::{Keysym, SYM_F12},
+        keysym::{Keysym, SYM_F12, SYM_LEFTALT, SYM_LEFTCTRL},
     };
 
+    use super::KeybindValue;
+    use super::Keybinding;
     use super::key_from_str;
 
     #[test]
-    fn parse_ctrl_f12() {
+    fn match_ctrl_f12() {
         let target = Some(KeyboardEvent::builder().ksym(SYM_F12).control().build());
         assert_eq!(target, key_from_str("Ctrl+F12"));
         assert_eq!(target, key_from_str("ctrl+F12"));
         assert_eq!(target, key_from_str("control+F12"));
+        let keybinding = Keybinding::try_from(&KeybindValue {
+            key: "Ctrl+F12".to_string(),
+            action: "ok".to_string(),
+        })
+        .unwrap();
+        assert!(keybinding.matches(&target.unwrap()));
+        assert!(
+            !keybinding.matches(
+                &KeyboardEvent::builder()
+                    .ksym(SYM_LEFTCTRL)
+                    .control()
+                    .build()
+            )
+        );
     }
     #[test]
-    fn parse_ctrl_shift_a() {
+    fn match_ctrl_shift_a() {
         let target = Some(
             KeyboardEvent::builder()
                 .ksym(Keysym::from_char('A'))
@@ -120,5 +136,34 @@ mod tests {
         assert_eq!(target, key_from_str("Ctrl+Shift+A"));
         assert_eq!(target, key_from_str("ctrl+shift+A"));
         assert_eq!(target, key_from_str("control+shift+A"));
+        let keybinding = Keybinding::try_from(&KeybindValue {
+            key: "Ctrl+Shift+A".to_string(),
+            action: "ok".to_string(),
+        })
+        .unwrap();
+        assert!(keybinding.matches(&target.unwrap()));
+    }
+    #[test]
+    fn match_shift_alt() {
+        let target = Some(KeyboardEvent::builder().shift().alt_if(true).build());
+        assert_eq!(target, key_from_str("shift+alt"));
+        assert_eq!(target, key_from_str("alt+shift"));
+        assert_eq!(target, key_from_str("Shift+Alt"));
+        let keybinding = Keybinding::try_from(&KeybindValue {
+            key: "Shift+Alt".to_string(),
+            action: "ok".to_string(),
+        })
+        .unwrap();
+        assert!(keybinding.matches(&target.unwrap()));
+        assert!(
+            keybinding.matches(
+                &KeyboardEvent::builder()
+                    .ksym(SYM_LEFTALT)
+                    .shift()
+                    .alt_if(true)
+                    .build()
+            )
+        );
+        assert!(!keybinding.matches(&KeyboardEvent::builder().ksym(SYM_LEFTALT).shift().build()));
     }
 }
