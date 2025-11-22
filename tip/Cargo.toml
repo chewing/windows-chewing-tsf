@@ -11,8 +11,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = "1.0.95"
-chewing = { workspace = true, features = ["sqlite-bundled"] }
-chewing_capi = { workspace = true, features = ["sqlite-bundled"] }
+chewing = { workspace = true }
+chewing_capi = { workspace = true }
 log = "0.4.22"
 win_dbg_logger = "0.1.0"
 windows-core = "0.62.2"
