@@ -408,7 +408,7 @@ impl FromStr for KeybindValue {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (key, action) = s
-            .split_once('=')
+            .rsplit_once('=')
             .ok_or_else(|| Error::msg("missing seperator ="))?;
         Ok(KeybindValue {
             key: key.to_string(),

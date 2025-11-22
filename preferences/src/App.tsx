@@ -96,7 +96,7 @@ function simulate_english_layout_to_value(layout: number): string {
 
 function keyboard_layout_to_value(layout: number): string {
   switch (layout) {
-    case 0: return "預設";
+    case 0: return "標準鍵盤";
     case 1: return "許氏鍵盤";
     case 2: return "IBM 鍵盤";
     case 3: return "精業鍵盤";
@@ -106,7 +106,7 @@ function keyboard_layout_to_value(layout: number): string {
     case 9: return "漢語拼音";
     case 10: return "台灣華語羅馬拼音";
     case 11: return "注音二式";
-    default: return "預設";
+    default: return "標準鍵盤";
   }
 }
 
@@ -230,11 +230,16 @@ function App() {
   }
   
   const setKeybindConfig = (ev: React.ChangeEvent<HTMLInputElement>, data: InputOnChangeData) => {
+    let keybind: KeybindValue[] = config?.keybind.map(i=>i) || [];
+    let index = keybind.findIndex(binding => binding.action == ev.target.name);
+    if (index === -1) {
+      keybind.push({ key: data.value, action: ev.target.name });
+    } else {
+      keybind[index] = { key: data.value, action: ev.target.name };
+    }
     setConfig({
       ...config,
-      keybind: [
-        { key: data.value, action: ev.target.name }
-      ]
+      keybind
     } as ChewingTsfConfig);
   }
 
@@ -373,7 +378,7 @@ const Layout = ({ config, styles, showAdvanced, setShowAdvanced, setConfig, setK
       <Field label={`中文鍵盤布局：`}>
         <Dropdown value={keyboard_layout_to_value(config?.keyboard_layout || 0)} selectedOptions={[config?.keyboard_layout?.toString() || '0']}
           onOptionSelect={(_ev, data) => { setConfig({ ...config, keyboard_layout: parseInt(data.optionValue || '0') } as ChewingTsfConfig); }}>
-          <Option value="0">預設</Option>
+          <Option value="0">標準鍵盤</Option>
           <Option value="1">許氏鍵盤</Option>
           <Option value="2">IBM 鍵盤</Option>
           <Option value="3">精業鍵盤</Option>
@@ -402,8 +407,11 @@ const Layout = ({ config, styles, showAdvanced, setShowAdvanced, setConfig, setK
           </Field>
         </Tooltip>
         全域快捷鍵：
-        <Field label="輸出簡體中文" orientation='horizontal'>
-          <Input key='abc' name="toggle_simplified_chinese" value={keybind_for(config?.keybind, 'toggle_simplified_chinese')} onChange={setKeybindConfig} />
+        <Field label="切換輸出簡體中文" orientation='horizontal'>
+          <Input name="toggle_simplified_chinese" value={keybind_for(config?.keybind, 'toggle_simplified_chinese')} onChange={setKeybindConfig} />
+        </Field>
+        <Field label="切換標準或許氏鍵盤" orientation='horizontal'>
+          <Input name="toggle_hsu_keyboard" value={keybind_for(config?.keybind, 'toggle_hsu_keyboard')} onChange={setKeybindConfig} />
         </Field>
       </details>
     </div>

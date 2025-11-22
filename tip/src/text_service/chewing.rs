@@ -27,7 +27,7 @@ use chewing_capi::globals::{
     chewing_set_spaceAsSelection,
 };
 use chewing_capi::input::{chewing_handle_KeyboardEvent, chewing_handle_ShiftSpace};
-use chewing_capi::layout::chewing_set_KBType;
+use chewing_capi::layout::{KB, chewing_get_KBType, chewing_set_KBType};
 use chewing_capi::modes::{
     CHINESE_MODE, FULLSHAPE_MODE, HALFSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode,
     chewing_get_ShapeMode, chewing_set_ChiEngMode, chewing_set_ShapeMode,
@@ -524,6 +524,9 @@ impl ChewingTextService {
             match keybinding.action.as_str() {
                 "toggle_simplified_chinese" => {
                     self.toggle_simp_chinese()?;
+                }
+                "toggle_hsu_keyboard" => {
+                    self.toggle_hsu_keyboard(context)?;
                 }
                 act => {
                     error!("Unsupported keybinding action: {act}");
@@ -1157,6 +1160,29 @@ impl ChewingTextService {
         }
         self.update_lang_buttons()?;
 
+        Ok(())
+    }
+
+    fn toggle_hsu_keyboard(&self, context: &ITfContext) -> Result<()> {
+        let ctx = self.chewing_context;
+        unsafe {
+            let kbtype = chewing_get_KBType(ctx);
+            if kbtype == KB::Hsu as i32 {
+                chewing_set_KBType(ctx, KB::Default as i32);
+                self.show_message(
+                    context,
+                    &HSTRING::from("標準鍵盤"),
+                    Duration::from_millis(500),
+                )?;
+            } else {
+                chewing_set_KBType(ctx, KB::Hsu as i32);
+                self.show_message(
+                    context,
+                    &HSTRING::from("許氏鍵盤"),
+                    Duration::from_millis(500),
+                )?;
+            }
+        }
         Ok(())
     }
 
