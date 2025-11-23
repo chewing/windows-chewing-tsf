@@ -80,9 +80,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chewing"
-version = "0.11.0-alpha.5"
+version = "0.11.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16eac7ebc816a4bacea6f798d2ed6fc2be64b8ef1acdaf006437a6ba809fde22"
+checksum = "fcb471751ebd3e6d8ec503f670680388b89e206f55813d414aebbb96ad243c22"
 dependencies = [
  "der",
  "log",
@@ -103,9 +103,9 @@ dependencies = [
 
 [[package]]
 name = "chewing_capi"
-version = "0.11.0-alpha.5"
+version = "0.11.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bec7698278afccc1db2b9aa2c26f5a2167eacba79df702d6597a07fd0a5d909"
+checksum = "0e62983342f9fa379b45e8af288eca6a914d21c4ba68c57089e560e2fa7878c1"
 dependencies = [
  "chewing",
  "env_logger",
@@ -828,9 +828,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "syn"
-version = "2.0.110"
+version = "2.0.111"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a99801b5bd34ede4cf3fc688c5919368fea4e4814a4664359503e6015b280aea"
+checksum = "390cc9a294ab71bdb1aa2e99d13be9c753cd2d7bd6560c77118597410c4d2e87"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -967,9 +967,9 @@ dependencies = [
 
 [[package]]
 name = "ureq-proto"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60b4531c118335662134346048ddb0e54cc86bd7e81866757873055f0e38f5d2"
+checksum = "d81f9efa9df032be5934a46a068815a10a042b494b6a58cb0a1a97bb5467ed6f"
 dependencies = [
  "base64",
  "http",
