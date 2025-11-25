@@ -42,22 +42,28 @@ fn key_from_str(s: &str) -> Option<KeyboardEvent> {
         match key.trim().to_lowercase().as_str() {
             "ctrl" | "control" => {
                 builder.control();
+                continue;
             }
             "shift" => {
                 builder.shift();
+                continue;
             }
             "alt" | "opt" | "option" => {
                 builder.alt_if(true);
+                continue;
             }
             "super" | "cmd" | "command" => {
                 builder.super_if(true);
+                continue;
             }
             _ => {
                 if let Some(ksym) = keysym_from_str(key) {
                     builder.ksym(ksym);
+                    continue;
                 }
             }
         }
+        return None;
     }
     Some(builder.build())
 }
