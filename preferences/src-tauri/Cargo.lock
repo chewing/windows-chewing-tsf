@@ -476,11 +476,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "chewing"
+version = "0.11.0-alpha.6"
+source = "git+https://github.com/chewing/libchewing#089e22ea7e29ea274e338cd494e7173cdcc71a10"
+dependencies = [
+ "der",
+ "log",
+]
+
+[[package]]
 name = "chewing-preferences"
 version = "25.10.0"
 dependencies = [
  "anyhow",
- "chewing",
+ "chewing 0.11.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "chewing_tip",
  "serde",
  "serde_json",
@@ -496,10 +505,9 @@ dependencies = [
 [[package]]
 name = "chewing_capi"
 version = "0.11.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e62983342f9fa379b45e8af288eca6a914d21c4ba68c57089e560e2fa7878c1"
+source = "git+https://github.com/chewing/libchewing#089e22ea7e29ea274e338cd494e7173cdcc71a10"
 dependencies = [
- "chewing",
+ "chewing 0.11.0-alpha.6 (git+https://github.com/chewing/libchewing)",
  "env_logger",
  "log",
 ]
@@ -510,7 +518,7 @@ version = "25.8.1"
 dependencies = [
  "anyhow",
  "cc",
- "chewing",
+ "chewing 0.11.0-alpha.6 (git+https://github.com/chewing/libchewing)",
  "chewing_capi",
  "embed-resource",
  "getrandom 0.3.4",
