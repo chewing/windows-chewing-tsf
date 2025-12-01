@@ -26,7 +26,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Download Installer Artifact
         uses: actions/download-artifact@v6
         with:
@@ -43,7 +43,7 @@ jobs:
           mv dist/windows-chewing-tsf.msi dist/windows-chewing-tsf-$REF_NAME.msi
           mv dist/windows-chewing-tsf.msi.sha256 dist/windows-chewing-tsf-$REF_NAME.msi.sha256
       - name: GH Release
-        uses: softprops/action-gh-release@v2.4.1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: v${{github.ref_name}}
           name: 穩定版 ${{github.ref_name}}

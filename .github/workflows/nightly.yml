@@ -18,7 +18,7 @@ jobs:
   #   outputs:
   #     should_run: ${{ steps.should_run.outputs.should_run }}
   #   steps:
-  #     - uses: actions/checkout@v5
+  #     - uses: actions/checkout@v6
   #     - name: print latest_commit
   #       run: echo ${{ github.sha }}
 
@@ -50,7 +50,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Download Installer Artifact
         uses: actions/download-artifact@v6
         with:
@@ -61,7 +61,7 @@ jobs:
           name: Signed Installer
           path: dist
       - name: GH Release
-        uses: softprops/action-gh-release@v2.4.1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: nightly-${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
           name: 預覽版 ${{env.VER_MAJOR}}.${{env.VER_MINOR}}.${{env.VER_PATCH}}.${{github.run_number}}
