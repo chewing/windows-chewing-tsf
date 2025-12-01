@@ -551,6 +551,10 @@ impl ChewingTextService {
             {
                 invert_case = true;
             }
+            // HACK: invert case if in selection mode
+            if evt.is_state_on(KeyState::CapsLock) && self.candidate_list.borrow().is_some() {
+                invert_case = true;
+            }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
             if evt.is_state_on(KeyState::Shift)
                 && (!self.cfg.borrow().chewing_tsf.full_shape_symbols || evt.ksym.is_atoz())
@@ -563,6 +567,16 @@ impl ChewingTextService {
                     invert_case = true;
                 }
             }
+            evt.ksym = if invert_case && evt.ksym.is_ascii() {
+                let code = evt.ksym.to_unicode();
+                if code.is_ascii_uppercase() {
+                    Keysym::from(code.to_ascii_lowercase())
+                } else {
+                    Keysym::from(code.to_ascii_uppercase())
+                }
+            } else {
+                evt.ksym
+            };
             if evt.ksym == SYM_SPACE && evt.is_state_on(KeyState::Shift) {
                 unsafe {
                     chewing_handle_ShiftSpace(ctx);
@@ -572,16 +586,6 @@ impl ChewingTextService {
                 unsafe {
                     chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
                 }
-                evt.ksym = if invert_case && evt.ksym.is_ascii() {
-                    let code = evt.ksym.to_unicode();
-                    if code.is_ascii_uppercase() {
-                        Keysym::from(code.to_ascii_lowercase())
-                    } else {
-                        Keysym::from(code.to_ascii_uppercase())
-                    }
-                } else {
-                    evt.ksym
-                };
                 unsafe {
                     chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
                     chewing_set_ChiEngMode(ctx, old_lang_mode);
