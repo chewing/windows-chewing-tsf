@@ -415,6 +415,11 @@ impl ChewingTextService {
             return Ok(true);
         }
         //
+        // Step 2.4 ignore CapsLock if disabled
+        if evt.ksym == SYM_CAPSLOCK && !self.cfg.borrow().chewing_tsf.enable_caps_lock {
+            return Ok(false);
+        }
+        //
         // Step 3. ignore key events if the document is readonly or inactive
         //
         let status = unsafe { context.GetStatus()? };
