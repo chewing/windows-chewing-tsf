@@ -3,5 +3,6 @@
 mod com;
 pub mod config;
 mod keybind;
+mod logging;
 mod text_service;
 mod ui;

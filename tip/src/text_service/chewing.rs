@@ -39,7 +39,7 @@ use chewing_capi::output::{
     chewing_commit_String, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
 };
 use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
@@ -1283,7 +1283,6 @@ impl ChewingTextService {
         if ctx.is_null() {
             bail!("chewing context is null");
         }
-        log::set_max_level(log::LevelFilter::Debug);
         self.chewing_context = ctx;
 
         self.apply_config();

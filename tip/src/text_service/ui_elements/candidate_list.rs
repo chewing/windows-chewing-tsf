@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, SYM_UP};
-use log::{debug, error};
+use tracing::{debug, error};
 use windows::Win32::{
     Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
     Graphics::{

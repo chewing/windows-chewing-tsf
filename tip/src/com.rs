@@ -5,6 +5,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use tracing::Level;
+use tracing_subscriber::fmt::format::FmtSpan;
 use windows::Win32::System::Com::{CoLockObjectExternal, IClassFactory, IClassFactory_Impl};
 use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTACH};
 use windows::core::{
@@ -12,7 +14,10 @@ use windows::core::{
     implement,
 };
 
-use crate::text_service::TextService;
+use crate::{
+    logging::{WinDbgWriter, output_debug_string},
+    text_service::TextService,
+};
 
 pub(crate) static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 
@@ -26,8 +31,21 @@ extern "system" fn DllMain(
         let g_hinstance = G_HINSTANCE.load(Ordering::Relaxed);
         if g_hinstance == 0 {
             G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
-            win_dbg_logger::init();
-            log::info!("chewing_tip.dll loaded");
+            if let Err(error) = tracing_subscriber::fmt()
+                .with_writer(WinDbgWriter::default)
+                .with_span_events(FmtSpan::ENTER)
+                .with_max_level(if cfg!(debug_assertions) {
+                    Level::DEBUG
+                } else {
+                    Level::INFO
+                })
+                .try_init()
+            {
+                output_debug_string(&format!(
+                    "chewing_tip: failed to init tracing_subscriber: {error:?}"
+                ));
+            }
+            tracing::info!("chewing_tip.dll loaded");
         }
     }
     TRUE.0

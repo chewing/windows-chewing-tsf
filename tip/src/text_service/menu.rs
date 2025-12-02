@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use tracing::error;
 use windows::Win32::{Foundation::HINSTANCE, UI::WindowsAndMessaging::*};
 use windows_core::PCWSTR;
 
@@ -14,7 +15,7 @@ impl Menu {
             match unsafe { LoadMenuW(Some(hinst), PCWSTR::from_raw(resource_id as *const u16)) } {
                 Ok(menu) => menu,
                 Err(error) => {
-                    log::error!("unable to load menu {resource_id}: {error}");
+                    error!("unable to load menu {resource_id}: {error}");
                     HMENU::default()
                 }
             };

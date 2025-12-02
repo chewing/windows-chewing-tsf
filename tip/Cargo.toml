@@ -13,8 +13,6 @@ crate-type = ["cdylib", "rlib"]
 anyhow = "1.0.95"
 chewing = { workspace = true }
 chewing_capi = { workspace = true }
-log = "0.4.22"
-win_dbg_logger = "0.1.0"
 windows-core = "0.62.2"
 windows-numerics = "0.3.1"
 windows-registry = "0.6.1"
@@ -36,6 +34,7 @@ windows = { version = "0.62.2", features = [
     "Win32_Security_Authorization",
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
+    "Win32_System_Diagnostics_Debug",
     "Win32_System_LibraryLoader",
     "Win32_System_Ole",
     "Win32_System_Registry",
@@ -51,6 +50,8 @@ windows = { version = "0.62.2", features = [
 getrandom = "0.3.1"
 zhconv = { version = "0.3.3", default-features = false, features = ["opencc"] }
 serde = { version = "1.0.228", features = ["derive"] }
+tracing = "0.1.43"
+tracing-subscriber = { version = "0.3.22", default-features = false, features = ["fmt", "std"] }
 
 [features]
 nightly = []

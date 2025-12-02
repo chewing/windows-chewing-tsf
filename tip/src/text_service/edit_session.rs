@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 
-use log::{debug, error};
+use tracing::{debug, error};
 use windows::Win32::Foundation::{FALSE, RECT};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
