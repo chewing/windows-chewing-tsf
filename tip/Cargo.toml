@@ -51,7 +51,7 @@ getrandom = "0.3.1"
 zhconv = { version = "0.3.3", default-features = false, features = ["opencc"] }
 serde = { version = "1.0.228", features = ["derive"] }
 tracing = "0.1.43"
-tracing-subscriber = { version = "0.3.22", default-features = false, features = ["fmt", "std"] }
+tracing-subscriber = { version = "0.3.22", default-features = false, features = ["fmt", "std", "tracing-log"] }
 
 [features]
 nightly = []

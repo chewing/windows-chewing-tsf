@@ -33,6 +33,7 @@ extern "system" fn DllMain(
             G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
             if let Err(error) = tracing_subscriber::fmt()
                 .with_writer(WinDbgWriter::default)
+                .without_time()
                 .with_span_events(FmtSpan::ENTER)
                 .with_max_level(if cfg!(debug_assertions) {
                     Level::DEBUG
