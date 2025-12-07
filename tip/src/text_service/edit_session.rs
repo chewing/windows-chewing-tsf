@@ -121,8 +121,8 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
                 let cursor_range = range.Clone()?;
                 let mut moved = 0;
                 cursor_range.Collapse(ec, TF_ANCHOR_START)?;
-                cursor_range.ShiftEnd(ec, pending.cursor, &mut moved, ptr::null())?;
-                cursor_range.ShiftStart(ec, pending.cursor, &mut moved, ptr::null())?;
+                cursor_range.ShiftEnd(ec, pending.cursor as i32, &mut moved, ptr::null())?;
+                cursor_range.ShiftStart(ec, pending.cursor as i32, &mut moved, ptr::null())?;
                 set_selection(&self.context, ec, cursor_range, TF_AE_END)?;
             }
         }

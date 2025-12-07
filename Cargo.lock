@@ -81,7 +81,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 [[package]]
 name = "chewing"
 version = "0.11.0-alpha.6"
-source = "git+https://github.com/chewing/libchewing#7d26e72e299114b7a14a8236bea4e7989c8a33fc"
+source = "git+https://github.com/chewing/libchewing#51fb09179d2f60a0e014f31d40093c5aacf80460"
 dependencies = [
  "der",
  "tracing",
@@ -101,23 +101,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "chewing_capi"
-version = "0.11.0-alpha.6"
-source = "git+https://github.com/chewing/libchewing#7d26e72e299114b7a14a8236bea4e7989c8a33fc"
-dependencies = [
- "chewing",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "chewing_tip"
 version = "25.8.1"
 dependencies = [
  "anyhow",
  "cc",
  "chewing",
- "chewing_capi",
  "embed-resource",
  "getrandom 0.3.4",
  "serde",
@@ -449,15 +438,6 @@ checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
 dependencies = [
  "adler2",
  "simd-adler32",
-]
-
-[[package]]
-name = "nu-ansi-term"
-version = "0.50.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
-dependencies = [
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -977,7 +957,6 @@ version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f30143827ddab0d256fd843b7a66d164e9f271cfa0dde49142c5ca0ca291f1e"
 dependencies = [
- "nu-ansi-term",
  "sharded-slab",
  "thread_local",
  "tracing-core",

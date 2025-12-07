@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use core::slice;
 use std::cell::{Cell, RefCell};
-use std::ffi::{CStr, c_int, c_void};
+use std::ffi::c_void;
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
@@ -11,34 +10,17 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result, bail};
-use chewing::input::KeyState;
+use anyhow::{Context, Result};
+use chewing::conversion::{ChewingEngine, FuzzyChewingEngine, SimpleEngine};
+use chewing::dictionary::{DEFAULT_DICT_NAMES, LookupStrategy};
+use chewing::editor::zhuyin_layout::{self, KeyboardLayoutCompat, SyllableEditor};
+use chewing::editor::{
+    BasicEditor, CharacterForm, ConversionEngineKind, Editor, EditorKeyBehavior, LanguageMode,
+    UserPhraseAddDirection,
+};
+use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
-use chewing_capi::candidates::{
-    chewing_cand_ChoicePerPage, chewing_cand_CurrentPage, chewing_cand_Enumerate,
-    chewing_cand_String, chewing_cand_TotalChoice, chewing_cand_TotalPage,
-    chewing_cand_choose_by_index, chewing_cand_close, chewing_cand_hasNext, chewing_get_selKey,
-    chewing_set_candPerPage,
-};
-use chewing_capi::globals::{
-    AUTOLEARN_DISABLED, AUTOLEARN_ENABLED, chewing_config_set_int, chewing_config_set_str,
-    chewing_set_addPhraseDirection, chewing_set_autoShiftCur, chewing_set_easySymbolInput,
-    chewing_set_escCleanAllBuf, chewing_set_maxChiSymbolLen, chewing_set_phraseChoiceRearward,
-    chewing_set_spaceAsSelection,
-};
-use chewing_capi::input::{chewing_handle_KeyboardEvent, chewing_handle_ShiftSpace};
-use chewing_capi::layout::{KB, chewing_get_KBType, chewing_set_KBType};
-use chewing_capi::modes::{
-    CHINESE_MODE, FULLSHAPE_MODE, HALFSHAPE_MODE, SYMBOL_MODE, chewing_get_ChiEngMode,
-    chewing_get_ShapeMode, chewing_set_ChiEngMode, chewing_set_ShapeMode,
-};
-use chewing_capi::output::{
-    chewing_ack, chewing_aux_Check, chewing_aux_String, chewing_bopomofo_Check,
-    chewing_bopomofo_String_static, chewing_buffer_Check, chewing_buffer_String,
-    chewing_clean_bopomofo_buf, chewing_clean_preedit_buf, chewing_commit_Check,
-    chewing_commit_String, chewing_cursor_Current, chewing_keystroke_CheckIgnore,
-};
-use chewing_capi::setup::{ChewingContext, chewing_delete, chewing_free, chewing_new};
+use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use tracing::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -91,13 +73,13 @@ const GUID_CONTROL_F12: GUID = GUID::from_u128(0x1797B43A_2332_40B4_8007_B2F98F1
 
 const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 
-const SEL_KEYS: [&CStr; 6] = [
-    c"1234567890",
-    c"asdfghjkl;",
-    c"asdfzxcv89",
-    c"asdfjkl789",
-    c"aoeuhtn789",
-    c"1234qweras",
+const SEL_KEYS: [&'static str; 6] = [
+    "1234567890",
+    "asdfghjkl;",
+    "asdfzxcv89",
+    "asdfjkl789",
+    "aoeuhtn789",
+    "1234qweras",
 ];
 
 #[derive(Debug)]
@@ -120,7 +102,7 @@ impl ShiftKeyState {
 
 pub(super) struct CommitString {
     pub(super) text: HSTRING,
-    pub(super) cursor: i32,
+    pub(super) cursor: usize,
 }
 
 pub(super) struct ChewingTextService {
@@ -133,13 +115,14 @@ pub(super) struct ChewingTextService {
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
 
     // === mutable ===
-    lang_mode: Cell<i32>,
+    lang_mode: Cell<LanguageMode>,
     output_simp_chinese: Cell<bool>,
     open: Cell<bool>,
     shift_key_state: RefCell<ShiftKeyState>,
     cfg: RefCell<Config>,
+    kbtype: Cell<KeyboardLayoutCompat>,
     keybindings: RefCell<Vec<Keybinding>>,
-    chewing_context: *mut ChewingContext,
+    chewing_editor: RefCell<Editor>,
     switch_lang_button: ComObject<LangBarButton>,
     switch_shape_button: ComObject<LangBarButton>,
     ime_mode_button: ComObject<LangBarButton>,
@@ -302,6 +285,18 @@ impl ChewingTextService {
             Config::default()
         });
 
+        let user_path = user_dir()?;
+        let chewing_path = format!(
+            "{};{}",
+            user_path.display(),
+            program_dir()?.join("Dictionary").display()
+        );
+        let editor = Editor::chewing(
+            Some(chewing_path),
+            Some(user_path.to_string_lossy().into_owned()),
+            &DEFAULT_DICT_NAMES,
+        );
+
         let mut cts = ChewingTextService {
             thread_mgr,
             tid,
@@ -309,13 +304,14 @@ impl ChewingTextService {
             input_da_atom,
             _menu: menu,
             popup_menu,
-            lang_mode: Default::default(),
+            lang_mode: Cell::new(LanguageMode::English),
             open: Cell::new(true),
             output_simp_chinese: Default::default(),
             shift_key_state: RefCell::new(ShiftKeyState::Up),
             cfg: RefCell::new(cfg),
+            kbtype: Cell::new(KeyboardLayoutCompat::Default),
             keybindings: RefCell::new(vec![]),
-            chewing_context: Default::default(),
+            chewing_editor: RefCell::new(editor),
             lang_bar_buttons,
             switch_lang_button,
             switch_shape_button,
@@ -326,9 +322,8 @@ impl ChewingTextService {
             pending_edit: RefCell::new(Weak::new()),
         };
 
-        // FIXME error handling
         if let Err(error) = cts.init_chewing_context() {
-            error!("unable to initialize chewing: {error}");
+            error!("unable to initialize chewing: {error:#}");
         }
 
         let now = SystemTime::now()
@@ -345,9 +340,6 @@ impl ChewingTextService {
     }
 
     pub(super) fn deactivate(mut self) -> ITfThreadMgr {
-        unsafe {
-            chewing_delete(self.chewing_context);
-        }
         if let Err(error) = self.remove_buttons() {
             error!("failed to remove buttons: {error:#}");
         }
@@ -387,7 +379,7 @@ impl ChewingTextService {
         // Step 1. apply any config changes
         //
         if let Err(error) = self.apply_config_if_changed() {
-            error!("unable to load config: {error}");
+            error!("unable to load config: {error:#}");
         }
         //
         // Step 2. handle any mode change related keydown
@@ -471,10 +463,10 @@ impl ChewingTextService {
             }
         }
         if !self.is_composing() {
-            let shape_mode = unsafe { chewing_get_ShapeMode(self.chewing_context) };
+            let shape_mode = self.chewing_editor.borrow().editor_options().character_form;
             // don't do further handling in pure English + half shape mode
-            if self.lang_mode.get() == SYMBOL_MODE
-                && shape_mode == HALFSHAPE_MODE
+            if self.lang_mode.get() == LanguageMode::English
+                && shape_mode == CharacterForm::Halfwidth
                 && !simulate_english_layout
             {
                 if evt.ksym == SYM_SPACE
@@ -539,12 +531,11 @@ impl ChewingTextService {
             return Ok(true);
         }
 
-        let ctx = self.chewing_context;
         if evt.ksym.is_unicode() {
             let mut momentary_english_mode = false;
             let mut invert_case = false;
             // Invert case if the SYMBOL_MODE is forced by CapsLock
-            if self.lang_mode.get() == SYMBOL_MODE
+            if self.lang_mode.get() == LanguageMode::English
                 && evt.is_state_on(KeyState::CapsLock)
                 && self.cfg.borrow().chewing_tsf.enable_caps_lock
             {
@@ -576,23 +567,24 @@ impl ChewingTextService {
             } else {
                 evt.ksym
             };
+            // HACK: convert sel_keys key to number key
+            if self.chewing_editor.borrow().is_selecting() {
+                evt = self.map_sel_key(evt);
+            }
             if evt.ksym == SYM_SPACE && evt.is_state_on(KeyState::Shift) {
-                unsafe {
-                    chewing_handle_ShiftSpace(ctx);
-                }
-            } else if self.lang_mode.get() == SYMBOL_MODE || momentary_english_mode {
-                let old_lang_mode = unsafe { chewing_get_ChiEngMode(ctx) };
-                unsafe {
-                    chewing_set_ChiEngMode(ctx, SYMBOL_MODE);
-                }
-                unsafe {
-                    chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
-                    chewing_set_ChiEngMode(ctx, old_lang_mode);
-                }
+                // TODO: maybe this can be merged back to the default branch?
+                self.chewing_editor.borrow_mut().process_keyevent(evt);
+            } else if self.lang_mode.get() == LanguageMode::English || momentary_english_mode {
+                let old_lang_mode = self.chewing_editor.borrow().editor_options().language_mode;
+                self.chewing_editor
+                    .borrow_mut()
+                    .set_editor_options(|opt| opt.language_mode = LanguageMode::English);
+                self.chewing_editor.borrow_mut().process_keyevent(evt);
+                self.chewing_editor
+                    .borrow_mut()
+                    .set_editor_options(|opt| opt.language_mode = old_lang_mode);
             } else {
-                unsafe {
-                    chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
-                }
+                self.chewing_editor.borrow_mut().process_keyevent(evt);
             }
         } else {
             let mut key_handled = false;
@@ -602,9 +594,7 @@ impl ChewingTextService {
                 match candidate_list.filter_key_event(evt.ksym) {
                     FilterKeyResult::HandledCommit => {
                         let sel_key = candidate_list.current_sel();
-                        unsafe {
-                            chewing_cand_choose_by_index(ctx, sel_key as i32);
-                        }
+                        self.chewing_editor.borrow_mut().select(sel_key)?;
                         key_handled = true;
                     }
                     FilterKeyResult::Handled => {
@@ -618,26 +608,21 @@ impl ChewingTextService {
             }
 
             if !key_handled {
-                unsafe {
-                    chewing_handle_KeyboardEvent(ctx, evt.code.0, evt.ksym.0, evt.state);
-                }
+                self.chewing_editor.borrow_mut().process_keyevent(evt);
             }
         }
 
-        if unsafe { chewing_keystroke_CheckIgnore(ctx) } == 1 {
+        let last_behavior = self.chewing_editor.borrow().last_key_behavior();
+
+        if last_behavior == EditorKeyBehavior::Ignore {
             debug!("early return - chewing ignored key");
             return Ok(false);
         }
 
         // Not composing so we can commit the text immediately
-        if !self.is_composing() && unsafe { chewing_commit_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_commit_String(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let text = cstr.to_string_lossy().into_owned();
-            unsafe {
-                chewing_free(ptr.cast());
-                chewing_ack(ctx);
-            }
+        if !self.is_composing() && last_behavior == EditorKeyBehavior::Commit {
+            let text = self.chewing_editor.borrow().display_commit().to_owned();
+            self.chewing_editor.borrow_mut().ack();
             debug!(%text, "commit string");
             self.insert_text(context, &text)?;
             debug!("commit string ok");
@@ -648,30 +633,23 @@ impl ChewingTextService {
 
         debug!("updated candidates");
 
-        if unsafe { chewing_commit_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_commit_String(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let text = cstr.to_string_lossy().into_owned();
-            unsafe {
-                chewing_free(ptr.cast());
-                chewing_ack(ctx);
-            }
+        if last_behavior == EditorKeyBehavior::Commit {
+            let text = self.chewing_editor.borrow().display_commit().to_owned();
+            self.chewing_editor.borrow_mut().ack();
             debug!(%text, "commit string");
             self.set_composition_string(context, &text, 0)?;
             self.end_composition(context)?;
             debug!("commit string ok");
         }
 
-        self.update_preedit(context, ctx)?;
+        self.update_preedit(context)?;
 
-        if unsafe { chewing_aux_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_aux_String(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let text = HSTRING::from(cstr.to_string_lossy().as_ref());
-            unsafe {
-                chewing_free(ptr.cast());
-            }
-            self.show_message(context, &text, Duration::from_millis(500))?;
+        if !self.chewing_editor.borrow().notification().is_empty() {
+            self.show_message(
+                context,
+                &HSTRING::from(self.chewing_editor.borrow().notification()),
+                Duration::from_millis(500),
+            )?;
         }
 
         Ok(true)
@@ -682,7 +660,6 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_keyup(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
-        let ctx = self.chewing_context;
         let evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
@@ -699,9 +676,8 @@ impl ChewingTextService {
             {
                 // Locked by CapsLock
                 let msg = match self.lang_mode.get() {
-                    SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
-                    CHINESE_MODE => HSTRING::from("中文模式"),
-                    _ => unreachable!(),
+                    LanguageMode::English => HSTRING::from("英數模式 (CapsLock)"),
+                    LanguageMode::Chinese => HSTRING::from("中文模式"),
                 };
                 if self.cfg.borrow().chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
@@ -709,15 +685,14 @@ impl ChewingTextService {
             } else {
                 self.toggle_lang_mode()?;
                 let msg = match self.lang_mode.get() {
-                    SYMBOL_MODE => HSTRING::from("英數模式"),
-                    CHINESE_MODE
+                    LanguageMode::English => HSTRING::from("英數模式"),
+                    LanguageMode::Chinese
                         if self.cfg.borrow().chewing_tsf.enable_caps_lock
                             && evt.is_state_on(KeyState::CapsLock) =>
                     {
                         HSTRING::from("英數模式 (CapsLock)")
                     }
-                    CHINESE_MODE => HSTRING::from("中文模式"),
-                    _ => unreachable!(),
+                    LanguageMode::Chinese => HSTRING::from("中文模式"),
                 };
                 if self.cfg.borrow().chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
@@ -727,10 +702,9 @@ impl ChewingTextService {
 
         if self.cfg.borrow().chewing_tsf.enable_caps_lock && last_is_capslock {
             self.sync_lang_mode()?;
-            let msg = match unsafe { chewing_get_ChiEngMode(ctx) } {
-                SYMBOL_MODE => HSTRING::from("英數模式 (CapsLock)"),
-                CHINESE_MODE => HSTRING::from("中文模式"),
-                _ => unreachable!(),
+            let msg = match self.chewing_editor.borrow().editor_options().language_mode {
+                LanguageMode::English => HSTRING::from("英數模式 (CapsLock)"),
+                LanguageMode::Chinese => HSTRING::from("中文模式"),
             };
             if self.cfg.borrow().chewing_tsf.show_notification {
                 self.show_message(context, &msg, Duration::from_millis(500))?;
@@ -759,17 +733,12 @@ impl ChewingTextService {
         if self.candidate_list.borrow().is_some() {
             self.hide_candidates();
         }
-        let ctx = self.chewing_context;
+
         // commit current preedit
         {
             let mut composition_buf = String::new();
-            if unsafe { chewing_buffer_Check(ctx) } == 1 {
-                let ptr = unsafe { chewing_buffer_String(ctx) };
-                let cstr = unsafe { CStr::from_ptr(ptr) };
-                let text = cstr.to_string_lossy().into_owned();
-                unsafe {
-                    chewing_free(ptr.cast());
-                }
+            let text = self.chewing_editor.borrow().display();
+            if !text.is_empty() {
                 composition_buf.push_str(&text);
             }
             unsafe {
@@ -779,15 +748,10 @@ impl ChewingTextService {
                 }
             }
         }
-        unsafe {
-            chewing_cand_close(ctx);
-            if chewing_bopomofo_Check(ctx) == 1 {
-                chewing_clean_bopomofo_buf(ctx);
-            }
-            if chewing_buffer_Check(ctx) == 1 {
-                chewing_clean_preedit_buf(ctx);
-            }
-        }
+        let mut editor = self.chewing_editor.borrow_mut();
+        editor.cancel_selecting()?;
+        editor.clear_syllable_editor();
+        editor.clear_composition_editor();
         self.pending_edit.replace(Weak::new());
         self.composition.replace(None);
         Ok(())
@@ -810,9 +774,9 @@ impl ChewingTextService {
     fn on_keyboard_status_changed(&self, opened: bool) -> Result<()> {
         self.open.set(opened);
         if opened {
-            self.lang_mode.set(CHINESE_MODE);
+            self.lang_mode.set(LanguageMode::Chinese);
         } else {
-            self.lang_mode.set(SYMBOL_MODE);
+            self.lang_mode.set(LanguageMode::English);
         }
         self.sync_lang_mode()?;
         Ok(())
@@ -889,32 +853,23 @@ impl ChewingTextService {
         }
     }
 
-    fn update_preedit(&self, context: &ITfContext, ctx: *mut ChewingContext) -> Result<()> {
+    fn update_preedit(&self, context: &ITfContext) -> Result<()> {
         let mut composition_buf = String::new();
-        if unsafe { chewing_buffer_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_buffer_String(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let text = cstr.to_string_lossy().into_owned();
-            unsafe {
-                chewing_free(ptr.cast());
-            }
-            composition_buf.push_str(&text);
-        }
-        if unsafe { chewing_bopomofo_Check(ctx) } == 1 {
-            let ptr = unsafe { chewing_bopomofo_String_static(ctx) };
-            let cstr = unsafe { CStr::from_ptr(ptr) };
-            let pos = unsafe { chewing_cursor_Current(ctx) } as usize;
+        composition_buf.push_str(&self.chewing_editor.borrow().display());
+
+        let cursor = self.chewing_editor.borrow().cursor();
+        let bopomofo = self.chewing_editor.borrow().syllable_buffer_display();
+        if !bopomofo.is_empty() {
             let idx = composition_buf
                 .char_indices()
-                .nth(pos)
+                .nth(cursor)
                 .map(|pair| pair.0)
                 .unwrap_or(composition_buf.len());
-            composition_buf.insert_str(idx, &cstr.to_string_lossy());
+            composition_buf.insert_str(idx, &bopomofo);
         }
 
         // has something in composition buffer
         if !composition_buf.is_empty() {
-            let cursor = unsafe { chewing_cursor_Current(ctx) };
             self.set_composition_string(context, &composition_buf, cursor)?;
         } else {
             // nothing left in composition buffer, terminate composition status
@@ -974,7 +929,12 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn set_composition_string(&self, context: &ITfContext, text: &str, cursor: i32) -> Result<()> {
+    fn set_composition_string(
+        &self,
+        context: &ITfContext,
+        text: &str,
+        cursor: usize,
+    ) -> Result<()> {
         debug!(%text, "set composition string");
         let htext = if self.output_simp_chinese.get() {
             zhconv(text, Variant::ZhHans).into()
@@ -1059,8 +1019,8 @@ impl ChewingTextService {
     }
 
     fn update_candidates(&self, context: &ITfContext) -> Result<()> {
-        let ctx = self.chewing_context;
-        if unsafe { chewing_cand_TotalChoice(ctx) } == 0 {
+        let editor = self.chewing_editor.borrow();
+        if !editor.is_selecting() {
             self.hide_candidates();
             return Ok(());
         }
@@ -1073,43 +1033,29 @@ impl ChewingTextService {
         }
 
         if let Some(candidate_list) = &*self.candidate_list.borrow() {
-            unsafe {
-                let sel_keys = slice::from_raw_parts(chewing_get_selKey(ctx), 10);
-                let n = chewing_cand_ChoicePerPage(ctx) as usize;
-                let mut items = vec![];
-
-                chewing_cand_Enumerate(ctx);
-                for _ in 0..n {
-                    if chewing_cand_hasNext(ctx) != 1 {
-                        break;
-                    }
-                    let ptr = chewing_cand_String(ctx);
-                    items.push(CStr::from_ptr(ptr).to_string_lossy().into_owned());
-                    chewing_free(ptr.cast());
-                }
-                let total_page = chewing_cand_TotalPage(ctx) as u32;
-                let current_page = chewing_cand_CurrentPage(ctx) as u32 + 1;
-                candidate_list.set_model(Model {
-                    items,
-                    selkeys: sel_keys.iter().take(n).map(|&k| k as u16).collect(),
-                    cand_per_row: self.cfg.borrow().chewing_tsf.cand_per_row as u32,
-                    total_page,
-                    current_page,
-                    font_family: HSTRING::from(&self.cfg.borrow().chewing_tsf.font_family),
-                    font_size: self.cfg.borrow().chewing_tsf.font_size as f32,
-                    fg_color: color_s(&self.cfg.borrow().chewing_tsf.font_fg_color),
-                    bg_color: color_s(&self.cfg.borrow().chewing_tsf.font_bg_color),
-                    highlight_fg_color: color_s(
-                        &self.cfg.borrow().chewing_tsf.font_highlight_fg_color,
-                    ),
-                    highlight_bg_color: color_s(
-                        &self.cfg.borrow().chewing_tsf.font_highlight_bg_color,
-                    ),
-                    selkey_color: color_s(&self.cfg.borrow().chewing_tsf.font_number_fg_color),
-                    use_cursor: self.cfg.borrow().chewing_tsf.cursor_cand_list,
-                    current_sel: 0,
-                });
-            }
+            let cfg = &self.cfg.borrow().chewing_tsf;
+            let sel_keys = SEL_KEYS[cfg.sel_key_type as usize];
+            let n = editor.editor_options().candidates_per_page;
+            let total_page = editor.total_page()? as u32;
+            let current_page = editor.current_page_no()? as u32 + 1;
+            let mut items = editor.paginated_candidates()?;
+            items.truncate(n);
+            candidate_list.set_model(Model {
+                items,
+                selkeys: sel_keys.chars().take(n).map(|k| k as u16).collect(),
+                cand_per_row: cfg.cand_per_row as u32,
+                total_page,
+                current_page,
+                font_family: HSTRING::from(&cfg.font_family),
+                font_size: cfg.font_size as f32,
+                fg_color: color_s(&cfg.font_fg_color),
+                bg_color: color_s(&cfg.font_bg_color),
+                highlight_fg_color: color_s(&cfg.font_highlight_fg_color),
+                highlight_bg_color: color_s(&cfg.font_highlight_bg_color),
+                selkey_color: color_s(&cfg.font_number_fg_color),
+                use_cursor: cfg.cursor_cand_list,
+                current_sel: 0,
+            });
 
             candidate_list.show();
 
@@ -1148,20 +1094,15 @@ impl ChewingTextService {
     }
 
     fn toggle_shape_mode(&self) -> Result<()> {
-        let ctx = self.chewing_context;
-        unsafe {
-            chewing_set_ShapeMode(
-                ctx,
-                match chewing_get_ShapeMode(ctx) {
-                    0 => 1,
-                    _ => 0,
-                },
-            );
-        }
-        let check_flag = if unsafe { chewing_get_ShapeMode(ctx) == 1 } {
-            MF_CHECKED
-        } else {
-            MF_UNCHECKED
+        self.chewing_editor.borrow_mut().set_editor_options(|opt| {
+            opt.character_form = match opt.character_form {
+                CharacterForm::Fullwidth => CharacterForm::Halfwidth,
+                CharacterForm::Halfwidth => CharacterForm::Fullwidth,
+            }
+        });
+        let check_flag = match self.chewing_editor.borrow().editor_options().character_form {
+            CharacterForm::Fullwidth => MF_CHECKED,
+            CharacterForm::Halfwidth => MF_UNCHECKED,
         };
         unsafe {
             CheckMenuItem(self.popup_menu, ID_SWITCH_SHAPE, check_flag.0);
@@ -1172,42 +1113,45 @@ impl ChewingTextService {
     }
 
     fn toggle_hsu_keyboard(&self, context: &ITfContext) -> Result<()> {
-        let ctx = self.chewing_context;
-        unsafe {
-            let kbtype = chewing_get_KBType(ctx);
-            if kbtype == KB::Hsu as i32 {
-                chewing_set_KBType(ctx, KB::Default as i32);
-                self.show_message(
-                    context,
-                    &HSTRING::from("標準鍵盤"),
-                    Duration::from_millis(500),
-                )?;
-            } else {
-                chewing_set_KBType(ctx, KB::Hsu as i32);
-                self.show_message(
-                    context,
-                    &HSTRING::from("許氏鍵盤"),
-                    Duration::from_millis(500),
-                )?;
-            }
+        if self.kbtype.get() == KeyboardLayoutCompat::Hsu {
+            self.kbtype.set(KeyboardLayoutCompat::Default);
+            self.chewing_editor
+                .borrow_mut()
+                .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Default));
+            self.show_message(
+                context,
+                &HSTRING::from("標準鍵盤"),
+                Duration::from_millis(500),
+            )?;
+        } else {
+            self.kbtype.set(KeyboardLayoutCompat::Hsu);
+            self.chewing_editor
+                .borrow_mut()
+                .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Hsu));
+            self.show_message(
+                context,
+                &HSTRING::from("許氏鍵盤"),
+                Duration::from_millis(500),
+            )?;
         }
         Ok(())
     }
 
     fn sync_lang_mode(&self) -> Result<()> {
-        let ctx = self.chewing_context;
         let evt = KeyEvent::default()
             .to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         if self.cfg.borrow().chewing_tsf.enable_caps_lock {
             if evt.is_state_on(KeyState::CapsLock) {
-                self.lang_mode.set(SYMBOL_MODE);
+                self.lang_mode.set(LanguageMode::English);
             } else {
-                self.lang_mode.set(CHINESE_MODE);
+                self.lang_mode.set(LanguageMode::Chinese);
             }
         }
-        unsafe {
-            chewing_set_ChiEngMode(ctx, self.lang_mode.get());
-        }
+
+        self.chewing_editor
+            .borrow_mut()
+            .set_editor_options(|opt| opt.language_mode = self.lang_mode.get());
+
         self.update_lang_buttons()?;
 
         // The OpenClose compartment is not synced when CapsLock English mode is enabled
@@ -1217,9 +1161,8 @@ impl ChewingTextService {
                 let compartment =
                     compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
                 let openclose: i32 = match self.lang_mode.get() {
-                    CHINESE_MODE => 1,
-                    SYMBOL_MODE => 0,
-                    _ => unreachable!(),
+                    LanguageMode::Chinese => 1,
+                    LanguageMode::English => 0,
                 };
                 let old_openclose = i32::try_from(&compartment.GetValue()?)?;
                 if openclose != old_openclose {
@@ -1232,9 +1175,8 @@ impl ChewingTextService {
 
     fn toggle_lang_mode(&self) -> Result<()> {
         self.lang_mode.update(|v| match v {
-            SYMBOL_MODE => CHINESE_MODE,
-            CHINESE_MODE => SYMBOL_MODE,
-            _ => unreachable!(),
+            LanguageMode::English => LanguageMode::Chinese,
+            LanguageMode::Chinese => LanguageMode::English,
         });
         self.sync_lang_mode()?;
 
@@ -1243,10 +1185,10 @@ impl ChewingTextService {
 
     fn get_lang_icon_id(&self) -> u32 {
         let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode.get()) {
-            (WindowsTheme::Light, CHINESE_MODE) => IDI_CHI,
-            (WindowsTheme::Light, SYMBOL_MODE) => IDI_ENG,
-            (WindowsTheme::Dark, CHINESE_MODE) => IDI_CHI_DARK,
-            (WindowsTheme::Dark, SYMBOL_MODE) => IDI_ENG_DARK,
+            (WindowsTheme::Light, LanguageMode::Chinese) => IDI_CHI,
+            (WindowsTheme::Light, LanguageMode::English) => IDI_ENG,
+            (WindowsTheme::Dark, LanguageMode::Chinese) => IDI_CHI_DARK,
+            (WindowsTheme::Dark, LanguageMode::English) => IDI_ENG_DARK,
             _ => IDI_CHI,
         };
         if self.output_simp_chinese.get() {
@@ -1273,34 +1215,25 @@ impl ChewingTextService {
         self.composition.borrow().is_some() || self.candidate_list.borrow().is_some()
     }
 
-    fn init_chewing_context(&mut self) -> anyhow::Result<()> {
-        debug_assert!(self.chewing_context.is_null());
-        if let Err(error) = init_chewing_env() {
-            error!("unable to init chewing env, init may fail: {error}");
-        }
-        let ctx = chewing_new();
-        if ctx.is_null() {
-            bail!("chewing context is null");
-        }
-        self.chewing_context = ctx;
-
+    fn init_chewing_context(&mut self) -> Result<()> {
         self.apply_config();
 
-        unsafe {
-            chewing_set_maxChiSymbolLen(ctx, 50);
-        }
+        self.chewing_editor.get_mut().set_editor_options(|opt| {
+            if self.cfg.borrow().chewing_tsf.default_full_space {
+                opt.character_form = CharacterForm::Fullwidth;
+            }
+            opt.auto_commit_threshold = 50;
+        });
+
         self.lang_mode
             .set(if self.cfg.borrow().chewing_tsf.default_english {
-                SYMBOL_MODE
+                LanguageMode::English
             } else {
-                CHINESE_MODE
+                LanguageMode::Chinese
             });
+
         self.sync_lang_mode()?;
-        if self.cfg.borrow().chewing_tsf.default_full_space {
-            unsafe {
-                chewing_set_ShapeMode(ctx, FULLSHAPE_MODE);
-            }
-        }
+
         Ok(())
     }
 
@@ -1313,45 +1246,54 @@ impl ChewingTextService {
 
     fn apply_config(&self) {
         let cfg = &self.cfg.borrow().chewing_tsf;
-        let ctx = self.chewing_context;
-        unsafe {
-            if cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl {
-                chewing_set_easySymbolInput(ctx, 1);
-            } else {
-                chewing_set_easySymbolInput(ctx, 0);
-            }
-            chewing_set_addPhraseDirection(ctx, cfg.add_phrase_forward as i32);
-            chewing_set_phraseChoiceRearward(ctx, cfg.phrase_choice_rearward as i32);
-            chewing_set_autoShiftCur(ctx, cfg.advance_after_selection as i32);
-            chewing_set_candPerPage(ctx, cfg.cand_per_page);
-            chewing_set_escCleanAllBuf(ctx, cfg.esc_clean_all_buf as i32);
-            chewing_set_KBType(ctx, cfg.keyboard_layout);
-            chewing_set_spaceAsSelection(ctx, cfg.show_cand_with_space_key as i32);
-            chewing_config_set_str(
-                ctx,
-                c"chewing.selection_keys".as_ptr(),
-                SEL_KEYS[cfg.sel_key_type as usize].as_ptr(),
-            );
-            chewing_config_set_int(ctx, c"chewing.conversion_engine".as_ptr(), cfg.conv_engine);
-            chewing_config_set_int(
-                ctx,
-                c"chewing.disable_auto_learn_phrase".as_ptr(),
-                if cfg.enable_auto_learn {
-                    AUTOLEARN_ENABLED
+        {
+            let mut editor = self.chewing_editor.borrow_mut();
+            editor.set_editor_options(|opt| {
+                opt.easy_symbol_input =
+                    cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;
+                opt.user_phrase_add_dir = if cfg.add_phrase_forward {
+                    UserPhraseAddDirection::Forward
                 } else {
-                    AUTOLEARN_DISABLED
-                } as c_int,
+                    UserPhraseAddDirection::Backward
+                };
+                opt.phrase_choice_rearward = cfg.phrase_choice_rearward;
+                opt.auto_shift_cursor = cfg.advance_after_selection;
+                opt.candidates_per_page = cfg.cand_per_page as usize;
+                opt.esc_clear_all_buffer = cfg.esc_clean_all_buf;
+                opt.space_is_select_key = cfg.show_cand_with_space_key;
+                opt.disable_auto_learn_phrase = !cfg.enable_auto_learn;
+                opt.enable_fullwidth_toggle_key = cfg.enable_fullwidth_toggle_key;
+                opt.sort_candidates_by_frequency = cfg.sort_candidates_by_frequency;
+                // FIXME
+                opt.conversion_engine = match cfg.conv_engine {
+                    0 => ConversionEngineKind::SimpleEngine,
+                    2 => ConversionEngineKind::FuzzyChewingEngine,
+                    1 | _ => ConversionEngineKind::ChewingEngine,
+                };
+                // FIXME
+                opt.lookup_strategy = match cfg.conv_engine {
+                    0 => LookupStrategy::Standard,
+                    2 => LookupStrategy::FuzzyPartialPrefix,
+                    1 | _ => LookupStrategy::Standard,
+                };
+            });
+            self.kbtype.set(
+                KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
+                    .unwrap_or(KeyboardLayoutCompat::Default),
             );
-            chewing_config_set_int(
-                ctx,
-                c"chewing.enable_fullwidth_toggle_key".as_ptr(),
-                cfg.enable_fullwidth_toggle_key as i32,
-            );
-            chewing_config_set_int(
-                ctx,
-                c"chewing.sort_candidates_by_frequency".as_ptr(),
-                cfg.sort_candidates_by_frequency as i32,
-            );
+            editor.set_syllable_editor(syl_editor_from_kbtype(self.kbtype.get()));
+            // FIXME
+            match editor.editor_options().conversion_engine {
+                ConversionEngineKind::SimpleEngine => {
+                    editor.set_conversion_engine(Box::new(SimpleEngine::new()));
+                }
+                ConversionEngineKind::ChewingEngine => {
+                    editor.set_conversion_engine(Box::new(ChewingEngine::new()));
+                }
+                ConversionEngineKind::FuzzyChewingEngine => {
+                    editor.set_conversion_engine(Box::new(FuzzyChewingEngine::new()));
+                }
+            }
         }
         self.output_simp_chinese.set(cfg.output_simp_chinese);
         let check_flag = if self.output_simp_chinese.get() {
@@ -1372,7 +1314,6 @@ impl ChewingTextService {
     }
 
     fn update_lang_buttons(&self) -> Result<()> {
-        let ctx = self.chewing_context;
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let icon_id = self.get_lang_icon_id();
         unsafe {
@@ -1389,11 +1330,11 @@ impl ChewingTextService {
             }
         }
         // TODO extract shape mode change to dedicated method
-        let shape_mode = unsafe { chewing_get_ShapeMode(ctx) };
+        let shape_mode = self.chewing_editor.borrow().editor_options().character_form;
         unsafe {
             self.switch_shape_button.set_icon(LoadIconW(
                 Some(g_hinstance),
-                PCWSTR::from_raw(if shape_mode == FULLSHAPE_MODE {
+                PCWSTR::from_raw(if shape_mode == CharacterForm::Fullwidth {
                     IDI_FULL_SHAPE as *const u16
                 } else {
                     IDI_HALF_SHAPE as *const u16
@@ -1404,7 +1345,7 @@ impl ChewingTextService {
             CheckMenuItem(
                 self.popup_menu,
                 ID_SWITCH_SHAPE,
-                if shape_mode == FULLSHAPE_MODE {
+                if shape_mode == CharacterForm::Fullwidth {
                     MF_CHECKED.0
                 } else {
                     MF_UNCHECKED.0
@@ -1433,21 +1374,48 @@ impl ChewingTextService {
         }
         Ok(())
     }
+
+    fn map_sel_key(&self, mut evt: KeyboardEvent) -> KeyboardEvent {
+        if let Some(idx) = SEL_KEYS[self.cfg.borrow().chewing_tsf.sel_key_type as usize]
+            .chars()
+            .position(|it| it == evt.ksym.to_unicode())
+        {
+            match idx {
+                0..9 => {
+                    evt.code = Keycode(keycode::KEY_1.0 + idx as u8);
+                    evt.ksym = Keysym(keysym::SYM_1.0 + idx as u32);
+                }
+                9 | _ => {
+                    evt.code = keycode::KEY_0;
+                    evt.ksym = keysym::SYM_0;
+                }
+            }
+        };
+        evt
+    }
 }
 
-fn init_chewing_env() -> Result<()> {
-    // FIXME don't use env to control chewing path
-    let user_path = user_dir()?;
-    let chewing_path = format!(
-        "{};{}",
-        user_path.display(),
-        program_dir()?.join("Dictionary").display()
-    );
-
-    unsafe {
-        std::env::set_var("CHEWING_PATH", &chewing_path);
+fn syl_editor_from_kbtype(kbtype: KeyboardLayoutCompat) -> Box<dyn SyllableEditor> {
+    use zhuyin_layout::*;
+    match kbtype {
+        KeyboardLayoutCompat::Default => Box::new(Standard::new()),
+        KeyboardLayoutCompat::Hsu => Box::new(Hsu::new()),
+        KeyboardLayoutCompat::Ibm => Box::new(Ibm::new()),
+        KeyboardLayoutCompat::GinYieh => Box::new(GinYieh::new()),
+        KeyboardLayoutCompat::Et => Box::new(Et::new()),
+        KeyboardLayoutCompat::Et26 => Box::new(Et26::new()),
+        KeyboardLayoutCompat::Dvorak => Box::new(Standard::new()),
+        KeyboardLayoutCompat::DvorakHsu => Box::new(Hsu::new()),
+        KeyboardLayoutCompat::DachenCp26 => Box::new(DaiChien26::new()),
+        KeyboardLayoutCompat::HanyuPinyin => Box::new(Pinyin::hanyu()),
+        KeyboardLayoutCompat::ThlPinyin => Box::new(Pinyin::thl()),
+        KeyboardLayoutCompat::Mps2Pinyin => Box::new(Pinyin::mps2()),
+        KeyboardLayoutCompat::Carpalx
+        | KeyboardLayoutCompat::ColemakDhAnsi
+        | KeyboardLayoutCompat::ColemakDhOrth
+        | KeyboardLayoutCompat::Workman
+        | KeyboardLayoutCompat::Colemak => Box::new(Standard::new()),
     }
-    Ok(())
 }
 
 fn user_dir() -> Result<PathBuf> {

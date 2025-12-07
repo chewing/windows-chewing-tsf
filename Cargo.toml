@@ -5,7 +5,6 @@ resolver = "3"
 
 [workspace.dependencies]
 chewing = { git = "https://github.com/chewing/libchewing" }
-chewing_capi = { git = "https://github.com/chewing/libchewing" }
 
 [profile.release]
 lto = "thin"
