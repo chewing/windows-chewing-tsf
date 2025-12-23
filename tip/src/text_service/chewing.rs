@@ -488,7 +488,10 @@ impl ChewingTextService {
             }
             // No need to handle VK_SPACE when not composing and not fullshape mode
             // This make the space key available for other shortcuts
-            if evt.ksym == SYM_SPACE && !evt.is_state_on(KeyState::Shift) {
+            if evt.ksym == SYM_SPACE
+                && shape_mode != CharacterForm::Fullwidth
+                && !evt.is_state_on(KeyState::Shift)
+            {
                 return Ok(false);
             }
             if !evt.ksym.is_unicode() {
