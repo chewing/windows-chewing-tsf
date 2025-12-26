@@ -17,7 +17,7 @@ use windows_registry::LOCAL_MACHINE;
 // https://learn.microsoft.com/en-us/windows/win32/tsf/installlayoutortip
 windows_core::link!("input.dll" "system" fn InstallLayoutOrTip(psz: *const u16, dwFlags: u32));
 const ILOT_INSTALL: u32 = 0x00000000;
-const ILOT_UNINSTALL: u32 = 0x00000001;
+// const ILOT_UNINSTALL: u32 = 0x00000001;
 
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 const CHEWING_PROFILE_GUID: GUID = GUID::from_u128(0xCE45F71D_CE79_41D1_967D_640B65A380E3);
@@ -115,9 +115,15 @@ fn enable() {
 }
 
 fn disable() {
-    unsafe {
-        InstallLayoutOrTip(CHEWING_TIP_DESC.as_ptr(), ILOT_UNINSTALL);
-    }
+    // Don't uninstall the layout for now. If the last layout of a language is
+    // uninstalled then Windows changes the system locale to English or another
+    // available language.
+    //
+    // Ref: https://github.com/chewing/windows-chewing-tsf/issues/553
+    //
+    // unsafe {
+    //     InstallLayoutOrTip(CHEWING_TIP_DESC.as_ptr(), ILOT_UNINSTALL);
+    // }
 }
 
 fn main() -> Result<()> {
