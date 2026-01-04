@@ -135,9 +135,33 @@ mod tests {
     }
 
     #[test]
-    fn compare_test() {
+    fn compare_build_test() {
         let v1 = "25.10.0.476";
         let v2 = "25.10.0.477";
+        assert!(!version_gt(v1, v2));
+        assert!(version_gt(v2, v1));
+    }
+
+    #[test]
+    fn compare_patch_test() {
+        let v1 = "25.10.0.476";
+        let v2 = "25.10.1.477";
+        assert!(!version_gt(v1, v2));
+        assert!(version_gt(v2, v1));
+    }
+
+    #[test]
+    fn compare_minor_test() {
+        let v1 = "25.10.0.476";
+        let v2 = "25.11.0.477";
+        assert!(!version_gt(v1, v2));
+        assert!(version_gt(v2, v1));
+    }
+
+    #[test]
+    fn compare_major_test() {
+        let v1 = "25.10.0.476";
+        let v2 = "26.01.0.477";
         assert!(!version_gt(v1, v2));
         assert!(version_gt(v2, v1));
     }
