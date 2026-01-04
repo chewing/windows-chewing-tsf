@@ -291,9 +291,11 @@ impl ChewingTextService {
             user_path.display(),
             program_dir()?.join("Dictionary").display()
         );
+        let user_dict_path = user_path.join("chewing.dat");
         let editor = Editor::chewing(
             Some(chewing_path),
-            Some(user_path.to_string_lossy().into_owned()),
+            // NB: the current API requires a *file* path
+            Some(user_dict_path.to_string_lossy().into_owned()),
             &DEFAULT_DICT_NAMES,
         );
 
