@@ -1254,10 +1254,11 @@ impl ChewingTextService {
             editor.set_editor_options(|opt| {
                 opt.easy_symbol_input =
                     cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;
+                // NB: Historically the config was inverted
                 opt.user_phrase_add_dir = if cfg.add_phrase_forward {
-                    UserPhraseAddDirection::Forward
-                } else {
                     UserPhraseAddDirection::Backward
+                } else {
+                    UserPhraseAddDirection::Forward
                 };
                 opt.phrase_choice_rearward = cfg.phrase_choice_rearward;
                 opt.auto_shift_cursor = cfg.advance_after_selection;
