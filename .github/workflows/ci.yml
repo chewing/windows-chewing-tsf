@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  VER_MAJOR: 25
-  VER_MINOR: 10
+  VER_MAJOR: 26
+  VER_MINOR: 1
   VER_PATCH: 0
 
 on:
