@@ -754,7 +754,9 @@ impl ChewingTextService {
             }
         }
         let mut editor = self.chewing_editor.borrow_mut();
-        editor.cancel_selecting()?;
+        if editor.is_selecting() {
+            let _ = editor.cancel_selecting();
+        }
         editor.clear_syllable_editor();
         editor.clear_composition_editor();
         self.pending_edit.replace(Weak::new());
