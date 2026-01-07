@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::{fmt::Display, ptr::null_mut, str::FromStr};
+use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
 use anyhow::{Error, Result, bail};
 use serde::{Deserialize, Serialize};
@@ -77,6 +77,7 @@ pub struct ChewingTsfConfig {
     pub auto_check_update_channel: String,
     pub update_info_url: String,
     pub last_update_check_time: u64,
+    pub modified_timestamp: u64,
 }
 
 impl Default for ChewingTsfConfig {
@@ -122,6 +123,7 @@ impl Default for ChewingTsfConfig {
             auto_check_update_channel: "stable".to_string(),
             update_info_url: "".to_string(),
             last_update_check_time: 0,
+            modified_timestamp: 0,
         }
     }
 }
@@ -261,6 +263,9 @@ impl Config {
         if let Ok(value) = key.get_u64("LastUpdateCheckTime") {
             cfg.last_update_check_time = value;
         }
+        if let Ok(value) = key.get_u64("ModifiedTimestamp") {
+            cfg.modified_timestamp = value;
+        }
         if let Ok(values) = key.get_multi_string("Keybind") {
             cfg.keybind = values
                 .into_iter()
@@ -383,6 +388,13 @@ impl Config {
                 .map(|kb| format!("{}={}", kb.key, kb.action))
                 .collect::<Vec<String>>()
                 .as_slice(),
+        );
+        let _ = key.set_u64(
+            "ModifiedTimestamp",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
         );
 
         // AppContainer app, like the SearchHost.exe powering the start menu search bar

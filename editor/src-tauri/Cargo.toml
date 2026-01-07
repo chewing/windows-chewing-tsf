@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 anyhow = "1"
 chewing = { git = "https://github.com/chewing/libchewing" }
+chewing_tip = { path = "../../tip" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }

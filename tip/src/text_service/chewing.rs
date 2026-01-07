@@ -285,19 +285,8 @@ impl ChewingTextService {
             Config::default()
         });
 
-        let user_path = user_dir()?;
-        let chewing_path = format!(
-            "{};{}",
-            user_path.display(),
-            program_dir()?.join("Dictionary").display()
-        );
-        let user_dict_path = user_path.join("chewing.dat");
-        let editor = Editor::chewing(
-            Some(chewing_path),
-            // NB: the current API requires a *file* path
-            Some(user_dict_path.to_string_lossy().into_owned()),
-            &DEFAULT_DICT_NAMES,
-        );
+        // Initialize a temp editor, this will be replaced in init_chewing_context.
+        let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
         let mut cts = ChewingTextService {
             thread_mgr,
@@ -1223,7 +1212,7 @@ impl ChewingTextService {
     }
 
     fn init_chewing_context(&mut self) -> Result<()> {
-        self.apply_config();
+        self.apply_config()?;
 
         self.chewing_editor.get_mut().set_editor_options(|opt| {
             if self.cfg.borrow().chewing_tsf.default_full_space {
@@ -1244,16 +1233,30 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn apply_config_if_changed(&self) -> anyhow::Result<()> {
+    fn apply_config_if_changed(&self) -> Result<()> {
         if self.cfg.borrow_mut().reload_if_needed()? {
-            self.apply_config();
+            self.apply_config()?;
         }
         Ok(())
     }
 
-    fn apply_config(&self) {
+    fn apply_config(&self) -> Result<()> {
         let cfg = &self.cfg.borrow().chewing_tsf;
         {
+            let user_path = user_dir()?;
+            let chewing_path = format!(
+                "{};{}",
+                user_path.display(),
+                program_dir()?.join("Dictionary").display()
+            );
+            let user_dict_path = user_path.join("chewing.dat");
+            // Recreate editor to load latest user files
+            self.chewing_editor.replace(Editor::chewing(
+                Some(chewing_path),
+                // NB: the current API requires a *file* path
+                Some(user_dict_path.to_string_lossy().into_owned()),
+                &DEFAULT_DICT_NAMES,
+            ));
             let mut editor = self.chewing_editor.borrow_mut();
             editor.set_editor_options(|opt| {
                 opt.easy_symbol_input =
@@ -1319,6 +1322,7 @@ impl ChewingTextService {
             .filter_map(|kb| Keybinding::try_from(kb).ok())
             .collect();
         self.keybindings.replace(keybindings);
+        Ok(())
     }
 
     fn update_lang_buttons(&self) -> Result<()> {

@@ -42,6 +42,7 @@ All notable changes to this project will be documented in this file.
 - Fixed the frequency estimation function used by phrase learning to really
   take last used time into consideration. Also assign higher frequency to
   newly learned phrases.
+- Auto reload when configurations are changed.
 
 ### 🚜 Refactor
 

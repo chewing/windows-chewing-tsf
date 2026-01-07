@@ -6,6 +6,7 @@ use chewing::{
     dictionary::{Dictionary, DictionaryBuilder, DictionaryInfo, Phrase, TrieBuf, TrieBuilder},
     zhuyin::Syllable,
 };
+use chewing_tip::config::Config;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -64,6 +65,9 @@ pub(super) fn save(path: String, entries: Vec<Entry>) -> Result<(), String> {
             builder.insert(&syllables, phrase)?;
         }
         builder.build(&PathBuf::from(&path))?;
+        // HACK trigger reload
+        let cfg = Config::from_reg()?;
+        cfg.save_reg();
         Ok(())
     }
     inner(path, entries).map_err(|e| format!("{:#}", e))
