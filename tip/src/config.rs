@@ -3,8 +3,8 @@
 use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
 use anyhow::{Error, Result, bail};
+use log::error;
 use serde::{Deserialize, Serialize};
-use tracing::error;
 use windows::{
     Win32::{
         Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree},

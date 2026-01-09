@@ -21,7 +21,7 @@ use chewing::editor::{
 use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
-use tracing::{debug, error, info};
+use log::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
@@ -365,7 +365,7 @@ impl ChewingTextService {
         {
             self.shift_key_state.replace(ShiftKeyState::Consumed);
         }
-        debug!(?evt, shift_key_state = ?self.shift_key_state.borrow(), "on_test_keydown");
+        debug!(evt:?, shift_key_state:? = self.shift_key_state.borrow(); "on_test_keydown");
         //
         // Step 1. apply any config changes
         //
@@ -498,7 +498,7 @@ impl ChewingTextService {
             return Ok(false);
         }
         let mut evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
-        debug!(?evt, "on_keydown");
+        debug!(evt:?; "on_keydown");
 
         if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
             && self.cfg.borrow().chewing_tsf.switch_lang_with_shift
@@ -617,7 +617,7 @@ impl ChewingTextService {
         if !self.is_composing() && last_behavior == EditorKeyBehavior::Commit {
             let text = self.chewing_editor.borrow().display_commit().to_owned();
             self.chewing_editor.borrow_mut().ack();
-            debug!(%text, "commit string");
+            debug!(text; "commit string");
             self.insert_text(context, &text)?;
             debug!("commit string ok");
             return Ok(true);
@@ -630,7 +630,7 @@ impl ChewingTextService {
         if last_behavior == EditorKeyBehavior::Commit {
             let text = self.chewing_editor.borrow().display_commit().to_owned();
             self.chewing_editor.borrow_mut().ack();
-            debug!(%text, "commit string");
+            debug!(text; "commit string");
             self.set_composition_string(context, &text, 0)?;
             self.end_composition(context)?;
             debug!("commit string ok");
@@ -658,7 +658,7 @@ impl ChewingTextService {
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
 
-        debug!(last_is_shift, last_is_capslock);
+        debug!(last_is_shift, last_is_capslock; "");
 
         if last_is_shift
             && self.shift_key_state.borrow_mut().release()
@@ -884,7 +884,7 @@ impl ChewingTextService {
     }
 
     fn insert_text(&self, context: &ITfContext, text: &str) -> Result<()> {
-        debug!(%text, "going to request immediate text insertion");
+        debug!(text; "going to request immediate text insertion");
         let htext = text.into();
         let session = InsertText::new(context.clone(), htext).into_object();
         unsafe {
@@ -931,14 +931,14 @@ impl ChewingTextService {
         text: &str,
         cursor: usize,
     ) -> Result<()> {
-        debug!(%text, "set composition string");
+        debug!(text; "set composition string");
         let htext = if self.output_simp_chinese.get() {
             zhconv(text, Variant::ZhHans).into()
         } else {
             text.into()
         };
         if let Some(cell) = self.pending_edit.borrow().upgrade() {
-            debug!(cursor, %htext, "Reuse existing edit session");
+            debug!(cursor, htext:%; "Reuse existing edit session");
             let mut pending = cell.borrow_mut();
             pending.text = htext;
             pending.cursor = cursor;

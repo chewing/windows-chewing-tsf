@@ -5,8 +5,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use tracing::Level;
-use tracing_subscriber::fmt::format::FmtSpan;
+use logforth::record::{Level, LevelFilter};
 use windows::Win32::System::Com::{CoLockObjectExternal, IClassFactory, IClassFactory_Impl};
 use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTACH};
 use windows::core::{
@@ -14,10 +13,7 @@ use windows::core::{
     implement,
 };
 
-use crate::{
-    logging::{WinDbgWriter, output_debug_string},
-    text_service::TextService,
-};
+use crate::{logging::WinDbg, text_service::TextService};
 
 pub(crate) static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 
@@ -31,22 +27,17 @@ extern "system" fn DllMain(
         let g_hinstance = G_HINSTANCE.load(Ordering::Relaxed);
         if g_hinstance == 0 {
             G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
-            if let Err(error) = tracing_subscriber::fmt()
-                .with_writer(WinDbgWriter::default)
-                .without_time()
-                .with_span_events(FmtSpan::ENTER)
-                .with_max_level(if cfg!(debug_assertions) {
-                    Level::DEBUG
-                } else {
-                    Level::INFO
+            logforth::starter_log::builder()
+                .dispatch(|d| {
+                    d.filter(if cfg!(debug_assertions) {
+                        LevelFilter::MoreSevereEqual(Level::Debug)
+                    } else {
+                        LevelFilter::MoreSevereEqual(Level::Info)
+                    })
+                    .append(WinDbg::default())
                 })
-                .try_init()
-            {
-                output_debug_string(&format!(
-                    "chewing_tip: failed to init tracing_subscriber: {error:?}"
-                ));
-            }
-            tracing::info!("chewing_tip.dll loaded");
+                .apply();
+            log::info!("chewing_tip.dll loaded");
         }
     }
     TRUE.0

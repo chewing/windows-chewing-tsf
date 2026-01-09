@@ -1,33 +1,32 @@
-use std::io::Write;
-
+use logforth::{Append, Diagnostic, Error, Layout, layout::PlainTextLayout, record::Record};
 use windows::Win32::System::Diagnostics::Debug::{IsDebuggerPresent, OutputDebugStringW};
 use windows_core::HSTRING;
 
-#[derive(Default)]
-pub(crate) struct WinDbgWriter {
-    buffer: Vec<u8>,
+#[derive(Debug)]
+pub(crate) struct WinDbg {
+    layout: Box<dyn Layout>,
 }
 
-impl Write for WinDbgWriter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if is_debugger_present() {
-            self.buffer.write(buf)
-        } else {
-            Ok(buf.len())
+impl Default for WinDbg {
+    fn default() -> Self {
+        Self {
+            layout: Box::new(PlainTextLayout::default()),
         }
     }
-    fn flush(&mut self) -> std::io::Result<()> {
+}
+
+impl Append for WinDbg {
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         if is_debugger_present() {
-            let text = String::from_utf8_lossy(&self.buffer);
+            let mut bytes = self.layout.format(record, diags)?;
+            bytes.push(b'\n');
+            let text = String::from_utf8_lossy(&bytes);
             output_debug_string(&text);
         }
         Ok(())
     }
-}
-
-impl Drop for WinDbgWriter {
-    fn drop(&mut self) {
-        let _ = self.flush();
+    fn flush(&self) -> Result<(), Error> {
+        Ok(())
     }
 }
 

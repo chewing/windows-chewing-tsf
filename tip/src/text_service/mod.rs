@@ -2,7 +2,7 @@
 
 use std::cell::{Cell, RefCell};
 
-use tracing::{debug, error, instrument};
+use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
     System::Variant::VARIANT,
@@ -119,7 +119,6 @@ impl IFnRunCommand_Impl for TextService_Impl {
 }
 
 impl ITfTextInputProcessor_Impl for TextService_Impl {
-    #[instrument(skip_all)]
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
         self.tid.set(tid);
         let mut ts = self.inner.borrow_mut();
@@ -171,7 +170,6 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn Deactivate(&self) -> Result<()> {
         let thread_cookies = self.thread_cookies.take();
 
@@ -206,17 +204,14 @@ impl ITfTextInputProcessorEx_Impl for TextService_Impl {
 }
 
 impl ITfThreadMgrEventSink_Impl for TextService_Impl {
-    #[instrument(skip_all)]
     fn OnInitDocumentMgr(&self, _pdim: Ref<ITfDocumentMgr>) -> Result<()> {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn OnUninitDocumentMgr(&self, _pdim: Ref<ITfDocumentMgr>) -> Result<()> {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn OnSetFocus(
         &self,
         pdimfocus: Ref<ITfDocumentMgr>,
@@ -224,7 +219,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     ) -> Result<()> {
         debug!(
             focus = !pdimfocus.is_null(),
-            prevfocus = !pdimprevfocus.is_null()
+            prevfocus = !pdimprevfocus.is_null(); ""
         );
         // Excel switches document upon first key down. Skip this superflos
         // focus change.
@@ -257,19 +252,16 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn OnPushContext(&self, _pic: Ref<ITfContext>) -> Result<()> {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn OnPopContext(&self, _pic: Ref<ITfContext>) -> Result<()> {
         Ok(())
     }
 }
 
 impl ITfThreadFocusSink_Impl for TextService_Impl {
-    #[instrument(skip_all)]
     fn OnSetThreadFocus(&self) -> Result<()> {
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(());
@@ -280,21 +272,18 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
         }
         Ok(())
     }
-    #[instrument(skip_all)]
     fn OnKillThreadFocus(&self) -> Result<()> {
         Ok(())
     }
 }
 
 impl ITfKeyEventSink_Impl for TextService_Impl {
-    #[instrument(skip_all)]
     fn OnSetFocus(&self, _fforeground: BOOL) -> Result<()> {
         Ok(())
     }
 
-    #[instrument(skip_all, ret)]
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(?wparam, ?lparam);
+        debug!(wparam:?, lparam:?; "");
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
@@ -309,9 +298,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(should_handle.into())
     }
 
-    #[instrument(skip_all, ret)]
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(?wparam, ?lparam);
+        debug!(wparam:?, lparam:?; "");
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
@@ -326,9 +314,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(should_handle.into())
     }
 
-    #[instrument(skip_all, ret)]
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(?wparam, ?lparam);
+        debug!(wparam:?, lparam:?; "");
         self.key_busy.set(true);
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
@@ -344,9 +331,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(handled.into())
     }
 
-    #[instrument(skip_all, ret)]
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(?wparam, ?lparam);
+        debug!(wparam:?, lparam:?; "");
         self.key_busy.set(false);
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
@@ -362,10 +348,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(handled.into())
     }
 
-    #[instrument(skip_all, ret)]
     fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
-            debug!(?rguid);
+            debug!(rguid:?; "");
             let Some(ts) = &*self.inner.borrow() else {
                 return Ok(FALSE);
             };
@@ -378,7 +363,6 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 }
 
 impl ITfCompositionSink_Impl for TextService_Impl {
-    #[instrument(skip_all)]
     fn OnCompositionTerminated(
         &self,
         ecwrite: u32,
@@ -403,10 +387,9 @@ impl ITfCompositionSink_Impl for TextService_Impl {
 }
 
 impl ITfCompartmentEventSink_Impl for TextService_Impl {
-    #[instrument(name = "ITfCompartmentEventSink::OnChange", skip_all)]
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
-            debug!(?rguid);
+            debug!(rguid:?; "");
             let Some(ts) = &*self.inner.borrow() else {
                 return Ok(());
             };
@@ -420,7 +403,6 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
 }
 
 impl ITfActiveLanguageProfileNotifySink_Impl for TextService_Impl {
-    #[instrument(skip_all)]
     fn OnActivated(
         &self,
         _clsid: *const GUID,

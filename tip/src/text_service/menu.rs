@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use tracing::error;
+use log::error;
 use windows::Win32::{Foundation::HINSTANCE, UI::WindowsAndMessaging::*};
 use windows_core::PCWSTR;
 

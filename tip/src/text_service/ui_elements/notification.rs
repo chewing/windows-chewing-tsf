@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use tracing::error;
+use log::error;
 use windows::Win32::{
     Foundation::{E_FAIL, FALSE, HWND, LPARAM, LRESULT, TRUE, WPARAM},
     Graphics::{
