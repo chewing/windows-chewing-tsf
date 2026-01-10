@@ -441,7 +441,7 @@ dependencies = [
 
 [[package]]
 name = "chewing-preferences"
-version = "25.10.0"
+version = "26.1.1"
 dependencies = [
  "anyhow",
  "chewing",
