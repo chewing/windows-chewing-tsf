@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [26.1.1.0] - 2026-01-10
 
 ### 🚀 Features
 
@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Support sorting candidates by frequency.
 - Support import PIME personal dictionary from chewing editor.
 - Limited support for customize keybindings.
+- Support keybinding for toggling between the Hsu and Standard keyboard layout.
 - Single word phrases are no longer normalized to zero, improving conversion accuracy.
 - Phrase auto learning will now also learn phrases containing stop words.
 
