@@ -157,11 +157,6 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
             let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
             let openclose_compartment =
                 compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-            // FIXME move the initialization of keyboard openclose to open to TIP code
-            let openclose: VARIANT = 1i32.into();
-            if let Err(error) = openclose_compartment.SetValue(tid, &openclose) {
-                error!("Unable to initialize keyboard openclose compartment: {error:#}");
-            }
             let source: ITfSource = openclose_compartment.cast()?;
             self.keyboard_openclose_cookie
                 .set(source.AdviseSink(&ITfCompartmentEventSink::IID, self.as_interface_ref())?);
