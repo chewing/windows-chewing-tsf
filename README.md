@@ -15,15 +15,18 @@ All parts are licensed under GPL-3.0-or-later license.
 **Build natively on Windows using MSVC**
 
 * [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
+* [NodeJS Native](https://nodejs.org/)
 * [Rust](https://rustup.rs/)
 
 **Cross compile on Windows using MinGW-W64**
 
 * [MSYS2](https://www.msys2.org/)
+* [NodeJS Native](https://nodejs.org/)
 * [Rust](https://rustup.rs/)
 
 **Cross compile on Fedora using MinGW-W64**
 
+* [NodeJS Native](https://nodejs.org/)
 * [Rust](https://rustup.rs/)
 
 ## How to Build
