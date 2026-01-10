@@ -6,6 +6,10 @@ mod version;
 
 fn check_for_update() {
     log::info!("Checking for update...");
+    // Always clear update URL before a new check
+    if let Err(error) = config::set_update_info_url("") {
+        log::error!("Unable to set update info URL: {error:#}");
+    }
     let cfg = match config::get_check_update_config() {
         Ok(cfg) => cfg,
         Err(error) => {
@@ -18,6 +22,7 @@ fn check_for_update() {
         return;
     }
     let dll_version = version::chewing_dll_version();
+    log::info!("Current version = {dll_version}");
     match releases::fetch_releases() {
         Ok(releases) => 'check: {
             for rel in releases {
