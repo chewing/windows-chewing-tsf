@@ -38,6 +38,7 @@ const useStyles = makeStyles({
   },
   texarea_inner: {
     maxHeight: "unset",
+    fontFamily: "monospace"
   },
 });
 
