@@ -657,6 +657,8 @@ impl ChewingTextService {
         let evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
+        let capslock_enabled_and_keyboard_closed =
+            self.cfg.borrow().chewing_tsf.enable_caps_lock && !self.open.get();
 
         debug!(last_is_shift, last_is_capslock; "");
 
@@ -664,6 +666,7 @@ impl ChewingTextService {
             && self.shift_key_state.borrow_mut().release()
                 < Duration::from_millis(self.cfg.borrow().chewing_tsf.shift_key_sensitivity as u64)
             && self.cfg.borrow().chewing_tsf.switch_lang_with_shift
+            && !capslock_enabled_and_keyboard_closed
         {
             // TODO: simplify this
             if self.cfg.borrow().chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock)
@@ -694,7 +697,10 @@ impl ChewingTextService {
             }
         }
 
-        if self.cfg.borrow().chewing_tsf.enable_caps_lock && last_is_capslock {
+        if self.cfg.borrow().chewing_tsf.enable_caps_lock
+            && last_is_capslock
+            && !capslock_enabled_and_keyboard_closed
+        {
             self.sync_lang_mode()?;
             let msg = match self.chewing_editor.borrow().editor_options().language_mode {
                 LanguageMode::English => HSTRING::from("英數模式 (CapsLock)"),

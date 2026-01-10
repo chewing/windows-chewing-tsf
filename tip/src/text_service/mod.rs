@@ -5,7 +5,6 @@ use std::cell::{Cell, RefCell};
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
-    System::Variant::VARIANT,
     UI::TextServices::*,
 };
 use windows_core::{
