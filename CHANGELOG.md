@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🚀 Features
+
+- Breaking! Invert CapsLock language mode mapping. CapsLock on enables
+  Chinese mode and CapsLock off enables English mode. This ensures better
+  compatibility with short-cut keys and password fields.
+
 ## [26.1.1.0] - 2026-01-10
 
 ### 🚀 Features
