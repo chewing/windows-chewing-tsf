@@ -527,17 +527,9 @@ impl ChewingTextService {
 
         if evt.ksym.is_unicode() {
             let mut momentary_english_mode = false;
-            let mut invert_case = false;
-            // Invert case if the SYMBOL_MODE is forced by CapsLock
-            if self.lang_mode.get() == LanguageMode::English
-                && evt.is_state_on(KeyState::CapsLock)
-                && self.cfg.borrow().chewing_tsf.enable_caps_lock
-            {
-                invert_case = true;
-            }
-            // HACK: invert case if in selection mode
-            if evt.is_state_on(KeyState::CapsLock) && self.candidate_list.borrow().is_some() {
-                invert_case = true;
+            let mut upper_case = false;
+            if evt.is_state_on(KeyState::Shift) {
+                upper_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
             if evt.is_state_on(KeyState::Shift)
@@ -548,15 +540,15 @@ impl ChewingTextService {
             {
                 momentary_english_mode = true;
                 if !self.cfg.borrow().chewing_tsf.upper_case_with_shift {
-                    invert_case = true;
+                    upper_case = false;
                 }
             }
-            evt.ksym = if invert_case && evt.ksym.is_ascii() {
+            evt.ksym = if evt.ksym.is_ascii() {
                 let code = evt.ksym.to_unicode();
-                if code.is_ascii_uppercase() {
-                    Keysym::from(code.to_ascii_lowercase())
-                } else {
+                if upper_case {
                     Keysym::from(code.to_ascii_uppercase())
+                } else {
+                    Keysym::from(code.to_ascii_lowercase())
                 }
             } else {
                 evt.ksym
