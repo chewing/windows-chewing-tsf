@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 env:
   VER_MAJOR: 26
   VER_MINOR: 1
