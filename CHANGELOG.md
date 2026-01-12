@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [26.1.2.0] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- editor: fixes `unexpected argument '-k' found` error when import files
+
 ## [26.1.1.0] - 2026-01-10
 
 ### 🚀 Features

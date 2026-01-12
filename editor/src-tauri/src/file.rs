@@ -4,7 +4,7 @@ use std::{
     process::Command,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use chewing::dictionary::UserDictionaryLoader;
 use tempfile::NamedTempFile;
 
@@ -44,7 +44,6 @@ fn import_from_csv(src_path: String, dict_path: &Path) -> Result<()> {
     let chewing_cli = chewing_cli_path();
     if let Ok(output) = Command::new(chewing_cli)
         .arg("init")
-        .arg("-k")
         .arg("--fix")
         .arg("--csv")
         .arg(src_path)
