@@ -384,20 +384,13 @@ impl ChewingTextService {
             return Ok(true);
         }
         //
-        // Step 2.2 handle switch lang with CapsLock
-        //
-        if self.cfg.borrow().chewing_tsf.enable_caps_lock && !self.open.get() {
-            // Disable all processing when disabled
-            return Ok(false);
-        }
-        //
-        // Step 2.3 handle any keybindings
+        // Step 2.2 handle any keybindings
         //
         if self.keybindings.borrow().iter().any(|kb| kb.matches(&evt)) {
             return Ok(true);
         }
         //
-        // Step 2.4 ignore CapsLock if disabled
+        // Step 2.3 ignore CapsLock if disabled
         if evt.ksym == SYM_CAPSLOCK && !self.cfg.borrow().chewing_tsf.enable_caps_lock {
             return Ok(false);
         }
@@ -465,12 +458,6 @@ impl ChewingTextService {
                     && self.cfg.borrow().chewing_tsf.enable_fullwidth_toggle_key
                 {
                     // need to handle fullwidth mode switch
-                    return Ok(true);
-                } else if evt.is_state_on(KeyState::CapsLock)
-                    && evt.ksym.is_unicode()
-                    && self.cfg.borrow().chewing_tsf.enable_caps_lock
-                {
-                    // need to invert case
                     return Ok(true);
                 } else {
                     debug!("key not handled - in English mode");
@@ -649,8 +636,6 @@ impl ChewingTextService {
         let evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
-        let capslock_enabled_and_keyboard_closed =
-            self.cfg.borrow().chewing_tsf.enable_caps_lock && !self.open.get();
 
         debug!(last_is_shift, last_is_capslock; "");
 
@@ -658,15 +643,13 @@ impl ChewingTextService {
             && self.shift_key_state.borrow_mut().release()
                 < Duration::from_millis(self.cfg.borrow().chewing_tsf.shift_key_sensitivity as u64)
             && self.cfg.borrow().chewing_tsf.switch_lang_with_shift
-            && !capslock_enabled_and_keyboard_closed
         {
             // TODO: simplify this
-            if self.cfg.borrow().chewing_tsf.enable_caps_lock && evt.is_state_on(KeyState::CapsLock)
-            {
+            if self.cfg.borrow().chewing_tsf.enable_caps_lock {
                 // Locked by CapsLock
                 let msg = match self.lang_mode.get() {
-                    LanguageMode::English => HSTRING::from("英數模式 (CapsLock)"),
-                    LanguageMode::Chinese => HSTRING::from("中文模式"),
+                    LanguageMode::English => HSTRING::from("CapsLock 鎖定英數模式"),
+                    LanguageMode::Chinese => HSTRING::from("CapsLock 鎖定中文模式"),
                 };
                 if self.cfg.borrow().chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
@@ -675,12 +658,6 @@ impl ChewingTextService {
                 self.toggle_lang_mode()?;
                 let msg = match self.lang_mode.get() {
                     LanguageMode::English => HSTRING::from("英數模式"),
-                    LanguageMode::Chinese
-                        if self.cfg.borrow().chewing_tsf.enable_caps_lock
-                            && evt.is_state_on(KeyState::CapsLock) =>
-                    {
-                        HSTRING::from("英數模式 (CapsLock)")
-                    }
                     LanguageMode::Chinese => HSTRING::from("中文模式"),
                 };
                 if self.cfg.borrow().chewing_tsf.show_notification {
@@ -689,13 +666,10 @@ impl ChewingTextService {
             }
         }
 
-        if self.cfg.borrow().chewing_tsf.enable_caps_lock
-            && last_is_capslock
-            && !capslock_enabled_and_keyboard_closed
-        {
+        if self.cfg.borrow().chewing_tsf.enable_caps_lock && last_is_capslock {
             self.sync_lang_mode()?;
             let msg = match self.chewing_editor.borrow().editor_options().language_mode {
-                LanguageMode::English => HSTRING::from("英數模式 (CapsLock)"),
+                LanguageMode::English => HSTRING::from("英數模式"),
                 LanguageMode::Chinese => HSTRING::from("中文模式"),
             };
             if self.cfg.borrow().chewing_tsf.show_notification {
@@ -1136,9 +1110,9 @@ impl ChewingTextService {
             .to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         if self.cfg.borrow().chewing_tsf.enable_caps_lock {
             if evt.is_state_on(KeyState::CapsLock) {
-                self.lang_mode.set(LanguageMode::English);
-            } else {
                 self.lang_mode.set(LanguageMode::Chinese);
+            } else {
+                self.lang_mode.set(LanguageMode::English);
             }
         }
 
@@ -1148,22 +1122,20 @@ impl ChewingTextService {
 
         self.update_lang_buttons()?;
 
-        // The OpenClose compartment is not synced when CapsLock English mode is enabled
-        if !self.cfg.borrow().chewing_tsf.enable_caps_lock {
-            let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
-            unsafe {
-                let compartment =
-                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-                let openclose: i32 = match self.lang_mode.get() {
-                    LanguageMode::Chinese => 1,
-                    LanguageMode::English => 0,
-                };
-                let old_openclose = i32::try_from(&compartment.GetValue()?)?;
-                if openclose != old_openclose {
-                    let _ = compartment.SetValue(self.tid, &openclose.into());
-                }
+        let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
+        unsafe {
+            let compartment =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+            let openclose: i32 = match self.lang_mode.get() {
+                LanguageMode::Chinese => 1,
+                LanguageMode::English => 0,
+            };
+            let old_openclose = i32::try_from(&compartment.GetValue()?)?;
+            if openclose != old_openclose {
+                let _ = compartment.SetValue(self.tid, &openclose.into());
             }
         }
+
         Ok(())
     }
 
@@ -1335,9 +1307,6 @@ impl ChewingTextService {
                 Some(g_hinstance),
                 PCWSTR::from_raw(icon_id as *const u16),
             )?)?;
-            if self.cfg.borrow().chewing_tsf.enable_caps_lock {
-                let _ = self.ime_mode_button.set_enabled(self.open.get());
-            }
         }
         // TODO extract shape mode change to dedicated method
         let shape_mode = self.chewing_editor.borrow().editor_options().character_form;

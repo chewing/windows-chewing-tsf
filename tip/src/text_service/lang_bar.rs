@@ -12,9 +12,9 @@ use windows::Win32::{
         TextServices::{
             ITfLangBarItem, ITfLangBarItem_Impl, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
             ITfLangBarItemSink, ITfMenu, ITfSource, ITfSource_Impl, ITfThreadMgr,
-            TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON, TF_LBI_STATUS,
-            TF_LBI_STATUS_DISABLED, TF_LBI_STATUS_HIDDEN, TF_LBMENUF_CHECKED, TF_LBMENUF_GRAYED,
-            TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU, TfLBIClick,
+            TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON, TF_LBI_STATUS, TF_LBI_STATUS_HIDDEN,
+            TF_LBMENUF_CHECKED, TF_LBMENUF_GRAYED, TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU,
+            TfLBIClick,
         },
         WindowsAndMessaging::{
             CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU,
@@ -76,16 +76,6 @@ impl LangBarButton {
         self.update_sinks(TF_LBI_ICON)?;
         Ok(())
     }
-    pub(super) fn set_enabled(&self, enabled: bool) -> Result<()> {
-        if enabled {
-            self.status.set(self.status.get() & !TF_LBI_STATUS_DISABLED);
-        } else {
-            self.status.set(self.status.get() | TF_LBI_STATUS_DISABLED);
-        }
-        self.update_sinks(TF_LBI_STATUS)?;
-        Ok(())
-    }
-
     fn update_sinks(&self, dwflags: u32) -> Result<()> {
         if let Ok(sinks) = self.sinks.try_borrow() {
             for sink in sinks.values() {
