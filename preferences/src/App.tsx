@@ -207,10 +207,15 @@ function App() {
   }
 
   const setBooleanConfig = (event: React.ChangeEvent<HTMLInputElement>, data: CheckboxOnChangeData) => {
-    setConfig({
+    let new_config = {
       ...config,
       [event.target.name]: data.checked
-    } as ChewingTsfConfig);
+    } as ChewingTsfConfig;
+    // Disable conflicting configs
+    if (new_config.enable_caps_lock) {
+      new_config.switch_lang_with_shift = false;
+    }
+    setConfig(new_config);
   }
 
   const setNumberConfig = (name: string, fallback: number) => (_event: SpinButtonChangeEvent, data: SpinButtonOnChangeData) => {
@@ -276,7 +281,7 @@ function App() {
 const InputBehaviors = ({ config, styles, showAdvanced, setShowAdvanced, setConfig, setBooleanConfig }) => (
   <div className={styles.content} role="tabpanel" aria-labelledby="InputBehaviors">
     <div className={styles.column}>
-      <Checkbox label="使用 Shift 快速切換中英文" name='switch_lang_with_shift' checked={config?.switch_lang_with_shift} onChange={setBooleanConfig} />
+      <Checkbox label="使用 Shift 快速切換中英文" name='switch_lang_with_shift' disabled={config?.enable_caps_lock} checked={config?.switch_lang_with_shift} onChange={setBooleanConfig} />
       <Checkbox label="使用 CapsLock 快速切換中英文" name='enable_caps_lock' checked={config?.enable_caps_lock} onChange={setBooleanConfig} />
       <Checkbox label="顯示中/英切換通知訊息" name='show_notification' checked={config?.show_notification} onChange={setBooleanConfig} />
       <Checkbox label="使用 Esc 清空編輯區字串" name='esc_clean_all_buf' checked={config?.esc_clean_all_buf} onChange={setBooleanConfig} />
@@ -295,7 +300,7 @@ const InputBehaviors = ({ config, styles, showAdvanced, setShowAdvanced, setConf
       <Checkbox label="按空白鍵叫出選字視窗" name='show_cand_with_space_key' checked={config?.show_cand_with_space_key} onChange={setBooleanConfig} />
       <Checkbox label="選字完畢自動跳到下一個字" name='advance_after_selection' checked={config?.advance_after_selection} onChange={setBooleanConfig} />
       <Checkbox label="預設以全形模式啟動" name='default_full_space' checked={config?.default_full_space} onChange={setBooleanConfig} />
-      <Checkbox label="預設以英文模式啟動" name='default_english' checked={config?.default_english} onChange={setBooleanConfig} />
+      <Checkbox label="預設以英文模式啟動" name='default_english' disabled={config?.enable_caps_lock} checked={config?.default_english} onChange={setBooleanConfig} />
       <Checkbox label="預設輸出簡體中文（或使用 Ctrl + F12 切換）" name='output_simp_chinese' checked={config?.output_simp_chinese} onChange={setBooleanConfig} />
       <div style={{ marginLeft: "10px", marginTop: "10px" }}>
         <Field label="選字鍵：">
