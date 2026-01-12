@@ -10,3 +10,4 @@ chewing = "0.11.0"
 lto = "thin"
 panic = "abort"
 debug = true
+split-debuginfo = "packed"

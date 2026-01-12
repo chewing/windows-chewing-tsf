@@ -65,7 +65,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     {
         cmd!(
             sh,
-            "cargo install --locked chewing-cli --git https://github.com/chewing/libchewing
+            "cargo install --locked chewing-cli
                  --root build --target {x86_64_target} --features sqlite-bundled"
         )
         .run()?;
@@ -82,7 +82,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
                 None
             };
             // FIXME https://github.com/matklad/xshell/issues/82
-            if sh.path_exists("/usr/bin/npm") {
+            if sh.path_exists("/usr/bin") {
                 cmd!(
                     sh,
                     "npm run tauri -- build {debug...} --target {x86_64_target}"
@@ -104,7 +104,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
                 None
             };
             // FIXME https://github.com/matklad/xshell/issues/82
-            if sh.path_exists("/usr/bin/npm") {
+            if sh.path_exists("/usr/bin") {
                 cmd!(
                     sh,
                     "npm run tauri -- build {debug...} --target {x86_64_target}"

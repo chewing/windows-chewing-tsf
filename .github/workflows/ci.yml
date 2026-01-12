@@ -27,20 +27,15 @@ on:
 jobs:
   cross-build:
     runs-on: ubuntu-latest
-    container: quay.io/fedora/fedora:42
     name: Cross Build
     steps:
       - name: Install build dependencies
         run: |
-          sudo dnf -y install clang rustup git nodejs
-          sudo dnf -y install mingw32-binutils mingw32-gcc
-          sudo dnf -y install mingw64-binutils mingw64-gcc
-          rustup-init -y
-          source "$HOME/.cargo/env"
+          sudo apt install -y gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
           rustup set auto-self-update disable
           rustup target add i686-pc-windows-gnu
           rustup target add x86_64-pc-windows-gnu
-          cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
+          cargo install chewing-cli --features sqlite-bundled
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - uses: actions/checkout@v6
@@ -89,61 +84,61 @@ jobs:
         run: |
           cargo xtask build-installer --release --target gnu
 
-  build:
-    runs-on: windows-latest
-    name: Build
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
+      # build:
+      #   runs-on: windows-latest
+      #   name: Build
+      #   steps:
+      #     - uses: actions/checkout@v6
+      #       with:
+      #         submodules: true
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            editor/src-tauri
-            preferences/src-tauri
+      #     - uses: Swatinem/rust-cache@v2
+      #       with:
+      #         workspaces: |
+      #           .
+      #           editor/src-tauri
+      #           preferences/src-tauri
 
-      - name: Install NPM dependencies
-        run: |
-          cd preferences
-          npm install
-          cd ..
-          cd editor
-          npm install
-          cd ..
+      #     - name: Install NPM dependencies
+      #       run: |
+      #         cd preferences
+      #         npm install
+      #         cd ..
+      #         cd editor
+      #         npm install
+      #         cd ..
 
-      - name: Install build dependencies
-        run: |
-          cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
+      #     - name: Install build dependencies
+      #       run: |
+      #         cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
 
-      - name: Generate nightly version info
-        if: ${{ inputs.nightly }}
-        run: |
-          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
-          cat version.rc
-          cat installer/version.wxi
+      #     - name: Generate nightly version info
+      #       if: ${{ inputs.nightly }}
+      #       run: |
+      #         cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
+      #         cat version.rc
+      #         cat installer/version.wxi
 
-      - name: Generate pull_request version info
-        if: github.event_name == 'pull_request'
-        env:
-          PR_NUMBER: ${{ github.event.number }}
-        run: |
-          cargo xtask update-version --major 0 --minor 0 --patch $env:PR_NUMBER -b $env:GITHUB_RUN_NUMBER
-          cat version.rc
-          cat installer/version.wxi
+      #     - name: Generate pull_request version info
+      #       if: github.event_name == 'pull_request'
+      #       env:
+      #         PR_NUMBER: ${{ github.event.number }}
+      #       run: |
+      #         cargo xtask update-version --major 0 --minor 0 --patch $env:PR_NUMBER -b $env:GITHUB_RUN_NUMBER
+      #         cat version.rc
+      #         cat installer/version.wxi
 
-      - name: Build nightly
-        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
-        shell: cmd
-        run: |
-          cargo xtask build-installer --nightly --release --target msvc
+      #     - name: Build nightly
+      #       if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+      #       shell: cmd
+      #       run: |
+      #         cargo xtask build-installer --nightly --release --target msvc
 
-      - name: Build release
-        if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
-        shell: cmd
-        run: |
-          cargo xtask build-installer --release --target msvc
+      #     - name: Build release
+      #       if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
+      #       shell: cmd
+      #       run: |
+      #         cargo xtask build-installer --release --target msvc
 
       - uses: actions/upload-artifact@v6
         with:
@@ -155,7 +150,7 @@ jobs:
     name: Package
     outputs:
       unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
-    needs: [build]
+    needs: [cross-build]
 
     steps:
       - uses: actions/checkout@v6
