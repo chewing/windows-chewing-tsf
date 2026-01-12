@@ -5,6 +5,9 @@ on:
     tags:
       - "v2*"
 
+permissions:
+  contents: read
+
 jobs:
   release-build:
     uses: ./.github/workflows/ci.yml
