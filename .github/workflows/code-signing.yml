@@ -15,6 +15,8 @@ on:
 
 jobs:
   code-signing:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     name: Code Signing
     steps:
