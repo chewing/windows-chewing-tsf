@@ -79,8 +79,13 @@ jobs:
           cat version.rc
           cat installer/version.wxi
 
+      - name: Build pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          cargo xtask build-installer --nightly --target gnu
+
       - name: Build nightly
-        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+        if: ${{ inputs.nightly }}
         run: |
           cargo xtask build-installer --nightly --release --target gnu
 
@@ -133,8 +138,14 @@ jobs:
           cat version.rc
           cat installer/version.wxi
 
+      - name: Build pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: cmd
+        run: |
+          cargo xtask build-installer --nightly --target msvc
+
       - name: Build nightly
-        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+        if: ${{ inputs.nightly }}
         shell: cmd
         run: |
           cargo xtask build-installer --nightly --release --target msvc
