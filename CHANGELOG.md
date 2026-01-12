@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - editor: fixes `unexpected argument '-k' found` error when import files
+- tip: only consider Shift key for upper/lower case conversion
 
 ## [26.1.1.0] - 2026-01-10
 
