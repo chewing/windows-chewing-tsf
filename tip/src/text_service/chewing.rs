@@ -69,7 +69,6 @@ use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, No
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
 const GUID_SETTINGS_BUTTON: GUID = GUID::from_u128(0x4FAFA520_2104_407E_A532_9F1AAB7751CD);
-const GUID_CONTROL_F12: GUID = GUID::from_u128(0x1797B43A_2332_40B4_8007_B2F98F19C047);
 
 const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 
@@ -100,6 +99,44 @@ impl ShiftKeyState {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum TsfLangMode {
+    Chinese,
+    English,
+    DisabledChinese,
+    DisabledEnglish,
+}
+
+impl TsfLangMode {
+    fn is_disabled(&self) -> bool {
+        matches!(
+            self,
+            TsfLangMode::DisabledChinese | TsfLangMode::DisabledEnglish
+        )
+    }
+}
+
+impl From<TsfLangMode> for LanguageMode {
+    fn from(value: TsfLangMode) -> Self {
+        match value {
+            TsfLangMode::Chinese => LanguageMode::Chinese,
+            TsfLangMode::English => LanguageMode::English,
+            TsfLangMode::DisabledChinese => LanguageMode::Chinese,
+            TsfLangMode::DisabledEnglish => LanguageMode::English,
+        }
+    }
+}
+
+impl PartialEq<LanguageMode> for TsfLangMode {
+    fn eq(&self, other: &LanguageMode) -> bool {
+        match (self, other) {
+            (TsfLangMode::Chinese, LanguageMode::Chinese) => true,
+            (TsfLangMode::English, LanguageMode::English) => true,
+            _ => false,
+        }
+    }
+}
+
 pub(super) struct CommitString {
     pub(super) text: HSTRING,
     pub(super) cursor: usize,
@@ -115,9 +152,8 @@ pub(super) struct ChewingTextService {
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
 
     // === mutable ===
-    lang_mode: Cell<LanguageMode>,
+    lang_mode: Cell<TsfLangMode>,
     output_simp_chinese: Cell<bool>,
-    open: Cell<bool>,
     shift_key_state: RefCell<ShiftKeyState>,
     cfg: RefCell<Config>,
     kbtype: Cell<KeyboardLayoutCompat>,
@@ -131,6 +167,7 @@ pub(super) struct ChewingTextService {
     composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
     pending_edit: RefCell<Weak<RefCell<CommitString>>>,
+    pending_lang_mode_change: Cell<bool>,
 }
 
 impl ChewingTextService {
@@ -295,8 +332,7 @@ impl ChewingTextService {
             input_da_atom,
             _menu: menu,
             popup_menu,
-            lang_mode: Cell::new(LanguageMode::English),
-            open: Cell::new(true),
+            lang_mode: Cell::new(TsfLangMode::English),
             output_simp_chinese: Default::default(),
             shift_key_state: RefCell::new(ShiftKeyState::Up),
             cfg: RefCell::new(cfg),
@@ -311,7 +347,12 @@ impl ChewingTextService {
             candidate_list: Default::default(),
             composition: Default::default(),
             pending_edit: RefCell::new(Weak::new()),
+            pending_lang_mode_change: Cell::new(false),
         };
+
+        if let Err(error) = cts.init_openclose() {
+            error!("unable to initialize openclose: {error:#}");
+        }
 
         if let Err(error) = cts.init_chewing_context() {
             error!("unable to initialize chewing: {error:#}");
@@ -351,7 +392,7 @@ impl ChewingTextService {
 
     pub(super) fn on_focus(&self) -> Result<()> {
         self.apply_config_if_changed()?;
-        self.sync_lang_mode()?;
+        self.sync_lang_mode(true)?;
         Ok(())
     }
 
@@ -375,6 +416,10 @@ impl ChewingTextService {
         //
         // Step 2. handle any mode change related keydown
         //
+        // Ignore all keys if keyboard is closed
+        if self.lang_mode.get().is_disabled() {
+            return Ok(false);
+        }
         //
         // Step 2.1 handle switch lang with Shift
         //
@@ -498,6 +543,7 @@ impl ChewingTextService {
 
         // Handle keybindings
         if let Some(keybinding) = self.keybindings.borrow().iter().find(|kb| kb.matches(&evt)) {
+            debug!("matched keybinding on action={}", keybinding.action);
             match keybinding.action.as_str() {
                 "toggle_simplified_chinese" => {
                     self.toggle_simp_chinese()?;
@@ -629,6 +675,9 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_test_keyup(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+        if self.lang_mode.get().is_disabled() {
+            return Ok(false);
+        }
         self.on_keyup(context, ev)
     }
 
@@ -648,8 +697,9 @@ impl ChewingTextService {
             if self.cfg.borrow().chewing_tsf.enable_caps_lock {
                 // Locked by CapsLock
                 let msg = match self.lang_mode.get() {
-                    LanguageMode::English => HSTRING::from("CapsLock 鎖定英數模式"),
-                    LanguageMode::Chinese => HSTRING::from("CapsLock 鎖定中文模式"),
+                    TsfLangMode::English => HSTRING::from("CapsLock 鎖定英數模式"),
+                    TsfLangMode::Chinese => HSTRING::from("CapsLock 鎖定中文模式"),
+                    _ => HSTRING::from("輸入法關閉中"), // unreachable
                 };
                 if self.cfg.borrow().chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
@@ -657,8 +707,9 @@ impl ChewingTextService {
             } else {
                 self.toggle_lang_mode()?;
                 let msg = match self.lang_mode.get() {
-                    LanguageMode::English => HSTRING::from("英數模式"),
-                    LanguageMode::Chinese => HSTRING::from("中文模式"),
+                    TsfLangMode::English => HSTRING::from("英數模式"),
+                    TsfLangMode::Chinese => HSTRING::from("中文模式"),
+                    _ => HSTRING::from("輸入法關閉中"), // unreachable
                 };
                 if self.cfg.borrow().chewing_tsf.show_notification {
                     self.show_message(context, &msg, Duration::from_millis(500))?;
@@ -667,7 +718,7 @@ impl ChewingTextService {
         }
 
         if self.cfg.borrow().chewing_tsf.enable_caps_lock && last_is_capslock {
-            self.sync_lang_mode()?;
+            self.sync_lang_mode(true)?;
             let msg = match self.chewing_editor.borrow().editor_options().language_mode {
                 LanguageMode::English => HSTRING::from("英數模式"),
                 LanguageMode::Chinese => HSTRING::from("中文模式"),
@@ -684,11 +735,17 @@ impl ChewingTextService {
         Ok(false)
     }
 
-    pub(super) fn on_preserved_key(&self, guid: &GUID) -> bool {
-        if guid == &GUID_CONTROL_F12 && self.toggle_simp_chinese().is_ok() {
-            return true;
-        }
+    pub(super) fn on_preserved_key(&self, _guid: &GUID) -> bool {
         false
+    }
+
+    fn toggle_keyboard_openclose(&self) {
+        self.lang_mode.update(|mode| match mode {
+            TsfLangMode::Chinese => TsfLangMode::DisabledChinese,
+            TsfLangMode::English => TsfLangMode::DisabledEnglish,
+            TsfLangMode::DisabledChinese => TsfLangMode::Chinese,
+            TsfLangMode::DisabledEnglish => TsfLangMode::English,
+        });
     }
 
     pub(super) fn on_composition_terminated(
@@ -727,26 +784,13 @@ impl ChewingTextService {
 
     pub(super) fn on_compartment_change(&self, guid: &GUID) -> Result<()> {
         if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
-            let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
-            unsafe {
-                let thread_compartment =
-                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-                let value = thread_compartment.GetValue()?;
-                let openclose: i32 = (&value).try_into().unwrap_or_default();
-                self.on_keyboard_status_changed(openclose != 0)?;
+            if !self.pending_lang_mode_change.take() {
+                // Compartment change is caused by Ctrl+Space shortcut, starting
+                // a sync_lang_mode cycle.
+                self.toggle_keyboard_openclose();
+                self.sync_lang_mode(false)?;
             }
         }
-        Ok(())
-    }
-
-    fn on_keyboard_status_changed(&self, opened: bool) -> Result<()> {
-        self.open.set(opened);
-        if opened {
-            self.lang_mode.set(LanguageMode::Chinese);
-        } else {
-            self.lang_mode.set(LanguageMode::English);
-        }
-        self.sync_lang_mode()?;
         Ok(())
     }
 
@@ -1105,21 +1149,23 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn sync_lang_mode(&self) -> Result<()> {
-        let evt = KeyEvent::default()
-            .to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
-        if self.cfg.borrow().chewing_tsf.enable_caps_lock {
-            if evt.is_state_on(KeyState::CapsLock) {
-                self.lang_mode.set(LanguageMode::Chinese);
-            } else {
-                self.lang_mode.set(LanguageMode::English);
+    fn sync_lang_mode(&self, internal: bool) -> Result<()> {
+        self.pending_lang_mode_change.set(internal);
+        if !self.lang_mode.get().is_disabled() {
+            let evt = KeyEvent::default()
+                .to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
+            if self.cfg.borrow().chewing_tsf.enable_caps_lock {
+                if evt.is_state_on(KeyState::CapsLock) {
+                    self.lang_mode.set(TsfLangMode::Chinese);
+                } else {
+                    self.lang_mode.set(TsfLangMode::English);
+                }
             }
+            self.chewing_editor
+                .borrow_mut()
+                .set_editor_options(|opt| opt.language_mode = self.lang_mode.get().into());
         }
-
-        self.chewing_editor
-            .borrow_mut()
-            .set_editor_options(|opt| opt.language_mode = self.lang_mode.get());
-
+        debug!("new lang_mode={:?}", self.lang_mode.get());
         self.update_lang_buttons()?;
 
         let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
@@ -1127,34 +1173,45 @@ impl ChewingTextService {
             let compartment =
                 compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
             let openclose: i32 = match self.lang_mode.get() {
-                LanguageMode::Chinese => 1,
-                LanguageMode::English => 0,
+                TsfLangMode::Chinese => 1,
+                TsfLangMode::English => 0,
+                _ => 0,
             };
-            let old_openclose = i32::try_from(&compartment.GetValue()?)?;
-            if openclose != old_openclose {
-                let _ = compartment.SetValue(self.tid, &openclose.into());
-            }
+            // NB: recursively call this inside compartment callback will fail
+            let _ = compartment.SetValue(self.tid, &openclose.into());
         }
 
         Ok(())
     }
 
+    fn init_openclose(&self) -> Result<()> {
+        let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
+        unsafe {
+            let compartment =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+            let _ = compartment.GetValue()?;
+        }
+        Ok(())
+    }
+
     fn toggle_lang_mode(&self) -> Result<()> {
         self.lang_mode.update(|v| match v {
-            LanguageMode::English => LanguageMode::Chinese,
-            LanguageMode::Chinese => LanguageMode::English,
+            TsfLangMode::English => TsfLangMode::Chinese,
+            TsfLangMode::Chinese => TsfLangMode::English,
+            TsfLangMode::DisabledEnglish => TsfLangMode::DisabledChinese,
+            TsfLangMode::DisabledChinese => TsfLangMode::DisabledEnglish,
         });
-        self.sync_lang_mode()?;
+        self.sync_lang_mode(true)?;
 
         Ok(())
     }
 
     fn get_lang_icon_id(&self) -> u32 {
         let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode.get()) {
-            (WindowsTheme::Light, LanguageMode::Chinese) => IDI_CHI,
-            (WindowsTheme::Light, LanguageMode::English) => IDI_ENG,
-            (WindowsTheme::Dark, LanguageMode::Chinese) => IDI_CHI_DARK,
-            (WindowsTheme::Dark, LanguageMode::English) => IDI_ENG_DARK,
+            (WindowsTheme::Light, TsfLangMode::Chinese) => IDI_CHI,
+            (WindowsTheme::Light, TsfLangMode::English) => IDI_ENG,
+            (WindowsTheme::Dark, TsfLangMode::Chinese) => IDI_CHI_DARK,
+            (WindowsTheme::Dark, TsfLangMode::English) => IDI_ENG_DARK,
             _ => IDI_CHI,
         };
         if self.output_simp_chinese.get() {
@@ -1193,12 +1250,12 @@ impl ChewingTextService {
 
         self.lang_mode
             .set(if self.cfg.borrow().chewing_tsf.default_english {
-                LanguageMode::English
+                TsfLangMode::English
             } else {
-                LanguageMode::Chinese
+                TsfLangMode::Chinese
             });
 
-        self.sync_lang_mode()?;
+        self.sync_lang_mode(true)?;
 
         Ok(())
     }
@@ -1308,6 +1365,9 @@ impl ChewingTextService {
                 PCWSTR::from_raw(icon_id as *const u16),
             )?)?;
         }
+        let _ = self
+            .ime_mode_button
+            .set_enabled(!self.lang_mode.get().is_disabled());
         // TODO extract shape mode change to dedicated method
         let shape_mode = self.chewing_editor.borrow().editor_options().character_form;
         unsafe {

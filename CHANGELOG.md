@@ -9,6 +9,11 @@ All notable changes to this project will be documented in this file.
 - Breaking! Invert CapsLock language mode mapping. CapsLock on enables
   Chinese mode and CapsLock off enables English mode. This ensures better
   compatibility with short-cut keys and password fields.
+- Re-enable support for completely disable input processing via Ctrl+Space.
+
+### 🚜 Refactor
+
+- Fully model language state machine in the text input processor.
 
 ## [26.1.2.0] - 2026-01-12
 
