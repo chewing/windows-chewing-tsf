@@ -1,11 +1,16 @@
 use std::cmp::Ordering;
 
 use anyhow::{Result, bail};
-use windows::Win32::{
-    Foundation::LPARAM,
-    Graphics::Gdi::{
-        DEFAULT_CHARSET, EnumFontFamiliesExW, GetDC, LOGFONTW, ReleaseDC, TEXTMETRICW,
+use windows::{
+    Win32::{
+        Foundation::LPARAM,
+        Graphics::Gdi::{
+            CreateFontIndirectW, DEFAULT_CHARSET, DeleteObject, EnumFontFamiliesExW, GDI_ERROR,
+            GGI_MARK_NONEXISTING_GLYPHS, GetDC, GetGlyphIndicesW, LOGFONTW, ReleaseDC,
+            SelectObject, TEXTMETRICW,
+        },
     },
+    core::w,
 };
 
 // Callback function for EnumFontFamiliesEx
@@ -15,6 +20,31 @@ unsafe extern "system" fn enum_font_callback(
     _font_type: u32,
     lparam: LPARAM,
 ) -> i32 {
+    unsafe {
+        let hdc = GetDC(None);
+        if hdc.is_invalid() {
+            return 1;
+        }
+        let hfont = CreateFontIndirectW(logfont);
+        if hfont.is_invalid() {
+            ReleaseDC(None, hdc);
+            return 1;
+        }
+        let old_font = SelectObject(hdc, hfont.into());
+        let mut index = 0;
+        let result = GetGlyphIndicesW(hdc, w!("酷"), 1, &mut index, GGI_MARK_NONEXISTING_GLYPHS);
+
+        // Cleanup
+        SelectObject(hdc, old_font);
+        let _ = DeleteObject(hfont.into());
+        ReleaseDC(None, hdc);
+
+        if result == GDI_ERROR as u32 || index == 0xFFFF {
+            // skip font
+            return 1;
+        }
+    }
+
     let mut fonts: Box<Vec<String>> = unsafe { Box::from_raw(lparam.0 as *mut Vec<String>) };
 
     if let Some(lf) = unsafe { logfont.as_ref() } {

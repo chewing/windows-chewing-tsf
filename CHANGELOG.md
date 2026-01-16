@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
   Chinese mode and CapsLock off enables English mode. This ensures better
   compatibility with short-cut keys and password fields.
 - Re-enable support for completely disable input processing via Ctrl+Space.
+- Preferences now only show fonts that can render Chinese characters.
 
 ### 🚜 Refactor
 
