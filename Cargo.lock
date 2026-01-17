@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "chewing-update-svc"
-version = "0.1.0"
+version = "26.1.2"
 dependencies = [
  "anyhow",
  "log",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "chewing_tip"
-version = "25.8.1"
+version = "26.1.2"
 dependencies = [
  "anyhow",
  "cc",
