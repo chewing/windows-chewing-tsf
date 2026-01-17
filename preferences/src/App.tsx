@@ -330,6 +330,9 @@ const InputBehaviors = ({ config, styles, showAdvanced, setShowAdvanced, setConf
                 onChange={(_ev, data) => { setConfig({ ...config, shift_key_sensitivity: data.value } as ChewingTsfConfig); }} />
             </Field>
           </Tooltip>
+          <Tooltip content="調整 CapsLock 亮燈是中文還是英文。CapsLock 亮燈鎖定中文與各種軟體有較好的相容性。" relationship={'label'}>
+            <Checkbox label="CapsLock 亮燈鎖定中文" disabled={!config?.enable_caps_lock} name='lock_chinese_on_caps_lock' checked={config?.lock_chinese_on_caps_lock} onChange={setBooleanConfig} />
+          </Tooltip>
         </details>
       </div>
     </div>

@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
   compatibility with short-cut keys and password fields.
 - Re-enable support for completely disable input processing via Ctrl+Space.
 - Preferences now only show fonts that can render Chinese characters.
+- New advanced option to lock Chinese or English mode on CapsLock.
 
 ### 🚜 Refactor
 

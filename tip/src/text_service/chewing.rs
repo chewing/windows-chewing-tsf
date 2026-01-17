@@ -491,6 +491,12 @@ impl ChewingTextService {
                 return Ok(false);
             }
         }
+        if self.cfg.borrow().chewing_tsf.enable_caps_lock
+            && !self.cfg.borrow().chewing_tsf.lock_chinese_on_caps_lock
+        {
+            // need to handle case conversion
+            return Ok(true);
+        }
         if !self.is_composing() {
             let shape_mode = self.chewing_editor.borrow().editor_options().character_form;
             // don't do further handling in pure English + half shape mode
@@ -566,6 +572,7 @@ impl ChewingTextService {
             }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
             if evt.is_state_on(KeyState::Shift)
+                && matches!(self.lang_mode.get(), TsfLangMode::Chinese)
                 && (!self.cfg.borrow().chewing_tsf.full_shape_symbols || evt.ksym.is_atoz())
                 && !self.cfg.borrow().chewing_tsf.easy_symbols_with_shift
                 && !(evt.is_state_on(KeyState::Control)
@@ -1152,13 +1159,18 @@ impl ChewingTextService {
     fn sync_lang_mode(&self, internal: bool) -> Result<()> {
         self.pending_lang_mode_change.set(internal);
         if !self.lang_mode.get().is_disabled() {
-            let evt = KeyEvent::default()
-                .to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
-            if self.cfg.borrow().chewing_tsf.enable_caps_lock {
-                if evt.is_state_on(KeyState::CapsLock) {
-                    self.lang_mode.set(TsfLangMode::Chinese);
+            let cfg = &self.cfg.borrow().chewing_tsf;
+            let evt = KeyEvent::default().to_keyboard_event(cfg.simulate_english_layout);
+            if cfg.enable_caps_lock {
+                let (locked_mode, unlocked_mode) = if cfg.lock_chinese_on_caps_lock {
+                    (TsfLangMode::Chinese, TsfLangMode::English)
                 } else {
-                    self.lang_mode.set(TsfLangMode::English);
+                    (TsfLangMode::English, TsfLangMode::Chinese)
+                };
+                if evt.is_state_on(KeyState::CapsLock) {
+                    self.lang_mode.set(locked_mode);
+                } else {
+                    self.lang_mode.set(unlocked_mode);
                 }
             }
             self.chewing_editor
