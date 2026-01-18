@@ -17,6 +17,10 @@ All notable changes to this project will be documented in this file.
 
 - Fully model language state machine in the text input processor.
 
+### ⚙️ Miscellaneous Tasks
+
+- Official release binary are cross-compiled from Ubuntu.
+
 ## [26.1.2.0] - 2026-01-12
 
 ### 🐛 Bug Fixes
