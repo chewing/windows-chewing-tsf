@@ -10,6 +10,7 @@ use crate::flags::{BuildInstaller, PackageInstaller};
 #[derive(Debug)]
 pub(super) enum Target {
     Gnu,
+    GnuLlvm,
     Msvc,
 }
 
@@ -18,6 +19,7 @@ impl FromStr for Target {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gnu" => Ok(Target::Gnu),
+            "gnullvm" => Ok(Target::GnuLlvm),
             "msvc" => Ok(Target::Msvc),
             _ => bail!("unknown target: {s}"),
         }
@@ -39,12 +41,14 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     };
 
     let x86_64_target = match flags.target {
-        None | Some(Target::Gnu) => "x86_64-pc-windows-gnu",
-        Some(Target::Msvc) => "x86_64-pc-windows-msvc",
+        Some(Target::Gnu) => "x86_64-pc-windows-gnu",
+        Some(Target::GnuLlvm) => "x86_64-pc-windows-gnullvm",
+        None | Some(Target::Msvc) => "x86_64-pc-windows-msvc",
     };
     let i686_target = match flags.target {
-        None | Some(Target::Gnu) => "i686-pc-windows-gnu",
-        Some(Target::Msvc) => "i686-pc-windows-msvc",
+        Some(Target::Gnu) => "i686-pc-windows-gnu",
+        Some(Target::GnuLlvm) => "i686-pc-windows-gnullvm",
+        None | Some(Target::Msvc) => "i686-pc-windows-msvc",
     };
 
     let x86_64_target_dir = PathBuf::from("target").join(x86_64_target);
