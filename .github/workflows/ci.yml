@@ -4,6 +4,7 @@ env:
   VER_MAJOR: 26
   VER_MINOR: 1
   VER_PATCH: 1
+  LLVM_MINGW_VERSION: 20251216
 
 on:
   push:
@@ -25,23 +26,34 @@ on:
         value: ${{ jobs.package.outputs.unsigned-artifact-id }}
 
 jobs:
-  cross-build:
+  build:
     runs-on: ubuntu-latest
-    container: quay.io/fedora/fedora:42
-    name: Cross Build
+    name: Build
     steps:
+      - name: Cache llvm-mingw
+        id: cache-llvm-linux
+        uses: actions/cache@v4
+        with:
+          path: /opt/llvm-mingw
+          key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
+      - name: Install llvm-mingw ${{ env.LLVM_MINGW_VERSION }}
+        if: steps.cache-llvm-linux.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /opt/llvm-mingw
+          cd /opt/llvm-mingw
+          curl -L https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz | tar xJ --strip-components=1
+      - name: Setup llvm-mingw
+        run: |
+          echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
+      - name: Setup rust targets
+        run: |
+          rustup set auto-self-update disable
+          rustup target add i686-pc-windows-gnullvm
+          rustup target add x86_64-pc-windows-gnullvm
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install build dependencies
         run: |
-          sudo dnf -y install clang rustup git nodejs
-          sudo dnf -y install mingw32-binutils mingw32-gcc
-          sudo dnf -y install mingw64-binutils mingw64-gcc
-          rustup-init -y
-          source "$HOME/.cargo/env"
-          rustup set auto-self-update disable
-          rustup target add i686-pc-windows-gnu
-          rustup target add x86_64-pc-windows-gnu
-          cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          cargo install --locked chewing-cli
 
       - uses: actions/checkout@v6
         with:
@@ -81,69 +93,30 @@ jobs:
 
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
-        run: |
-          cargo xtask build-installer --nightly --release --target gnu
-
-      - name: Build release
-        if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
-        run: |
-          cargo xtask build-installer --release --target gnu
-
-  build:
-    runs-on: windows-latest
-    name: Build
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            editor/src-tauri
-            preferences/src-tauri
-
-      - name: Install NPM dependencies
-        run: |
-          cd preferences
-          npm install
-          cd ..
-          cd editor
-          npm install
-          cd ..
-
-      - name: Install build dependencies
-        run: |
-          cargo install --git https://github.com/chewing/libchewing chewing-cli --features sqlite-bundled
-
-      - name: Generate nightly version info
-        if: ${{ inputs.nightly }}
-        run: |
-          cargo xtask update-version --major $env:VER_MAJOR --minor $env:VER_MINOR --patch $env:VER_PATCH -b $env:GITHUB_RUN_NUMBER
-          cat version.rc
-          cat installer/version.wxi
-
-      - name: Generate pull_request version info
-        if: github.event_name == 'pull_request'
         env:
-          PR_NUMBER: ${{ github.event.number }}
+          # HACK: force embed-resource to use llvm-rc
+          RC: llvm-rc
         run: |
-          cargo xtask update-version --major 0 --minor 0 --patch $env:PR_NUMBER -b $env:GITHUB_RUN_NUMBER
-          cat version.rc
-          cat installer/version.wxi
-
-      - name: Build nightly
-        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
-        shell: cmd
-        run: |
-          cargo xtask build-installer --nightly --release --target msvc
+          cargo xtask build-installer --nightly --release --target gnullvm
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
-        shell: cmd
+        env:
+          # HACK: force embed-resource to use llvm-rc
+          RC: llvm-rc
         run: |
-          cargo xtask build-installer --release --target msvc
+          cargo xtask build-installer --release --target gnullvm
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Installer Artifact With Debuginfo
+          path: build/installer
+
+      - name: Strip debug info
+        run: |
+          x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
+          i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
+          x86_64-w64-mingw32-strip build/installer/*.exe
 
       - uses: actions/upload-artifact@v6
         with:
