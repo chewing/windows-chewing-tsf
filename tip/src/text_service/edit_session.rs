@@ -143,20 +143,36 @@ impl EndComposition {
             composition,
         }
     }
+    pub(super) fn will_end_composition(
+        context: &ITfContext,
+        composition: &ITfComposition,
+        ec: u32,
+    ) -> Result<()> {
+        unsafe {
+            let range = composition
+                .GetRange()
+                .inspect_err(|_| debug!("failed to get composition range"))?;
+            let disp_attr_prop = context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
+            disp_attr_prop
+                .Clear(ec, &range)
+                .inspect_err(|_| debug!("failed to clear display attribute"))?;
+
+            let new_composition_start = range.Clone()?;
+            new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
+            composition.ShiftStart(ec, &new_composition_start)?;
+            set_selection(&context, ec, new_composition_start, TF_AE_END)?;
+        }
+        Ok(())
+    }
 }
 
 impl ITfEditSession_Impl for EndComposition_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
+        EndComposition::will_end_composition(&self.context, &self.composition, ec)?;
         unsafe {
-            let range = self.composition.GetRange()?;
-            let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-            disp_attr_prop.Clear(ec, &range)?;
-
-            let new_composition_start = range.Clone()?;
-            new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
-            self.composition.ShiftStart(ec, &new_composition_start)?;
-            set_selection(&self.context, ec, new_composition_start, TF_AE_END)?;
-            self.composition.EndComposition(ec)?;
+            self.composition
+                .EndComposition(ec)
+                .inspect_err(|_| debug!("failed in EndComposition"))?;
         }
         Ok(())
     }

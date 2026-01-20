@@ -119,6 +119,7 @@ impl IFnRunCommand_Impl for TextService_Impl {
 
 impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
+        debug!(tid; "tip::activate");
         self.tid.set(tid);
         let mut ts = self.inner.borrow_mut();
         let mut thread_cookies = self.thread_cookies.borrow_mut();
@@ -165,6 +166,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     }
 
     fn Deactivate(&self) -> Result<()> {
+        debug!("tip::deactivate");
         let thread_cookies = self.thread_cookies.take();
 
         if let Some(ts) = self.inner.borrow_mut().take() {
@@ -213,7 +215,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     ) -> Result<()> {
         debug!(
             focus = !pdimfocus.is_null(),
-            prevfocus = !pdimprevfocus.is_null(); ""
+            prevfocus = !pdimprevfocus.is_null(); "on_set_focus"
         );
         // Excel switches document upon first key down. Skip this superflos
         // focus change.
@@ -257,6 +259,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
 
 impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
+        debug!("on_set_thread_focus");
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(());
         };
@@ -277,7 +280,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(wparam:?, lparam:?; "");
+        debug!(wparam:?, lparam:?; "on_test_keydown");
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
@@ -293,7 +296,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(wparam:?, lparam:?; "");
+        debug!(wparam:?, lparam:?; "on_test_keyup");
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
@@ -309,7 +312,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(wparam:?, lparam:?; "");
+        debug!(wparam:?, lparam:?; "on_keydown");
         self.key_busy.set(true);
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
@@ -326,7 +329,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
-        debug!(wparam:?, lparam:?; "");
+        debug!(wparam:?, lparam:?; "on_keyup");
         self.key_busy.set(false);
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
@@ -344,7 +347,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
-            debug!(rguid:?; "");
+            debug!(rguid:?; "on_preserved_key");
             let Some(ts) = &*self.inner.borrow() else {
                 return Ok(FALSE);
             };
@@ -362,6 +365,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         ecwrite: u32,
         pcomposition: Ref<ITfComposition>,
     ) -> Result<()> {
+        debug!("on_composition_terminated");
         // This is called by TSF when our composition is terminated by others.
         // For example, when the user click on another text editor and the input focus is
         // grabbed by others, we're ``forced'' to terminate current composition.
@@ -383,7 +387,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
 impl ITfCompartmentEventSink_Impl for TextService_Impl {
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
-            debug!(rguid:?; "");
+            debug!(rguid:?; "compartment::on_change");
             let Some(ts) = &*self.inner.borrow() else {
                 return Ok(());
             };

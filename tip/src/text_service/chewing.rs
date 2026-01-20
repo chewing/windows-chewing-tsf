@@ -727,18 +727,15 @@ impl ChewingTextService {
         }
 
         // commit current preedit
-        {
-            let mut composition_buf = String::new();
-            let text = self.chewing_editor.borrow().display();
-            if !text.is_empty() {
-                composition_buf.push_str(&text);
-            }
-            unsafe {
-                let range = composition.GetRange()?;
-                if let Err(error) = range.SetText(ecwrite, 0, &HSTRING::from(composition_buf)) {
-                    error!("set composition string failed: {error}");
-                }
-            }
+        unsafe {
+            let doc_mgr = self
+                .thread_mgr
+                .GetFocus()
+                .context("failed to get current ITfDocumentMgr")?;
+            let context = doc_mgr
+                .GetTop()
+                .context("failed to get current ITfContext")?;
+            EndComposition::will_end_composition(&context, composition, ecwrite)?;
         }
         let mut editor = self.chewing_editor.borrow_mut();
         if editor.is_selecting() {
