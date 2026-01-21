@@ -389,6 +389,7 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!(rguid:?; "compartment::on_change");
             let Some(ts) = &*self.inner.borrow() else {
+                error!("text_service is not initialized");
                 return Ok(());
             };
             if let Err(error) = ts.on_compartment_change(rguid) {

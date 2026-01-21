@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🚀 Features
+
+- Breaking! Invert CapsLock language mode mapping. CapsLock on enables
+  Chinese mode and CapsLock off enables English mode. This ensures better
+  compatibility with short-cut keys and password fields.
+- Re-enable support for completely disable input processing via Ctrl+Space.
+- Preferences now only show fonts that can render Chinese characters.
+- New advanced option to lock Chinese or English mode on CapsLock.
+
+### 🚜 Refactor
+
+- Fully model language state machine in the text input processor.
+
+### ⚙️ Miscellaneous Tasks
+
+- Official release binary are cross-compiled from Ubuntu.
+
 ## [26.1.3.0] - 2026-xx-xx
 
 ### 🐛 Bug Fixes
