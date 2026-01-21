@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [26.1.3.0] - 2026-xx-xx
+
+### 🐛 Bug Fixes
+
+- tip: better handling when composition is terminated by Super+Space
+
 ## [26.1.2.0] - 2026-01-12
 
 ### 🐛 Bug Fixes
