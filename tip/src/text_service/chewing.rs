@@ -493,6 +493,7 @@ impl ChewingTextService {
         }
         if self.cfg.borrow().chewing_tsf.enable_caps_lock
             && !self.cfg.borrow().chewing_tsf.lock_chinese_on_caps_lock
+            && evt.ksym.is_unicode()
         {
             // need to handle case conversion
             return Ok(true);
