@@ -52,6 +52,7 @@ use crate::com::G_HINSTANCE;
 use crate::config::{Config, color_s};
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
+use crate::text_service::edit_session::request_edit_session;
 use crate::ui::window::window_register_class;
 
 use super::CommandType;
@@ -918,20 +919,12 @@ impl ChewingTextService {
         debug!(text; "going to request immediate text insertion");
         let htext = text.into();
         let session = InsertText::new(context.clone(), htext).into_object();
-        unsafe {
-            match context.RequestEditSession(
-                self.tid,
-                session.as_interface(),
-                TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
-            ) {
-                Err(error) => error!("failed to request edit session: {error}"),
-                Ok(res) => {
-                    if let Err(error) = res.ok() {
-                        error!("failed to insert text: {error}")
-                    }
-                }
-            }
-        }
+        request_edit_session(
+            context,
+            self.tid,
+            session.as_interface(),
+            TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+        );
         Ok(())
     }
 
@@ -940,19 +933,13 @@ impl ChewingTextService {
             return Ok(());
         };
         self.pending_edit = Weak::new();
-        {
-            let session = EndComposition::new(context.clone(), composition).into_object();
-            debug!("end composition start");
-            unsafe {
-                context
-                    .RequestEditSession(
-                        self.tid,
-                        session.as_interface(),
-                        TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
-                    )?
-                    .ok()?;
-            }
-        }
+        let session = EndComposition::new(context.clone(), composition).into_object();
+        request_edit_session(
+            context,
+            self.tid,
+            session.as_interface(),
+            TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+        );
         Ok(())
     }
 
@@ -970,9 +957,10 @@ impl ChewingTextService {
         };
         if let Some(cell) = self.pending_edit.upgrade() {
             debug!(cursor, htext:%; "Reuse existing edit session");
-            let mut pending = cell.borrow_mut();
-            pending.text = htext;
-            pending.cursor = cursor;
+            cell.replace(CommitString {
+                text: htext,
+                cursor,
+            });
         } else {
             let pending = Rc::new(RefCell::new(CommitString {
                 text: htext,
@@ -987,31 +975,24 @@ impl ChewingTextService {
             )
             .into_object();
             self.pending_edit = Rc::downgrade(&pending);
-            unsafe {
-                match context.RequestEditSession(
-                    self.tid,
-                    session.as_interface(),
-                    TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
-                ) {
-                    Err(error) => error!("failed to request edit session: {error}"),
-                    Ok(res) => {
-                        if let Err(error) = res.ok() {
-                            error!("failed to set composition: {error}")
-                        }
-                    }
-                }
-            }
+            request_edit_session(
+                context,
+                self.tid,
+                session.as_interface(),
+                TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+            );
         }
         Ok(())
     }
 
     fn get_selection_rect(&self, context: &ITfContext) -> Result<RECT> {
         let session = SelectionRect::new(context.clone()).into_object();
-        unsafe {
-            context
-                .RequestEditSession(self.tid, session.as_interface(), TF_ES_SYNC | TF_ES_READ)?
-                .ok()?;
-        }
+        request_edit_session(
+            context,
+            self.tid,
+            session.as_interface(),
+            TF_ES_SYNC | TF_ES_READ,
+        );
         Ok(session.rect())
     }
 

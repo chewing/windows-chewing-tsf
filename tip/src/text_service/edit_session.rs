@@ -12,12 +12,29 @@ use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
     GUID_PROP_ATTRIBUTE, INSERT_TEXT_AT_SELECTION_FLAGS, ITfComposition, ITfCompositionSink,
     ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
-    ITfRange, TF_AE_END, TF_ANCHOR_END, TF_ANCHOR_START, TF_DEFAULT_SELECTION, TF_IAS_QUERYONLY,
-    TF_SELECTION, TfActiveSelEnd,
+    ITfRange, TF_AE_END, TF_ANCHOR_END, TF_ANCHOR_START, TF_CONTEXT_EDIT_CONTEXT_FLAGS,
+    TF_DEFAULT_SELECTION, TF_IAS_QUERYONLY, TF_SELECTION, TfActiveSelEnd,
 };
-use windows_core::{BOOL, HSTRING, Interface, Result, implement};
+use windows_core::{BOOL, HSTRING, Interface, Param, Result, implement};
 
 use super::chewing::CommitString;
+
+pub(crate) fn request_edit_session(
+    context: &ITfContext,
+    tid: u32,
+    session_iface: impl Param<ITfEditSession>,
+    flags: TF_CONTEXT_EDIT_CONTEXT_FLAGS,
+) {
+    unsafe {
+        match context.RequestEditSession(tid, session_iface, flags) {
+            Err(e) => error!("failed to request edit session: {e}"),
+            Ok(res) => match res.ok() {
+                Err(e) => error!("edit session request returned error: {e}"),
+                Ok(()) => (),
+            },
+        }
+    }
+}
 
 fn set_selection(
     context: &ITfContext,
