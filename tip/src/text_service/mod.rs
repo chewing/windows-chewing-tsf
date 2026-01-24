@@ -53,8 +53,7 @@ pub(super) unsafe trait IFnRunCommand: IUnknown {
     ITfKeyEventSink,
     ITfTextInputProcessorEx,
     ITfThreadMgrEventSink,
-    ITfThreadFocusSink,
-    ITfActiveLanguageProfileNotifySink
+    ITfThreadFocusSink
 )]
 pub(super) struct TextService {
     inner: RefCell<Option<ChewingTextService>>,
@@ -148,10 +147,6 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
                 .push(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
             thread_cookies
                 .push(source.AdviseSink(&ITfThreadFocusSink::IID, self.as_interface_ref())?);
-            thread_cookies.push(source.AdviseSink(
-                &ITfActiveLanguageProfileNotifySink::IID,
-                self.as_interface_ref(),
-            )?);
             let source_single: ITfSourceSingle = thread_mgr.cast()?;
             if let Err(error) = source_single.AdviseSingleSink(tid, &ITfFunctionProvider::IID, punk)
             {
@@ -374,17 +369,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(handled.into())
     }
 
-    fn OnPreservedKey(&self, _pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
-        if let Some(rguid) = unsafe { rguid.as_ref() } {
-            debug!(rguid:?; "on_preserved_key");
-            let Some(ts) = &*self.inner.borrow() else {
-                return Ok(FALSE);
-            };
-            let handled = ts.on_preserved_key(rguid);
-            Ok(handled.into())
-        } else {
-            Ok(FALSE)
-        }
+    fn OnPreservedKey(&self, _pic: Ref<ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
+        Ok(FALSE)
     }
 }
 
@@ -435,17 +421,6 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
                 }
             }
         }
-        Ok(())
-    }
-}
-
-impl ITfActiveLanguageProfileNotifySink_Impl for TextService_Impl {
-    fn OnActivated(
-        &self,
-        _clsid: *const GUID,
-        _guidprofile: *const GUID,
-        _factivated: BOOL,
-    ) -> Result<()> {
         Ok(())
     }
 }

@@ -757,10 +757,6 @@ impl ChewingTextService {
         Ok(false)
     }
 
-    pub(super) fn on_preserved_key(&self, _guid: &GUID) -> bool {
-        false
-    }
-
     fn toggle_keyboard_openclose(&self) {
         self.lang_mode.update(|mode| match mode {
             TsfLangMode::Chinese => TsfLangMode::DisabledChinese,
