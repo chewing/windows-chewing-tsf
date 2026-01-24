@@ -59,7 +59,7 @@ use super::GUID_INPUT_DISPLAY_ATTRIBUTE;
 use super::display_attribute::register_display_attribute;
 use super::edit_session::InsertText;
 use super::edit_session::{EndComposition, SelectionRect, SetCompositionString};
-use super::key_event::KeyEvent;
+use super::key_event::SystemKeyboardEvent;
 use super::lang_bar::LangBarButton;
 use super::menu::Menu;
 use super::resources::*;
@@ -396,7 +396,11 @@ impl ChewingTextService {
         Ok(())
     }
 
-    pub(super) fn on_test_keydown(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+    pub(super) fn on_test_keydown(
+        &self,
+        context: &ITfContext,
+        ev: SystemKeyboardEvent,
+    ) -> Result<bool> {
         let evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         let simulate_english_layout = self.cfg.borrow().chewing_tsf.simulate_english_layout != 0;
         // Determine shift key state here, this might be our last chance seeing this key.
@@ -532,7 +536,7 @@ impl ChewingTextService {
         Ok(true)
     }
 
-    pub(super) fn on_keydown(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+    pub(super) fn on_keydown(&self, context: &ITfContext, ev: SystemKeyboardEvent) -> Result<bool> {
         if !self.on_test_keydown(context, ev)? {
             return Ok(false);
         }
@@ -682,14 +686,18 @@ impl ChewingTextService {
         Ok(true)
     }
 
-    pub(super) fn on_test_keyup(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+    pub(super) fn on_test_keyup(
+        &self,
+        context: &ITfContext,
+        ev: SystemKeyboardEvent,
+    ) -> Result<bool> {
         if self.lang_mode.get().is_disabled() {
             return Ok(false);
         }
         self.on_keyup(context, ev)
     }
 
-    pub(super) fn on_keyup(&self, context: &ITfContext, ev: KeyEvent) -> Result<bool> {
+    pub(super) fn on_keyup(&self, context: &ITfContext, ev: SystemKeyboardEvent) -> Result<bool> {
         let evt = ev.to_keyboard_event(self.cfg.borrow().chewing_tsf.simulate_english_layout);
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
@@ -1158,7 +1166,7 @@ impl ChewingTextService {
         self.pending_lang_mode_change.set(internal);
         if !self.lang_mode.get().is_disabled() {
             let cfg = &self.cfg.borrow().chewing_tsf;
-            let evt = KeyEvent::default().to_keyboard_event(cfg.simulate_english_layout);
+            let evt = SystemKeyboardEvent::default().to_keyboard_event(cfg.simulate_english_layout);
             if cfg.enable_caps_lock {
                 let (locked_mode, unlocked_mode) = if cfg.lock_chinese_on_caps_lock {
                     (TsfLangMode::Chinese, TsfLangMode::English)

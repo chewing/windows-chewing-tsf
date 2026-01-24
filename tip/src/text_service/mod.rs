@@ -14,7 +14,7 @@ use windows_core::{
 
 use self::chewing::ChewingTextService;
 use self::display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
-use self::key_event::KeyEvent;
+use self::key_event::SystemKeyboardEvent;
 
 mod chewing;
 mod display_attribute;
@@ -284,7 +284,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
-        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
+        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_test_keydown(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
@@ -300,7 +300,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
-        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
+        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
         let should_handle = match ts.on_test_keyup(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
@@ -317,7 +317,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
-        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
+        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keydown(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
@@ -334,7 +334,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         let Some(ts) = &*self.inner.borrow() else {
             return Ok(FALSE);
         };
-        let ev = KeyEvent::new(wparam.0 as u16, lparam.0);
+        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
         let handled = match ts.on_keyup(pic.ok()?, ev) {
             Ok(v) => v,
             Err(error) => {
