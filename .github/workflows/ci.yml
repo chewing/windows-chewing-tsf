@@ -3,7 +3,7 @@ name: CI
 env:
   VER_MAJOR: 26
   VER_MINOR: 1
-  VER_PATCH: 1
+  VER_PATCH: 2
   LLVM_MINGW_VERSION: 20251216
 
 on:
