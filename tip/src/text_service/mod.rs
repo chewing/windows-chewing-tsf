@@ -12,6 +12,8 @@ use windows_core::{
     Result, implement, interface,
 };
 
+use crate::text_service::chewing::ReentrantOps;
+
 use self::chewing::ChewingTextService;
 use self::display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
 use self::key_event::SystemKeyboardEvent;
@@ -113,6 +115,10 @@ impl IFnRunCommand_Impl for TextService_Impl {
     unsafe fn on_command(&self, id: u32, cmd_type: CommandType) {
         if let Some(ts) = self.inner.borrow().as_ref() {
             ts.on_command(id, cmd_type);
+        }
+        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
+            error!("Unable to sync lang mode: {error:#}");
         }
     }
 }
@@ -267,6 +273,11 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
         }
+        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
+            error!("Unable to sync lang mode: {error:#}");
+            return Err(E_UNEXPECTED.into());
+        }
         Ok(())
     }
     fn OnKillThreadFocus(&self) -> Result<()> {
@@ -308,6 +319,11 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
                 return Err(E_UNEXPECTED.into());
             }
         };
+        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
+            error!("Unable to sync lang mode: {error:#}");
+            return Err(E_UNEXPECTED.into());
+        }
         Ok(should_handle.into())
     }
 
@@ -342,6 +358,11 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
                 return Err(E_UNEXPECTED.into());
             }
         };
+        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
+            error!("Unable to sync lang mode: {error:#}");
+            return Err(E_UNEXPECTED.into());
+        }
         Ok(handled.into())
     }
 
@@ -395,6 +416,13 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
             if let Err(error) = ts.on_compartment_change(rguid) {
                 error!("Unable to handle compartment change: {error:#}");
                 return Err(E_UNEXPECTED.into());
+            }
+            if rguid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
+                let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+                if let Err(error) = reentrant_ops.sync_keyboard_openclose(true) {
+                    error!("Unable to sync lang mode: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
             }
         }
         Ok(())

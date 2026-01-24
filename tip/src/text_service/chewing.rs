@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
@@ -10,7 +10,7 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use chewing::conversion::{ChewingEngine, FuzzyChewingEngine, SimpleEngine};
 use chewing::dictionary::{DEFAULT_DICT_NAMES, LookupStrategy};
 use chewing::editor::zhuyin_layout::{self, KeyboardLayoutCompat, SyllableEditor};
@@ -1186,19 +1186,6 @@ impl ChewingTextService {
         debug!("new lang_mode={:?}", self.lang_mode.get());
         self.update_lang_buttons()?;
 
-        let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
-        unsafe {
-            let compartment =
-                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-            let openclose: i32 = match self.lang_mode.get() {
-                TsfLangMode::Chinese => 1,
-                TsfLangMode::English => 0,
-                _ => 0,
-            };
-            // NB: recursively call this inside compartment callback will fail
-            let _ = compartment.SetValue(self.tid, &openclose.into());
-        }
-
         Ok(())
     }
 
@@ -1449,6 +1436,50 @@ impl ChewingTextService {
             }
         };
         evt
+    }
+}
+
+/// Reentrant prone operations can only be done via this type to ensure
+/// we don't hold mutable borrow while performing reentrant operations.
+pub(crate) struct ReentrantOps<'a> {
+    tip: Ref<'a, Option<ChewingTextService>>,
+}
+
+impl<'a> ReentrantOps<'a> {
+    pub(crate) fn from_ref(tip: Ref<'a, Option<ChewingTextService>>) -> ReentrantOps<'a> {
+        ReentrantOps { tip }
+    }
+
+    pub(crate) fn from_mut(
+        cell: &'a RefCell<Option<ChewingTextService>>,
+        tip_mut: RefMut<'_, Option<ChewingTextService>>,
+    ) -> ReentrantOps<'a> {
+        // Drop the only mutabble reference so we can create an immutable one
+        drop(tip_mut);
+        ReentrantOps { tip: cell.borrow() }
+    }
+
+    pub(crate) fn sync_keyboard_openclose(&self, force: bool) -> Result<()> {
+        let Some(tip) = self.tip.as_ref() else {
+            bail!("chewing_tip is not initialized");
+        };
+        if !force && !tip.pending_lang_mode_change.get() {
+            return Ok(());
+        }
+        let compartment_mgr: ITfCompartmentMgr = tip.thread_mgr.cast()?;
+        unsafe {
+            let compartment =
+                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+            let openclose: i32 = match tip.lang_mode.get() {
+                TsfLangMode::Chinese => 1,
+                TsfLangMode::English => 0,
+                _ => 0,
+            };
+            // NB: recursively call this inside compartment callback will fail
+            let _ = compartment.SetValue(tip.tid, &openclose.into());
+        }
+
+        Ok(())
     }
 }
 
