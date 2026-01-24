@@ -113,10 +113,12 @@ impl ITfFunctionProvider_Impl for TextService_Impl {
 
 impl IFnRunCommand_Impl for TextService_Impl {
     unsafe fn on_command(&self, id: u32, cmd_type: CommandType) {
-        if let Some(ts) = self.inner.borrow().as_ref() {
-            ts.on_command(id, cmd_type);
-        }
-        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
+            return;
+        };
+        ts.on_command(id, cmd_type);
+        let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
         if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
             error!("Unable to sync lang mode: {error:#}");
         }
@@ -228,7 +230,8 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         if self.key_busy.get() {
             return Ok(());
         }
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(());
         };
         if pdimfocus.is_null() {
@@ -266,14 +269,15 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
 impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
         debug!("on_set_thread_focus");
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(());
         };
         if let Err(error) = ts.on_focus() {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
         }
-        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
         if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
             error!("Unable to sync lang mode: {error:#}");
             return Err(E_UNEXPECTED.into());
@@ -292,7 +296,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_test_keydown");
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(FALSE);
         };
         let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
@@ -308,7 +313,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_test_keyup");
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(FALSE);
         };
         let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
@@ -319,7 +325,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
                 return Err(E_UNEXPECTED.into());
             }
         };
-        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
         if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
             error!("Unable to sync lang mode: {error:#}");
             return Err(E_UNEXPECTED.into());
@@ -330,7 +336,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keydown");
         self.key_busy.set(true);
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(FALSE);
         };
         let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
@@ -347,7 +354,8 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keyup");
         self.key_busy.set(false);
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(FALSE);
         };
         let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
@@ -358,7 +366,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
                 return Err(E_UNEXPECTED.into());
             }
         };
-        let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+        let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
         if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
             error!("Unable to sync lang mode: {error:#}");
             return Err(E_UNEXPECTED.into());
@@ -392,7 +400,8 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // grabbed by others, we're ``forced'' to terminate current composition.
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
-        let Some(ts) = &*self.inner.borrow() else {
+        let mut borrowed_ts = self.inner.borrow_mut();
+        let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(());
         };
         if let Some(composition) = pcomposition.as_ref()
@@ -409,7 +418,8 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!(rguid:?; "compartment::on_change");
-            let Some(ts) = &*self.inner.borrow() else {
+            let borrowed_ts = self.inner.borrow();
+            let Some(ts) = borrowed_ts.as_ref() else {
                 error!("text_service is not initialized");
                 return Ok(());
             };
@@ -418,7 +428,7 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
                 return Err(E_UNEXPECTED.into());
             }
             if rguid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
-                let reentrant_ops = ReentrantOps::from_ref(self.inner.borrow());
+                let reentrant_ops = ReentrantOps::from_ref(&self.inner, borrowed_ts);
                 if let Err(error) = reentrant_ops.sync_keyboard_openclose(true) {
                     error!("Unable to sync lang mode: {error:#}");
                     return Err(E_UNEXPECTED.into());
