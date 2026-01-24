@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - tip: better handling when composition is terminated by Super+Space
+- tip: fix incorrect ProgramFiles(x86) fallback path
 
 ## [26.1.2.0] - 2026-01-12
 

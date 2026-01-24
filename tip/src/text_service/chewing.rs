@@ -1457,7 +1457,7 @@ fn program_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(
         std::env::var("ProgramW6432")
             .or_else(|_| std::env::var("ProgramFiles"))
-            .or_else(|_| std::env::var("FrogramFiles(x86)"))?,
+            .or_else(|_| std::env::var("ProgramFiles(x86)"))?,
     )
     .join("ChewingTextService"))
 }
