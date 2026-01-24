@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::error;
 use serde::{Deserialize, Serialize};
 use windows::{
@@ -28,7 +28,7 @@ pub(crate) struct FontFamilyName {
     display_name: String,
 }
 
-const LOCALE_LIST: [PCWSTR; 4] = [w!("zh-tw"), w!("zh-hk"), w!("ja-jp"), w!("zh-cn")];
+const LOCALE_LIST: [PCWSTR; 3] = [w!("zh-tw"), w!("zh-hk"), w!("zh-cn")];
 const INFO_ID_LIST: [DWRITE_INFORMATIONAL_STRING_ID; 4] = [
     DWRITE_INFORMATIONAL_STRING_PREFERRED_FAMILY_NAMES,
     DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES,
@@ -46,6 +46,10 @@ fn enum_font_families_dwrite() -> Result<Vec<FontFamilyName>> {
         let family_count = unsafe { font_collection.GetFontFamilyCount() };
         for i in 0..family_count {
             let font_family = unsafe { font_collection.GetFontFamily(i)? };
+            if !family_is_zh_hant(&font_family)? {
+                continue;
+            }
+
             let family_names = unsafe { font_family.GetFamilyNames()? };
 
             let mut en_name_idx = 0;
@@ -77,6 +81,18 @@ fn enum_font_families_dwrite() -> Result<Vec<FontFamilyName>> {
         }
     });
     Ok(result)
+}
+
+fn family_is_zh_hant(font_family: &IDWriteFontFamily) -> Result<bool> {
+    unsafe {
+        let font = font_family.GetFont(0)?;
+        if font.IsSymbolFont().as_bool() {
+            return Ok(false);
+        }
+        font.HasCharacter('酷' as u32)
+            .map(|b| b.as_bool())
+            .context("failed to detect font unicode coverage")
+    }
 }
 
 fn get_localized_name(names: &IDWriteLocalizedStrings) -> Option<String> {
