@@ -446,6 +446,7 @@ dependencies = [
  "anyhow",
  "chewing",
  "chewing_tip",
+ "log",
  "serde",
  "serde_json",
  "tauri",
