@@ -78,14 +78,13 @@ impl LangBarButton {
     }
     pub(super) fn set_enabled(&self, enabled: bool) -> Result<()> {
         if enabled {
-            self.status.set(self.status.get() & !TF_LBI_STATUS_DISABLED);
+            self.status.update(|s| s & !TF_LBI_STATUS_DISABLED);
         } else {
-            self.status.set(self.status.get() | TF_LBI_STATUS_DISABLED);
+            self.status.update(|s| s | TF_LBI_STATUS_DISABLED);
         }
         self.update_sinks(TF_LBI_STATUS)?;
         Ok(())
     }
-
     fn update_sinks(&self, dwflags: u32) -> Result<()> {
         if let Ok(sinks) = self.sinks.try_borrow() {
             for sink in sinks.values() {

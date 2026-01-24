@@ -25,17 +25,17 @@ LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE
 BEGIN
     "#include <winresrc.h>\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE
 BEGIN
     "\r\n"
     "\0"
@@ -118,7 +118,7 @@ IDR_MENU MENU
 BEGIN
     POPUP "POPUP"
     BEGIN
-        MENUITEM "有新版本可以下載(&U)",                ID_CHECK_NEW_VER GRAYED
+        MENUITEM "有新版本可以下載(&U)",                ID_CHECK_NEW_VER
         MENUITEM "關於新酷音輸入法(&A)",                ID_ABOUT
         MENUITEM "參觀新酷音官方網站(&W)",               ID_WEBSITE
         MENUITEM "新酷音線上討論區(&G)",                ID_GROUP
@@ -173,4 +173,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-

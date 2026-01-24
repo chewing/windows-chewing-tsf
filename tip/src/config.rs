@@ -44,6 +44,7 @@ pub struct ChewingTsfConfig {
     pub shift_key_sensitivity: i32,
     pub enable_fullwidth_toggle_key: bool,
     pub enable_caps_lock: bool,
+    pub lock_chinese_on_caps_lock: bool,
     pub show_notification: bool,
     pub enable_auto_learn: bool,
     pub esc_clean_all_buf: bool,
@@ -86,7 +87,8 @@ impl Default for ChewingTsfConfig {
             switch_lang_with_shift: true,
             shift_key_sensitivity: 200,
             enable_fullwidth_toggle_key: false,
-            enable_caps_lock: true,
+            enable_caps_lock: false,
+            lock_chinese_on_caps_lock: true,
             show_notification: true,
             enable_auto_learn: true,
             esc_clean_all_buf: false,
@@ -233,6 +235,9 @@ impl Config {
         if let Ok(value) = reg_get_bool(&key, "EnableCapsLock") {
             cfg.enable_caps_lock = value;
         }
+        if let Ok(value) = reg_get_bool(&key, "LockChineseOnCapsLock") {
+            cfg.lock_chinese_on_caps_lock = value;
+        }
         if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
             cfg.enable_auto_learn = value;
         }
@@ -358,6 +363,11 @@ impl Config {
             chewing_tsf.sort_candidates_by_frequency,
         );
         let _ = reg_set_bool(&key, "EnableCapsLock", chewing_tsf.enable_caps_lock);
+        let _ = reg_set_bool(
+            &key,
+            "LockChineseOnCapsLock",
+            chewing_tsf.lock_chinese_on_caps_lock,
+        );
         let _ = reg_set_bool(&key, "FullShapeSymbols", chewing_tsf.full_shape_symbols);
         let _ = reg_set_bool(&key, "EscCleanAllBuf", chewing_tsf.esc_clean_all_buf);
         let _ = reg_set_bool(

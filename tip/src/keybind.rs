@@ -3,7 +3,7 @@ use chewing::input::{KeyState, KeyboardEvent, keysym::*};
 
 use crate::config::KeybindValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Keybinding {
     pub(crate) key: KeyboardEvent,
     pub(crate) action: String,

@@ -12,21 +12,21 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct KeyEvent {
+pub(super) struct SystemKeyboardEvent {
     vk: u16,
     scan_code: u16,
     ascii_code: u8,
     key_state: [u8; 256],
 }
 
-impl Default for KeyEvent {
+impl Default for SystemKeyboardEvent {
     fn default() -> Self {
-        KeyEvent::new(0, 0)
+        SystemKeyboardEvent::new(0, 0)
     }
 }
 
-impl KeyEvent {
-    pub(super) fn new(vk: u16, lparam: isize) -> KeyEvent {
+impl SystemKeyboardEvent {
+    pub(super) fn new(vk: u16, lparam: isize) -> SystemKeyboardEvent {
         let scan_code = {
             let mut scan_code = ((lparam & 0xff0000) >> 16) as u16;
             if scan_code == 0 {
@@ -52,7 +52,7 @@ impl KeyEvent {
                 code = result as u8;
             }
         }
-        KeyEvent {
+        SystemKeyboardEvent {
             vk,
             scan_code,
             ascii_code: code,

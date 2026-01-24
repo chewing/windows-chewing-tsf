@@ -2,17 +2,14 @@
 
 use std::sync::LazyLock;
 
-use anyhow::bail;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
 use windows::Win32::Graphics::Direct3D::*;
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::DirectComposition::*;
-use windows::Win32::Graphics::DirectWrite::IDWriteGdiInterop;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
-use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::HiDpi::*;
 use windows::core::*;
 
@@ -134,34 +131,4 @@ pub(crate) fn get_dpi_for_window(hwnd: HWND) -> f32 {
 
 pub(crate) fn get_scale_for_window(hwnd: HWND) -> f32 {
     get_dpi_for_window(hwnd) / 96.0
-}
-
-pub(crate) fn dwrite_family_from_gdi_name(
-    interop: &IDWriteGdiInterop,
-    family_name: &HSTRING,
-) -> anyhow::Result<HSTRING> {
-    let mut logfont = LOGFONTW {
-        lfCharSet: DEFAULT_CHARSET,
-        lfOutPrecision: OUT_DEFAULT_PRECIS,
-        lfClipPrecision: CLIP_DEFAULT_PRECIS,
-        lfQuality: DEFAULT_QUALITY,
-        ..Default::default()
-    };
-    unsafe {
-        let fa: &[u16] = family_name;
-        if fa.len() > logfont.lfFaceName.len() {
-            bail!(
-                "Unable to convert GDI font name longer than {}",
-                logfont.lfFaceName.len()
-            );
-        }
-        logfont.lfFaceName[..fa.len()].copy_from_slice(fa);
-        let dwfont = interop.CreateFontFromLOGFONT(&logfont)?;
-        let family = dwfont.GetFontFamily()?;
-        let names = family.GetFamilyNames()?;
-        let name_len = names.GetStringLength(0)? as usize;
-        let mut name = vec![0; name_len];
-        names.GetString(0, &mut name)?;
-        Ok(HSTRING::from_wide(&name))
-    }
 }

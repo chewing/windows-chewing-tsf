@@ -3,7 +3,7 @@ name: Nightly Build
 env:
   VER_MAJOR: 26
   VER_MINOR: 1
-  VER_PATCH: 1
+  VER_PATCH: 2
 
 on:
   workflow_dispatch:

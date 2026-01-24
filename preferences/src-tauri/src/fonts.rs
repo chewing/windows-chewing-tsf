@@ -1,98 +1,147 @@
 use std::cmp::Ordering;
 
-use anyhow::{Result, bail};
-use windows::Win32::{
-    Foundation::LPARAM,
-    Graphics::Gdi::{
-        DEFAULT_CHARSET, EnumFontFamiliesExW, GetDC, LOGFONTW, ReleaseDC, TEXTMETRICW,
+use anyhow::{Context, Result};
+use log::error;
+use serde::{Deserialize, Serialize};
+use windows::{
+    Win32::{
+        Foundation::FALSE,
+        Graphics::DirectWrite::{
+            DWRITE_FACTORY_TYPE_SHARED, DWRITE_INFORMATIONAL_STRING_FULL_NAME,
+            DWRITE_INFORMATIONAL_STRING_ID, DWRITE_INFORMATIONAL_STRING_PREFERRED_FAMILY_NAMES,
+            DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES,
+            DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, DWriteCreateFactory, IDWriteFactory,
+            IDWriteFontFamily, IDWriteLocalizedStrings,
+        },
     },
+    core::{PCWSTR, w},
 };
 
-// Callback function for EnumFontFamiliesEx
-unsafe extern "system" fn enum_font_callback(
-    logfont: *const LOGFONTW,
-    _textmetric: *const TEXTMETRICW,
-    _font_type: u32,
-    lparam: LPARAM,
-) -> i32 {
-    let mut fonts: Box<Vec<String>> = unsafe { Box::from_raw(lparam.0 as *mut Vec<String>) };
-
-    if let Some(lf) = unsafe { logfont.as_ref() } {
-        // Extract font family name
-        let family_name = String::from_utf16_lossy(
-            &lf.lfFaceName
-                .iter()
-                .take_while(|&&c| c != 0)
-                .copied()
-                .collect::<Vec<u16>>(),
-        );
-
-        // Skip fonts starting with @ (vertical fonts)
-        if !family_name.starts_with('@') {
-            fonts.push(family_name);
-        }
-    }
-
-    let _ = Box::into_raw(fonts);
-
-    1 // Continue enumeration
-}
-
 #[tauri::command]
-pub fn get_system_fonts() -> Result<Vec<String>, String> {
-    enum_font_families().map_err(|e| e.to_string())
+pub fn get_system_fonts() -> Result<Vec<FontFamilyName>, String> {
+    enum_font_families_dwrite().map_err(|e| e.to_string())
 }
 
-// Enumerate fonts with GDI because DirectWrite skips some localized names.
-fn enum_font_families() -> Result<Vec<String>> {
-    unsafe {
-        // Get a device context for the screen
-        let hdc = GetDC(None);
-        if hdc.is_invalid() {
-            bail!("Unable to create DC from screen");
-        }
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct FontFamilyName {
+    name: String,
+    display_name: String,
+}
 
-        // Create LOGFONT structure for enumeration
-        let logfont = LOGFONTW {
-            lfCharSet: DEFAULT_CHARSET,
-            ..Default::default()
-        };
+const LOCALE_LIST: [PCWSTR; 3] = [w!("zh-tw"), w!("zh-hk"), w!("zh-cn")];
+const INFO_ID_LIST: [DWRITE_INFORMATIONAL_STRING_ID; 4] = [
+    DWRITE_INFORMATIONAL_STRING_PREFERRED_FAMILY_NAMES,
+    DWRITE_INFORMATIONAL_STRING_TYPOGRAPHIC_FAMILY_NAMES,
+    DWRITE_INFORMATIONAL_STRING_FULL_NAME,
+    DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES,
+];
 
-        // Vector to store font information
-        let fonts: Box<Vec<String>> = Box::default();
-        let fonts_ptr = Box::into_raw(fonts);
-
-        // Enumerate font families
-        let result = EnumFontFamiliesExW(
-            hdc,
-            &logfont,
-            Some(enum_font_callback),
-            LPARAM(fonts_ptr as isize),
-            0,
-        );
-
-        // Release the device context
-        ReleaseDC(None, hdc);
-
-        // Take back fonts
-        let fonts = Box::from_raw(fonts_ptr);
-
-        if result == 0 {
-            bail!("Unable to enumerate fonts");
-        }
-
-        let mut res: Vec<String> = fonts.into_iter().map(|s| s.into()).collect();
-        res.sort_by(|a, b| {
-            let a_localized = !a.is_ascii();
-            let b_localized = !b.is_ascii();
-            match (a_localized, b_localized) {
-                (true, true) => a.cmp(b),
-                (true, false) => Ordering::Less,
-                (false, true) => Ordering::Greater,
-                (false, false) => a.cmp(b),
+fn enum_font_families_dwrite() -> Result<Vec<FontFamilyName>> {
+    let mut result = vec![];
+    let dwrite_factory: IDWriteFactory =
+        unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)? };
+    let mut system_font_collection = None;
+    unsafe { dwrite_factory.GetSystemFontCollection(&mut system_font_collection, false)? };
+    if let Some(font_collection) = system_font_collection {
+        let family_count = unsafe { font_collection.GetFontFamilyCount() };
+        for i in 0..family_count {
+            let font_family = unsafe { font_collection.GetFontFamily(i)? };
+            if !family_is_zh_hant(&font_family)? {
+                continue;
             }
-        });
-        res.dedup();
-        Ok(res)
+
+            let family_names = unsafe { font_family.GetFamilyNames()? };
+
+            let mut en_name_idx = 0;
+            let mut exists = FALSE;
+            unsafe { family_names.FindLocaleName(w!("en-us"), &mut en_name_idx, &mut exists)? };
+            if !exists.as_bool() {
+                en_name_idx = 0;
+            }
+            let len = unsafe { family_names.GetStringLength(en_name_idx)? } as usize;
+            let mut name = vec![0u16; len + 1];
+            unsafe { family_names.GetString(en_name_idx, name.as_mut_slice())? };
+
+            let name = String::from_utf16_lossy(&name[..len]);
+            let display_name = get_localized_name(&family_names)
+                .or_else(|| get_localized_info_string(&font_family))
+                .unwrap_or(name.clone());
+
+            result.push(FontFamilyName { name, display_name })
+        }
     }
+    result.sort_by(|a, b| {
+        let a_localized = a.display_name.chars().any(|ch| !ch.is_ascii());
+        let b_localized = b.display_name.chars().any(|ch| !ch.is_ascii());
+        match (a_localized, b_localized) {
+            (true, true) => a.display_name.cmp(&b.display_name),
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            (false, false) => a.display_name.cmp(&b.display_name),
+        }
+    });
+    Ok(result)
+}
+
+fn family_is_zh_hant(font_family: &IDWriteFontFamily) -> Result<bool> {
+    unsafe {
+        let font = font_family.GetFont(0)?;
+        if font.IsSymbolFont().as_bool() {
+            return Ok(false);
+        }
+        font.HasCharacter('酷' as u32)
+            .map(|b| b.as_bool())
+            .context("failed to detect font unicode coverage")
+    }
+}
+
+fn get_localized_name(names: &IDWriteLocalizedStrings) -> Option<String> {
+    for loc in LOCALE_LIST {
+        let mut exists = FALSE;
+        let mut index = 0;
+        unsafe {
+            if let Err(error) = names.FindLocaleName(loc, &mut index, &mut exists) {
+                error!("failed to find locale index for {loc:?}: {error:?}");
+                continue;
+            }
+        }
+        if exists.as_bool() {
+            let Ok(len) = (unsafe { names.GetStringLength(index) }) else {
+                continue;
+            };
+            let len = len as usize;
+            let mut name = vec![0u16; len + 1];
+            let Ok(_) = (unsafe { names.GetString(index, name.as_mut_slice()) }) else {
+                continue;
+            };
+            if let Ok(result) = String::from_utf16(&name[..len]) {
+                return Some(result);
+            }
+        }
+    }
+    None
+}
+
+fn get_localized_info_string(font_family: &IDWriteFontFamily) -> Option<String> {
+    let font = unsafe {
+        let Ok(font) = font_family.GetFont(0) else {
+            return None;
+        };
+        font
+    };
+    for id in INFO_ID_LIST {
+        let mut names: Option<IDWriteLocalizedStrings> = None;
+        let mut exists = FALSE;
+        unsafe {
+            let Ok(_) = font.GetInformationalStrings(id, &mut names, &mut exists) else {
+                continue;
+            };
+        }
+        if exists.as_bool() && names.is_some() {
+            if let Some(name) = get_localized_name(names.as_ref().unwrap()) {
+                return Some(name);
+            }
+        }
+    }
+    None
 }

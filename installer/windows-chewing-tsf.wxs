@@ -48,6 +48,7 @@
                         <Shortcut Advertise="yes" Icon="icon.exe" Name="編輯使用者詞庫" Directory="ApplicationProgramsFolder" />
                     </File>
                 </Component>
+                <File Source="WebView2Loader.dll" Bitness="always64" />
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing-update-svc.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
