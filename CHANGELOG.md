@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 ### 🚜 Refactor
 
 - Fully model language state machine in the text input processor.
+- prefs: Use a more sophisticated method to find font names.
 
 ### ⚙️ Miscellaneous Tasks
 
