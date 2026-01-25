@@ -1,7 +1,7 @@
 {
   "name": "chewing-editor",
   "private": true,
-  "version": "26.1.2",
+  "version": "26.1.3",
   "type": "module",
   "scripts": {
     "dev": "vite",

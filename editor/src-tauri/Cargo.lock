@@ -441,7 +441,7 @@ dependencies = [
 
 [[package]]
 name = "chewing-editor"
-version = "26.1.2"
+version = "26.1.3"
 dependencies = [
  "anyhow",
  "chewing",
@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "chewing_tip"
-version = "26.1.2"
+version = "26.1.3"
 dependencies = [
  "anyhow",
  "cc",
