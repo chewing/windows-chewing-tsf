@@ -1174,7 +1174,7 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn build_editor_from_cfg(&self, cfg: &ChewingTsfConfig) -> Result<Editor> {
+    fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor> {
         let user_path = user_dir()?;
         let chewing_path = format!(
             "{};{}",
@@ -1218,7 +1218,9 @@ impl ChewingTextService {
                 _ => LookupStrategy::Standard,
             };
         });
-        editor.set_syllable_editor(syl_editor_from_kbtype(self.kbtype));
+        let kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
+            .unwrap_or(KeyboardLayoutCompat::Default);
+        editor.set_syllable_editor(syl_editor_from_kbtype(kbtype));
         // FIXME
         match editor.editor_options().conversion_engine {
             ConversionEngineKind::SimpleEngine => {
@@ -1243,9 +1245,9 @@ impl ChewingTextService {
 
     fn apply_config(&mut self) -> Result<()> {
         let cfg = &self.cfg.chewing_tsf;
-        self.chewing_editor = self.build_editor_from_cfg(cfg)?;
         self.kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
             .unwrap_or(KeyboardLayoutCompat::Default);
+        self.chewing_editor = Self::build_editor_from_cfg(cfg)?;
         self.output_simp_chinese = cfg.output_simp_chinese;
         let check_flag = if self.output_simp_chinese {
             MF_CHECKED
