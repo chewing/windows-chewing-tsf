@@ -92,11 +92,13 @@ impl Window {
         ex_style: WINDOW_EX_STYLE,
     ) -> bool {
         let hinst = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
-        // Switch to DPI aware context
-        let old_context =
-            unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
         let hwnd = unsafe {
-            CreateWindowExW(
+            // Switch to DPI aware context. Window HWND created after this will
+            // inherit the setting and become DPI aware independent of the host
+            // application's setting.
+            let old_context =
+                SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            let dpi_aware_hwnd = CreateWindowExW(
                 ex_style,
                 w!("chewing_tip"),
                 None,
@@ -109,12 +111,12 @@ impl Window {
                 None,
                 Some(hinst),
                 None,
-            )
-        };
-        // Restore previous DPI context
-        unsafe {
+            );
+            // Restore previous DPI context so we don't interfere with the
+            // host application.
             SetThreadDpiAwarenessContext(old_context);
-        }
+            dpi_aware_hwnd
+        };
         match hwnd {
             Ok(hwnd) => {
                 self.hwnd.set(hwnd);
@@ -142,8 +144,10 @@ impl Window {
             cbSize: size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
-        if unsafe { GetMonitorInfoW(monitor, &mut mi).as_bool() } {
-            rc = mi.rcWork;
+        unsafe {
+            if GetMonitorInfoW(monitor, &mut mi).as_bool() {
+                rc = mi.rcWork;
+            }
         }
 
         if x < rc.left {
