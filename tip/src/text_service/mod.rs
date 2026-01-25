@@ -386,7 +386,12 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // grabbed by others, we're ``forced'' to terminate current composition.
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
-        let mut borrowed_ts = self.inner.borrow_mut();
+        let Ok(mut borrowed_ts) = self.inner.try_borrow_mut() else {
+            // Some EditSession can trigger reentrant. It should be safe to ignore.
+            // TODO: handle this without conflict
+            debug!("on_composition_terminated reentrant detected - abort");
+            return Ok(());
+        };
         let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(());
         };
