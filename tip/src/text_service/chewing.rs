@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
+use std::sync::OnceLock;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -41,7 +43,7 @@ use windows::Win32::UI::TextServices::{
     ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, MF_CHECKED, MF_ENABLED,
+    CheckMenuItem, EnableMenuItem, GetCursorPos, HICON, HMENU, LoadIconW, MF_CHECKED, MF_ENABLED,
     MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY,
     TPM_RETURNCMD, TrackPopupMenu,
 };
@@ -1264,33 +1266,23 @@ impl ChewingTextService {
     }
 
     fn update_lang_buttons(&self) -> Result<()> {
-        let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let icon_id = self.get_lang_icon_id();
-        unsafe {
-            self.switch_lang_button.set_icon(LoadIconW(
-                Some(g_hinstance),
-                PCWSTR::from_raw(icon_id as *const u16),
-            )?)?;
-            self.ime_mode_button.set_icon(LoadIconW(
-                Some(g_hinstance),
-                PCWSTR::from_raw(icon_id as *const u16),
-            )?)?;
-        }
+        let icon = load_icon_cached(icon_id)?;
+        self.switch_lang_button.set_icon(icon)?;
+        self.ime_mode_button.set_icon(icon)?;
         let _ = self
             .ime_mode_button
             .set_enabled(!self.lang_mode.get().is_disabled());
         // TODO extract shape mode change to dedicated method
         let shape_mode = self.chewing_editor.editor_options().character_form;
-        unsafe {
-            self.switch_shape_button.set_icon(LoadIconW(
-                Some(g_hinstance),
-                PCWSTR::from_raw(if shape_mode == CharacterForm::Fullwidth {
-                    IDI_FULL_SHAPE as *const u16
-                } else {
-                    IDI_HALF_SHAPE as *const u16
-                }),
-            )?)?;
-        }
+        let icon_id = if shape_mode == CharacterForm::Fullwidth {
+            IDI_FULL_SHAPE
+        } else {
+            IDI_HALF_SHAPE
+        };
+        let icon = load_icon_cached(icon_id)?;
+        self.switch_shape_button.set_icon(icon)?;
+
         unsafe {
             CheckMenuItem(
                 self.popup_menu,
@@ -1413,6 +1405,32 @@ fn syl_editor_from_kbtype(kbtype: KeyboardLayoutCompat) -> Box<dyn SyllableEdito
         | KeyboardLayoutCompat::Workman
         | KeyboardLayoutCompat::Colemak => Box::new(Standard::new()),
     }
+}
+
+// Simple global icon cache to avoid redundant LoadIconW calls.
+//
+// HICON is a small handle type; we keep it for the service lifetime.
+thread_local! {
+    static ICON_CACHE: OnceLock<RefCell<HashMap<u32, HICON>>> = OnceLock::new();
+}
+
+fn load_icon_cached(icon_id: u32) -> Result<HICON> {
+    ICON_CACHE.with(|cache| {
+        let map = cache.get_or_init(|| RefCell::new(HashMap::new()));
+        // Fast path: check cache under lock
+        {
+            if let Some(&icon) = map.borrow().get(&icon_id) {
+                return Ok(icon);
+            }
+        }
+        // Slow path: load the icon and insert into cache
+        let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
+        unsafe {
+            let icon = LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?;
+            map.borrow_mut().insert(icon_id, icon);
+            Ok(icon)
+        }
+    })
 }
 
 fn user_dir() -> Result<PathBuf> {
