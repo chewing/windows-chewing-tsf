@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [26.1.3.0] - 2026-xx-xx
+## [26.1.3.0] - 2026-01-25
 
 ### 🐛 Bug Fixes
 
