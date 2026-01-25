@@ -53,6 +53,7 @@ use crate::config::{Config, color_s};
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
+use crate::text_service::lang_bar::LangBarFactory;
 use crate::ui::window::window_register_class;
 
 use super::CommandType;
@@ -71,7 +72,7 @@ const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_5695937
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
 const GUID_SETTINGS_BUTTON: GUID = GUID::from_u128(0x4FAFA520_2104_407E_A532_9F1AAB7751CD);
 
-const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
+pub(crate) const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 
 const SEL_KEYS: [&'static str; 6] = [
     "1234567890",
@@ -191,126 +192,56 @@ impl ChewingTextService {
 
         let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
         info!("Detected theme info: {:?}", ThemeDetector::get_theme_info());
-        info!("Add language bar buttons to switch Chinese/English modes");
-        let switch_lang_button = unsafe {
-            let mut info = TF_LANGBARITEMINFO {
-                clsidService: CLSID_TEXT_SERVICE,
-                guidItem: GUID_MODE_BUTTON,
-                dwStyle: TF_LBI_STYLE_BTN_BUTTON,
-                ..Default::default()
-            };
-            let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
-            LoadStringW(
-                Some(g_hinstance),
-                IDS_SWITCH_LANG,
-                tooltip,
-                info.szDescription.len() as i32,
-            );
-            let button = LangBarButton::new(
-                info,
-                BSTR::from_wide(tooltip.as_wide()),
-                LoadIconW(Some(g_hinstance), PCWSTR::from_raw(IDI_CHI as *const u16))?,
-                HMENU::default(),
-                ID_SWITCH_LANG,
-                thread_mgr.clone(),
-            )
-            .into_object();
-            lang_bar_item_mgr.AddItem(button.as_interface())?;
-            button
-        };
+
+        // Create a small factory to reduce repetition when creating the langbar buttons.
+        let popup_menu = menu.sub_menu(0);
+        let factory = LangBarFactory::new(
+            g_hinstance,
+            lang_bar_item_mgr.clone(),
+            thread_mgr.clone(),
+            popup_menu,
+        );
+
+        let switch_lang_button = factory.create_button(
+            GUID_MODE_BUTTON,
+            TF_LBI_STYLE_BTN_BUTTON,
+            IDS_SWITCH_LANG,
+            IDI_CHI,
+            HMENU::default(),
+            ID_SWITCH_LANG,
+        )?;
 
         info!("Add language bar buttons to toggle full shape/half shape modes");
-        let switch_shape_button = unsafe {
-            let mut info = TF_LANGBARITEMINFO {
-                clsidService: CLSID_TEXT_SERVICE,
-                guidItem: GUID_SHAPE_TYPE_BUTTON,
-                dwStyle: TF_LBI_STYLE_BTN_BUTTON,
-                ..Default::default()
-            };
-            let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
-            LoadStringW(
-                Some(g_hinstance),
-                IDS_SWITCH_SHAPE,
-                tooltip,
-                info.szDescription.len() as i32,
-            );
-            let button = LangBarButton::new(
-                info,
-                BSTR::from_wide(tooltip.as_wide()),
-                LoadIconW(
-                    Some(g_hinstance),
-                    PCWSTR::from_raw(IDI_HALF_SHAPE as *const u16),
-                )?,
-                HMENU::default(),
-                ID_SWITCH_SHAPE,
-                thread_mgr.clone(),
-            )
-            .into_object();
-            lang_bar_item_mgr.AddItem(button.as_interface())?;
-            button
-        };
+        let switch_shape_button = factory.create_button(
+            GUID_SHAPE_TYPE_BUTTON,
+            TF_LBI_STYLE_BTN_BUTTON,
+            IDS_SWITCH_SHAPE,
+            IDI_HALF_SHAPE,
+            HMENU::default(),
+            ID_SWITCH_SHAPE,
+        )?;
 
         info!("Add button for settings and others, may open a popup menu");
-        let (settings_button, popup_menu) = unsafe {
-            let mut info = TF_LANGBARITEMINFO {
-                clsidService: CLSID_TEXT_SERVICE,
-                guidItem: GUID_SETTINGS_BUTTON,
-                dwStyle: TF_LBI_STYLE_BTN_MENU,
-                ..Default::default()
-            };
-            let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
-            LoadStringW(
-                Some(g_hinstance),
-                IDS_SETTINGS,
-                tooltip,
-                info.szDescription.len() as i32,
-            );
-            // TODO we can define the menu in code
-            let popup_menu = menu.sub_menu(0);
-            let button = LangBarButton::new(
-                info,
-                BSTR::from_wide(tooltip.as_wide()),
-                LoadIconW(
-                    Some(g_hinstance),
-                    PCWSTR::from_raw(IDI_CONFIG as *const u16),
-                )?,
-                popup_menu,
-                0,
-                thread_mgr.clone(),
-            )
-            .into_object();
-            lang_bar_item_mgr.AddItem(button.as_interface())?;
-            (button, popup_menu)
-        };
+        let settings_button = factory.create_button(
+            GUID_SETTINGS_BUTTON,
+            TF_LBI_STYLE_BTN_MENU,
+            IDS_SETTINGS,
+            IDI_CONFIG,
+            popup_menu,
+            0,
+        )?;
 
         // Windows 8 systray IME mode icon
         info!("Add systray IME mode icon to switch Chinese/English modes");
-        let ime_mode_button = unsafe {
-            let mut info = TF_LANGBARITEMINFO {
-                clsidService: CLSID_TEXT_SERVICE,
-                guidItem: GUID_LBI_INPUTMODE,
-                dwStyle: TF_LBI_STYLE_BTN_BUTTON,
-                ..Default::default()
-            };
-            let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
-            LoadStringW(
-                Some(g_hinstance),
-                IDS_SWITCH_LANG,
-                tooltip,
-                info.szDescription.len() as i32,
-            );
-            let button = LangBarButton::new(
-                info,
-                BSTR::from_wide(tooltip.as_wide()),
-                LoadIconW(Some(g_hinstance), PCWSTR::from_raw(IDI_CHI as *const u16))?,
-                HMENU::default(),
-                ID_MODE_ICON,
-                thread_mgr.clone(),
-            )
-            .into_object();
-            lang_bar_item_mgr.AddItem(button.as_interface())?;
-            button
-        };
+        let ime_mode_button = factory.create_button(
+            GUID_LBI_INPUTMODE,
+            TF_LBI_STYLE_BTN_BUTTON,
+            IDS_SWITCH_LANG,
+            IDI_CHI,
+            HMENU::default(),
+            ID_MODE_ICON,
+        )?;
+
         let lang_bar_buttons = vec![
             switch_lang_button.cast()?,
             switch_shape_button.cast()?,

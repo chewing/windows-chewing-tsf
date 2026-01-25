@@ -6,24 +6,29 @@ use std::{
 };
 
 use windows::Win32::{
-    Foundation::{E_FAIL, E_INVALIDARG, POINT, RECT},
+    Foundation::{E_FAIL, E_INVALIDARG, HINSTANCE, POINT, RECT},
     Graphics::Gdi::HBITMAP,
     UI::{
         TextServices::{
             ITfLangBarItem, ITfLangBarItem_Impl, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
-            ITfLangBarItemSink, ITfMenu, ITfSource, ITfSource_Impl, ITfThreadMgr,
-            TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON, TF_LBI_STATUS,
+            ITfLangBarItemMgr, ITfLangBarItemSink, ITfMenu, ITfSource, ITfSource_Impl,
+            ITfThreadMgr, TF_LANGBARITEMINFO, TF_LBI_CLK_RIGHT, TF_LBI_ICON, TF_LBI_STATUS,
             TF_LBI_STATUS_DISABLED, TF_LBI_STATUS_HIDDEN, TF_LBMENUF_CHECKED, TF_LBMENUF_GRAYED,
             TF_LBMENUF_SEPARATOR, TF_LBMENUF_SUBMENU, TfLBIClick,
         },
         WindowsAndMessaging::{
-            CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU,
-            MENU_ITEM_STATE, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED, MFT_SEPARATOR,
-            MFT_STRING, MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
+            CopyIcon, DestroyIcon, GetMenuItemCount, GetMenuItemInfoW, HICON, HMENU, LoadIconW,
+            LoadStringW, MENU_ITEM_STATE, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MFS_GRAYED,
+            MFT_SEPARATOR, MFT_STRING, MIIM_FTYPE, MIIM_ID, MIIM_STATE, MIIM_STRING, MIIM_SUBMENU,
         },
     },
 };
-use windows_core::{BOOL, BSTR, GUID, IUnknown, Interface, PWSTR, Ref, Result, implement};
+use windows_core::{
+    BOOL, BSTR, ComObject, ComObjectInner, GUID, IUnknown, Interface, PCWSTR, PWSTR, Ref, Result,
+    implement,
+};
+
+use crate::text_service::chewing::CLSID_TEXT_SERVICE;
 
 use super::CHEWING_TSF_CLSID;
 use super::{CommandType, IFnRunCommand};
@@ -250,4 +255,80 @@ fn build_menu(menu: &ITfMenu, hmenu: HMENU) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Small factory to reduce repetition when creating LangBar buttons.
+///
+/// Captures the common context (hinstance, lang bar manager, thread mgr and the
+/// default popup menu), so each button creation only needs the per-button
+/// details.
+pub(crate) struct LangBarFactory {
+    g_hinstance: HINSTANCE,
+    lang_bar_item_mgr: ITfLangBarItemMgr,
+    thread_mgr: ITfThreadMgr,
+    default_popup: HMENU,
+}
+
+impl LangBarFactory {
+    pub(crate) fn new(
+        g_hinstance: HINSTANCE,
+        lang_bar_item_mgr: ITfLangBarItemMgr,
+        thread_mgr: ITfThreadMgr,
+        default_popup: HMENU,
+    ) -> LangBarFactory {
+        LangBarFactory {
+            g_hinstance,
+            lang_bar_item_mgr,
+            thread_mgr,
+            default_popup,
+        }
+    }
+
+    /// Create a LangBar button and register it with the lang bar manager.
+    ///
+    /// tooltip_id and icon_id are resource IDs. popup can override the factory's
+    /// default popup menu (pass HMENU::default() to use no popup).
+    pub(crate) fn create_button(
+        &self,
+        guid_item: GUID,
+        dw_style: u32,
+        tooltip_id: u32,
+        icon_id: u32,
+        popup: HMENU,
+        cmd_id: u32,
+    ) -> Result<ComObject<LangBarButton>> {
+        unsafe {
+            let mut info = TF_LANGBARITEMINFO {
+                clsidService: CLSID_TEXT_SERVICE,
+                guidItem: guid_item,
+                dwStyle: dw_style,
+                ..Default::default()
+            };
+            let tooltip = PWSTR::from_raw(info.szDescription.as_mut_ptr());
+            LoadStringW(
+                Some(self.g_hinstance),
+                tooltip_id,
+                tooltip,
+                info.szDescription.len() as i32,
+            );
+            let button = LangBarButton::new(
+                info,
+                BSTR::from_wide(tooltip.as_wide()),
+                LoadIconW(
+                    Some(self.g_hinstance),
+                    PCWSTR::from_raw(icon_id as *const u16),
+                )?,
+                if !popup.is_invalid() {
+                    popup
+                } else {
+                    self.default_popup
+                },
+                cmd_id,
+                self.thread_mgr.clone(),
+            )
+            .into_object();
+            self.lang_bar_item_mgr.AddItem(button.as_interface())?;
+            Ok(button)
+        }
+    }
 }
