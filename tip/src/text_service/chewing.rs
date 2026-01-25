@@ -38,14 +38,14 @@ use windows::Win32::UI::TextServices::{
     TF_SD_READONLY,
 };
 use windows::Win32::UI::TextServices::{
-    ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr, TF_LANGBARITEMINFO,
+    ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, LoadStringW, MF_CHECKED,
-    MF_ENABLED, MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON,
-    TPM_NONOTIFY, TPM_RETURNCMD, TrackPopupMenu,
+    CheckMenuItem, EnableMenuItem, GetCursorPos, HMENU, LoadIconW, MF_CHECKED, MF_ENABLED,
+    MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY,
+    TPM_RETURNCMD, TrackPopupMenu,
 };
-use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR, PWSTR};
+use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR};
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
