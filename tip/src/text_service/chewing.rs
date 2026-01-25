@@ -49,7 +49,7 @@ use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PC
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
-use crate::config::{Config, color_s};
+use crate::config::{ChewingTsfConfig, Config, color_s};
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
@@ -74,7 +74,7 @@ const GUID_SETTINGS_BUTTON: GUID = GUID::from_u128(0x4FAFA520_2104_407E_A532_9F1
 
 pub(crate) const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 
-const SEL_KEYS: [&'static str; 6] = [
+const SEL_KEYS: [&str; 6] = [
     "1234567890",
     "asdfghjkl;",
     "asdfzxcv89",
@@ -91,10 +91,10 @@ enum ShiftKeyState {
 }
 
 impl ShiftKeyState {
-    fn release(&mut self) -> Duration {
+    fn release(&mut self) -> Option<Duration> {
         let duration = match self {
-            ShiftKeyState::Down(instant) => instant.elapsed(),
-            ShiftKeyState::Consumed | ShiftKeyState::Up => Duration::MAX,
+            ShiftKeyState::Down(instant) => Some(instant.elapsed()),
+            ShiftKeyState::Consumed | ShiftKeyState::Up => None,
         };
         *self = ShiftKeyState::Up;
         duration
@@ -131,11 +131,11 @@ impl From<TsfLangMode> for LanguageMode {
 
 impl PartialEq<LanguageMode> for TsfLangMode {
     fn eq(&self, other: &LanguageMode) -> bool {
-        match (self, other) {
-            (TsfLangMode::Chinese, LanguageMode::Chinese) => true,
-            (TsfLangMode::English, LanguageMode::English) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (TsfLangMode::Chinese, LanguageMode::Chinese)
+                | (TsfLangMode::English, LanguageMode::English)
+        )
     }
 }
 
@@ -643,8 +643,9 @@ impl ChewingTextService {
         debug!(last_is_shift, last_is_capslock; "");
 
         if last_is_shift
-            && self.shift_key_state.release()
-                < Duration::from_millis(self.cfg.chewing_tsf.shift_key_sensitivity as u64)
+            && self.shift_key_state.release().is_some_and(|duration| {
+                duration < Duration::from_millis(self.cfg.chewing_tsf.shift_key_sensitivity as u64)
+            })
             && self.cfg.chewing_tsf.switch_lang_with_shift
         {
             // TODO: simplify this
@@ -730,13 +731,11 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_compartment_change(&self, guid: &GUID) -> Result<()> {
-        if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
-            if !self.pending_lang_mode_change.take() {
-                // Compartment change is caused by Ctrl+Space shortcut, starting
-                // a sync_lang_mode cycle.
-                self.toggle_keyboard_openclose();
-                self.sync_lang_mode(false)?;
-            }
+        if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE && !self.pending_lang_mode_change.take() {
+            // Compartment change is caused by Ctrl+Space shortcut, starting
+            // a sync_lang_mode cycle.
+            self.toggle_keyboard_openclose();
+            self.sync_lang_mode(false)?;
         }
         Ok(())
     }
@@ -1173,6 +1172,66 @@ impl ChewingTextService {
         Ok(())
     }
 
+    fn build_editor_from_cfg(&self, cfg: &ChewingTsfConfig) -> Result<Editor> {
+        let user_path = user_dir()?;
+        let chewing_path = format!(
+            "{};{}",
+            user_path.display(),
+            program_dir()?.join("Dictionary").display()
+        );
+        let user_dict_path = user_path.join("chewing.dat");
+        // Recreate editor to load latest user files
+        let mut editor = Editor::chewing(
+            Some(chewing_path),
+            // NB: the current API requires a *file* path
+            Some(user_dict_path.to_string_lossy().into_owned()),
+            DEFAULT_DICT_NAMES,
+        );
+        editor.set_editor_options(|opt| {
+            opt.easy_symbol_input = cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;
+            // NB: Historically the config was inverted
+            opt.user_phrase_add_dir = if cfg.add_phrase_forward {
+                UserPhraseAddDirection::Backward
+            } else {
+                UserPhraseAddDirection::Forward
+            };
+            opt.phrase_choice_rearward = cfg.phrase_choice_rearward;
+            opt.auto_shift_cursor = cfg.advance_after_selection;
+            opt.candidates_per_page = cfg.cand_per_page as usize;
+            opt.esc_clear_all_buffer = cfg.esc_clean_all_buf;
+            opt.space_is_select_key = cfg.show_cand_with_space_key;
+            opt.disable_auto_learn_phrase = !cfg.enable_auto_learn;
+            opt.enable_fullwidth_toggle_key = cfg.enable_fullwidth_toggle_key;
+            opt.sort_candidates_by_frequency = cfg.sort_candidates_by_frequency;
+            // FIXME
+            opt.conversion_engine = match cfg.conv_engine {
+                0 => ConversionEngineKind::SimpleEngine,
+                2 => ConversionEngineKind::FuzzyChewingEngine,
+                _ => ConversionEngineKind::ChewingEngine,
+            };
+            // FIXME
+            opt.lookup_strategy = match cfg.conv_engine {
+                0 => LookupStrategy::Standard,
+                2 => LookupStrategy::FuzzyPartialPrefix,
+                _ => LookupStrategy::Standard,
+            };
+        });
+        editor.set_syllable_editor(syl_editor_from_kbtype(self.kbtype));
+        // FIXME
+        match editor.editor_options().conversion_engine {
+            ConversionEngineKind::SimpleEngine => {
+                editor.set_conversion_engine(Box::new(SimpleEngine::new()));
+            }
+            ConversionEngineKind::ChewingEngine => {
+                editor.set_conversion_engine(Box::new(ChewingEngine::new()));
+            }
+            ConversionEngineKind::FuzzyChewingEngine => {
+                editor.set_conversion_engine(Box::new(FuzzyChewingEngine::new()));
+            }
+        }
+        Ok(editor)
+    }
+
     fn apply_config_if_changed(&mut self) -> Result<()> {
         if self.cfg.reload_if_needed()? {
             self.apply_config()?;
@@ -1182,68 +1241,9 @@ impl ChewingTextService {
 
     fn apply_config(&mut self) -> Result<()> {
         let cfg = &self.cfg.chewing_tsf;
-        {
-            let user_path = user_dir()?;
-            let chewing_path = format!(
-                "{};{}",
-                user_path.display(),
-                program_dir()?.join("Dictionary").display()
-            );
-            let user_dict_path = user_path.join("chewing.dat");
-            // Recreate editor to load latest user files
-            self.chewing_editor = Editor::chewing(
-                Some(chewing_path),
-                // NB: the current API requires a *file* path
-                Some(user_dict_path.to_string_lossy().into_owned()),
-                &DEFAULT_DICT_NAMES,
-            );
-            let editor = &mut self.chewing_editor;
-            editor.set_editor_options(|opt| {
-                opt.easy_symbol_input =
-                    cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;
-                // NB: Historically the config was inverted
-                opt.user_phrase_add_dir = if cfg.add_phrase_forward {
-                    UserPhraseAddDirection::Backward
-                } else {
-                    UserPhraseAddDirection::Forward
-                };
-                opt.phrase_choice_rearward = cfg.phrase_choice_rearward;
-                opt.auto_shift_cursor = cfg.advance_after_selection;
-                opt.candidates_per_page = cfg.cand_per_page as usize;
-                opt.esc_clear_all_buffer = cfg.esc_clean_all_buf;
-                opt.space_is_select_key = cfg.show_cand_with_space_key;
-                opt.disable_auto_learn_phrase = !cfg.enable_auto_learn;
-                opt.enable_fullwidth_toggle_key = cfg.enable_fullwidth_toggle_key;
-                opt.sort_candidates_by_frequency = cfg.sort_candidates_by_frequency;
-                // FIXME
-                opt.conversion_engine = match cfg.conv_engine {
-                    0 => ConversionEngineKind::SimpleEngine,
-                    2 => ConversionEngineKind::FuzzyChewingEngine,
-                    1 | _ => ConversionEngineKind::ChewingEngine,
-                };
-                // FIXME
-                opt.lookup_strategy = match cfg.conv_engine {
-                    0 => LookupStrategy::Standard,
-                    2 => LookupStrategy::FuzzyPartialPrefix,
-                    1 | _ => LookupStrategy::Standard,
-                };
-            });
-            self.kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
-                .unwrap_or(KeyboardLayoutCompat::Default);
-            editor.set_syllable_editor(syl_editor_from_kbtype(self.kbtype));
-            // FIXME
-            match editor.editor_options().conversion_engine {
-                ConversionEngineKind::SimpleEngine => {
-                    editor.set_conversion_engine(Box::new(SimpleEngine::new()));
-                }
-                ConversionEngineKind::ChewingEngine => {
-                    editor.set_conversion_engine(Box::new(ChewingEngine::new()));
-                }
-                ConversionEngineKind::FuzzyChewingEngine => {
-                    editor.set_conversion_engine(Box::new(FuzzyChewingEngine::new()));
-                }
-            }
-        }
+        self.chewing_editor = self.build_editor_from_cfg(cfg)?;
+        self.kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
+            .unwrap_or(KeyboardLayoutCompat::Default);
         self.output_simp_chinese = cfg.output_simp_chinese;
         let check_flag = if self.output_simp_chinese {
             MF_CHECKED
@@ -1335,7 +1335,7 @@ impl ChewingTextService {
                     evt.code = Keycode(keycode::KEY_1.0 + idx as u8);
                     evt.ksym = Keysym(keysym::SYM_1.0 + idx as u32);
                 }
-                9 | _ => {
+                _ => {
                     evt.code = keycode::KEY_0;
                     evt.ksym = keysym::SYM_0;
                 }

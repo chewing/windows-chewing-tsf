@@ -28,10 +28,11 @@ pub(crate) fn request_edit_session(
     unsafe {
         match context.RequestEditSession(tid, session_iface, flags) {
             Err(e) => error!("failed to request edit session: {e}"),
-            Ok(res) => match res.ok() {
-                Err(e) => error!("edit session request returned error: {e}"),
-                Ok(()) => (),
-            },
+            Ok(res) => {
+                if let Err(e) = res.ok() {
+                    error!("edit session request returned error: {e}");
+                }
+            }
         }
     }
 }
@@ -177,7 +178,7 @@ impl EndComposition {
             let new_composition_start = range.Clone()?;
             new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
             composition.ShiftStart(ec, &new_composition_start)?;
-            set_selection(&context, ec, new_composition_start, TF_AE_END)?;
+            set_selection(context, ec, new_composition_start, TF_AE_END)?;
         }
         Ok(())
     }
