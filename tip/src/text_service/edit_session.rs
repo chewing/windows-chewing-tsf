@@ -128,6 +128,7 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
             if let Some(composition) = self.composition.borrow().as_ref() {
                 let pending = self.pending.borrow();
                 let range = composition.GetRange()?;
+                debug!(range:?, text:?=pending.text; "set composition string");
                 if let Err(error) = range.SetText(ec, 0, &pending.text) {
                     error!("set composition string failed: {error}");
                 }
@@ -186,11 +187,13 @@ impl EndComposition {
 
 impl ITfEditSession_Impl for EndComposition_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
-        EndComposition::will_end_composition(&self.context, &self.composition, ec)?;
+        debug!("end composition");
+        EndComposition::will_end_composition(&self.context, &self.composition, ec)
+            .inspect_err(|e| debug!("failed in finalize composition: {e:?}"))?;
         unsafe {
             self.composition
                 .EndComposition(ec)
-                .inspect_err(|_| debug!("failed in EndComposition"))?;
+                .inspect_err(|e| debug!("failed in EndComposition: {e:?}"))?;
         }
         Ok(())
     }

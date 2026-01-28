@@ -280,6 +280,7 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
         Ok(())
     }
     fn OnKillThreadFocus(&self) -> Result<()> {
+        debug!("on_kill_thread_focus");
         Ok(())
     }
 }

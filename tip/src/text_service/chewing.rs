@@ -162,6 +162,7 @@ pub(super) struct ChewingTextService {
     lang_mode: Cell<TsfLangMode>,
     pending_lang_mode_change: Cell<bool>,
 
+    has_focus: bool,
     output_simp_chinese: bool,
     shift_key_state: ShiftKeyState,
     cfg: Config,
@@ -267,6 +268,7 @@ impl ChewingTextService {
             _menu: menu,
             popup_menu,
             lang_mode: Cell::new(TsfLangMode::English),
+            has_focus: false,
             output_simp_chinese: Default::default(),
             shift_key_state: ShiftKeyState::Up,
             cfg,
@@ -316,6 +318,7 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_kill_focus(&mut self, context: &ITfContext) -> Result<()> {
+        self.has_focus = false;
         if self.is_composing() {
             self.end_composition(context)?;
         }
@@ -325,6 +328,7 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_focus(&mut self) -> Result<()> {
+        self.has_focus = true;
         self.apply_config_if_changed()?;
         self.sync_lang_mode(true)?;
         Ok(())
@@ -733,7 +737,11 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_compartment_change(&self, guid: &GUID) -> Result<()> {
-        if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE && !self.pending_lang_mode_change.take() {
+        debug!(has_focus=self.has_focus; "on_compartment_change");
+        if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
+            && !self.pending_lang_mode_change.take()
+            && self.has_focus
+        {
             // Compartment change is caused by Ctrl+Space shortcut, starting
             // a sync_lang_mode cycle.
             self.toggle_keyboard_openclose();
@@ -1076,6 +1084,7 @@ impl ChewingTextService {
     }
 
     fn sync_lang_mode(&self, internal: bool) -> Result<()> {
+        debug!("set pending_lang_mode_change to {internal}");
         self.pending_lang_mode_change.set(internal);
         if !self.lang_mode.get().is_disabled() {
             let cfg = &self.cfg.chewing_tsf;
@@ -1366,6 +1375,7 @@ impl<'a> ReentrantOps<'a> {
         let Some(tip) = self.tip.as_ref() else {
             bail!("chewing_tip is not initialized");
         };
+        debug!(force, pending_lang_mode_change=tip.pending_lang_mode_change.get(); "sync_keyboard_openclose");
         if !force && !tip.pending_lang_mode_change.get() {
             return Ok(());
         }
