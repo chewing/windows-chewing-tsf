@@ -4,6 +4,7 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::io::ErrorKind;
+use std::mem;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::path::PathBuf;
@@ -869,9 +870,8 @@ impl ChewingTextService {
     }
 
     fn end_composition(&mut self, context: &ITfContext) -> Result<()> {
-        let Some(composition) = self.composition.take() else {
-            return Ok(());
-        };
+        // Transfer the ownership of this composition to the EndComposition edit session.
+        let composition = mem::replace(&mut self.composition, Rc::new(RefCell::new(None)));
         self.pending_edit = Weak::new();
         let session = EndComposition::new(context.clone(), composition).into_object();
         request_edit_session(

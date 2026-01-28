@@ -152,11 +152,14 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
 #[implement(ITfEditSession)]
 pub(super) struct EndComposition {
     context: ITfContext,
-    composition: ITfComposition,
+    composition: Rc<RefCell<Option<ITfComposition>>>,
 }
 
 impl EndComposition {
-    pub(super) fn new(context: ITfContext, composition: ITfComposition) -> EndComposition {
+    pub(super) fn new(
+        context: ITfContext,
+        composition: Rc<RefCell<Option<ITfComposition>>>,
+    ) -> EndComposition {
         Self {
             context,
             composition,
@@ -188,10 +191,14 @@ impl EndComposition {
 impl ITfEditSession_Impl for EndComposition_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         debug!("end composition");
-        EndComposition::will_end_composition(&self.context, &self.composition, ec)
+        let Some(composition) = self.composition.take() else {
+            debug!("composition is none, skip");
+            return Ok(());
+        };
+        EndComposition::will_end_composition(&self.context, &composition, ec)
             .inspect_err(|e| debug!("failed in finalize composition: {e:?}"))?;
         unsafe {
-            self.composition
+            composition
                 .EndComposition(ec)
                 .inspect_err(|e| debug!("failed in EndComposition: {e:?}"))?;
         }

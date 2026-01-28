@@ -15,7 +15,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
-- tip: only handle keyboard_openclose change when in focus
+- tip: only handle keyboard_openclose change when in focus.
+- tip: fix duplicated string when sharing composition with async edit session.
 
 ### 🚜 Refactor
 
