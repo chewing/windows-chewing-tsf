@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Cache llvm-mingw
         id: cache-llvm-linux
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /opt/llvm-mingw
           key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
