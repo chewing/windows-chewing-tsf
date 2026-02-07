@@ -61,6 +61,7 @@ pub(super) struct TextService {
     thread_cookies: RefCell<Vec<u32>>,
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
+    composition_terminated: Cell<bool>,
 }
 
 impl TextService {
@@ -71,6 +72,21 @@ impl TextService {
             thread_cookies: RefCell::new(vec![]),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
+            composition_terminated: Cell::new(false),
+        }
+    }
+    fn tail_handler(&self) {
+        if self.composition_terminated.take() {
+            let Ok(mut borrowed_ts) = self.inner.try_borrow_mut() else {
+                error!("text service was borrowed mutably when executing tail handler.");
+                return;
+            };
+            let Some(ts) = borrowed_ts.as_mut() else {
+                return;
+            };
+            if let Err(error) = ts.on_composition_terminated_tail() {
+                error!("failed to handle on_composition_terminated_tail: {error}");
+            }
         }
     }
 }
@@ -292,81 +308,95 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_test_keydown");
-        let mut borrowed_ts = self.inner.borrow_mut();
-        let Some(ts) = borrowed_ts.as_mut() else {
-            return Ok(FALSE);
-        };
-        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
-        let should_handle = match ts.on_test_keydown(pic.ok()?, ev) {
-            Ok(v) => v,
-            Err(error) => {
-                error!("Unable to handle OnTestKeyDown: {error:#}");
-                return Err(E_UNEXPECTED.into());
+        let should_handle = {
+            let mut borrowed_ts = self.inner.borrow_mut();
+            let Some(ts) = borrowed_ts.as_mut() else {
+                return Ok(FALSE);
+            };
+            let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
+            match ts.on_test_keydown(pic.ok()?, ev) {
+                Ok(v) => v,
+                Err(error) => {
+                    error!("Unable to handle OnTestKeyDown: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
             }
         };
+        self.tail_handler();
         Ok(should_handle.into())
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_test_keyup");
-        let mut borrowed_ts = self.inner.borrow_mut();
-        let Some(ts) = borrowed_ts.as_mut() else {
-            return Ok(FALSE);
-        };
-        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
-        let should_handle = match ts.on_test_keyup(pic.ok()?, ev) {
-            Ok(v) => v,
-            Err(error) => {
-                error!("Unable to handle OnTestKeyUp: {error:#}");
+        let should_handle = {
+            let mut borrowed_ts = self.inner.borrow_mut();
+            let Some(ts) = borrowed_ts.as_mut() else {
+                return Ok(FALSE);
+            };
+            let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
+            let should_handle = match ts.on_test_keyup(pic.ok()?, ev) {
+                Ok(v) => v,
+                Err(error) => {
+                    error!("Unable to handle OnTestKeyUp: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
+            };
+            let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
+            if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
+                error!("Unable to sync lang mode: {error:#}");
                 return Err(E_UNEXPECTED.into());
             }
+            should_handle
         };
-        let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
-        if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
-            error!("Unable to sync lang mode: {error:#}");
-            return Err(E_UNEXPECTED.into());
-        }
+        self.tail_handler();
         Ok(should_handle.into())
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keydown");
         self.key_busy.set(true);
-        let mut borrowed_ts = self.inner.borrow_mut();
-        let Some(ts) = borrowed_ts.as_mut() else {
-            return Ok(FALSE);
-        };
-        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
-        let handled = match ts.on_keydown(pic.ok()?, ev) {
-            Ok(v) => v,
-            Err(error) => {
-                error!("Unable to handle OnKeyDown: {error:#}");
-                return Err(E_UNEXPECTED.into());
+        let handled = {
+            let mut borrowed_ts = self.inner.borrow_mut();
+            let Some(ts) = borrowed_ts.as_mut() else {
+                return Ok(FALSE);
+            };
+            let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
+            match ts.on_keydown(pic.ok()?, ev) {
+                Ok(v) => v,
+                Err(error) => {
+                    error!("Unable to handle OnKeyDown: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
             }
         };
+        self.tail_handler();
         Ok(handled.into())
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keyup");
         self.key_busy.set(false);
-        let mut borrowed_ts = self.inner.borrow_mut();
-        let Some(ts) = borrowed_ts.as_mut() else {
-            return Ok(FALSE);
-        };
-        let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
-        let handled = match ts.on_keyup(pic.ok()?, ev) {
-            Ok(v) => v,
-            Err(error) => {
-                error!("Unable to handle OnKeyUp: {error:#}");
+        let handled = {
+            let mut borrowed_ts = self.inner.borrow_mut();
+            let Some(ts) = borrowed_ts.as_mut() else {
+                return Ok(FALSE);
+            };
+            let ev = SystemKeyboardEvent::new(wparam.0 as u16, lparam.0);
+            let handled = match ts.on_keyup(pic.ok()?, ev) {
+                Ok(v) => v,
+                Err(error) => {
+                    error!("Unable to handle OnKeyUp: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
+            };
+            let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
+            if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
+                error!("Unable to sync lang mode: {error:#}");
                 return Err(E_UNEXPECTED.into());
             }
+            handled
         };
-        let reentrant_ops = ReentrantOps::from_mut(&self.inner, borrowed_ts);
-        if let Err(error) = reentrant_ops.sync_keyboard_openclose(false) {
-            error!("Unable to sync lang mode: {error:#}");
-            return Err(E_UNEXPECTED.into());
-        }
+        self.tail_handler();
         Ok(handled.into())
     }
 
@@ -388,9 +418,8 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // If we end the composition by calling ITfComposition::EndComposition() ourselves,
         // this event is not triggered.
         let Ok(mut borrowed_ts) = self.inner.try_borrow_mut() else {
-            // Some EditSession can trigger reentrant. It should be safe to ignore.
-            // TODO: handle this without conflict
-            debug!("on_composition_terminated reentrant detected - abort");
+            // Some sync EditSession can trigger reentrant. We will handle them in the handler's tail.
+            self.composition_terminated.set(true);
             return Ok(());
         };
         let Some(ts) = borrowed_ts.as_mut() else {

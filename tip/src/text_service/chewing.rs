@@ -711,10 +711,6 @@ impl ChewingTextService {
         ecwrite: u32,
         composition: &ITfComposition,
     ) -> Result<()> {
-        if self.candidate_list.is_some() {
-            self.hide_candidates();
-        }
-
         // commit current preedit
         unsafe {
             let doc_mgr = self
@@ -725,6 +721,14 @@ impl ChewingTextService {
                 .GetTop()
                 .context("failed to get current ITfContext")?;
             EndComposition::will_end_composition(&context, composition, ecwrite)?;
+        }
+        self.on_composition_terminated_tail()
+    }
+
+    // SAFETY: this method must not cause TSF callback reentrant
+    pub(super) fn on_composition_terminated_tail(&mut self) -> Result<()> {
+        if self.candidate_list.is_some() {
+            self.hide_candidates();
         }
         let editor = &mut self.chewing_editor;
         if editor.is_selecting() {
