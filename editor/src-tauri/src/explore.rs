@@ -44,9 +44,18 @@ pub(super) fn explore() -> Result<Vec<DictionaryItem>, String> {
         let files = find_files_by_ext(&search_path, &["dat", "sqlite3"]);
         let dictionaries = files
             .iter()
-            .filter(|file_name| !file_name.ends_with("chewing.dat"))
-            .filter_map(|file_name| loader.guess_format_and_load(&file_name).ok())
-            .map(|dict| DictionaryItem::new("系統", dict.as_ref()));
+            .map(|file_name| {
+                if file_name.ends_with("chewing.dat") || file_name.ends_with("chewing-deleted.dat")
+                {
+                    ("個人", file_name)
+                } else {
+                    ("系統", file_name)
+                }
+            })
+            .filter(|(typ, file_name)| !file_name.ends_with("chewing.dat"))
+            .map(|(typ, file_name)| (typ, loader.guess_format_and_load(&file_name).ok()))
+            .filter(|(typ, dict)| dict.is_some())
+            .map(|(typ, dict)| DictionaryItem::new(typ, dict.unwrap().as_ref()));
         let user_loader = UserDictionaryLoader::new();
         Ok(dictionaries
             .chain(

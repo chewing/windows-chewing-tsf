@@ -277,6 +277,11 @@ impl Config {
                 .flat_map(|value| KeybindValue::from_str(&value))
                 .collect();
         }
+        // experimental default
+        cfg.keybind.push(KeybindValue {
+            key: "Ctrl+Delete".to_string(),
+            action: "selecting:unlearn_phrase".to_string(),
+        });
 
         Ok(Config {
             chewing_tsf: cfg,

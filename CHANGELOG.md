@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
   Chinese mode and CapsLock off enables English mode. This ensures better
   compatibility with short-cut keys and password fields.
 - tip: re-enable support for completely disable input processing via Ctrl+Space.
+- tip: initial support for using Ctrl+Delete to unlearn phrases.
 - prefs: preferences now only show fonts that can render Chinese characters.
 - prefs: new advanced option to lock Chinese or English mode on CapsLock.
 

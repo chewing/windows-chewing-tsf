@@ -24,6 +24,7 @@ use chewing::editor::{
 use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
+use chewing::zhuyin::Syllable;
 use log::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -501,6 +502,7 @@ impl ChewingTextService {
         // Handle keybindings
         if let Some(keybinding) = self.keybindings.iter().find(|kb| kb.matches(&evt)) {
             debug!("matched keybinding on action={}", keybinding.action);
+            let mut handled = true;
             match keybinding.action.as_str() {
                 "toggle_simplified_chinese" => {
                     self.toggle_simp_chinese()?;
@@ -509,10 +511,16 @@ impl ChewingTextService {
                     self.toggle_hsu_keyboard(context)?;
                 }
                 act => {
-                    error!("Unsupported keybinding action: {act}");
+                    if act.starts_with("selecting:") {
+                        handled = false;
+                    } else {
+                        error!("Unsupported keybinding action: {act}");
+                    }
                 }
             }
-            return Ok(true);
+            if handled {
+                return Ok(true);
+            }
         }
 
         if evt.ksym.is_unicode() {
@@ -578,6 +586,47 @@ impl ChewingTextService {
                     }
                     FilterKeyResult::NotHandled => {
                         // do nothing
+                    }
+                }
+                if let Some(keybinding) = self.keybindings.iter().find(|kb| kb.matches(&evt)) {
+                    debug!("matched keybinding on action={}", keybinding.action);
+                    match keybinding.action.as_str() {
+                        "selecting:unlearn_phrase" => {
+                            if self.chewing_editor.is_selecting() {
+                                if self.cfg.chewing_tsf.cursor_cand_list
+                                    && let Some(candidate_list) = &self.candidate_list
+                                {
+                                    let phrase = candidate_list.current_phrase();
+                                    let phrase_len = phrase.chars().count();
+                                    // TODO: expose begin and end from selector
+                                    let cursor = if self.cfg.chewing_tsf.phrase_choice_rearward {
+                                        self.chewing_editor.cursor().saturating_sub(phrase_len - 1)
+                                    } else {
+                                        self.chewing_editor.cursor()
+                                    };
+                                    let syllables: Vec<Syllable> = self
+                                        .chewing_editor
+                                        .symbols()
+                                        .iter()
+                                        .skip(cursor)
+                                        .take(phrase_len)
+                                        .map_while(|s| s.to_syllable())
+                                        .collect();
+                                    if syllables.len() == phrase_len {
+                                        if let Err(error) =
+                                            self.chewing_editor.unlearn_phrase(&syllables, &phrase)
+                                        {
+                                            error!("failed to unlearn phrase: {error}");
+                                        }
+                                        self.update_candidates(context)?;
+                                        key_handled = true;
+                                    }
+                                }
+                            }
+                        }
+                        act => {
+                            error!("Unsupported keybinding action: {act}");
+                        }
                     }
                 }
             }
@@ -991,6 +1040,12 @@ impl ChewingTextService {
             let total_page = editor.total_page()? as u32;
             let current_page = editor.current_page_no()? as u32 + 1;
             let mut items = editor.paginated_candidates()?;
+            if total_page == 0 {
+                // TODO: handle this properly in chewing-rs
+                self.chewing_editor.cancel_selecting()?;
+                self.hide_candidates();
+                return Ok(());
+            }
             items.truncate(n);
             candidate_list.set_model(Model {
                 items,
@@ -1200,7 +1255,7 @@ impl ChewingTextService {
             Some(chewing_path),
             // NB: the current API requires a *file* path
             Some(user_dict_path.to_string_lossy().into_owned()),
-            DEFAULT_DICT_NAMES,
+            &["word.dat", "tsi.dat", "chewing.dat", "chewing-deleted.dat"],
         );
         editor.set_editor_options(|opt| {
             opt.easy_symbol_input = cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;

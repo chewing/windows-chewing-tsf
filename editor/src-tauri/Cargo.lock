@@ -440,11 +440,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "chewing"
+version = "0.12.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9d1969b72ca4eaabb7d81449fa64f443b6316284f88e733c786fbe7dc09422a"
+dependencies = [
+ "der",
+ "log",
+]
+
+[[package]]
 name = "chewing-editor"
 version = "26.1.3"
 dependencies = [
  "anyhow",
- "chewing",
+ "chewing 0.11.0",
  "chewing_tip",
  "serde",
  "serde_json",
@@ -461,7 +471,7 @@ version = "26.1.3"
 dependencies = [
  "anyhow",
  "cc",
- "chewing",
+ "chewing 0.12.0-alpha.1",
  "embed-resource",
  "getrandom 0.3.4",
  "log",
