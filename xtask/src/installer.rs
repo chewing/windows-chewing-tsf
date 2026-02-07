@@ -65,11 +65,14 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     };
 
     sh.set_var("RUSTFLAGS", "-Ctarget-feature=+crt-static");
+    if matches!(flags.target, Some(Target::GnuLlvm)) {
+        sh.set_var("RC", "llvm-rc");
+    }
 
     {
         cmd!(
             sh,
-            "cargo install --locked chewing-cli --git https://github.com/chewing/libchewing
+            "cargo install --locked chewing-cli --version 0.12.0-alpha.1
                  --root build --target {x86_64_target} --features sqlite-bundled"
         )
         .run()?;
