@@ -628,6 +628,12 @@ impl ChewingTextService {
                                             error!("failed to unlearn phrase: {error}");
                                         }
                                         self.update_candidates(context)?;
+                                        // TODO: move this to editor
+                                        self.show_message(
+                                            context,
+                                            &format!("刪除：{phrase}").into(),
+                                            Duration::from_millis(500),
+                                        )?;
                                         key_handled = true;
                                     }
                                 }
