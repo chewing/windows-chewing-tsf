@@ -319,10 +319,13 @@ impl ChewingTextService {
         self.thread_mgr
     }
 
-    pub(super) fn on_kill_focus(&mut self, context: &ITfContext) -> Result<()> {
+    pub(super) fn on_kill_focus(&mut self, context: Option<ITfContext>) -> Result<()> {
+        debug!("on_kill_focus");
         self.has_focus = false;
-        if self.is_composing() {
-            self.end_composition(context)?;
+        if self.is_composing()
+            && let Some(context) = context
+        {
+            self.end_composition(&context)?;
         }
         self.hide_candidates();
         self.hide_message();
@@ -330,6 +333,7 @@ impl ChewingTextService {
     }
 
     pub(super) fn on_focus(&mut self) -> Result<()> {
+        debug!("on_focus");
         self.has_focus = true;
         self.apply_config_if_changed()?;
         self.sync_lang_mode(true)?;

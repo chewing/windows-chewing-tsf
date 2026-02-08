@@ -246,22 +246,14 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
             return Ok(());
         };
         if pdimfocus.is_null() {
-            if let Some(doc_mgr) = pdimprevfocus.as_ref() {
-                // From MSTF doc: To simplify this process and prevent
-                // multiple modal UIs from being displayed, there is a maximum
-                // of two contexts allowed on the stack.
-                //
-                // XXX: We don't push contexts, so there should always only one
-                // context. It doesn't matter we get the Top or the Base.
-                let context = unsafe { doc_mgr.GetBase()? };
-                if let Err(error) = ts.on_kill_focus(&context) {
-                    error!("Unable to kill focus: {error:#}");
-                    return Err(E_UNEXPECTED.into());
-                }
+            let prevcontext = pdimprevfocus
+                .as_ref()
+                .and_then(|doc_mgr| unsafe { doc_mgr.GetTop().ok() });
+            if let Err(error) = ts.on_kill_focus(prevcontext) {
+                error!("Unable to kill focus: {error:#}");
+                return Err(E_UNEXPECTED.into());
             }
-        } else if pdimfocus.is_some()
-            && let Err(error) = ts.on_focus()
-        {
+        } else if let Err(error) = ts.on_focus() {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
         }
