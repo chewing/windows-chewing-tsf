@@ -335,7 +335,12 @@ impl ChewingTextService {
     pub(super) fn on_focus(&mut self) -> Result<()> {
         debug!("on_focus");
         self.has_focus = true;
-        self.apply_config_if_changed()?;
+        Ok(())
+    }
+
+    pub(super) fn on_thread_focus(&mut self) -> Result<()> {
+        let _ = self.cfg.reload_if_needed();
+        self.apply_config()?;
         self.sync_lang_mode(true)?;
         Ok(())
     }

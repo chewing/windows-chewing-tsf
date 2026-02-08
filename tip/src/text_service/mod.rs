@@ -276,7 +276,7 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
         let Some(ts) = borrowed_ts.as_mut() else {
             return Ok(());
         };
-        if let Err(error) = ts.on_focus() {
+        if let Err(error) = ts.on_thread_focus() {
             error!("Unable to handle focus: {error:#}");
             return Err(E_UNEXPECTED.into());
         }
