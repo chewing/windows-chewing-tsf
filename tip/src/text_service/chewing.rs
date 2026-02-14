@@ -745,9 +745,10 @@ impl ChewingTextService {
 
         if self.cfg.chewing_tsf.enable_caps_lock && last_is_capslock {
             self.sync_lang_mode(true)?;
-            let msg = match self.chewing_editor.editor_options().language_mode {
-                LanguageMode::English => HSTRING::from("英數模式"),
-                LanguageMode::Chinese => HSTRING::from("中文模式"),
+            let msg = match self.lang_mode.get() {
+                TsfLangMode::English => HSTRING::from("英數模式"),
+                TsfLangMode::Chinese => HSTRING::from("中文模式"),
+                _ => HSTRING::from("輸入法關閉中"), // unreachable
             };
             if self.cfg.chewing_tsf.show_notification {
                 self.show_message(context, &msg, Duration::from_millis(500))?;
