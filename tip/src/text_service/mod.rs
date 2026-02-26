@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    ptr::null_mut,
+};
 
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
-    UI::TextServices::*,
+    UI::{Input::KeyboardAndMouse::GetKeyboardLayout, TextServices::*},
 };
 use windows_core::{
     BOOL, BSTR, ComObjectInterface, GUID, IUnknown, IUnknown_Vtbl, Interface, InterfaceRef, Ref,
     Result, implement, interface,
 };
 
-use crate::text_service::chewing::ReentrantOps;
+use crate::{
+    imm32::{IME_PROP_COMPLETE_ON_UNSELECT, ImeDpi, ImmLockImeDpi, ImmUnlockImeDpi},
+    text_service::chewing::ReentrantOps,
+};
 
 use self::chewing::ChewingTextService;
 use self::display_attribute::{EnumTfDisplayAttributeInfo, get_display_attribute_info};
@@ -62,6 +68,7 @@ pub(super) struct TextService {
     keyboard_openclose_cookie: Cell<u32>,
     key_busy: Cell<bool>,
     composition_terminated: Cell<bool>,
+    pimedpi: Cell<*mut ImeDpi>,
 }
 
 impl TextService {
@@ -73,6 +80,7 @@ impl TextService {
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
             key_busy: Cell::new(false),
             composition_terminated: Cell::new(false),
+            pimedpi: Cell::new(null_mut()),
         }
     }
     fn tail_handler(&self) {
@@ -143,6 +151,18 @@ impl IFnRunCommand_Impl for TextService_Impl {
 impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
         debug!(tid; "tip::activate");
+
+        debug!("trying to override the default IMM32 property set by MSCTF.dll");
+        let hkl = unsafe { GetKeyboardLayout(0) };
+        let pimedpi = unsafe { ImmLockImeDpi(hkl) };
+        if let Some(imedpi) = unsafe { pimedpi.as_mut() } {
+            imedpi.ime_info.fdw_property |= IME_PROP_COMPLETE_ON_UNSELECT;
+            debug!("done adding IME_PROP_COMPLETE_ON_UNSELECT to IME property");
+        } else {
+            debug!("unable to get the PIMEDPI pointer");
+        }
+        self.pimedpi.set(pimedpi);
+
         self.tid.set(tid);
         let mut ts = self.inner.borrow_mut();
         let mut thread_cookies = self.thread_cookies.borrow_mut();
@@ -186,6 +206,11 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
 
     fn Deactivate(&self) -> Result<()> {
         debug!("tip::deactivate");
+        if !self.pimedpi.get().is_null() {
+            debug!("releasing previously acquired PIMEDPI pointer");
+            unsafe { ImmUnlockImeDpi(self.pimedpi.get()) };
+            self.pimedpi.set(null_mut());
+        }
         let thread_cookies = self.thread_cookies.take();
 
         if let Some(ts) = self.inner.borrow_mut().take() {

@@ -171,18 +171,18 @@ impl EndComposition {
         ec: u32,
     ) -> Result<()> {
         unsafe {
-            let range = composition
+            let composition_range = composition
                 .GetRange()
                 .inspect_err(|_| debug!("failed to get composition range"))?;
             let disp_attr_prop = context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
             disp_attr_prop
-                .Clear(ec, &range)
+                .Clear(ec, &composition_range)
                 .inspect_err(|_| debug!("failed to clear display attribute"))?;
 
-            let new_composition_start = range.Clone()?;
-            new_composition_start.Collapse(ec, TF_ANCHOR_END)?;
-            composition.ShiftStart(ec, &new_composition_start)?;
-            set_selection(context, ec, new_composition_start, TF_AE_END)?;
+            composition_range.Collapse(ec, TF_ANCHOR_END)?;
+            composition.ShiftStart(ec, &composition_range)?;
+            composition.ShiftEnd(ec, &composition_range)?;
+            set_selection(context, ec, composition_range, TF_AE_END)?;
         }
         Ok(())
     }

@@ -776,8 +776,10 @@ impl ChewingTextService {
         ecwrite: u32,
         composition: &ITfComposition,
     ) -> Result<()> {
-        // commit current preedit
         unsafe {
+            let composition_range = composition
+                .GetRange()
+                .inspect_err(|_| debug!("failed to get composition range"))?;
             let doc_mgr = self
                 .thread_mgr
                 .GetFocus()
@@ -785,7 +787,19 @@ impl ChewingTextService {
             let context = doc_mgr
                 .GetTop()
                 .context("failed to get current ITfContext")?;
-            EndComposition::will_end_composition(&context, composition, ecwrite)?;
+
+            // When a composition is interrupted by the application we only need to
+            // clear the display attributes. When I tested this, clearing the display attribute
+            // is not necessary, but this is what mozc was doing.
+            //
+            // In pure TSF mode, the composition string is automatically committed on termination.
+            // In TSF/IMM32 bridge mode, the bridge sets a default property which we override to
+            // have the same commit on unselect behavior. See [`TextService_Impl::Activate`].
+            let disp_attr_prop =
+                context.GetProperty(&windows::Win32::UI::TextServices::GUID_PROP_ATTRIBUTE)?;
+            disp_attr_prop
+                .Clear(ecwrite, &composition_range)
+                .inspect_err(|_| debug!("failed to clear display attribute"))?;
         }
         self.on_composition_terminated_tail()
     }
