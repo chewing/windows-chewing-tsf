@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 - tip: only handle keyboard_openclose change when in focus.
 - tip: fix duplicated string when sharing composition with async edit session.
+- tip: ensure composition string is committed when changing input method in IMM32 mode.
 
 ### 🚜 Refactor
 
