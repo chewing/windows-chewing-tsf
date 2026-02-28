@@ -1030,6 +1030,9 @@ impl ChewingTextService {
             text: text.clone(),
             font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
             font_size: self.cfg.chewing_tsf.font_size as f32,
+            fg_color: color_s(&self.cfg.chewing_tsf.notify_fg_color),
+            bg_color: color_s(&self.cfg.chewing_tsf.notify_bg_color),
+            border_color: color_s(&self.cfg.chewing_tsf.notify_border_color),
         });
         if let Ok(rect) = self.get_selection_rect(context) {
             notification.set_position(rect.left + 50, rect.bottom + 50);

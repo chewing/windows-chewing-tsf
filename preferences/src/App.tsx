@@ -53,6 +53,14 @@ const useStyles = makeStyles({
       marginBottom: "12px",
     },
   },
+  narrowColumn: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    "& .fui-Field": {
+      gridTemplateColumns: "50% 1fr",
+    },
+  },
   action: {
     position: "absolute",
     bottom: "-4em",
@@ -687,48 +695,84 @@ const Appearance = ({
           <summary style={{ marginBottom: "10px", cursor: "pointer" }}>
             進階設定...
           </summary>
-          <Field label="文字顏色 (RGB)" orientation="horizontal">
-            <Input
-              name="font_fg_color"
-              value={config?.font_fg_color}
-              onChange={setStringConfig}
-            />
-          </Field>
-          <Field label="選字背景顏色 (RGB)" orientation="horizontal">
-            <Input
-              name="font_bg_color"
-              value={config?.font_bg_color}
-              onChange={setStringConfig}
-            />
-          </Field>
-          <Field label="選字邊框顏色 (RGB)" orientation="horizontal">
-            <Input
-              name="cand_list_border_color"
-              value={config?.cand_list_border_color}
-              onChange={setStringConfig}
-            />
-          </Field>
-          <Field label="焦點文字顏色 (RGB)" orientation="horizontal">
-            <Input
-              name="font_highlight_fg_color"
-              value={config?.font_highlight_fg_color}
-              onChange={setStringConfig}
-            />
-          </Field>
-          <Field label="焦點背景顏色 (RGB)" orientation="horizontal">
-            <Input
-              name="font_highlight_bg_color"
-              value={config?.font_highlight_bg_color}
-              onChange={setStringConfig}
-            />
-          </Field>
-          <Field label="數字顏色 (RGB)" orientation="horizontal">
-            <Input
-              name="font_number_fg_color"
-              value={config?.font_number_fg_color}
-              onChange={setStringConfig}
-            />
-          </Field>
+          <div className={styles.content}>
+            <div className={styles.narrowColumn}>
+              <Field label="文字顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="font_fg_color"
+                  value={config?.font_fg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="選字背景顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="font_bg_color"
+                  value={config?.font_bg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="選字邊框顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="cand_list_border_color"
+                  value={config?.cand_list_border_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="焦點文字顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="font_highlight_fg_color"
+                  value={config?.font_highlight_fg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="焦點背景顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="font_highlight_bg_color"
+                  value={config?.font_highlight_bg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="數字顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="font_number_fg_color"
+                  value={config?.font_number_fg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+            </div>
+            <div className={styles.narrowColumn}>
+              <Field label="訊息文字顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="notify_fg_color"
+                  value={config?.notify_fg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="訊息背景顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="notify_bg_color"
+                  value={config?.notify_bg_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+              <Field label="訊息邊框顏色 RGB(A)" orientation="horizontal">
+                <Input
+                  name="notify_border_color"
+                  value={config?.notify_border_color}
+                  style={{ width: "8em" }}
+                  onChange={setStringConfig}
+                />
+              </Field>
+            </div>
+          </div>
         </details>
       </div>
     </div>

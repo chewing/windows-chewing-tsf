@@ -63,6 +63,9 @@ pub(crate) struct NotificationModel {
     pub(crate) text: HSTRING,
     pub(crate) font_family: HSTRING,
     pub(crate) font_size: f32,
+    pub(crate) fg_color: D2D1_COLOR_F,
+    pub(crate) bg_color: D2D1_COLOR_F,
+    pub(crate) border_color: D2D1_COLOR_F,
 }
 
 trait View {
@@ -270,28 +273,18 @@ impl View for RenderedView {
 
         // Begin drawing
         let dc = &self.target;
-        let text_color = D2D1_COLOR_F {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        };
-        let bg_color = D2D1_COLOR_F {
-            r: 0.988,
-            g: 0.984,
-            b: 0.855,
-            a: 1.0,
-        };
-        let border_color = D2D1_COLOR_F {
-            r: 0.84,
-            g: 0.85,
-            b: 0.86,
-            a: 1.0,
-        };
         unsafe {
             dc.BeginDraw();
 
-            draw_message_box(dc, 0.0, 0.0, width, height, bg_color, border_color)?;
+            draw_message_box(
+                dc,
+                0.0,
+                0.0,
+                width,
+                height,
+                model.bg_color,
+                model.border_color,
+            )?;
 
             let margin = 10.0;
             let text_rect = D2D_RECT_F {
@@ -300,7 +293,7 @@ impl View for RenderedView {
                 right: margin + width,
                 bottom: margin + height,
             };
-            let brush = dc.CreateSolidColorBrush(&text_color, None)?;
+            let brush = dc.CreateSolidColorBrush(&model.fg_color, None)?;
             dc.DrawText(
                 &model.text,
                 &text_format,

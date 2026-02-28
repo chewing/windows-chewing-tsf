@@ -32,6 +32,9 @@ export type ChewingTsfConfig = {
   font_highlight_bg_color: string;
   font_number_fg_color: string;
   cand_list_border_color: string;
+  notify_fg_color: string;
+  notify_bg_color: string;
+  notify_border_color: string;
   keyboard_layout: number;
   simulate_english_layout: number;
   keybind: [KeybindValue];
