@@ -1,7 +1,5 @@
 import {
   Button,
-  FluentProvider,
-  webLightTheme,
   makeStyles,
   TabList,
   Tab,
@@ -40,7 +38,7 @@ type FontFamilyName = {
 const useStyles = makeStyles({
   root: {
     position: "relative",
-    margin: "5px 0px 0px 5px",
+    padding: "5px 0px 0px 5px",
   },
   content: {
     margin: "16px",
@@ -322,82 +320,76 @@ function App() {
     });
 
   return (
-    <FluentProvider theme={webLightTheme}>
-      <form className={styles.root} name="configs">
-        <TabList
-          appearance="subtle"
-          selectedValue={selectedTab}
-          onTabSelect={onTabSelect}
+    <form className={styles.root} name="configs">
+      <TabList
+        appearance="subtle"
+        selectedValue={selectedTab}
+        onTabSelect={onTabSelect}
+      >
+        <Tab value="1">打字行為</Tab>
+        <Tab value="2">界面外觀</Tab>
+        <Tab value="3">鍵盤設定</Tab>
+        <Tab value="4">特殊符號</Tab>
+        <Tab value="5">快捷符號</Tab>
+        <Tab value="6">其他設定</Tab>
+      </TabList>
+      {selectedTab === "1" && config && (
+        <InputBehaviors
+          config={config}
+          styles={styles}
+          showAdvanced={showAdvanced}
+          setShowAdvanced={setShowAdvanced}
+          setConfig={setConfig}
+          setBooleanConfig={setBooleanConfig}
+        />
+      )}
+      {selectedTab === "2" && config && (
+        <Appearance
+          config={config}
+          styles={styles}
+          systemFonts={systemFonts}
+          showAdvanced={showAdvanced}
+          setShowAdvanced={setShowAdvanced}
+          setConfig={setConfig}
+          setStringConfig={setStringConfig}
+          setNumberConfig={setNumberConfig}
+        />
+      )}
+      {selectedTab === "3" && config && (
+        <Layout
+          config={config}
+          styles={styles}
+          showAdvanced={showAdvanced}
+          setShowAdvanced={setShowAdvanced}
+          setConfig={setConfig}
+          setKeybindConfig={setKeybindConfig}
+        />
+      )}
+      {selectedTab === "4" && config && (
+        <Symbols
+          styles={styles}
+          symbols_dat={symbols_dat}
+          setSymbolsDat={setSymbolsDat}
+        />
+      )}
+      {selectedTab === "5" && config && (
+        <Shortcut styles={styles} swkb_dat={swkb_dat} setSwkbDat={setSwkbDat} />
+      )}
+      {selectedTab === "6" && config && (
+        <Others config={config} styles={styles} setConfig={setConfig} />
+      )}
+      <div className={styles.action}>
+        <Button
+          onClick={() => {
+            save_config().then(() => exit(0));
+          }}
         >
-          <Tab value="1">打字行為</Tab>
-          <Tab value="2">界面外觀</Tab>
-          <Tab value="3">鍵盤設定</Tab>
-          <Tab value="4">特殊符號</Tab>
-          <Tab value="5">快捷符號</Tab>
-          <Tab value="6">其他設定</Tab>
-        </TabList>
-        {selectedTab === "1" && config && (
-          <InputBehaviors
-            config={config}
-            styles={styles}
-            showAdvanced={showAdvanced}
-            setShowAdvanced={setShowAdvanced}
-            setConfig={setConfig}
-            setBooleanConfig={setBooleanConfig}
-          />
-        )}
-        {selectedTab === "2" && config && (
-          <Appearance
-            config={config}
-            styles={styles}
-            systemFonts={systemFonts}
-            showAdvanced={showAdvanced}
-            setShowAdvanced={setShowAdvanced}
-            setConfig={setConfig}
-            setStringConfig={setStringConfig}
-            setNumberConfig={setNumberConfig}
-          />
-        )}
-        {selectedTab === "3" && config && (
-          <Layout
-            config={config}
-            styles={styles}
-            showAdvanced={showAdvanced}
-            setShowAdvanced={setShowAdvanced}
-            setConfig={setConfig}
-            setKeybindConfig={setKeybindConfig}
-          />
-        )}
-        {selectedTab === "4" && config && (
-          <Symbols
-            styles={styles}
-            symbols_dat={symbols_dat}
-            setSymbolsDat={setSymbolsDat}
-          />
-        )}
-        {selectedTab === "5" && config && (
-          <Shortcut
-            styles={styles}
-            swkb_dat={swkb_dat}
-            setSwkbDat={setSwkbDat}
-          />
-        )}
-        {selectedTab === "6" && config && (
-          <Others config={config} styles={styles} setConfig={setConfig} />
-        )}
-        <div className={styles.action}>
-          <Button
-            onClick={() => {
-              save_config().then(() => exit(0));
-            }}
-          >
-            確定
-          </Button>
-          <Button onClick={() => exit(0)}>取消</Button>
-          <Button onClick={save_config}>套用</Button>
-        </div>
-      </form>
-    </FluentProvider>
+          確定
+        </Button>
+        <Button onClick={() => exit(0)}>取消</Button>
+        <Button onClick={save_config}>套用</Button>
+      </div>
+    </form>
   );
 }
 

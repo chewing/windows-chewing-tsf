@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - prefs: preferences now only show fonts that can render Chinese characters.
 - prefs: new advanced option to lock Chinese or English mode on CapsLock.
 - prefs: new advanced option to customize message border color.
+- prefs: support dark mode.
 
 ### 🐛 Bug Fixes
 

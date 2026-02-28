@@ -4,6 +4,12 @@ import App from "./App";
 import About from "./About";
 import version from "./version";
 import { getAllWindows } from "@tauri-apps/api/window";
+import { usePrefersColorScheme } from "./theme";
+import {
+  FluentProvider,
+  webDarkTheme,
+  webLightTheme,
+} from "@fluentui/react-components";
 
 getAllWindows().then(async (wins) => {
   for (const w of wins) {
@@ -14,9 +20,19 @@ getAllWindows().then(async (wins) => {
   }
 });
 
+function Root() {
+  const isDarkTheme = usePrefersColorScheme();
+
+  return (
+    <React.StrictMode>
+      <FluentProvider theme={isDarkTheme ? webDarkTheme : webLightTheme}>
+        {location.hash == "" && <App />}
+        {location.hash == "#about" && <About />}
+      </FluentProvider>
+    </React.StrictMode>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    {location.hash == '' && <App />}
-    {location.hash == '#about' && <About />}
-  </React.StrictMode>,
+  <Root />,
 );

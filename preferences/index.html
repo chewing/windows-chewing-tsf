@@ -1,13 +1,32 @@
 <!doctype html>
 <html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>新酷音輸入法設定</title>
-  </head>
-
-  <body style="margin:0px">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>新酷音輸入法設定</title>
+        <script type="module" src="/src/main.tsx"></script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #root {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                top: 0;
+            }
+            #root > div {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="root"></div>
+    </body>
 </html>
