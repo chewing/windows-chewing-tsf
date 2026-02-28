@@ -51,6 +51,7 @@ windows = { version = "0.62.2", features = [
 getrandom = "0.3.1"
 zhconv = { version = "0.3.3", default-features = false, features = ["opencc"] }
 serde = { version = "1.0.228", features = ["derive"] }
+exn = "0.3.0"
 
 [features]
 nightly = []

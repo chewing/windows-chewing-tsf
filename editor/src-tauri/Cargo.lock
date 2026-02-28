@@ -473,6 +473,7 @@ dependencies = [
  "cc",
  "chewing 0.12.0-alpha.2",
  "embed-resource",
+ "exn",
  "getrandom 0.3.4",
  "log",
  "logforth",
@@ -953,6 +954,12 @@ dependencies = [
  "event-listener",
  "pin-project-lite",
 ]
+
+[[package]]
+name = "exn"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca6badeb8a07b76663c7d7cb0903c1cc40c38d6fc06d3a2206780c63e8b9496"
 
 [[package]]
 name = "fastrand"

@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, SYM_UP};
+use exn::Exn;
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_FAIL, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
@@ -48,12 +49,12 @@ use windows_core::{
     InterfaceRef, Result as WindowsResult, implement, w,
 };
 
-use crate::{
-    ui::gfx::{
-        create_render_target, create_swapchain, create_swapchain_bitmap, d3d11_device,
+use crate::ui::{
+    gfx::{
+        GfxError, create_render_target, create_swapchain, create_swapchain_bitmap, d3d11_device,
         get_dpi_for_window, get_scale_for_window, setup_direct_composition,
     },
-    ui::window::{IWndProc, IWndProc_Impl, Window},
+    window::{IWndProc, IWndProc_Impl, Window},
 };
 
 use super::message_box::draw_message_box;
@@ -172,13 +173,14 @@ impl RenderedView {
             let factory: ID2D1Factory1 =
                 D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)?;
             let dwrite_factory: IDWriteFactory1 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
-            let device = d3d11_device()?;
-            let target = create_render_target(&factory, &device)?;
-            let swapchain = create_swapchain(&device, 10, 10)?;
+            let device = d3d11_device().map_err(gfx_err)?;
+            let target = create_render_target(&factory, &device).map_err(gfx_err)?;
+            let swapchain = create_swapchain(&device, 10, 10).map_err(gfx_err)?;
             let dpi = get_dpi_for_window(window.hwnd());
             target.SetDpi(dpi, dpi);
-            create_swapchain_bitmap(&swapchain, &target, dpi)?;
-            let dcomptarget = setup_direct_composition(&device, window.hwnd(), &swapchain)?;
+            create_swapchain_bitmap(&swapchain, &target, dpi).map_err(gfx_err)?;
+            let dcomptarget =
+                setup_direct_composition(&device, window.hwnd(), &swapchain).map_err(gfx_err)?;
             Ok(RenderedView {
                 _factory: factory,
                 _dcomptarget: dcomptarget,
@@ -360,7 +362,7 @@ impl View for RenderedView {
         unsafe {
             self.target.SetDpi(dpi, dpi);
         }
-        create_swapchain_bitmap(&self.swapchain, &self.target, dpi)?;
+        create_swapchain_bitmap(&self.swapchain, &self.target, dpi).map_err(gfx_err)?;
 
         // Begin drawing
         let dc = &self.target;
@@ -699,4 +701,8 @@ impl ITfCandidateListUIElement_Impl for CandidateList_Impl {
     fn GetCurrentPage(&self) -> WindowsResult<u32> {
         Ok(0) // Assuming single page for simplicity
     }
+}
+
+fn gfx_err(e: Exn<GfxError>) -> anyhow::Error {
+    anyhow::Error::from_boxed(e.into())
 }
