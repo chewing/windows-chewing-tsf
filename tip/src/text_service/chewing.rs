@@ -1316,7 +1316,7 @@ impl ChewingTextService {
                 _ => LookupStrategy::Standard,
             };
             // TODO experimental
-            opt.auto_snapshot_selections = true;
+            opt.auto_snapshot_selections = false;
         });
         let kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
             .unwrap_or(KeyboardLayoutCompat::Default);
