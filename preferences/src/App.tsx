@@ -256,7 +256,6 @@ function App() {
   useEffect(() => {
     invoke("get_system_fonts").then((value) => {
       const fonts = value as FontFamilyName[];
-      console.log(fonts);
       setSystemFonts(fonts);
     });
   }, []);
@@ -286,7 +285,6 @@ function App() {
       const displayValue = parseInt(data.displayValue || fallback.toString());
       const value =
         data.value || (Number.isNaN(displayValue) ? fallback : displayValue);
-      console.log(data);
       setConfig({
         ...config,
         [name]: value,
