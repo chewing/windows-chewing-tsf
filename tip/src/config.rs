@@ -72,6 +72,7 @@ pub struct ChewingTsfConfig {
     pub font_highlight_fg_color: String,
     pub font_highlight_bg_color: String,
     pub font_number_fg_color: String,
+    pub cand_list_border_color: String,
     pub keyboard_layout: i32,
     pub simulate_english_layout: i32,
     pub keybind: Vec<KeybindValue>,
@@ -116,6 +117,7 @@ impl Default for ChewingTsfConfig {
             font_highlight_fg_color: "FFFFFFFF".to_owned(),
             font_highlight_bg_color: "000000FF".to_owned(),
             font_number_fg_color: "0000FFFF".to_owned(),
+            cand_list_border_color: "D6D9DBFF".to_owned(),
             keyboard_layout: 0,
             simulate_english_layout: 0,
             keybind: vec![KeybindValue {
@@ -216,6 +218,9 @@ impl Config {
         }
         if let Ok(value) = key.get_string("DefFontNumberFgColor") {
             cfg.font_number_fg_color = value;
+        }
+        if let Ok(value) = key.get_string("DefCandListBorderColor") {
+            cfg.cand_list_border_color = value;
         }
         if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
             cfg.sel_key_type = value;
@@ -358,6 +363,10 @@ impl Config {
             &chewing_tsf.font_highlight_bg_color,
         );
         let _ = key.set_string("DefFontNumberFgColor", &chewing_tsf.font_number_fg_color);
+        let _ = key.set_string(
+            "DefCandListBorderColor",
+            &chewing_tsf.cand_list_border_color,
+        );
         let _ = reg_set_i32(&key, "SelKeyType", chewing_tsf.sel_key_type);
         let _ = reg_set_i32(&key, "ConvEngine", chewing_tsf.conv_engine);
         let _ = reg_set_i32(&key, "SelAreaLen", chewing_tsf.cand_per_page);

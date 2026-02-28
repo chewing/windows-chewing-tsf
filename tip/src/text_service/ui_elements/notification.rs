@@ -282,10 +282,16 @@ impl View for RenderedView {
             b: 0.855,
             a: 1.0,
         };
+        let border_color = D2D1_COLOR_F {
+            r: 0.84,
+            g: 0.85,
+            b: 0.86,
+            a: 1.0,
+        };
         unsafe {
             dc.BeginDraw();
 
-            draw_message_box(dc, 0.0, 0.0, width, height, bg_color)?;
+            draw_message_box(dc, 0.0, 0.0, width, height, bg_color, border_color)?;
 
             let margin = 10.0;
             let text_rect = D2D_RECT_F {

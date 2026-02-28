@@ -83,6 +83,7 @@ pub(crate) struct Model {
     pub(crate) bg_color: D2D1_COLOR_F,
     pub(crate) highlight_fg_color: D2D1_COLOR_F,
     pub(crate) highlight_bg_color: D2D1_COLOR_F,
+    pub(crate) border_color: D2D1_COLOR_F,
 }
 
 pub(crate) enum FilterKeyResult {
@@ -381,7 +382,15 @@ impl View for RenderedView {
                 .GetMetrics(&mut metrics)?;
 
             // Draw the background of the main message box
-            draw_message_box(dc, 0.0, 0.0, width, height, model.bg_color)?;
+            draw_message_box(
+                dc,
+                0.0,
+                0.0,
+                width,
+                height,
+                model.bg_color,
+                model.border_color,
+            )?;
             // Draw the background of the page_number box
             draw_message_box(
                 dc,
@@ -390,6 +399,7 @@ impl View for RenderedView {
                 metrics.width + margin,
                 metrics.height + margin,
                 model.bg_color,
+                model.border_color,
             )?;
 
             let selkey_brush = dc.CreateSolidColorBrush(&model.selkey_color, None)?;

@@ -1089,6 +1089,7 @@ impl ChewingTextService {
                 bg_color: color_s(&cfg.font_bg_color),
                 highlight_fg_color: color_s(&cfg.font_highlight_fg_color),
                 highlight_bg_color: color_s(&cfg.font_highlight_bg_color),
+                border_color: color_s(&cfg.cand_list_border_color),
                 selkey_color: color_s(&cfg.font_number_fg_color),
                 use_cursor: cfg.cursor_cand_list,
                 current_sel: 0,

@@ -16,6 +16,7 @@ pub(super) fn draw_message_box(
     width: f32,
     height: f32,
     bg_color: D2D1_COLOR_F,
+    border_color: D2D1_COLOR_F,
 ) -> Result<()> {
     let blur_radius = 3.0;
     let corner_radius = 8.0;
@@ -78,15 +79,7 @@ pub(super) fn draw_message_box(
             D2D1_COMPOSITE_MODE_SOURCE_OVER,
         );
         let background_brush = dc.CreateSolidColorBrush(&bg_color, None)?;
-        let border_brush = dc.CreateSolidColorBrush(
-            &D2D1_COLOR_F {
-                r: 0.84,
-                g: 0.85,
-                b: 0.86,
-                a: 1.0,
-            },
-            None,
-        )?;
+        let border_brush = dc.CreateSolidColorBrush(&border_color, None)?;
         dc.FillRoundedRectangle(&rounded_rect, &background_brush);
         dc.DrawRoundedRectangle(&rounded_rect, &border_brush, 0.5, None);
     }

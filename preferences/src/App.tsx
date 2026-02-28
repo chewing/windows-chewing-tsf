@@ -709,6 +709,13 @@ const Appearance = ({
               onChange={setStringConfig}
             />
           </Field>
+          <Field label="選字邊框顏色 (RGB)" orientation="horizontal">
+            <Input
+              name="cand_list_border_color"
+              value={config?.cand_list_border_color}
+              onChange={setStringConfig}
+            />
+          </Field>
           <Field label="焦點文字顏色 (RGB)" orientation="horizontal">
             <Input
               name="font_highlight_fg_color"

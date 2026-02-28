@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - tip: enable chewing.auto_snapshot_selections by default.
 - prefs: preferences now only show fonts that can render Chinese characters.
 - prefs: new advanced option to lock Chinese or English mode on CapsLock.
+- prefs: new advanced option to customize message border color.
 
 ### 🐛 Bug Fixes
 
