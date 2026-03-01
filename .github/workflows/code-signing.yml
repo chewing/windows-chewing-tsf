@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Code Signing
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
       - name: Sign Artifact
         uses: signpath/github-action-submit-signing-request@3f9250c56651ff692d6729a2fbb0603a42d7d322 # v1.0
         with:
@@ -34,7 +34,7 @@ jobs:
           mv dist/windows-chewing-tsf-unsigned.msi dist/windows-chewing-tsf.msi
           sha256sum dist/windows-chewing-tsf.msi > dist/windows-chewing-tsf.msi.sha256
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Signed Installer
           path: |
