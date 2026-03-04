@@ -107,7 +107,7 @@ jobs:
         run: |
           cargo xtask build-installer --release --target gnullvm
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: Installer Artifact With Debuginfo
           path: build/installer
@@ -118,7 +118,7 @@ jobs:
           i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
           x86_64-w64-mingw32-strip build/installer/*.exe
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: Installer Artifact
           path: build/installer
@@ -146,7 +146,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Download Installer Artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: Installer Artifact
           path: build/installer
@@ -157,7 +157,7 @@ jobs:
           cargo xtask package-installer
 
       - id: upload-unsigned
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Unsigned Installer
           path: |
