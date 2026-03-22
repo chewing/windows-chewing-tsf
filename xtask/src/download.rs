@@ -17,8 +17,8 @@ const MANIFEST: [(&str, &str, &str, &str); 3] = [
         "build/installer",
     ),
     (
-        "https://github.com/chewing/libchewing-data/releases/download/v2026.1.27/libchewing-data-2026.1.27-Generic.zip",
-        "https://github.com/chewing/libchewing-data/releases/download/v2026.1.27/libchewing-data-2026.1.27-Generic.zip.asc",
+        "https://github.com/chewing/libchewing-data/releases/download/v2026.3.22/libchewing-data-2026.3.22-Generic.zip",
+        "https://github.com/chewing/libchewing-data/releases/download/v2026.3.22/libchewing-data-2026.3.22-Generic.zip.asc",
         "libchewing-data.zip",
         "build/installer/Dictionary",
     ),
