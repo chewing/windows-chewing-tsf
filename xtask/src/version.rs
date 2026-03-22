@@ -32,30 +32,6 @@ pub(super) fn update_version(flags: UpdateVersion) -> Result<()> {
         "#
     )?;
 
-    let mut pref_version_tsx = File::create("preferences/src/version.tsx")?;
-    indoc::writedoc!(
-        pref_version_tsx,
-        r#"
-            const version = {{
-                productVersion: "{yy}.{mm}.{rv}.{bn}",
-                buildDate: "{year} 年 {month:02} 月 {day:02} 日",
-            }};
-            export default version;
-        "#
-    )?;
-
-    let mut editor_version_tsx = File::create("editor/src/version.tsx")?;
-    indoc::writedoc!(
-        editor_version_tsx,
-        r#"
-            const version = {{
-                productVersion: "{yy}.{mm}.{rv}.{bn}",
-                buildDate: "{year} 年 {month:02} 月 {day:02} 日",
-            }};
-            export default version;
-        "#
-    )?;
-
     let mut version_wxi = File::create("installer/version.wxi")?;
     indoc::writedoc!(
         version_wxi,

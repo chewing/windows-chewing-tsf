@@ -60,8 +60,6 @@ jobs:
           rustup target add x86_64-pc-windows-gnullvm
 
       - uses: actions/checkout@v6
-        with:
-          submodules: true
 
       - uses: Swatinem/rust-cache@v2
         with:
