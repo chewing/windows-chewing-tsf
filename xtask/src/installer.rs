@@ -81,50 +81,6 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             "cargo build -p chewing_tip {release...} --target {x86_64_target}"
         )
         .run()?;
-        {
-            let _p = sh.push_dir("preferences");
-            let debug = if !flags.release {
-                Some("--debug")
-            } else {
-                None
-            };
-            // FIXME https://github.com/matklad/xshell/issues/82
-            if sh.path_exists("/usr/bin") {
-                cmd!(
-                    sh,
-                    "npm run tauri -- build {debug...} --target {x86_64_target}"
-                )
-                .run()?;
-            } else {
-                cmd!(
-                    sh,
-                    "npm.cmd run tauri -- build {debug...} --target {x86_64_target}"
-                )
-                .run()?;
-            }
-        }
-        {
-            let _p = sh.push_dir("editor");
-            let debug = if !flags.release {
-                Some("--debug")
-            } else {
-                None
-            };
-            // FIXME https://github.com/matklad/xshell/issues/82
-            if sh.path_exists("/usr/bin") {
-                cmd!(
-                    sh,
-                    "npm run tauri -- build {debug...} --target {x86_64_target}"
-                )
-                .run()?;
-            } else {
-                cmd!(
-                    sh,
-                    "npm.cmd run tauri -- build {debug...} --target {x86_64_target}"
-                )
-                .run()?;
-            }
-        }
         cmd!(
             sh,
             "cargo build -p chewing-update-svc {release...} --target {x86_64_target}"
@@ -165,30 +121,6 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     sh.copy_file("build/bin/chewing-cli.exe", "build/installer")?;
 
     sh.create_dir("build/installer/Dictionary")?;
-    {
-        let _p = sh.push_dir("data/misc");
-        for file in ["swkb.dat", "symbols.dat"] {
-            sh.copy_file(file, "../../build/installer/Dictionary")?;
-        }
-    }
-    {
-        let _dir = sh.push_dir("build/bin");
-        cmd!(
-            sh,
-            "chewing-cli init --csv ../../data/dict/chewing/tsi.csv ../../build/installer/Dictionary/tsi.dat"
-        )
-        .run()?;
-        cmd!(
-            sh,
-            "chewing-cli init --csv ../../data/dict/chewing/word.csv ../../build/installer/Dictionary/word.dat"
-        )
-        .run()?;
-        cmd!(
-            sh,
-            "chewing-cli init --csv ../../data/dict/chewing/alt.csv ../../build/installer/Dictionary/alt.dat"
-        )
-        .run()?;
-    }
 
     sh.create_dir("build/installer/x64")?;
     for file in ["chewing_tip.dll"] {
@@ -203,44 +135,6 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             "build/installer/x64",
         );
     }
-    sh.copy_file(
-        format!(
-            "preferences/src-tauri/{}/ChewingPreferences.exe",
-            x86_64_target_dir.display()
-        ),
-        "build/installer",
-    )?;
-    // May only exist in cross-compile environment. Shared with chewing-editor
-    let _ = sh.copy_file(
-        format!(
-            "preferences/src-tauri/{}/WebView2Loader.dll",
-            x86_64_target_dir.display()
-        ),
-        "build/installer",
-    );
-    // May not exist in cross-compile environment.
-    let _ = sh.copy_file(
-        format!(
-            "preferences/src-tauri/{}/ChewingPreferences.pdb",
-            x86_64_target_dir.display()
-        ),
-        "build/installer",
-    );
-    sh.copy_file(
-        format!(
-            "editor/src-tauri/{}/chewing-editor.exe",
-            x86_64_target_dir.display()
-        ),
-        "build/installer",
-    )?;
-    // May not exist in cross-compile environment.
-    let _ = sh.copy_file(
-        format!(
-            "editor/src-tauri/{}/chewing-editor.pdb",
-            x86_64_target_dir.display()
-        ),
-        "build/installer",
-    );
     for file in ["chewing-update-svc.exe", "tsfreg.exe"] {
         sh.copy_file(
             format!("{}/{file}", x86_64_target_dir.display()),

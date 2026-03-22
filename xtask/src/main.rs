@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 
+mod download;
 mod installer;
 mod version;
 
@@ -33,6 +34,10 @@ mod flags {
                 /// Build nightly artifact
                 optional --nightly
             }
+            /// Download prebuilt components and verify the signatures.
+            cmd download-components {
+
+            }
             /// Build the MSI package
             cmd package-installer {
 
@@ -51,6 +56,7 @@ mod flags {
     pub enum XtaskCmd {
         UpdateVersion(UpdateVersion),
         BuildInstaller(BuildInstaller),
+        DownloadComponents(DownloadComponents),
         PackageInstaller(PackageInstaller),
     }
 
@@ -68,6 +74,9 @@ mod flags {
         pub release: bool,
         pub nightly: bool,
     }
+
+    #[derive(Debug)]
+    pub struct DownloadComponents;
 
     #[derive(Debug)]
     pub struct PackageInstaller;
@@ -100,6 +109,9 @@ fn main() -> Result<()> {
         }
         flags::XtaskCmd::BuildInstaller(flags) => {
             installer::build_installer(flags)?;
+        }
+        flags::XtaskCmd::DownloadComponents(flags) => {
+            download::download_components(flags)?;
         }
         flags::XtaskCmd::PackageInstaller(flags) => {
             installer::package_installer(flags)?;
