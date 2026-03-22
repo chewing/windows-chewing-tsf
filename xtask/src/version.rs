@@ -31,6 +31,16 @@ pub(super) fn update_version(flags: UpdateVersion) -> Result<()> {
             #define PREFS_TITLE_WITH_VER        "設定新酷音輸入法 ({yy}.{mm}.{rv}.{bn})\0"
         "#
     )?;
+    let mut version_json = File::create("installer/version.json")?;
+    indoc::writedoc!(
+        version_json,
+        r#"
+            {{
+                "product_version": "{yy}.{mm}.{rv}.{bn}",
+                "build_date": "{year} 年 {month:02} 月 {day:02} 日"
+            }}
+        "#
+    )?;
 
     let mut version_wxi = File::create("installer/version.wxi")?;
     indoc::writedoc!(

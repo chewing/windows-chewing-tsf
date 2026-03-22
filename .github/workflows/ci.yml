@@ -2,8 +2,8 @@ name: CI
 
 env:
   VER_MAJOR: 26
-  VER_MINOR: 1
-  VER_PATCH: 3
+  VER_MINOR: 4
+  VER_PATCH: 0
   LLVM_MINGW_VERSION: 20251216
 
 on:
@@ -73,6 +73,7 @@ jobs:
         run: |
           cargo xtask update-version --major $VER_MAJOR --minor $VER_MINOR --patch $VER_PATCH -b $GITHUB_RUN_NUMBER
           cat tip/rc/version.rc
+          cat installer/version.json
           cat installer/version.wxi
 
       - name: Generate pull_request version info
@@ -82,6 +83,7 @@ jobs:
         run: |
           cargo xtask update-version --major 0 --minor 0 --patch $PR_NUMBER -b $GITHUB_RUN_NUMBER
           cat tip/rc/version.rc
+          cat installer/version.json
           cat installer/version.wxi
 
       - name: Build nightly

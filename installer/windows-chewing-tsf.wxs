@@ -52,6 +52,7 @@
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing-update-svc.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
+                <File Source="version.json" />
                 <Component Bitness="always64">
                     <!-- Main protocol key -->
                     <RegistryKey Root="HKCR" Key="chewing-preferences">

@@ -109,6 +109,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
             "windows-chewing-tsf.wxs",
             "windows-chewing-tsf.wxl",
             "version.wxi",
+            "version.json",
         ] {
             sh.copy_file(file, "../build/installer")?;
         }
