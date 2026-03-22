@@ -17,7 +17,7 @@ pub(super) fn update_version(flags: UpdateVersion) -> Result<()> {
     let mm = flags.minor;
     let rv = flags.patch;
     let bn = flags.build.unwrap_or_default();
-    let mut version_rc = File::create("version.rc")?;
+    let mut version_rc = File::create("tip/rc/version.rc")?;
     indoc::writedoc!(
         version_rc,
         r#"
