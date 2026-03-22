@@ -8,9 +8,9 @@ env:
 
 on:
   push:
-    branches: ["master", "stable/*"]
+    branches: ["main", "stable/*"]
   pull_request:
-    branches: ["master", "stable/*"]
+    branches: ["main", "stable/*"]
   merge_group:
     types: [checks_requested]
   workflow_call:
