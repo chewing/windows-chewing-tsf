@@ -5,5 +5,6 @@ pub mod config;
 mod imm32;
 mod keybind;
 mod logging;
+mod msctf;
 mod text_service;
 mod ui;

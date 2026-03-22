@@ -5,14 +5,15 @@ use std::collections::BTreeMap;
 use std::sync::RwLock;
 
 use windows::Win32::Foundation::{E_FAIL, E_INVALIDARG, E_NOTIMPL, S_FALSE};
-use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{
-    CLSID_TF_CategoryMgr, IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl,
-    ITfCategoryMgr, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl,
-    ITfDisplayAttributeProvider, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE,
+    IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl, ITfCategoryMgr,
+    ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider,
+    ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE,
 };
 use windows_core::{BSTR, GUID, Result, implement};
+
+use crate::msctf::tf_create_category_mgr;
 
 static ATTRS: RwLock<BTreeMap<u128, TF_DISPLAYATTRIBUTE>> = RwLock::new(BTreeMap::new());
 
@@ -42,8 +43,7 @@ impl ITfDisplayAttributeProvider_Impl for DisplayAttributeProvider_Impl {
 
 pub(super) fn register_display_attribute(guid: &GUID, da: TF_DISPLAYATTRIBUTE) -> Result<VARIANT> {
     unsafe {
-        let category_manager: ITfCategoryMgr =
-            CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+        let category_manager: ITfCategoryMgr = tf_create_category_mgr()?;
         // XXX Although RegisterGUID returns a DWORD (u32), all display
         // attributes are TfGuidAtoms and TfGuidAtoms are VT_I4.
         let atom = VARIANT::from(category_manager.RegisterGUID(guid)? as i32);

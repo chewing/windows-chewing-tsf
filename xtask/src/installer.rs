@@ -100,7 +100,6 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         .run()?;
     }
 
-    sh.remove_path("build/installer")?;
     sh.create_dir("build/installer")?;
     {
         let _p = sh.push_dir("installer");
