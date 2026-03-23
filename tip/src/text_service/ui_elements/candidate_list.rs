@@ -545,35 +545,54 @@ impl CandidateList {
         {
             let mut model = self.model.borrow_mut();
             let old_sel = model.current_sel;
-            let cand_per_row = model.cand_per_row as usize;
-            match ksym {
-                SYM_UP => {
-                    if model.current_sel >= cand_per_row {
-                        model.current_sel -= cand_per_row;
-                    }
-                }
-                SYM_DOWN => {
-                    if model.current_sel + cand_per_row < model.items.len() {
-                        model.current_sel += cand_per_row;
-                    }
-                }
-                SYM_LEFT => {
-                    if cand_per_row > 1 {
-                        model.current_sel = model.current_sel.saturating_sub(1);
-                    }
-                }
-                SYM_RIGHT => {
-                    if cand_per_row > 1 {
+            let uiless_mode = self.view.borrow().window().is_none();
+            if uiless_mode {
+                match ksym {
+                    SYM_DOWN | SYM_RIGHT => {
                         model.current_sel = model
                             .current_sel
                             .saturating_add(1)
                             .clamp(0, model.items.len() - 1);
                     }
+                    SYM_UP | SYM_LEFT => {
+                        model.current_sel = model.current_sel.saturating_sub(1);
+                    }
+                    SYM_RETURN => {
+                        res = FilterKeyResult::HandledCommit;
+                    }
+                    _ => res = FilterKeyResult::NotHandled,
                 }
-                SYM_RETURN => {
-                    res = FilterKeyResult::HandledCommit;
+            } else {
+                let cand_per_row = model.cand_per_row as usize;
+                match ksym {
+                    SYM_UP => {
+                        if model.current_sel >= cand_per_row {
+                            model.current_sel -= cand_per_row;
+                        }
+                    }
+                    SYM_DOWN => {
+                        if model.current_sel + cand_per_row < model.items.len() {
+                            model.current_sel += cand_per_row;
+                        }
+                    }
+                    SYM_LEFT => {
+                        if cand_per_row > 1 {
+                            model.current_sel = model.current_sel.saturating_sub(1);
+                        }
+                    }
+                    SYM_RIGHT => {
+                        if cand_per_row > 1 {
+                            model.current_sel = model
+                                .current_sel
+                                .saturating_add(1)
+                                .clamp(0, model.items.len() - 1);
+                        }
+                    }
+                    SYM_RETURN => {
+                        res = FilterKeyResult::HandledCommit;
+                    }
+                    _ => res = FilterKeyResult::NotHandled,
                 }
-                _ => res = FilterKeyResult::NotHandled,
             }
 
             if model.current_sel != old_sel {
