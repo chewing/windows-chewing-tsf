@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - tip: ensure composition string is committed when changing input method in IMM32 mode.
 - tip: fix sub-optimal phrase frequency calculation.
 - tip: ensure candidate cursor moves by single step in UILess (in-game) mode.
+- tip: improve compatibility with Minecraft.
 
 ### 🚜 Refactor
 
