@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Official release binary are cross-compiled from Ubuntu.
+- Migrated issue tracker from GitHub to Codeberg.
 
 ## [26.1.3.0] - 2026-01-25
 

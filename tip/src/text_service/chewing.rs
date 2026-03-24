@@ -890,10 +890,10 @@ impl ChewingTextService {
                 ID_ABOUT => open_url("chewing-preferences://about"),
                 ID_WEBSITE => open_url("https://chewing.im/"),
                 ID_GROUP => open_url("https://groups.google.com/group/chewing-devel"),
-                ID_BUGREPORT => {
-                    open_url("https://github.com/chewing/windows-chewing-tsf/issues?state=open")
+                ID_BUGREPORT => open_url("https://codeberg.org/chewing/windows-chewing-tsf/issues"),
+                ID_DICT_BUGREPORT => {
+                    open_url("https://codeberg.org/chewing/libchewing-data/issues")
                 }
-                ID_DICT_BUGREPORT => open_url("https://github.com/chewing/libchewing-data/issues"),
                 ID_MOEDICT => open_url("https://www.moedict.tw/"),
                 ID_DICT => open_url("https://dict.revised.moe.edu.tw/"),
                 ID_SIMPDICT => open_url("https://dict.concised.moe.edu.tw/"),
