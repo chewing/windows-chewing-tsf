@@ -1,0 +1,107 @@
+name: CI
+
+env:
+  VER_MAJOR: 26
+  VER_MINOR: 4
+  VER_PATCH: 0
+  LLVM_MINGW_VERSION: 20251216
+
+on:
+  push:
+    branches: ["main", "stable/*"]
+  pull_request:
+    branches: ["main", "stable/*"]
+  merge_group:
+    types: [checks_requested]
+  workflow_call:
+    inputs:
+      nightly:
+        description: "Update all submodules to build nightly build"
+        default: true
+        required: true
+        type: boolean
+    outputs:
+      unsigned-artifact-id:
+        description: "Unsigned Installer"
+        value: ${{ jobs.package.outputs.unsigned-artifact-id }}
+
+jobs:
+  build:
+    runs-on: fedora-latest
+    name: Build
+    steps:
+      - name: Cache llvm-mingw
+        id: cache-llvm-linux
+        uses: actions/cache@v5
+        with:
+          path: /opt/llvm-mingw
+          key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
+      - name: Install llvm-mingw ${{ env.LLVM_MINGW_VERSION }}
+        if: steps.cache-llvm-linux.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /opt/llvm-mingw
+          cd /opt/llvm-mingw
+          curl -L https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz | tar xJ --strip-components=1
+      - name: Setup llvm-mingw
+        run: |
+          echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
+      - name: Install build dependencies
+        run: |
+          sudo dnf -y install sequoia-sqv
+      - name: Setup rust targets
+        run: |
+          rustup set auto-self-update disable
+          rustup target add i686-pc-windows-gnullvm
+          rustup target add x86_64-pc-windows-gnullvm
+
+      - uses: actions/checkout@v6
+
+      # - uses: Swatinem/rust-cache@v2
+
+      - name: Generate nightly version info
+        if: ${{ inputs.nightly }}
+        run: |
+          cargo xtask update-version --major $VER_MAJOR --minor $VER_MINOR --patch $VER_PATCH -b $GITHUB_RUN_NUMBER
+          cat tip/rc/version.rc
+          cat installer/version.json
+          cat installer/version.wxi
+
+      - name: Generate pull_request version info
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          cargo xtask update-version --major 0 --minor 0 --patch $PR_NUMBER -b $GITHUB_RUN_NUMBER
+          cat tip/rc/version.rc
+          cat installer/version.json
+          cat installer/version.wxi
+
+      - name: Build nightly
+        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+        run: |
+          cargo xtask build-installer --nightly --release --target gnullvm
+
+      - name: Build release
+        if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
+        run: |
+          cargo xtask build-installer --release --target gnullvm
+
+      - name: Download pre-built components
+        run: cargo xtask download-components
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Installer Artifact With Debuginfo
+          path: build/installer
+
+      - name: Strip debug info
+        run: |
+          x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
+          i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
+          x86_64-w64-mingw32-strip build/installer/*.exe
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Installer Artifact
+          path: build/installer
+
