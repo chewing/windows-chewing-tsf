@@ -1,0 +1,74 @@
+name: 功能建議 (Feature request)
+about: 提出您的想法或建議，幫助我們讓新酷音更好 (Suggest an idea to help us improve)
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝您分享寶貴的建議！請填寫以下資訊，幫助我們了解您的需求。
+        (Thank you for sharing your valuable suggestion! Please fill out the information below to help us understand your needs.)
+
+  - type: textarea
+    id: related-problem
+    attributes:
+      label: 這個功能建議是否與某個問題相關？請描述 (Is your feature request related to a problem? Please describe)
+      description: |
+        請描述您遇到的問題或困擾。例如：「我在輸入時常遇到...」或「目前的...功能讓我覺得不方便」
+
+        (Describe the problem or frustration you face. For example: "I often encounter... when typing" or "The current... feature is inconvenient because")
+      placeholder: |
+        例如：
+        我在輸入「ㄈㄥ ㄓㄥ」時，選字視窗總是優先顯示「風箏」，
+        但我其實更常需要輸入「風爭」，每次都要多翻好幾頁...
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 描述您希望的功能 (Describe the solution you'd like)
+      description: |
+        請清楚描述您希望新增的功能，以及它應該如何運作。
+
+        (Please clearly describe the feature you'd like to see and how it should work.)
+      placeholder: |
+        例如：
+        希望新增「使用者詞頻調整」功能，讓常用詞彙優先顯示。
+
+        具體操作方式：
+        1. 在選字視窗中，對「風爭」按 Shift + 數字鍵
+        2. 將該詞標記為「常用詞」
+        3. 下次輸入「ㄈㄥ ㄓㄥ」時，「風爭」會優先於「風箏」顯示
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives-considered
+    attributes:
+      label: 您考慮過的其他替代方案 (Describe alternatives you've considered)
+      description: |
+        請描述您曾經考慮過的其他解決方案或替代做法。
+
+        (Describe any alternative solutions or workarounds you've considered.)
+      placeholder: |
+        例如：
+        - 目前我都是手動將「風爭」加入使用者詞庫，但步驟較繁瑣
+        - 也曾考慮改用「ㄈㄥ ㄗㄥ」來輸入，但不符合實際發音習慣
+        - 或者可以讓系統自動學習輸入頻率，但需要較長時間累積
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 其他補充說明 (Additional context)
+      description: |
+        任何其他相關資訊、使用情境、參考資料或截圖。
+
+        (Any other relevant information, use cases, references, or screenshots.)
+      placeholder: |
+        - 這個功能對我的工作/學習有什麼幫助？
+        - 是否有其他輸入法已經實現類似功能？
+        - 相關的參考連結或截圖...
+    validations:
+      required: false

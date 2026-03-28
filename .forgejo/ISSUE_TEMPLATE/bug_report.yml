@@ -1,0 +1,107 @@
+name: 問題回報 (Bug report)
+about: 回報你遇到的問題，幫助我們改善新酷音 (Create a report to help us improve)
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝您撥冗回報問題！請盡量填寫以下資訊，幫助我們更快定位問題。
+        (Thank you for taking the time to report an issue! Please fill out the information below to help us diagnose the problem faster.)
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows 版本 (Windows version)
+      description: 請輸入您的 Windows 版本，例如 Windows 11 23H2 或 Windows 10 22H2 (Please enter your Windows version, e.g., Windows 11 23H2 or Windows 10 22H2)
+      placeholder: "例如：Windows 11 23H2 (Build 22631.3296)"
+    validations:
+      required: true
+
+  - type: input
+    id: chewing-version
+    attributes:
+      label: windows-chewing-tsf 版本 (windows-chewing-tsf version)
+      description: 請輸入您使用的 windows-chewing-tsf 版本 (Please enter your windows-chewing-tsf version)
+      placeholder: "例如：v24.01.1 或 從「關於」視窗取得的版本號"
+    validations:
+      required: true
+
+  - type: input
+    id: application
+    attributes:
+      label: 應用程式 (Application)
+      description: 請輸入發生問題的應用程式名稱與版本 (Please enter the application name and version where the issue occurs)
+      placeholder: "例如：Notepad v11.2401.25.0、Microsoft Word 2021、Chrome 122.0..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: 問題描述與重現步驟 (Describe the problem and Steps to reproduce)
+      description: |
+        請描述您遇到的問題，並提供詳細的重現步驟：
+        1. 發生了什麼問題？
+        2. 預期的行為是什麼？
+        3. 如何重現這個問題？（步驟越詳細越好）
+
+        (Please describe the problem and provide detailed steps to reproduce:
+        1. What happened?
+        2. What did you expect to happen?
+        3. How can we reproduce the issue? (The more detailed, the better))
+      placeholder: |
+        問題描述：
+        輸入「測試」時，選字視窗沒有出現...
+
+        重現步驟：
+        1. 開啟記事本
+        2. 切換到新酷音輸入法
+        3. 輸入「hk4」
+        4. 按空白鍵，選字視窗未出現
+    validations:
+      required: true
+
+  - type: textarea
+    id: config-export
+    attributes:
+      label: 設定檔匯出 (windows-chewing-tsf config export)
+      description: |
+        請匯出您的設定檔並貼上內容：
+        1. 開啟「新酷音設定」
+        2. 點選「匯出設定」
+        3. 將檔案內容貼上（或上傳檔案）
+
+        (Please export and paste your configuration:
+        1. Open "Chewing Settings"
+        2. Click "Export Settings"
+        3. Paste the file content here (or attach the file))
+      placeholder: "請貼上設定檔內容，或說明已上傳附件 (Paste config content here, or note if attached)"
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截圖 (Screenshot if applicable)
+      description: 如有相關截圖，請直接貼上或上傳 (If applicable, paste or upload screenshots here)
+      placeholder: "將圖片拖曳至此處，或貼上截圖 (Drag and drop images here, or paste screenshots)"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: 其他資訊 (Additional information)
+      description: 任何其他可能有助於排查問題的資訊 (Any other information that might help us troubleshoot)
+      placeholder: |
+        - 是否為新安裝或更新後出現的問題？
+        - 是否有安裝其他輸入法？
+        - 問題發生的頻率？
+        - 其他相關資訊...
+    validations:
+      required: false

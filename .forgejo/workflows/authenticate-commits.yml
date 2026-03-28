@@ -1,0 +1,23 @@
+name: authenticate-commits
+env:
+  TRUST_ROOT: fffbca751a40737269cd607d3e6e6e92fa81e093
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+jobs:
+  authenticate-commits:
+    runs-on: fedora-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Install sq-git
+        run: dnf install -y sequoia-git
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Authenticating commits
+        run: sq-git log --trust-root $TRUST_ROOT
