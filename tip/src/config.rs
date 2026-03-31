@@ -430,7 +430,7 @@ impl Config {
             chewing_tsf
                 .keybind
                 .iter()
-                .map(|kb| format!("{}={}", kb.key, kb.action))
+                .map(|kb| kb.to_string())
                 .collect::<Vec<String>>()
                 .as_slice(),
         );
@@ -485,7 +485,11 @@ impl FromStr for KeybindValue {
 
 impl Display for KeybindValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}={}", self.key.trim(), self.action.trim())
+        write!(f, "{}={}", self.key.trim(), self.action.trim())?;
+        if !self.param.is_empty() {
+            write!(f, ":{}", self.param)?;
+        }
+        Ok(())
     }
 }
 
@@ -658,5 +662,11 @@ mod test {
         assert_eq!(value.key, "ctrl+c");
         assert_eq!(value.action, "text");
         assert_eq!(value.param, "酷");
+    }
+    #[test]
+    fn serialize_keybind() {
+        let keybind = "ctrl+c=text:酷";
+        let value: KeybindValue = keybind.parse().unwrap();
+        assert_eq!(keybind, value.to_string());
     }
 }
