@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - prefs: new advanced option to customize candidate list border color.
 - prefs: new advanced option to customize notification color.
 - prefs: support dark mode.
+- prefs: new tab for setting custom keybindings.
 - editor: make editor window resizable.
 - editor: enable column sorting.
 - editor: display a toast on save.
