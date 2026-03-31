@@ -126,10 +126,18 @@ impl Default for ChewingTsfConfig {
             notify_border_color: "D6D9DBFF".to_owned(),
             keyboard_layout: 0,
             simulate_english_layout: 0,
-            keybind: vec![KeybindValue {
-                key: "Ctrl+F12".to_string(),
-                action: "toggle_simplified_chinese".to_string(),
-            }],
+            keybind: vec![
+                KeybindValue {
+                    key: "Ctrl+F12".to_string(),
+                    action: "toggle_simplified_chinese".to_string(),
+                    param: "".to_string(),
+                },
+                KeybindValue {
+                    key: "Ctrl+Delete".to_string(),
+                    action: "selecting_unlearn_phrase".to_string(),
+                    param: "".to_string(),
+                },
+            ],
             auto_check_update_channel: "stable".to_string(),
             update_info_url: "".to_string(),
             last_update_check_time: 0,
@@ -297,11 +305,6 @@ impl Config {
                 .flat_map(|value| KeybindValue::from_str(&value))
                 .collect();
         }
-        // experimental default
-        cfg.keybind.push(KeybindValue {
-            key: "Ctrl+Delete".to_string(),
-            action: "selecting:unlearn_phrase".to_string(),
-        });
 
         Ok(Config {
             chewing_tsf: cfg,
@@ -455,6 +458,7 @@ impl Config {
 pub struct KeybindValue {
     pub key: String,
     pub action: String,
+    pub param: String,
 }
 
 impl FromStr for KeybindValue {
@@ -464,9 +468,17 @@ impl FromStr for KeybindValue {
         let (key, action) = s
             .rsplit_once('=')
             .ok_or_else(|| Error::msg("missing seperator ="))?;
+        let (action, param) = if action.contains(':') {
+            action
+                .rsplit_once(':')
+                .ok_or_else(|| Error::msg("missing seperator :"))?
+        } else {
+            (action, "")
+        };
         Ok(KeybindValue {
             key: key.to_string(),
             action: action.to_string(),
+            param: param.to_string(),
         })
     }
 }
@@ -614,6 +626,8 @@ pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
 
 #[cfg(test)]
 mod test {
+    use crate::config::KeybindValue;
+
     use super::{color_f, color_s};
 
     #[test]
@@ -628,5 +642,21 @@ mod test {
     fn color_alpha_only() {
         assert_eq!(color_f(0.0, 0.0, 1.0, 1.0), color_s("0000FFFF"));
         assert_eq!(color_f(0.0, 0.0, 0.0, 1.0), color_s("000000FF"));
+    }
+    #[test]
+    fn parse_keybind_action() {
+        let keybind = "ctrl+c=text";
+        let value: KeybindValue = keybind.parse().unwrap();
+        assert_eq!(value.key, "ctrl+c");
+        assert_eq!(value.action, "text");
+        assert_eq!(value.param, "");
+    }
+    #[test]
+    fn parse_keybind_param() {
+        let keybind = "ctrl+c=text:酷";
+        let value: KeybindValue = keybind.parse().unwrap();
+        assert_eq!(value.key, "ctrl+c");
+        assert_eq!(value.action, "text");
+        assert_eq!(value.param, "酷");
     }
 }

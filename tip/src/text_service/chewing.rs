@@ -509,6 +509,8 @@ impl ChewingTextService {
         }
 
         // Handle keybindings
+        // FIXME: refactor this
+        let mut text_action = None;
         if let Some(keybinding) = self.keybindings.iter().find(|kb| kb.matches(&evt)) {
             debug!("matched keybinding on action={}", keybinding.action);
             let mut handled = true;
@@ -519,8 +521,15 @@ impl ChewingTextService {
                 "toggle_hsu_keyboard" => {
                     self.toggle_hsu_keyboard(context)?;
                 }
+                "text" => {
+                    if !self.chewing_editor.is_empty() {
+                        self.chewing_editor.commit()?;
+                    }
+                    text_action = Some(keybinding.param.clone());
+                    handled = false;
+                }
                 act => {
-                    if act.starts_with("selecting:") {
+                    if act.starts_with("selecting_") {
                         handled = false;
                     } else {
                         error!("Unsupported keybinding action: {act}");
@@ -532,7 +541,9 @@ impl ChewingTextService {
             }
         }
 
-        if evt.ksym.is_unicode() {
+        if text_action.is_some() {
+            // do nothing, handled later
+        } else if evt.ksym.is_unicode() {
             let mut momentary_english_mode = false;
             let mut upper_case = false;
             if evt.is_state_on(KeyState::Shift) {
@@ -600,7 +611,7 @@ impl ChewingTextService {
                 if let Some(keybinding) = self.keybindings.iter().find(|kb| kb.matches(&evt)) {
                     debug!("matched keybinding on action={}", keybinding.action);
                     match keybinding.action.as_str() {
-                        "selecting:unlearn_phrase" => {
+                        "selecting_unlearn_phrase" => {
                             if self.chewing_editor.is_selecting() {
                                 if self.cfg.chewing_tsf.cursor_cand_list
                                     && let Some(candidate_list) = &self.candidate_list
@@ -659,11 +670,16 @@ impl ChewingTextService {
         }
 
         // Not composing so we can commit the text immediately
-        if !self.is_composing() && last_behavior == EditorKeyBehavior::Commit {
+        if !self.is_composing()
+            && (last_behavior == EditorKeyBehavior::Commit || text_action.is_some())
+        {
             let text = self.chewing_editor.display_commit().to_owned();
             self.chewing_editor.ack();
             debug!(text; "commit string");
             self.insert_text(context, &text)?;
+            if let Some(param) = text_action {
+                self.insert_text(context, &param)?;
+            }
             debug!("commit string ok");
             return Ok(true);
         }
@@ -673,8 +689,11 @@ impl ChewingTextService {
         debug!("updated candidates");
 
         if last_behavior == EditorKeyBehavior::Commit {
-            let text = self.chewing_editor.display_commit().to_owned();
+            let mut text = self.chewing_editor.display_commit().to_owned();
             self.chewing_editor.ack();
+            if let Some(param) = text_action {
+                text.push_str(&param);
+            }
             debug!(text; "commit string");
             self.set_composition_string(context, &text, 0)?;
             self.end_composition(context)?;

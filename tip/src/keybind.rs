@@ -7,6 +7,7 @@ use crate::config::KeybindValue;
 pub(crate) struct Keybinding {
     pub(crate) key: KeyboardEvent,
     pub(crate) action: String,
+    pub(crate) param: String,
 }
 
 impl TryFrom<&KeybindValue> for Keybinding {
@@ -17,6 +18,7 @@ impl TryFrom<&KeybindValue> for Keybinding {
         Ok(Keybinding {
             key,
             action: value.action.clone(),
+            param: value.param.clone(),
         })
     }
 }
@@ -118,6 +120,7 @@ mod tests {
         let keybinding = Keybinding::try_from(&KeybindValue {
             key: "Ctrl+F12".to_string(),
             action: "ok".to_string(),
+            param: "".to_string(),
         })
         .unwrap();
         assert!(keybinding.matches(&target.unwrap()));
@@ -145,6 +148,7 @@ mod tests {
         let keybinding = Keybinding::try_from(&KeybindValue {
             key: "Ctrl+Shift+A".to_string(),
             action: "ok".to_string(),
+            param: "".to_string(),
         })
         .unwrap();
         assert!(keybinding.matches(&target.unwrap()));
@@ -158,6 +162,7 @@ mod tests {
         let keybinding = Keybinding::try_from(&KeybindValue {
             key: "Shift+Alt".to_string(),
             action: "ok".to_string(),
+            param: "".to_string(),
         })
         .unwrap();
         assert!(keybinding.matches(&target.unwrap()));
