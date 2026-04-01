@@ -86,7 +86,7 @@ pub(super) struct SetCompositionString {
     context: ITfContext,
     composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
-    da_atom: VARIANT,
+    da_atom: [VARIANT; 2],
     pending: Rc<RefCell<CommitString>>,
 }
 
@@ -95,7 +95,7 @@ impl SetCompositionString {
         context: ITfContext,
         composition: Rc<RefCell<Option<ITfComposition>>>,
         composition_sink: ITfCompositionSink,
-        da_atom: VARIANT,
+        da_atom: [VARIANT; 2],
         pending: Rc<RefCell<CommitString>>,
     ) -> SetCompositionString {
         Self {
@@ -133,8 +133,18 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
                     error!("set composition string failed: {error}");
                 }
                 let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-                if let Err(error) = disp_attr_prop.SetValue(ec, &range, &self.da_atom) {
-                    error!("set display attribute failed: {error}");
+                let mut atoms = self.da_atom.iter().cycle();
+                let mut moved = 0;
+                for seg in &pending.segments {
+                    let segment_range = range.Clone()?;
+                    segment_range.Collapse(ec, TF_ANCHOR_START)?;
+                    segment_range.ShiftEnd(ec, seg.1 as i32, &mut moved, ptr::null())?;
+                    segment_range.ShiftStart(ec, seg.0 as i32, &mut moved, ptr::null())?;
+                    if let Err(error) =
+                        disp_attr_prop.SetValue(ec, &segment_range, atoms.next().unwrap())
+                    {
+                        error!("set display attribute failed: {error}");
+                    }
                 }
 
                 let cursor_range = range.Clone()?;

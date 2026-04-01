@@ -39,7 +39,7 @@ use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
     ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
     TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
-    TF_SD_READONLY,
+    TF_LS_SOLID, TF_SD_READONLY,
 };
 use windows::Win32::UI::TextServices::{
     ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
@@ -61,7 +61,8 @@ use crate::text_service::lang_bar::LangBarFactory;
 use crate::ui::window::window_register_class;
 
 use super::CommandType;
-use super::GUID_INPUT_DISPLAY_ATTRIBUTE;
+use super::GUID_INPUT_DISPLAY_ATTRIBUTE_1;
+use super::GUID_INPUT_DISPLAY_ATTRIBUTE_2;
 use super::display_attribute::register_display_attribute;
 use super::edit_session::InsertText;
 use super::edit_session::{EndComposition, SelectionRect, SetCompositionString};
@@ -145,13 +146,14 @@ impl PartialEq<LanguageMode> for TsfLangMode {
 
 pub(super) struct CommitString {
     pub(super) text: HSTRING,
+    pub(super) segments: Vec<(usize, usize)>,
     pub(super) cursor: usize,
 }
 
 pub(super) struct ChewingTextService {
     thread_mgr: ITfThreadMgr,
     tid: u32,
-    input_da_atom: VARIANT,
+    input_da_atom: [VARIANT; 2],
     _menu: Menu,
     popup_menu: HMENU,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
@@ -188,7 +190,13 @@ impl ChewingTextService {
             bAttr: TF_ATTR_INPUT,
             ..Default::default()
         };
-        let input_da_atom = register_display_attribute(&GUID_INPUT_DISPLAY_ATTRIBUTE, da)?;
+        let input_da_atom_1 = register_display_attribute(&GUID_INPUT_DISPLAY_ATTRIBUTE_1, da)?;
+        let da = TF_DISPLAYATTRIBUTE {
+            lsStyle: TF_LS_SOLID,
+            bAttr: TF_ATTR_INPUT,
+            ..Default::default()
+        };
+        let input_da_atom_2 = register_display_attribute(&GUID_INPUT_DISPLAY_ATTRIBUTE_2, da)?;
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let menu = Menu::load(g_hinstance, IDR_MENU);
@@ -266,7 +274,7 @@ impl ChewingTextService {
             thread_mgr,
             tid,
             composition_sink: ts.cast()?,
-            input_da_atom,
+            input_da_atom: [input_da_atom_1, input_da_atom_2],
             _menu: menu,
             popup_menu,
             lang_mode: Cell::new(TsfLangMode::English),
@@ -695,7 +703,7 @@ impl ChewingTextService {
                 text.push_str(&param);
             }
             debug!(text; "commit string");
-            self.set_composition_string(context, &text, 0)?;
+            self.set_composition_string(context, &text, vec![], 0)?;
             self.end_composition(context)?;
             debug!("commit string ok");
         }
@@ -926,26 +934,38 @@ impl ChewingTextService {
 
     fn update_preedit(&mut self, context: &ITfContext) -> Result<()> {
         let mut composition_buf = String::new();
-        composition_buf.push_str(&self.chewing_editor.display());
-
+        let mut segments = vec![];
         let cursor = self.chewing_editor.cursor();
         let bopomofo = self.chewing_editor.syllable_buffer_display();
-        if !bopomofo.is_empty() {
-            let idx = composition_buf
-                .char_indices()
-                .nth(cursor)
-                .map(|pair| pair.0)
-                .unwrap_or(composition_buf.len());
-            composition_buf.insert_str(idx, &bopomofo);
+        let bopomofo_len = bopomofo.chars().count();
+        let mut bopomofo_pushed = false;
+
+        for it in self.chewing_editor.intervals() {
+            if it.start == cursor && !bopomofo.is_empty() {
+                segments.push((cursor, cursor + bopomofo_len));
+                composition_buf.push_str(&bopomofo);
+                bopomofo_pushed = true;
+            }
+            if it.start > cursor && !bopomofo.is_empty() {
+                segments.push((it.start + bopomofo_len, it.end + bopomofo_len));
+            } else {
+                segments.push((it.start, it.end));
+            }
+            composition_buf.push_str(&it.text);
+        }
+        if !bopomofo.is_empty() && !bopomofo_pushed {
+            let start = segments.last().map(|s| s.1).unwrap_or(0);
+            segments.push((start, start + bopomofo_len));
+            composition_buf.push_str(&bopomofo);
         }
 
         // has something in composition buffer
         if !composition_buf.is_empty() {
-            self.set_composition_string(context, &composition_buf, cursor)?;
+            self.set_composition_string(context, &composition_buf, segments, cursor)?;
         } else {
             // nothing left in composition buffer, terminate composition status
             if self.is_composing() {
-                self.set_composition_string(context, "", 0)?;
+                self.set_composition_string(context, "", vec![], 0)?;
             }
             // We also need to make sure that the candidate window is not
             // currently shown. When typing symbols with ` key, it's possible
@@ -989,6 +1009,7 @@ impl ChewingTextService {
         &mut self,
         context: &ITfContext,
         text: &str,
+        segments: Vec<(usize, usize)>,
         cursor: usize,
     ) -> Result<()> {
         debug!(text; "set composition string");
@@ -1001,11 +1022,13 @@ impl ChewingTextService {
             debug!(cursor, htext:%; "Reuse existing edit session");
             cell.replace(CommitString {
                 text: htext,
+                segments,
                 cursor,
             });
         } else {
             let pending = Rc::new(RefCell::new(CommitString {
                 text: htext,
+                segments,
                 cursor,
             }));
             let session = SetCompositionString::new(
