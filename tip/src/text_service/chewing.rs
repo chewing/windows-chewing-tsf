@@ -278,7 +278,7 @@ impl ChewingTextService {
             _menu: menu,
             popup_menu,
             lang_mode: Cell::new(TsfLangMode::English),
-            has_focus: false,
+            has_focus: true,
             output_simp_chinese: Default::default(),
             shift_key_state: ShiftKeyState::Up,
             cfg,
@@ -296,7 +296,7 @@ impl ChewingTextService {
             pending_lang_mode_change: Cell::new(false),
         };
 
-        if let Err(error) = cts.init_openclose() {
+        if let Err(error) = cts.init_openclose(tid) {
             error!("unable to initialize openclose: {error:#}");
         }
 
@@ -847,7 +847,7 @@ impl ChewingTextService {
         Ok(())
     }
 
-    pub(super) fn on_compartment_change(&self, guid: &GUID) -> Result<()> {
+    pub(super) fn on_compartment_change_ro(&self, guid: &GUID) -> Result<()> {
         debug!(has_focus=self.has_focus; "on_compartment_change");
         if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
             && !self.pending_lang_mode_change.take()
@@ -857,6 +857,38 @@ impl ChewingTextService {
             // a sync_lang_mode cycle.
             self.toggle_keyboard_openclose();
             self.sync_lang_mode(false)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn on_compartment_change(&mut self, guid: &GUID) -> Result<()> {
+        debug!(has_focus=self.has_focus; "on_compartment_change");
+        if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
+            && !self.pending_lang_mode_change.take()
+            && self.has_focus
+        {
+            // Compartment change is caused by Ctrl+Space shortcut, starting
+            // a sync_lang_mode cycle.
+            self.toggle_keyboard_openclose();
+            self.sync_lang_mode(false)?;
+            if self.is_composing() && self.lang_mode.get().is_disabled() {
+                self.chewing_editor.commit()?;
+                let text = self.chewing_editor.display_commit().to_owned();
+                self.chewing_editor.ack();
+                debug!(text; "commit string");
+                unsafe {
+                    let doc_mgr = self
+                        .thread_mgr
+                        .GetFocus()
+                        .context("failed to get current ITfDocumentMgr")?;
+                    let context = doc_mgr
+                        .GetTop()
+                        .context("failed to get current ITfContext")?;
+                    self.set_composition_string(&context, &text, vec![], 0)?;
+                    self.end_composition(&context)?;
+                }
+                debug!("commit string ok");
+            }
         }
         Ok(())
     }
@@ -1243,12 +1275,17 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn init_openclose(&self) -> Result<()> {
+    pub(crate) fn should_sync_keyboard_openclose(&self) -> bool {
+        self.cfg.chewing_tsf.sync_lang_mode_openclose
+    }
+
+    fn init_openclose(&self, tid: u32) -> Result<()> {
         let compartment_mgr: ITfCompartmentMgr = self.thread_mgr.cast()?;
         unsafe {
             let compartment =
                 compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
             let _ = compartment.GetValue()?;
+            let _ = compartment.SetValue(tid, &1i32.into());
         }
         Ok(())
     }
@@ -1514,6 +1551,11 @@ impl<'a> ReentrantOps<'a> {
         };
         debug!(force, pending_lang_mode_change=tip.pending_lang_mode_change.get(); "sync_keyboard_openclose");
         if !force && !tip.pending_lang_mode_change.get() {
+            return Ok(());
+        }
+        if !tip.cfg.chewing_tsf.sync_lang_mode_openclose {
+            // sync openclose is disabled by default
+            tip.pending_lang_mode_change.set(false);
             return Ok(());
         }
         let compartment_mgr: ITfCompartmentMgr = tip.thread_mgr.cast()?;

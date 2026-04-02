@@ -68,7 +68,6 @@ pub(super) struct TextService {
     tid: Cell<u32>,
     thread_cookies: RefCell<Vec<u32>>,
     keyboard_openclose_cookie: Cell<u32>,
-    key_busy: Cell<bool>,
     composition_terminated: Cell<bool>,
     pimedpi: Cell<*mut ImeDpi>,
 }
@@ -80,7 +79,6 @@ impl TextService {
             tid: Cell::default(),
             thread_cookies: RefCell::new(vec![]),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
-            key_busy: Cell::new(false),
             composition_terminated: Cell::new(false),
             pimedpi: Cell::new(null_mut()),
         }
@@ -248,10 +246,12 @@ impl ITfTextInputProcessorEx_Impl for TextService_Impl {
 
 impl ITfThreadMgrEventSink_Impl for TextService_Impl {
     fn OnInitDocumentMgr(&self, _pdim: Ref<ITfDocumentMgr>) -> Result<()> {
+        debug!("OnInitDocumentMgr");
         Ok(())
     }
 
     fn OnUninitDocumentMgr(&self, _pdim: Ref<ITfDocumentMgr>) -> Result<()> {
+        debug!("OnUninitDocumentMgr");
         Ok(())
     }
 
@@ -264,13 +264,10 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
             focus = !pdimfocus.is_null(),
             prevfocus = !pdimprevfocus.is_null(); "on_set_focus"
         );
-        // Excel switches document upon first key down. Skip this superflos
-        // focus change.
-        if self.key_busy.get() {
-            return Ok(());
-        }
+
         let mut borrowed_ts = self.inner.borrow_mut();
         let Some(ts) = borrowed_ts.as_mut() else {
+            debug!("nested borrow - abort on_set_focus");
             return Ok(());
         };
         if pdimfocus.is_null() {
@@ -322,7 +319,8 @@ impl ITfThreadFocusSink_Impl for TextService_Impl {
 }
 
 impl ITfKeyEventSink_Impl for TextService_Impl {
-    fn OnSetFocus(&self, _fforeground: BOOL) -> Result<()> {
+    fn OnSetFocus(&self, foreground: BOOL) -> Result<()> {
+        debug!(foreground:?; "ITfKeyEventSink::OnSetFocus");
         Ok(())
     }
 
@@ -374,7 +372,6 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keydown");
-        self.key_busy.set(true);
         let handled = {
             let mut borrowed_ts = self.inner.borrow_mut();
             let Some(ts) = borrowed_ts.as_mut() else {
@@ -395,7 +392,6 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keyup");
-        self.key_busy.set(false);
         let handled = {
             let mut borrowed_ts = self.inner.borrow_mut();
             let Some(ts) = borrowed_ts.as_mut() else {
@@ -459,19 +455,39 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!(rguid:?; "compartment::on_change");
-            let borrowed_ts = self.inner.borrow();
-            let Some(ts) = borrowed_ts.as_ref() else {
-                error!("text_service is not initialized");
-                return Ok(());
-            };
-            if let Err(error) = ts.on_compartment_change(rguid) {
-                error!("Unable to handle compartment change: {error:#}");
-                return Err(E_UNEXPECTED.into());
-            }
-            if rguid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
-                let reentrant_ops = ReentrantOps::from_ref(&self.inner, borrowed_ts);
-                if let Err(error) = reentrant_ops.sync_keyboard_openclose(true) {
-                    error!("Unable to sync lang mode: {error:#}");
+            if self
+                .inner
+                .borrow()
+                .as_ref()
+                .is_some_and(|ts| ts.should_sync_keyboard_openclose())
+            {
+                let borrowed_ts = self.inner.borrow();
+                let Some(ts) = borrowed_ts.as_ref() else {
+                    error!("text_service is not initialized");
+                    return Ok(());
+                };
+                if let Err(error) = ts.on_compartment_change_ro(rguid) {
+                    error!("Unable to handle compartment change: {error:#}");
+                    return Err(E_UNEXPECTED.into());
+                }
+                if rguid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
+                    let reentrant_ops = ReentrantOps::from_ref(&self.inner, borrowed_ts);
+                    if let Err(error) = reentrant_ops.sync_keyboard_openclose(true) {
+                        error!("Unable to sync lang mode: {error:#}");
+                        return Err(E_UNEXPECTED.into());
+                    }
+                }
+            } else {
+                let Ok(mut borrowed_ts) = self.inner.try_borrow_mut() else {
+                    debug!("reentrent detected - abort compartment::on_change");
+                    return Ok(());
+                };
+                let Some(ts) = borrowed_ts.as_mut() else {
+                    error!("text_service is not initialized");
+                    return Ok(());
+                };
+                if let Err(error) = ts.on_compartment_change(rguid) {
+                    error!("Unable to handle compartment change: {error:#}");
                     return Err(E_UNEXPECTED.into());
                 }
             }

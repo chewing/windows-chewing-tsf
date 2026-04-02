@@ -78,6 +78,7 @@ pub struct ChewingTsfConfig {
     pub notify_border_color: String,
     pub keyboard_layout: i32,
     pub simulate_english_layout: i32,
+    pub sync_lang_mode_openclose: bool,
     pub keybind: Vec<KeybindValue>,
     pub auto_check_update_channel: String,
     pub update_info_url: String,
@@ -126,6 +127,7 @@ impl Default for ChewingTsfConfig {
             notify_border_color: "D6D9DBFF".to_owned(),
             keyboard_layout: 0,
             simulate_english_layout: 0,
+            sync_lang_mode_openclose: false,
             keybind: vec![
                 KeybindValue {
                     key: "Ctrl+F12".to_string(),
@@ -178,6 +180,9 @@ impl Config {
         }
         if let Ok(value) = reg_get_i32(&key, "SimulateEnglishLayout") {
             cfg.simulate_english_layout = value;
+        }
+        if let Ok(value) = reg_get_bool(&key, "SyncLangModeOpenclose") {
+            cfg.sync_lang_mode_openclose = value;
         }
         if let Ok(value) = reg_get_i32(&key, "CandPerRow") {
             cfg.cand_per_row = value;
@@ -331,6 +336,11 @@ impl Config {
             &key,
             "SimulateEnglishLayout",
             chewing_tsf.simulate_english_layout,
+        );
+        let _ = reg_set_bool(
+            &key,
+            "SyncLangModeOpenclose",
+            chewing_tsf.sync_lang_mode_openclose,
         );
         let _ = reg_set_i32(&key, "CandPerRow", chewing_tsf.cand_per_row);
         let _ = reg_set_bool(&key, "DefaultEnglish", chewing_tsf.default_english);

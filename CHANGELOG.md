@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
   Chinese mode and CapsLock off enables English mode. This ensures better
   compatibility with short-cut keys and password fields.
 - tip: re-enable support for completely disable input processing via Ctrl+Space.
+- tip: disable lang mode and keyboard_openclose state sync by default.
 - tip: initial support for using Ctrl+Delete to unlearn phrases.
 - tip: support using custom "text" keybinding to insert any text.
 - tip: enable chewing.auto_snapshot_selections by default.
