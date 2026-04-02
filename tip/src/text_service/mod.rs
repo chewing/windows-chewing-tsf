@@ -8,7 +8,7 @@ use std::{
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
-    UI::{Input::KeyboardAndMouse::GetKeyboardLayout, TextServices::*},
+    UI::TextServices::*,
 };
 use windows_core::{
     BOOL, BSTR, ComObjectInterface, GUID, IUnknown, IUnknown_Vtbl, Interface, InterfaceRef, Ref,
@@ -16,7 +16,7 @@ use windows_core::{
 };
 
 use crate::{
-    imm32::{IME_PROP_COMPLETE_ON_UNSELECT, ImeDpi, ImmLockImeDpi, ImmUnlockImeDpi},
+    imm32::{ImeDpi, patch_ime_info, release_ime_info},
     text_service::chewing::ReentrantOps,
 };
 
@@ -155,14 +155,13 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         debug!(tid; "tip::activate");
 
         debug!("trying to override the default IMM32 property set by MSCTF.dll");
-        let hkl = unsafe { GetKeyboardLayout(0) };
-        let pimedpi = unsafe { ImmLockImeDpi(hkl) };
-        if let Some(imedpi) = unsafe { pimedpi.as_mut() } {
-            imedpi.ime_info.fdw_property |= IME_PROP_COMPLETE_ON_UNSELECT;
-            debug!("done adding IME_PROP_COMPLETE_ON_UNSELECT to IME property");
-        } else {
-            debug!("unable to get the PIMEDPI pointer");
-        }
+        let pimedpi = match patch_ime_info() {
+            Ok(p) => p,
+            Err(error) => {
+                error!("{:?}", error);
+                null_mut()
+            }
+        };
         self.pimedpi.set(pimedpi);
 
         self.tid.set(tid);
@@ -210,7 +209,9 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         debug!("tip::deactivate");
         if !self.pimedpi.get().is_null() {
             debug!("releasing previously acquired PIMEDPI pointer");
-            unsafe { ImmUnlockImeDpi(self.pimedpi.get()) };
+            if let Err(error) = release_ime_info(self.pimedpi.get()) {
+                error!("{:?}", error);
+            }
             self.pimedpi.set(null_mut());
         }
         let thread_cookies = self.thread_cookies.take();
