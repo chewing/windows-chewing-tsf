@@ -5,14 +5,14 @@ use crate::flags::DownloadComponents;
 
 const MANIFEST: [(&str, &str, &str, &str); 3] = [
     (
-        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/v26.4.0.2/windows-chewing-preferences-26.4.0.2-x86_64-pc-windows.zip",
-        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/v26.4.0.2/windows-chewing-preferences-26.4.0.2-x86_64-pc-windows.zip.asc",
+        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/v26.4.1.0/windows-chewing-preferences-26.4.1.0-x86_64-pc-windows.zip",
+        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/v26.4.1.0/windows-chewing-preferences-26.4.1.0-x86_64-pc-windows.zip.asc",
         "windows-chewing-preferences.zip",
         "build/installer",
     ),
     (
-        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/v26.4.0.1/windows-chewing-editor-26.4.0.1-x86_64-pc-windows.zip",
-        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/v26.4.0.1/windows-chewing-editor-26.4.0.1-x86_64-pc-windows.zip.asc",
+        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/v26.4.1.0/windows-chewing-editor-26.4.1.0-x86_64-pc-windows.zip",
+        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/v26.4.1.0/windows-chewing-editor-26.4.1.0-x86_64-pc-windows.zip.asc",
         "windows-chewing-editor.zip",
         "build/installer",
     ),

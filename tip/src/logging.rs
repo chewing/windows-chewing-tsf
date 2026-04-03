@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
+
 use logforth::{Append, Diagnostic, Error, Layout, layout::PlainTextLayout, record::Record};
 use windows::Win32::System::Diagnostics::Debug::{IsDebuggerPresent, OutputDebugStringW};
 use windows_core::HSTRING;

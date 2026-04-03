@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
+
 #![windows_subsystem = "windows"]
 
 use std::{env, process};

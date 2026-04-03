@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;

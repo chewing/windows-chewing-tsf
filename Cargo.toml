@@ -3,7 +3,7 @@ members = ["tip", "update", "xtask"]
 resolver = "3"
 
 [workspace.dependencies]
-chewing = "0.12.0-alpha.2"
+chewing = "0.13.0-alpha.1"
 
 [profile.release]
 lto = "thin"

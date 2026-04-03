@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
 
 pub(super) const IDS_SETTINGS: u32 = 105;
 pub(super) const IDS_SWITCH_LANG: u32 = 104;

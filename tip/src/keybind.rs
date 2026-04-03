@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
+
 use anyhow::{Context, Error};
 use chewing::input::{KeyState, KeyboardEvent, keysym::*};
 

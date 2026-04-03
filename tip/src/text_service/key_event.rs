@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
 
 use chewing::input::keycode::Keycode;
 use chewing::input::keymap::{

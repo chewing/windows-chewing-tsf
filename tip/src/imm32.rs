@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
+
 //! Undocumented IMM32 API.
 
 pub(crate) const IME_PROP_COMPLETE_ON_UNSELECT: u32 = 0x00100000;

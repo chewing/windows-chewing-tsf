@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
+
 //! Safe wrapper for MSCTF.DLL
 
 use windows::Win32::UI::TextServices::ITfCategoryMgr;

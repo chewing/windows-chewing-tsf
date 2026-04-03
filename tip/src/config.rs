@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2026 Kan-Ru Chen
 
 use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 

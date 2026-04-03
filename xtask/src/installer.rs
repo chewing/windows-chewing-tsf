@@ -2,8 +2,8 @@
 
 use std::{path::PathBuf, str::FromStr};
 
-use anyhow::{Error, Result, bail};
-use xshell::{Shell, cmd};
+use anyhow::{bail, Error, Result};
+use xshell::{cmd, Shell};
 
 use crate::flags::{BuildInstaller, PackageInstaller};
 
@@ -72,7 +72,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
     {
         cmd!(
             sh,
-            "cargo install --locked chewing-cli --version 0.12.0-alpha.1
+            "cargo install --locked chewing-cli --version 0.13.0-alpha.1
                  --root build --target {x86_64_target} --features sqlite-bundled"
         )
         .run()?;
