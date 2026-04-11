@@ -89,18 +89,21 @@ jobs:
       - name: Download pre-built components
         run: cargo xtask download-components
 
-      - uses: actions/upload-artifact@v3
+      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        if: false
         with:
           name: Installer Artifact With Debuginfo
           path: build/installer
 
       - name: Strip debug info
+        if: false
         run: |
           x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
           i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
           x86_64-w64-mingw32-strip build/installer/*.exe
 
-      - uses: actions/upload-artifact@v3
+      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        if: false
         with:
           name: Installer Artifact
           path: build/installer
