@@ -8,13 +8,17 @@ use std::{
 
 use logforth::record::{Level, LevelFilter};
 use windows::Win32::System::Com::{CoLockObjectExternal, IClassFactory, IClassFactory_Impl};
+use windows::Win32::System::Console::AllocConsole;
 use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTACH};
 use windows::core::{
     BOOL, ComObjectInner, ComObjectInterface, GUID, HRESULT, IUnknown, Interface, Ref, Result,
     implement,
 };
 
-use crate::{logging::WinDbg, text_service::TextService};
+use crate::{
+    logging::{self, WinDbg},
+    text_service::TextService,
+};
 
 pub(crate) static G_HINSTANCE: AtomicUsize = AtomicUsize::new(0);
 
@@ -28,6 +32,11 @@ extern "system" fn DllMain(
         let g_hinstance = G_HINSTANCE.load(Ordering::Relaxed);
         if g_hinstance == 0 {
             G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
+            if logging::is_debugger_present() {
+                unsafe {
+                    let _ = AllocConsole();
+                }
+            }
             logforth::starter_log::builder()
                 .dispatch(|d| {
                     d.filter(if cfg!(debug_assertions) {
@@ -36,6 +45,7 @@ extern "system" fn DllMain(
                         LevelFilter::MoreSevereEqual(Level::Info)
                     })
                     .append(WinDbg::default())
+                    .append(logforth::append::Stdout::default())
                 })
                 .apply();
             log::info!("chewing_tip.dll loaded");

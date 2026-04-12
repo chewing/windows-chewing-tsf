@@ -1,0 +1,14 @@
+[package]
+name = "chewing_tip_core"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+exn.workspace = true
+interprocess.workspace = true
+log.workspace = true
+minisign-verify = "0.2.5"
+serde.workspace = true
+serde_json.workspace = true
+widestring = "1.2.1"
+windows = { version = "0.62.2", features = ["Win32_System_Threading", "Win32_Security", "Win32_Security_Authorization"] }

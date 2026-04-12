@@ -1,11 +1,19 @@
 [workspace]
-members = ["tip", "update", "xtask"]
 resolver = "3"
+members = ["crates/chewing_tip_core", "crates/daemon", "tip", "update", "xtask"]
+
+[workspace.package]
+version = "26.4.1"
 
 [workspace.dependencies]
 chewing = "0.13.0-alpha.1"
+exn = "0.3.0"
+interprocess = "2.4.1"
+log = "0.4.29"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 
 [profile.release]
+debug = true
 lto = "thin"
 panic = "abort"
-debug = true
