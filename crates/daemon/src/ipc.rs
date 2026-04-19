@@ -5,7 +5,7 @@ use std::{
 };
 
 use chewing_tip_core::ipc::{
-    messages::{ShowCandidateList, ShowNotification},
+    messages::{HideCandidateList, ShowCandidateList, ShowNotification},
     named_pipe::{NAMED_PIPE_PATH, create_pipe_listener},
     varlink::MethodCall,
 };
@@ -47,7 +47,9 @@ fn run_ipc_loop(pipe: PipeStream<Bytes, Bytes>, mh: MainLoopHandle) {
         buffer.pop();
         match serde_json::from_slice::<MethodCall>(&buffer) {
             Ok(call) => match call.method.as_str() {
-                ShowNotification::METHOD | ShowCandidateList::METHOD => {
+                ShowNotification::METHOD
+                | ShowCandidateList::METHOD
+                | HideCandidateList::METHOD => {
                     let oneway = call.oneway.is_some_and(|v| v);
                     if let Err(error) = mh.send(call) {
                         error!("Failed to dispatch message: {error:?}");

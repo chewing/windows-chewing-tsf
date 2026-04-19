@@ -8,4 +8,3 @@ mod keybind;
 mod logging;
 mod msctf;
 mod text_service;
-mod ui;

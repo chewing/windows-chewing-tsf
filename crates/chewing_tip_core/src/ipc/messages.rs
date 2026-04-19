@@ -45,3 +45,10 @@ pub type ShowCandidateListReply = ();
 impl ShowCandidateList {
     pub const METHOD: &str = "im.chewing.ui.ShowCandidateList";
 }
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct HideCandidateList;
+pub type HideCandidateListReply = ();
+impl HideCandidateList {
+    pub const METHOD: &str = "im.chewing.ui.HideCandidateList";
+}

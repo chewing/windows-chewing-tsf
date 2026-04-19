@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use windows::{
     Win32::{
         Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree},
-        Graphics::Direct2D::Common::D2D1_COLOR_F,
         Security::{
             AllocateAndInitializeSid,
             Authorization::{
@@ -601,63 +600,10 @@ fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<()> {
     Ok(hk.set_u32(value_name, value as u32)?)
 }
 
-pub fn color_f(r: f32, g: f32, b: f32, a: f32) -> D2D1_COLOR_F {
-    D2D1_COLOR_F { r, g, b, a }
-}
-
-// XXX: Rust and LLVM assumes the floating point environment is in the default
-// state and divide by zero does not trigger exception. However, chewing_tip is
-// loaded to host program that may set the MXCSR register and trigger UB. Never
-// inline this function to ensure the 4 values used by the SSE instruction DIVPS
-// are all defined.
-//
-// Reference:
-// * https://github.com/rust-lang/unsafe-code-guidelines/issues/471
-// * https://github.com/chewing/windows-chewing-tsf/issues/412
-#[inline(never)]
-pub fn color_uf(r: u16, g: u16, b: u16, a: u16) -> D2D1_COLOR_F {
-    D2D1_COLOR_F {
-        r: (r as f32) / 255.0,
-        g: (g as f32) / 255.0,
-        b: (b as f32) / 255.0,
-        a: (a as f32) / 255.0,
-    }
-}
-
-pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
-    let mut rgb_u32 = u32::from_str_radix(rgb, 16).unwrap_or(0);
-    let a = if rgb.len() > 6 {
-        let a = rgb_u32 & 0xFF;
-        rgb_u32 >>= 8;
-        a as u16
-    } else {
-        255
-    };
-    let r = ((rgb_u32 >> 16) & 0xFF) as u16;
-    let g = ((rgb_u32 >> 8) & 0xFF) as u16;
-    let b = (rgb_u32 & 0xFF) as u16;
-    color_uf(r, g, b, a)
-}
-
 #[cfg(test)]
 mod test {
     use crate::config::KeybindValue;
 
-    use super::{color_f, color_s};
-
-    #[test]
-    fn color_rgb() {
-        assert_eq!(color_f(1.0, 0.0, 1.0, 1.0), color_s("FF00FF"));
-    }
-    #[test]
-    fn color_rgba() {
-        assert_eq!(color_f(1.0, 0.0, 1.0, 0.0), color_s("FF00FF00"));
-    }
-    #[test]
-    fn color_alpha_only() {
-        assert_eq!(color_f(0.0, 0.0, 1.0, 1.0), color_s("0000FFFF"));
-        assert_eq!(color_f(0.0, 0.0, 0.0, 1.0), color_s("000000FF"));
-    }
     #[test]
     fn parse_keybind_action() {
         let keybind = "ctrl+c=text";

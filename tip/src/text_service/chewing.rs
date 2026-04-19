@@ -26,7 +26,7 @@ use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
-use chewing_tip_core::ipc::messages::{Position, ShowNotification};
+use chewing_tip_core::ipc::messages::{Position, ShowCandidateList, ShowNotification};
 use chewing_tip_core::ipc::named_pipe::connect_and_attest;
 use interprocess::TryClone;
 use interprocess::os::windows::named_pipe::PipeStream;
@@ -59,12 +59,11 @@ use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PC
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
-use crate::config::{ChewingTsfConfig, Config, color_s};
+use crate::config::{ChewingTsfConfig, Config};
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
 use crate::text_service::lang_bar::LangBarFactory;
-use crate::ui::window::window_register_class;
 
 use super::CommandType;
 use super::GUID_INPUT_DISPLAY_ATTRIBUTE_1;
@@ -77,7 +76,7 @@ use super::lang_bar::LangBarButton;
 use super::menu::Menu;
 use super::resources::*;
 use super::theme::{ThemeDetector, WindowsTheme};
-use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification};
+use super::ui_elements::{CandidateList, FilterKeyResult, Notification};
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
@@ -207,8 +206,6 @@ impl ChewingTextService {
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let menu = Menu::load(g_hinstance, IDR_MENU);
-
-        window_register_class();
 
         let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
         info!("Detected theme info: {:?}", ThemeDetector::get_theme_info());
@@ -1143,11 +1140,15 @@ impl ChewingTextService {
             self.hide_candidates();
             return Ok(());
         }
+        let Some(pipe) = &self.pipe else {
+            bail!("Not connected to render server");
+        };
         if self.candidate_list.is_none() {
-            let view = unsafe { context.GetActiveView()? };
-            // UILess console may not have valid HWND
-            let hwnd = unsafe { view.GetWnd().unwrap_or_default() };
-            let candidate_list = CandidateList::new(hwnd, self.thread_mgr.clone())?;
+            let candidate_list = CandidateList::new(
+                self.thread_mgr.clone(),
+                pipe.try_clone()?,
+                ShowCandidateList::default(),
+            )?;
             self.candidate_list = Some(candidate_list);
         }
 
@@ -1166,31 +1167,29 @@ impl ChewingTextService {
                 return Ok(());
             }
             items.truncate(n);
-            candidate_list.set_model(Model {
+            let rect = self.get_selection_rect(context).unwrap_or_default();
+            candidate_list.set_model(ShowCandidateList {
+                position: Position {
+                    x: rect.left,
+                    y: rect.bottom,
+                },
                 items,
                 selkeys: sel_keys.chars().take(n).map(|k| k as u16).collect(),
                 cand_per_row: cfg.cand_per_row as u32,
                 total_page,
                 current_page,
-                font_family: HSTRING::from(&cfg.font_family),
+                font_family: cfg.font_family.clone(),
                 font_size: cfg.font_size as f32,
-                fg_color: color_s(&cfg.font_fg_color),
-                bg_color: color_s(&cfg.font_bg_color),
-                highlight_fg_color: color_s(&cfg.font_highlight_fg_color),
-                highlight_bg_color: color_s(&cfg.font_highlight_bg_color),
-                border_color: color_s(&cfg.cand_list_border_color),
-                selkey_color: color_s(&cfg.font_number_fg_color),
+                fg_color: cfg.font_fg_color.clone(),
+                bg_color: cfg.font_bg_color.clone(),
+                highlight_fg_color: cfg.font_highlight_fg_color.clone(),
+                highlight_bg_color: cfg.font_highlight_bg_color.clone(),
+                border_color: cfg.cand_list_border_color.clone(),
+                selkey_color: cfg.font_number_fg_color.clone(),
                 use_cursor: cfg.cursor_cand_list,
                 current_sel: 0,
             });
-
-            candidate_list.show();
-
-            if let Ok(rect) = self.get_selection_rect(context) {
-                candidate_list.set_position(rect.left, rect.bottom);
-                // HACK set position again to use correct DPI setting
-                candidate_list.set_position(rect.left, rect.bottom);
-            }
+            candidate_list.show()?;
         }
 
         Ok(())

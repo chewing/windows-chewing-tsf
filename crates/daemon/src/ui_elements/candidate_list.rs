@@ -618,7 +618,12 @@ impl CandidateList {
     pub(crate) fn show(&self) {
         let view = self.view.borrow();
         let window = view.window();
-        window.refresh();
         window.show();
+        window.refresh();
+    }
+    pub(crate) fn hide(&self) {
+        let view = self.view.borrow();
+        let window = view.window();
+        window.hide();
     }
 }
