@@ -1,11 +1,12 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{fs::File, hash::Hasher, io::Read, path::PathBuf};
 
 use exn::{Exn, Result, ResultExt, bail};
+use fnv::FnvHasher;
 use interprocess::os::windows::{
     named_pipe::{DuplexPipeStream, PipeListener, PipeListenerOptions, PipeMode, pipe_mode::Bytes},
     security_descriptor::SecurityDescriptor,
 };
-use log::{debug, error};
+use log::{debug, error, info};
 use minisign_verify::{PublicKey, Signature};
 use widestring::U16CString;
 use windows::{
@@ -22,8 +23,16 @@ use windows::{
 use crate::ipc::IpcError;
 use crate::sandbox::get_user_cred;
 
-pub const NAMED_PIPE_PATH: &str = r"\\.\pipe\chewing_tip.pipe";
+pub const NAMED_PIPE_PATH_BASE: &str = r"\\.\pipe\chewing.";
 pub const TRUSTED_MINISIGN_KEY: &str = "RWTgGhLoHRMztdiikZxoXuU4C3tabjFLP5PjdH934zCOxmhZa6ktuGbX";
+
+pub fn named_pipe_path() -> Result<String, IpcError> {
+    let err = || IpcError(format!("failed to create unique user local NamedPipe path"));
+    let user_cred = get_user_cred().or_raise(err)?;
+    let mut hasher = FnvHasher::default();
+    hasher.write(user_cred.token_user_sid.as_bytes());
+    Ok(format!("{NAMED_PIPE_PATH_BASE}{:x}.pipe", hasher.finish()))
+}
 
 pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
     let err = || IpcError(format!("failed to create named pipe listener"));
@@ -47,8 +56,11 @@ pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
     .or_raise(|| IpcError(format!("failed to parse SDDL: {security_descriptor}")))
     .or_raise(err)?;
 
+    let pipe_path = named_pipe_path().or_raise(err)?;
+
+    info!("Creating named pipe at {pipe_path}");
     Ok(PipeListenerOptions::new()
-        .path(NAMED_PIPE_PATH)
+        .path(pipe_path)
         .mode(PipeMode::Bytes)
         .security_descriptor(Some(sd))
         .create_duplex::<Bytes>()
@@ -58,10 +70,12 @@ pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
 /// Connects to the well-known windows-chewing-tsf named pipe and validate the
 /// server executable is signed with a trusted minisign key.
 pub fn connect_and_attest() -> Result<DuplexPipeStream<Bytes>, IpcError> {
-    let err = || IpcError(format!("failed to connect to named pipe {NAMED_PIPE_PATH}"));
+    let pipe_path =
+        named_pipe_path().or_raise(|| IpcError(format!("failed to connect to named pipe")))?;
+    let err = || IpcError(format!("failed to connect to named pipe {pipe_path}"));
 
-    debug!("trying to connect to named pipe {NAMED_PIPE_PATH}");
-    let pipe = DuplexPipeStream::connect_by_path(NAMED_PIPE_PATH).or_raise(err)?;
+    debug!("trying to connect to named pipe {pipe_path}");
+    let pipe = DuplexPipeStream::connect_by_path(pipe_path.clone()).or_raise(err)?;
 
     let peer_pid = pipe.server_process_id().or_raise(err)?;
     if let Err(error) = attest_server(peer_pid) {

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 exn.workspace = true
+fnv = "1.0.7"
 interprocess.workspace = true
 log.workspace = true
 minisign-verify = "0.2.5"
