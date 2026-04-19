@@ -50,6 +50,7 @@
                 </Component>
                 <File Source="WebView2Loader.dll" Bitness="always64" />
                 <File Source="chewing-cli.exe" Bitness="always64" />
+                <File Source="chewing_tip_host.exe" Bitness="always64" />
                 <File Source="chewing-update-svc.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
                 <File Source="version.json" />
@@ -92,6 +93,26 @@
                     <!-- Shell command -->
                     <RegistryKey Root="HKCR" Key="chewing-update-svc\shell\open\command">
                         <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing-update-svc.exe&quot; &quot;%1&quot;" />
+                    </RegistryKey>
+                    <!-- Main protocol key -->
+                    <RegistryKey Root="HKCR" Key="chewing-tip-host">
+                        <RegistryValue Type="string" Value="URL:Chewing TIP Host" />
+                        <RegistryValue Name="URL Protocol" Type="string" Value="" />
+                    </RegistryKey>
+                    <!-- Default icon -->
+                    <RegistryKey Root="HKCR" Key="chewing-tip-host\DefaultIcon">
+                        <RegistryValue Type="string" Value="[INSTALLFOLDER64]chewing_tip_host.exe,0" />
+                    </RegistryKey>
+                    <!-- Shell command -->
+                    <RegistryKey Root="HKCR" Key="chewing-tip-host\shell\open\command">
+                        <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing_tip_host.exe&quot; &quot;%1&quot;" />
+                    </RegistryKey>
+                    
+                    <!-- Start chewing_tip_host after login -->
+                    <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
+                         <RegistryValue Type="string"
+                                        Name="ChewingTipHost"
+                                        Value="[INSTALLFOLDER64]chewing_tip_host.exe" />
                     </RegistryKey>
                 </Component>
             </Directory>

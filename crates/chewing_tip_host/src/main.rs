@@ -1,5 +1,6 @@
-use std::{error::Error, thread};
+use std::{error::Error, path::PathBuf, thread};
 
+use chewing_tip_core::ipc::named_pipe::named_pipe_path;
 use log::info;
 use logforth::record::LevelFilter;
 
@@ -13,6 +14,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     logforth::starter_log::stdout()
         .filter(LevelFilter::All)
         .apply();
+
+    let pipe_path = PathBuf::from(named_pipe_path()?);
+    if pipe_path.exists() {
+        info!("Another chewing_tip_host is already running.");
+        return Ok(());
+    }
 
     info!("Setup main loop");
     let mut main_loop = MainLoop::new();

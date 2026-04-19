@@ -278,6 +278,8 @@ impl ChewingTextService {
         let pipe = match connect_and_attest() {
             Ok(p) => Some(p),
             Err(error) => {
+                // FIXME better recovery
+                open_url("chewing-tip-host://init");
                 error!("Failed to activate text service, caused by");
                 error!("{error:?}");
                 None

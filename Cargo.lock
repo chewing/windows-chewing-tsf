@@ -141,6 +141,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "chewing_tip_host"
+version = "0.1.0"
+dependencies = [
+ "chewing_tip_core",
+ "exn",
+ "interprocess",
+ "log",
+ "logforth",
+ "serde_json",
+ "windows",
+ "windows-core",
+ "windows-numerics",
+]
+
+[[package]]
 name = "colored"
 version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -218,21 +233,6 @@ name = "daachorse"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f55d7153ba3b507595872a3874803f07a8a81d1e888abed8e5db7da0597d6e2"
-
-[[package]]
-name = "daemon"
-version = "0.1.0"
-dependencies = [
- "chewing_tip_core",
- "exn",
- "interprocess",
- "log",
- "logforth",
- "serde_json",
- "windows",
- "windows-core",
- "windows-numerics",
-]
 
 [[package]]
 name = "der"
