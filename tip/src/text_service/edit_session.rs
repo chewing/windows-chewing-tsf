@@ -10,6 +10,7 @@ use std::rc::Rc;
 use log::{debug, error};
 use windows::Win32::Foundation::{FALSE, RECT};
 use windows::Win32::System::Variant::VARIANT;
+use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::TextServices::{
     GUID_PROP_ATTRIBUTE, INSERT_TEXT_AT_SELECTION_FLAGS, ITfComposition, ITfCompositionSink,
     ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
@@ -251,6 +252,14 @@ impl ITfEditSession_Impl for SelectionRect_Impl {
                 let mut rc = RECT::default();
                 let mut clipped = BOOL::default();
                 view.GetTextExt(ec, sel_range, &mut rc, &mut clipped)?;
+                if let Ok(hwnd) = view.GetWnd() {
+                    let dpi = GetDpiForWindow(hwnd) as i32;
+                    let scale = |d| if dpi == 0 { d } else { d * 96 / dpi };
+                    rc.left = scale(rc.left);
+                    rc.top = scale(rc.top);
+                    rc.right = scale(rc.right);
+                    rc.bottom = scale(rc.bottom);
+                }
                 self.rect.set(rc);
             }
         }

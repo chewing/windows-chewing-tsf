@@ -70,11 +70,11 @@ pub(crate) struct CandidateListModel {
     pub(crate) border_color: D2D1_COLOR_F,
 }
 
-pub(crate) enum FilterKeyResult {
-    Handled,
-    HandledCommit,
-    NotHandled,
-}
+// pub(crate) enum FilterKeyResult {
+//     Handled,
+//     HandledCommit,
+//     NotHandled,
+// }
 
 trait View {
     fn window(&self) -> &Window;
@@ -589,13 +589,13 @@ impl CandidateList {
     //     }
     //     res
     // }
-    pub(crate) fn current_sel(&self) -> usize {
-        self.model.borrow().current_sel
-    }
-    pub(crate) fn current_phrase(&self) -> String {
-        let sel = self.current_sel();
-        self.model.borrow().items[sel].clone()
-    }
+    // pub(crate) fn current_sel(&self) -> usize {
+    //     self.model.borrow().current_sel
+    // }
+    // pub(crate) fn current_phrase(&self) -> String {
+    //     let sel = self.current_sel();
+    //     self.model.borrow().items[sel].clone()
+    // }
     pub(crate) fn set_position(&self, mut x: i32, mut y: i32) {
         let view = self.view.borrow();
         let window = view.window();

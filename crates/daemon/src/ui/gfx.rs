@@ -178,10 +178,6 @@ pub(crate) fn get_scale_for_window(hwnd: HWND) -> f32 {
     get_dpi_for_window(hwnd) / 96.0
 }
 
-pub fn color_f(r: f32, g: f32, b: f32, a: f32) -> D2D1_COLOR_F {
-    D2D1_COLOR_F { r, g, b, a }
-}
-
 pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
     let mut rgb_u32 = u32::from_str_radix(rgb, 16).unwrap_or(0);
     let a = if rgb.len() > 6 {
@@ -213,7 +209,13 @@ impl Display for GfxError {
 
 #[cfg(test)]
 mod test {
-    use super::{color_f, color_s};
+    use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
+
+    use super::color_s;
+
+    pub fn color_f(r: f32, g: f32, b: f32, a: f32) -> D2D1_COLOR_F {
+        D2D1_COLOR_F { r, g, b, a }
+    }
 
     #[test]
     fn color_rgb() {
