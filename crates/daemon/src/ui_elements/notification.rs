@@ -26,7 +26,8 @@ use windows::Win32::{
     UI::WindowsAndMessaging::{
         CS_IME, GWLP_USERDATA, GetWindowLongPtrW, HWND_DESKTOP, IDC_ARROW, KillTimer, LoadCursorW,
         RegisterClassExW, SetTimer, WINDOWPOS, WM_PAINT, WM_TIMER, WM_WINDOWPOSCHANGING,
-        WNDCLASSEXW, WS_CLIPCHILDREN, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+        WNDCLASSEXW, WS_CLIPCHILDREN, WS_EX_NOREDIRECTIONBITMAP, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+        WS_POPUP,
     },
 };
 use windows_core::{HSTRING, PCWSTR, w};
@@ -138,7 +139,7 @@ impl RenderedView {
             HWND_DESKTOP,
             w!("ChewingNotificationWindow"),
             WS_POPUP | WS_CLIPCHILDREN,
-            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             user_data.cast(),
         );
         unsafe {
