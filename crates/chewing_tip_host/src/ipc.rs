@@ -6,19 +6,20 @@ use std::{
 
 use chewing_tip_core::ipc::{
     messages::{HideCandidateList, ShowCandidateList, ShowNotification},
-    named_pipe::create_pipe_listener,
     varlink::MethodCall,
 };
 use exn::{Result, ResultExt};
-use interprocess::os::windows::named_pipe::{PipeStream, pipe_mode::Bytes};
+use interprocess::os::windows::named_pipe::{PipeListener, PipeStream, pipe_mode::Bytes};
 use log::{debug, error, warn};
 
 use crate::ui::event_loop::MainLoopHandle;
 
-pub(crate) fn run_ipc_server(mh: MainLoopHandle) -> Result<(), IpcError> {
+pub(crate) fn run_ipc_server(
+    listener: PipeListener<Bytes, Bytes>,
+    mh: MainLoopHandle,
+) -> Result<(), IpcError> {
     let err = || IpcError("IPC server failed".to_string());
 
-    let listener = create_pipe_listener().or_raise(err)?;
     for pipe in listener.incoming() {
         let mh = mh.clone();
         let pipe = pipe.or_raise(err)?;

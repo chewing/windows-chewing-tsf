@@ -2,7 +2,7 @@
 
 use std::{error::Error, path::PathBuf, thread};
 
-use chewing_tip_core::ipc::named_pipe::named_pipe_path;
+use chewing_tip_core::ipc::named_pipe::{create_pipe_listener, named_pipe_path};
 use log::info;
 use logforth::record::LevelFilter;
 use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
@@ -23,18 +23,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(LevelFilter::All)
         .apply();
 
-    let pipe_path = PathBuf::from(named_pipe_path()?);
-    if pipe_path.exists() {
-        info!("Another chewing_tip_host is already running.");
-        return Ok(());
-    }
+    info!("Create NamedPipe listener");
+    let listener = create_pipe_listener().inspect_err(|_| {
+        if let Ok(path) = named_pipe_path() {
+            let pipe_path = PathBuf::from(path);
+            if pipe_path.exists() {
+                info!("Another chewing_tip_host is already running.");
+            }
+        }
+    })?;
 
     info!("Setup main loop");
     let mut main_loop = MainLoop::new();
     let mh = main_loop.get_handle();
 
     info!("Spawn IPC thread");
-    thread::spawn(move || run_ipc_server(mh));
+    thread::spawn(move || run_ipc_server(listener, mh));
 
     info!("Starting main loop");
     main_loop.run();
