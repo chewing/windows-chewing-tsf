@@ -68,7 +68,9 @@ impl CandidateList {
         Ok(candidate_list)
     }
     pub(crate) fn end_ui_element(&self) {
-        self.hide();
+        if let Err(error) = self.hide() {
+            error!("{error:?}");
+        }
         let Ok(ui_manager): Result<ITfUIElementMgr, windows_core::Error> = self.thread_mgr.cast()
         else {
             error!("unable to cast thread manager to ITfUIElementMgr");
@@ -202,7 +204,9 @@ impl ITfUIElement_Impl for CandidateList_Impl {
     fn Show(&self, show: BOOL) -> WindowsResult<()> {
         self.uiless.set(!show.as_bool());
         if show.as_bool() {
-            self.show();
+            if let Err(error) = self.show() {
+                error!("{error:?}");
+            }
         }
         Ok(())
     }

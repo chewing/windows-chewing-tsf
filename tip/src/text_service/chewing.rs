@@ -616,7 +616,9 @@ impl ChewingTextService {
                         key_handled = true;
                     }
                     FilterKeyResult::Handled => {
-                        candidate_list.show();
+                        if let Err(error) = candidate_list.show() {
+                            error!("{error:?}");
+                        }
                         return Ok(true);
                     }
                     FilterKeyResult::NotHandled => {
