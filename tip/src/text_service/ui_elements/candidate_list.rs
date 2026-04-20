@@ -3,17 +3,17 @@
 
 use std::{
     cell::{Cell, RefCell},
-    io::Write,
     ops::Not,
 };
 
 use anyhow::Result;
 use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, SYM_UP};
 use chewing_tip_core::ipc::{
+    client::ChewingIpcClient,
     messages::{HideCandidateList, ShowCandidateList},
     varlink::MethodCall,
 };
-use interprocess::os::windows::named_pipe::{PipeStream, pipe_mode::Bytes};
+use exn_anyhow::into_anyhow;
 use log::error;
 use windows::Win32::{
     Foundation::{E_INVALIDARG, TRUE},
@@ -32,7 +32,7 @@ pub(crate) struct CandidateList {
     thread_mgr: ITfThreadMgr,
     element_id: Cell<u32>,
     uiless: Cell<bool>,
-    pipe: RefCell<PipeStream<Bytes, Bytes>>,
+    cth_client: ChewingIpcClient,
     model: RefCell<ShowCandidateList>,
 }
 
@@ -45,7 +45,7 @@ pub(crate) enum FilterKeyResult {
 impl CandidateList {
     pub(crate) fn new(
         thread_mgr: ITfThreadMgr,
-        pipe: PipeStream<Bytes, Bytes>,
+        cth_client: ChewingIpcClient,
         model: ShowCandidateList,
     ) -> Result<ComObject<CandidateList>> {
         let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
@@ -53,7 +53,7 @@ impl CandidateList {
             thread_mgr,
             element_id: Cell::new(0),
             uiless: Cell::new(false),
-            pipe: RefCell::new(pipe),
+            cth_client,
             model: RefCell::new(model),
         }
         .into_object();
@@ -165,31 +165,27 @@ impl CandidateList {
         self.model.borrow().items[sel].clone()
     }
     pub(crate) fn show(&self) -> Result<()> {
-        if let Ok(mut pipe) = self.pipe.try_borrow_mut() {
-            let mut bytes = serde_json::to_vec(&MethodCall {
+        self.cth_client
+            .send(MethodCall {
                 method: ShowCandidateList::METHOD.to_string(),
                 parameters: serde_json::to_value(&self.model)?,
                 oneway: Some(true),
                 more: None,
                 upgrade: None,
-            })?;
-            bytes.push(0);
-            pipe.write_all(&bytes)?;
-        }
+            })
+            .map_err(into_anyhow)?;
         Ok(())
     }
     pub(crate) fn hide(&self) -> Result<()> {
-        if let Ok(mut pipe) = self.pipe.try_borrow_mut() {
-            let mut bytes = serde_json::to_vec(&MethodCall {
+        self.cth_client
+            .send(MethodCall {
                 method: HideCandidateList::METHOD.to_string(),
                 parameters: serde_json::to_value(HideCandidateList)?,
                 oneway: Some(true),
                 more: None,
                 upgrade: None,
-            })?;
-            bytes.push(0);
-            pipe.write_all(&bytes)?;
-        }
+            })
+            .map_err(into_anyhow)?;
         Ok(())
     }
 }

@@ -26,11 +26,10 @@ use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
+use chewing_tip_core::ipc::client::ChewingIpcClient;
 use chewing_tip_core::ipc::messages::{Position, ShowCandidateList, ShowNotification};
-use chewing_tip_core::ipc::named_pipe::connect_and_attest;
+use exn_anyhow::into_anyhow;
 use interprocess::TryClone;
-use interprocess::os::windows::named_pipe::PipeStream;
-use interprocess::os::windows::named_pipe::pipe_mode::Bytes;
 use log::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -163,7 +162,7 @@ pub(super) struct ChewingTextService {
     popup_menu: HMENU,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
     composition_sink: ITfCompositionSink,
-    pipe: Option<PipeStream<Bytes, Bytes>>,
+    cth_client: ChewingIpcClient,
 
     switch_lang_button: ComObject<LangBarButton>,
     switch_shape_button: ComObject<LangBarButton>,
@@ -275,22 +274,13 @@ impl ChewingTextService {
         let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
         debug!("trying to connect to a named pipe");
-        let pipe = match connect_and_attest() {
-            Ok(p) => Some(p),
-            Err(error) => {
-                // FIXME better recovery
-                open_url("chewing-tip-host://init");
-                error!("Failed to activate text service, caused by");
-                error!("{error:?}");
-                None
-            }
-        };
+        let cth_client = ChewingIpcClient::connect().map_err(into_anyhow)?;
 
         let mut cts = ChewingTextService {
             thread_mgr,
             tid,
             composition_sink: ts.cast()?,
-            pipe,
+            cth_client,
             input_da_atom: [input_da_atom_1, input_da_atom_2],
             _menu: menu,
             popup_menu,
@@ -1110,24 +1100,22 @@ impl ChewingTextService {
     }
 
     fn show_message(&mut self, context: &ITfContext, text: &HSTRING) -> Result<()> {
-        if let Some(pipe) = &self.pipe {
-            let rect = self.get_selection_rect(context).unwrap_or_default();
-            let call = ShowNotification {
-                position: Position {
-                    x: rect.left + 50,
-                    y: rect.bottom + 50,
-                },
-                text: text.to_string_lossy(),
-                font_family: self.cfg.chewing_tsf.font_family.clone(),
-                font_size: self.cfg.chewing_tsf.font_size as f32,
-                fg_color: self.cfg.chewing_tsf.notify_fg_color.clone(),
-                bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
-                border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
-            };
-            let pipe = pipe.try_clone()?;
-            let notification = Notification::new(self.thread_mgr.clone(), pipe, call)?;
-            self.notification = Some(notification);
-        }
+        let rect = self.get_selection_rect(context).unwrap_or_default();
+        let call = ShowNotification {
+            position: Position {
+                x: rect.left + 50,
+                y: rect.bottom + 50,
+            },
+            text: text.to_string_lossy(),
+            font_family: self.cfg.chewing_tsf.font_family.clone(),
+            font_size: self.cfg.chewing_tsf.font_size as f32,
+            fg_color: self.cfg.chewing_tsf.notify_fg_color.clone(),
+            bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
+            border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
+        };
+        let cth_client = self.cth_client.try_clone()?;
+        let notification = Notification::new(self.thread_mgr.clone(), cth_client, call)?;
+        self.notification = Some(notification);
         Ok(())
     }
 
@@ -1142,13 +1130,10 @@ impl ChewingTextService {
             self.hide_candidates();
             return Ok(());
         }
-        let Some(pipe) = &self.pipe else {
-            bail!("Not connected to render server");
-        };
         if self.candidate_list.is_none() {
             let candidate_list = CandidateList::new(
                 self.thread_mgr.clone(),
-                pipe.try_clone()?,
+                self.cth_client.try_clone()?,
                 ShowCandidateList::default(),
             )?;
             self.candidate_list = Some(candidate_list);

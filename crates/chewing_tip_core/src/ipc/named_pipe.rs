@@ -1,4 +1,4 @@
-use std::{fs::File, hash::Hasher, io::Read, path::PathBuf};
+use std::{fs::File, hash::Hasher, io::Read, path::PathBuf, time::Duration};
 
 use exn::{Exn, Result, ResultExt, bail};
 use fnv::FnvHasher;
@@ -12,12 +12,15 @@ use widestring::U16CString;
 use windows::{
     Win32::{
         Foundation::{CloseHandle, MAX_PATH},
-        System::Threading::{
-            OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
-            QueryFullProcessImageNameW,
+        System::{
+            Pipes::WaitNamedPipeW,
+            Threading::{
+                OpenProcess, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
+                QueryFullProcessImageNameW,
+            },
         },
     },
-    core::PWSTR,
+    core::{HSTRING, PWSTR},
 };
 
 use crate::ipc::IpcError;
@@ -69,13 +72,17 @@ pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
 
 /// Connects to the well-known windows-chewing-tsf named pipe and validate the
 /// server executable is signed with a trusted minisign key.
-pub fn connect_and_attest() -> Result<DuplexPipeStream<Bytes>, IpcError> {
-    let pipe_path =
-        named_pipe_path().or_raise(|| IpcError(format!("failed to connect to named pipe")))?;
+pub fn connect_and_attest(
+    pipe_path: &str,
+    timeout: Duration,
+) -> Result<DuplexPipeStream<Bytes>, IpcError> {
     let err = || IpcError(format!("failed to connect to named pipe {pipe_path}"));
 
     debug!("trying to connect to named pipe {pipe_path}");
-    let pipe = DuplexPipeStream::connect_by_path(pipe_path.clone()).or_raise(err)?;
+    unsafe {
+        let _ = WaitNamedPipeW(&HSTRING::from(pipe_path), timeout.as_millis() as u32);
+    }
+    let pipe = DuplexPipeStream::connect_by_path(pipe_path).or_raise(err)?;
 
     let peer_pid = pipe.server_process_id().or_raise(err)?;
     if let Err(error) = attest_server(peer_pid) {

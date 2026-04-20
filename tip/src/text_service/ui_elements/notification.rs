@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use std::{
-    cell::{Cell, RefCell},
-    io::Write,
-};
+use std::cell::Cell;
 
 use anyhow::Result;
-use chewing_tip_core::ipc::{messages::ShowNotification, varlink::MethodCall};
-use interprocess::os::windows::named_pipe::{PipeStream, pipe_mode::Bytes};
+use chewing_tip_core::ipc::{
+    client::ChewingIpcClient, messages::ShowNotification, varlink::MethodCall,
+};
+use exn_anyhow::into_anyhow;
 use log::error;
 use windows::Win32::{
     Foundation::TRUE,
@@ -22,21 +21,21 @@ use windows_core::{
 pub(crate) struct Notification {
     thread_mgr: ITfThreadMgr,
     element_id: Cell<u32>,
-    pipe: RefCell<PipeStream<Bytes, Bytes>>,
+    cth_client: ChewingIpcClient,
     model: ShowNotification,
 }
 
 impl Notification {
     pub(crate) fn new(
         thread_mgr: ITfThreadMgr,
-        pipe: PipeStream<Bytes, Bytes>,
+        cth_client: ChewingIpcClient,
         model: ShowNotification,
     ) -> Result<ComObject<Notification>> {
         let ui_manager: ITfUIElementMgr = thread_mgr.cast()?;
         let notification = Notification {
             thread_mgr,
             element_id: Cell::new(0),
-            pipe: RefCell::new(pipe),
+            cth_client,
             model,
         }
         .into_object();
@@ -64,17 +63,15 @@ impl Notification {
         self.element_id.set(id);
     }
     fn show(&self) -> Result<()> {
-        if let Ok(mut pipe) = self.pipe.try_borrow_mut() {
-            let mut bytes = serde_json::to_vec(&MethodCall {
+        self.cth_client
+            .send(MethodCall {
                 method: ShowNotification::METHOD.to_string(),
                 parameters: serde_json::to_value(&self.model)?,
                 oneway: Some(true),
                 more: None,
                 upgrade: None,
-            })?;
-            bytes.push(0);
-            pipe.write_all(&bytes)?;
-        }
+            })
+            .map_err(into_anyhow)?;
         Ok(())
     }
 }
