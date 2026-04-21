@@ -48,7 +48,7 @@ jobs:
           echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
       - name: Install build dependencies
         run: |
-          sudo dnf -y install clang rustup git sequoia-sqv
+          sudo dnf -y install clang rustup git sequoia-sqv minisign
           rustup-init -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Setup rust targets
@@ -102,6 +102,13 @@ jobs:
           x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
           i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
           x86_64-w64-mingw32-strip build/installer/*.exe
+
+      - name: Sign chewing_tip_host.exe
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+        run: |
+          echo $MINISIGN_KEY > minisign.key
+          minisign -S -m build/installer/chewing_tip_host.exe -s minisign.key
 
       - uses: actions/upload-artifact@v7
         with:
