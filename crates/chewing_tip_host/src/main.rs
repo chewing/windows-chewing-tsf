@@ -3,9 +3,13 @@
 use std::{error::Error, path::PathBuf, thread};
 
 use chewing_tip_core::ipc::named_pipe::{create_pipe_listener, named_pipe_path};
-use log::info;
+use log::{error, info};
 use logforth::record::LevelFilter;
-use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+use windows::Win32::System::{
+    Console::{ATTACH_PARENT_PROCESS, AttachConsole},
+    Recovery::{REGISTER_APPLICATION_RESTART_FLAGS, RegisterApplicationRestart},
+};
+use windows_core::w;
 
 use crate::{ipc::run_ipc_server, ui::event_loop::MainLoop};
 
@@ -22,6 +26,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     logforth::starter_log::stdout()
         .filter(LevelFilter::All)
         .apply();
+
+    info!("Register application for automatic restart");
+    unsafe {
+        if let Err(error) = RegisterApplicationRestart(None, REGISTER_APPLICATION_RESTART_FLAGS(0))
+        {
+            error!("Failed to register application for restart: {error:?}");
+        }
+    }
 
     info!("Create NamedPipe listener");
     let listener = create_pipe_listener().inspect_err(|_| {
