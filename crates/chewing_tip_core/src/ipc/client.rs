@@ -61,8 +61,7 @@ impl ChewingIpcClient {
     fn reconnect(&self) -> Result<(), IpcError> {
         let err = || IpcError(format!("failed reconnecting to chewing_tip_host"));
         let new_client = Self::connect().or_raise(err)?;
-        let mut pipe = self.pipe.try_borrow_mut().or_raise(err)?;
-        *pipe = new_client.pipe.into_inner();
+        self.pipe.swap(&new_client.pipe);
         Ok(())
     }
     pub fn send(&self, method_call: MethodCall) -> Result<MethodReply, IpcError> {
@@ -132,5 +131,11 @@ impl TryClone for ChewingIpcClient {
         Ok(ChewingIpcClient {
             pipe: RefCell::new(pipe.try_clone()?),
         })
+    }
+}
+
+impl Drop for ChewingIpcClient {
+    fn drop(&mut self) {
+        let _ = self.pipe.get_mut().flush();
     }
 }
