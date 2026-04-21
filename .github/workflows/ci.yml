@@ -107,7 +107,7 @@ jobs:
         env:
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
         run: |
-          echo $MINISIGN_KEY > minisign.key
+          echo "$MINISIGN_KEY" > minisign.key
           minisign -S -m build/installer/chewing_tip_host.exe -s minisign.key
 
       - uses: actions/upload-artifact@v7

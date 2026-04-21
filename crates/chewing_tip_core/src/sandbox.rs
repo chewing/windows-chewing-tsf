@@ -62,7 +62,7 @@ pub fn get_token_user_sid_string(token: HANDLE) -> Result<String, SandboxError> 
     }
     unsafe {
         let token_user: *const TOKEN_USER = transmute(buffer.as_ptr());
-        let sid = token_user.as_ref_unchecked().User.Sid;
+        let sid = token_user.as_ref().unwrap().User.Sid;
         let mut sid_string = PWSTR::null();
         ConvertSidToStringSidW(sid, &mut sid_string).or_raise(err)?;
         Ok(sid_string.to_string().or_raise(err)?)
@@ -95,7 +95,7 @@ pub fn get_token_primary_group_sid_string(token: HANDLE) -> Result<String, Sandb
     }
     unsafe {
         let token_primary_group: *const TOKEN_PRIMARY_GROUP = transmute(buffer.as_ptr());
-        let sid = token_primary_group.as_ref_unchecked().PrimaryGroup;
+        let sid = token_primary_group.as_ref().unwrap().PrimaryGroup;
         let mut sid_string = PWSTR::null();
         ConvertSidToStringSidW(sid, &mut sid_string).or_raise(err)?;
         Ok(sid_string.to_string().or_raise(err)?)
