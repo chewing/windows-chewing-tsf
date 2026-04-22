@@ -9,19 +9,21 @@ use chewing_tip_core::ipc::{
     varlink::MethodCall,
 };
 use exn::{Result, ResultExt};
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use windows::Win32::{
-    Foundation::{LPARAM, WPARAM},
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
     UI::WindowsAndMessaging::{
-        DispatchMessageW, GetMessageW, MSG, PM_NOREMOVE, PeekMessageW, PostThreadMessageW,
-        TranslateMessage, WM_APP, WM_CLOSE,
+        CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, HCURSOR, HWND_DESKTOP, MSG,
+        PM_NOREMOVE, PeekMessageW, PostThreadMessageW, RegisterClassExW, TranslateMessage,
+        WINDOW_EX_STYLE, WINDOW_STYLE, WM_APP, WM_CLOSE, WM_ENDSESSION, WM_QUERYENDSESSION,
+        WNDCLASS_STYLES, WNDCLASSEXW,
     },
 };
-use windows_core::HSTRING;
+use windows_core::{HSTRING, PCWSTR, w};
 
 use crate::{
-    ui::{UiError, gfx::color_s, window::window_register_class},
+    ui::{UiError, gfx::color_s},
     ui_elements::{
         candidate_list::{CandidateList, CandidateListModel},
         notification::{Notification, NotificationModel},
@@ -51,7 +53,36 @@ impl MainLoop {
         let hinst = unsafe { GetModuleHandleW(None).unwrap_or_default() };
         let _ = Notification::window_register_class(hinst.into());
         let _ = CandidateList::window_register_class(hinst.into());
-        let _ = window_register_class(hinst.into());
+
+        unsafe {
+            let wc = WNDCLASSEXW {
+                cbSize: size_of::<WNDCLASSEXW>() as u32,
+                style: WNDCLASS_STYLES::default(),
+                lpfnWndProc: Some(wnd_proc),
+                cbClsExtra: 0,
+                cbWndExtra: 0,
+                hInstance: hinst.into(),
+                hCursor: HCURSOR::default(),
+                lpszMenuName: PCWSTR::null(),
+                lpszClassName: w!("ChewingMsgWindow"),
+                ..Default::default()
+            };
+            RegisterClassExW(&wc);
+            let _ = CreateWindowExW(
+                WINDOW_EX_STYLE::default(),
+                w!("ChewingMsgWindow"),
+                w!("ChewingMsgWindow"),
+                WINDOW_STYLE::default(),
+                0,
+                0,
+                1,
+                1,
+                Some(HWND_DESKTOP),
+                None,
+                Some(hinst.into()),
+                None,
+            );
+        }
 
         let notification = Notification::new().expect("failed to create notification window");
         let candidate_list = CandidateList::new().expect("failed to create candidate list window");
@@ -80,16 +111,33 @@ impl MainLoop {
                     self.command_loop();
                     continue;
                 }
-                match msg.message {
-                    WM_CLOSE => {
-                        return;
-                    }
-                    _ => {}
-                }
                 let _ = TranslateMessage(&msg);
                 let _ = DispatchMessageW(&msg);
             }
         }
+    }
+}
+
+pub(crate) extern "system" fn wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    match msg {
+        WM_QUERYENDSESSION if lparam.0 == 1 => {
+            info!("Received WM_QUERYENDSESSION, prepare to shutdown");
+            LRESULT(1)
+        }
+        WM_ENDSESSION if lparam.0 == 1 && wparam.0 == 1 => {
+            info!("Received WM_ENDSESSION, shutting down");
+            std::process::exit(0);
+        }
+        WM_CLOSE => {
+            info!("Received WM_CLOSE, shutting down");
+            std::process::exit(0);
+        }
+        _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
     }
 }
 

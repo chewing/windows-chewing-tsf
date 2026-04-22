@@ -25,23 +25,6 @@ impl Window {
     }
 }
 
-pub(crate) fn window_register_class(hinst: HINSTANCE) -> bool {
-    let wc = WNDCLASSEXW {
-        cbSize: size_of::<WNDCLASSEXW>() as u32,
-        style: CS_IME,
-        lpfnWndProc: Some(wnd_proc),
-        cbClsExtra: 0,
-        cbWndExtra: 0,
-        hInstance: hinst,
-        hCursor: unsafe { LoadCursorW(None, IDC_ARROW).unwrap_or_default() },
-        lpszMenuName: PCWSTR::null(),
-        lpszClassName: w!("chewing_tip"),
-        ..Default::default()
-    };
-
-    unsafe { RegisterClassExW(&wc) > 0 }
-}
-
 pub(crate) extern "system" fn wnd_proc(
     hwnd: HWND,
     msg: u32,
