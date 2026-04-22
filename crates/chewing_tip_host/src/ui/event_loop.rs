@@ -15,7 +15,7 @@ use windows::Win32::{
     System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
     UI::WindowsAndMessaging::{
         DispatchMessageW, GetMessageW, MSG, PM_NOREMOVE, PeekMessageW, PostThreadMessageW,
-        TranslateMessage, WM_APP,
+        TranslateMessage, WM_APP, WM_CLOSE,
     },
 };
 use windows_core::HSTRING;
@@ -79,6 +79,12 @@ impl MainLoop {
                 if msg.hwnd.is_invalid() && msg.message == PM_APP_COMMAND {
                     self.command_loop();
                     continue;
+                }
+                match msg.message {
+                    WM_CLOSE => {
+                        return;
+                    }
+                    _ => {}
                 }
                 let _ = TranslateMessage(&msg);
                 let _ = DispatchMessageW(&msg);
