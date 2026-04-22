@@ -5,11 +5,13 @@ use std::{error::Error, path::PathBuf, thread};
 use chewing_tip_core::ipc::named_pipe::{create_pipe_listener, named_pipe_path};
 use log::{error, info};
 use logforth::record::LevelFilter;
-use windows::Win32::System::{
-    Console::{ATTACH_PARENT_PROCESS, AttachConsole},
-    Recovery::{REGISTER_APPLICATION_RESTART_FLAGS, RegisterApplicationRestart},
+use windows::Win32::{
+    System::{
+        Console::{ATTACH_PARENT_PROCESS, AttachConsole},
+        Recovery::{REGISTER_APPLICATION_RESTART_FLAGS, RegisterApplicationRestart},
+    },
+    UI::HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext},
 };
-use windows_core::w;
 
 use crate::{ipc::run_ipc_server, ui::event_loop::MainLoop};
 
@@ -32,6 +34,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Err(error) = RegisterApplicationRestart(None, REGISTER_APPLICATION_RESTART_FLAGS(0))
         {
             error!("Failed to register application for restart: {error:?}");
+        }
+    }
+    info!("Declare the application is DPI aware");
+    unsafe {
+        if let Err(error) =
+            SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
+        {
+            error!("Failed to set process DPI awareness context: {error:?}");
         }
     }
 
