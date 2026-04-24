@@ -29,7 +29,6 @@ use chewing::zhuyin::Syllable;
 use chewing_tip_core::ipc::client::ChewingIpcClient;
 use chewing_tip_core::ipc::messages::{Position, ShowCandidateList, ShowNotification};
 use exn_anyhow::into_anyhow;
-use interprocess::TryClone;
 use log::{debug, error, info};
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -1115,7 +1114,7 @@ impl ChewingTextService {
             bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
             border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
         };
-        let cth_client = self.cth_client.try_clone()?;
+        let cth_client = self.cth_client.clone();
         let notification = Notification::new(self.thread_mgr.clone(), cth_client, call)?;
         self.notification = Some(notification);
         Ok(())
@@ -1135,7 +1134,7 @@ impl ChewingTextService {
         if self.candidate_list.is_none() {
             let candidate_list = CandidateList::new(
                 self.thread_mgr.clone(),
-                self.cth_client.try_clone()?,
+                self.cth_client.clone(),
                 ShowCandidateList::default(),
             )?;
             self.candidate_list = Some(candidate_list);

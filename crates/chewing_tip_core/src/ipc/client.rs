@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     io::{BufRead, BufReader, Write},
+    rc::Rc,
     thread,
     time::Duration,
 };
@@ -20,48 +21,57 @@ use crate::{
     shell::open_url,
 };
 
+#[derive(Clone)]
 pub struct ChewingIpcClient {
-    pipe: RefCell<DuplexPipeStream<Bytes>>,
+    pipe: Rc<RefCell<DuplexPipeStream<Bytes>>>,
 }
 
 impl ChewingIpcClient {
     pub fn connect() -> Result<ChewingIpcClient, IpcError> {
+        let pipe = ChewingIpcClient::connect_pipe()?;
+        Ok(ChewingIpcClient {
+            pipe: Rc::new(RefCell::new(pipe)),
+        })
+    }
+    fn connect_pipe() -> Result<DuplexPipeStream<Bytes>, IpcError> {
         let err = || IpcError(format!("unable to connect to chewing_tip_host"));
         let pipe_path = named_pipe_path().or_raise(err)?;
 
         let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
         if let Ok(pipe) = res {
-            return Ok(ChewingIpcClient {
-                pipe: RefCell::new(pipe),
-            });
+            return Ok(pipe);
         }
         let error = res.unwrap_err();
         log::error!("Failed to connect to chewing_tip_host...");
         log::error!("{error:?}");
         log::error!("Trying to launch chewing_tip_host and retry...");
         open_url("chewing-tip-host://init");
-        thread::sleep(Duration::from_millis(500));
-        let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
-        if let Ok(pipe) = res {
-            return Ok(ChewingIpcClient {
-                pipe: RefCell::new(pipe),
-            });
+        for _ in 0..5 {
+            thread::sleep(Duration::from_millis(100));
+            let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
+            if let Ok(pipe) = res {
+                return Ok(pipe);
+            }
         }
         log::error!("Failed to connect to chewing_tip_host...");
         log::error!("{error:?}");
         log::error!("Trying to launch chewing_tip_host and retry...");
         open_url("chewing-tip-host://init");
-        thread::sleep(Duration::from_millis(1000));
+        for _ in 0..10 {
+            thread::sleep(Duration::from_millis(100));
+            let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
+            if let Ok(pipe) = res {
+                return Ok(pipe);
+            }
+        }
         // FIXME
-        let pipe = connect_and_attest(&pipe_path, Duration::from_millis(100)).or_raise(err)?;
-        Ok(ChewingIpcClient {
-            pipe: RefCell::new(pipe),
-        })
+        Ok(connect_and_attest(&pipe_path, Duration::from_millis(100)).or_raise(err)?)
     }
     fn reconnect(&self) -> Result<(), IpcError> {
         let err = || IpcError(format!("failed reconnecting to chewing_tip_host"));
-        let new_client = Self::connect().or_raise(err)?;
-        self.pipe.swap(&new_client.pipe);
+        let pipe = Self::connect_pipe().or_raise(err)?;
+        self.pipe.borrow().assume_flushed();
+        self.pipe.replace(pipe);
         Ok(())
     }
     pub fn send(&self, method_call: MethodCall) -> Result<MethodReply, IpcError> {
@@ -73,7 +83,8 @@ impl ChewingIpcClient {
         };
         let mut bytes = serde_json::to_vec(&method_call).or_raise(err)?;
         bytes.push(0);
-        if let Err(error) = self.pipe.try_borrow_mut().or_raise(err)?.write_all(&bytes) {
+        let write_result = self.pipe.try_borrow_mut().or_raise(err)?.write_all(&bytes);
+        if let Err(error) = write_result {
             log::error!("Error calling ipc method: {}", &method_call.method);
             log::error!("{error:?}");
             log::error!("Retrying...");
@@ -121,21 +132,8 @@ impl ChewingIpcClient {
     }
 }
 
-impl TryClone for ChewingIpcClient {
-    fn try_clone(&self) -> std::io::Result<Self> {
-        let Ok(pipe) = self.pipe.try_borrow() else {
-            return Err(std::io::Error::other(
-                "internal pipe is already mutably borrowed elsewhere",
-            ));
-        };
-        Ok(ChewingIpcClient {
-            pipe: RefCell::new(pipe.try_clone()?),
-        })
-    }
-}
-
 impl Drop for ChewingIpcClient {
     fn drop(&mut self) {
-        let _ = self.pipe.get_mut().flush();
+        let _ = self.pipe.borrow_mut().flush();
     }
 }
