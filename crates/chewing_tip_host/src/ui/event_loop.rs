@@ -5,7 +5,7 @@ use std::{
 };
 
 use chewing_tip_core::ipc::{
-    messages::{HideCandidateList, ShowCandidateList, ShowNotification},
+    messages::{HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::MethodCall,
 };
 use exn::{Result, ResultExt};
@@ -164,6 +164,9 @@ impl MainLoop {
         for cmd in self.receiver.try_iter() {
             // TODO skip duplicate command types
             debug!("handle an IPC command {cmd:?} in the main loop");
+            if cmd.method == Stop::METHOD {
+                std::process::exit(0);
+            }
             if let Err(error) = self.process(cmd) {
                 error!("{error:?}");
             }
