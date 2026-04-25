@@ -13,8 +13,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       nightly: true
-    secrets:
-      MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+    secrets: inherit
   code-signing:
     needs: [nightly-build]
     uses: ./.github/workflows/code-signing.yml
