@@ -7,8 +7,10 @@ use std::{
 };
 
 use logforth::record::{Level, LevelFilter};
-use windows::Win32::System::Com::{CoLockObjectExternal, IClassFactory, IClassFactory_Impl};
-use windows::Win32::System::Console::AllocConsole;
+use windows::Win32::System::{
+    Com::{CoLockObjectExternal, IClassFactory, IClassFactory_Impl},
+    Console::{ATTACH_PARENT_PROCESS, AttachConsole},
+};
 use windows::Win32::{Foundation::TRUE, System::SystemServices::DLL_PROCESS_ATTACH};
 use windows::core::{
     BOOL, ComObjectInner, ComObjectInterface, GUID, HRESULT, IUnknown, Interface, Ref, Result,
@@ -34,7 +36,7 @@ extern "system" fn DllMain(
             G_HINSTANCE.store(hmodule as usize, Ordering::Relaxed);
             if logging::is_debugger_present() {
                 unsafe {
-                    let _ = AllocConsole();
+                    let _ = AttachConsole(ATTACH_PARENT_PROCESS);
                 }
             }
             logforth::starter_log::builder()
