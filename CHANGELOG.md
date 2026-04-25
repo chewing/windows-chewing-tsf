@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 26.7.1.0 - Unreleased
+
+### 🐛 Bug Fixes
+
+- tip: fix commit buffer racing in LINE or other Imm32 only applications
+
 ## 26.4.1.0 - 2026-04-11
 
 ### 🚀 Features
