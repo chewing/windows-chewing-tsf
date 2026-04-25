@@ -7,8 +7,8 @@ use std::{
 };
 
 use log::error;
-use windows::Win32::{Foundation::*, UI::HiDpi::SetThreadDpiAwarenessContext};
-use windows::Win32::{Graphics::Gdi::*, UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
+use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::{System::LibraryLoader::GetModuleHandleW, UI::WindowsAndMessaging::*};
 use windows::core::*;
 
@@ -67,12 +67,7 @@ impl Window {
                     return false;
                 }
             };
-            // Switch to DPI aware context. Window HWND created after this will
-            // inherit the setting and become DPI aware independent of the host
-            // application's setting.
-            let old_context =
-                SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-            let dpi_aware_hwnd = CreateWindowExW(
+            let hwnd = CreateWindowExW(
                 ex_style,
                 class_name,
                 None,
@@ -86,10 +81,7 @@ impl Window {
                 Some(hinst.into()),
                 Some(user_data),
             );
-            // Restore previous DPI context so we don't interfere with the
-            // host application.
-            SetThreadDpiAwarenessContext(old_context);
-            dpi_aware_hwnd
+            hwnd
         };
         match hwnd {
             Ok(hwnd) => {
@@ -103,51 +95,9 @@ impl Window {
         }
     }
 
-    pub(crate) fn set_position(&self, mut x: c_int, mut y: c_int) {
-        let mut w = 0;
-        let mut h = 0;
-        self.size(&mut w, &mut h);
-
-        let mut rc = RECT {
-            left: x,
-            top: y,
-            right: x + w,
-            bottom: y + h,
-        };
-
-        // ensure that the window does not fall outside of the screen.
-        let monitor = unsafe { MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST) };
-        let mut mi = MONITORINFO {
-            cbSize: size_of::<MONITORINFO>() as u32,
-            ..Default::default()
-        };
+    pub(crate) fn set_position(&self, x: c_int, y: c_int) {
         unsafe {
-            if GetMonitorInfoW(monitor, &mut mi).as_bool() {
-                rc = mi.rcWork;
-            }
-        }
-
-        if x < rc.left {
-            x = rc.left;
-        } else if (x + w) > rc.right {
-            x = rc.right - w;
-        }
-
-        if y < rc.top {
-            y = rc.top;
-        } else if (y + h) > rc.bottom {
-            y = rc.bottom - h;
-        }
-
-        let _ = unsafe { MoveWindow(self.hwnd(), x, y, w, h, true) };
-    }
-
-    pub(crate) fn size(&self, width: *mut c_int, height: *mut c_int) {
-        let mut rc = RECT::default();
-        unsafe {
-            let _ = GetWindowRect(self.hwnd(), &mut rc);
-            width.write(rc.right - rc.left);
-            height.write(rc.bottom - rc.top);
+            let _ = SetWindowPos(self.hwnd(), None, x, y, 0, 0, SWP_SHOWWINDOW);
         }
     }
 

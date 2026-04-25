@@ -5,7 +5,7 @@ use std::{cell::RefCell, fmt::Debug, rc::Rc, time::Duration};
 
 use exn::{Result, ResultExt};
 use windows::Win32::{
-    Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
+    Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::{
         Direct2D::{
             Common::{D2D_RECT_F, D2D1_COLOR_F},
@@ -35,8 +35,8 @@ use windows_core::{HSTRING, PCWSTR, w};
 use crate::ui::{
     UiError,
     gfx::{
-        create_render_target, create_swapchain, create_swapchain_bitmap, d3d11_device,
-        get_dpi_for_window, get_scale_for_window, setup_direct_composition,
+        clamp_point_to_monitor, create_render_target, create_swapchain, create_swapchain_bitmap,
+        d3d11_device, get_dpi_for_point, get_dpi_for_window, setup_direct_composition,
     },
     message_box::draw_message_box,
     window::Window,
@@ -60,12 +60,6 @@ pub(crate) struct NotificationModel {
     pub(crate) border_color: D2D1_COLOR_F,
 }
 
-trait View: Debug {
-    fn window(&self) -> &Window;
-    fn calculate_client_rect(&self, model: &NotificationModel) -> Result<RenderedMetrics, UiError>;
-    fn on_paint(&self, model: &NotificationModel) -> Result<(), UiError>;
-}
-
 extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let get_this = || unsafe {
         let this_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Notification;
@@ -85,15 +79,16 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
             LRESULT(0)
         }
         WM_WINDOWPOSCHANGING => {
-            let this = get_this();
-            let view = this.view.borrow();
-            // Recalculate the client rect
-            let model = this.model.borrow();
-            if let Ok(metrics) = view.calculate_client_rect(&model) {
-                let pos = lparam.0 as *mut WINDOWPOS;
-                unsafe {
-                    (*pos).cx = metrics.hw_width as i32;
-                    (*pos).cy = metrics.hw_height as i32;
+            let pos = lparam.0 as *mut WINDOWPOS;
+            if let Some(pos) = unsafe { pos.as_mut() } {
+                let this = get_this();
+                let view = this.view.borrow();
+                let model = this.model.borrow();
+                let dpi = get_dpi_for_point(POINT { x: pos.x, y: pos.y });
+                if let Ok(size) = view.calculate_client_rect(&model, dpi) {
+                    pos.cx = size.hw_width as i32;
+                    pos.cy = size.hw_height as i32;
+                    (pos.x, pos.y) = clamp_point_to_monitor(pos.x, pos.y, pos.cx, pos.cy);
                 }
             }
             LRESULT(0)
@@ -152,7 +147,7 @@ impl RenderedView {
             let swapchain = create_swapchain(&device, 10, 10).or_raise(err)?;
             let dpi = get_dpi_for_window(window.hwnd());
             target.SetDpi(dpi, dpi);
-            create_swapchain_bitmap(&swapchain, &target, dpi).or_raise(err)?;
+            create_swapchain_bitmap(&swapchain, &target).or_raise(err)?;
             let dcomptarget =
                 setup_direct_composition(&device, window.hwnd(), &swapchain).or_raise(err)?;
             Ok(RenderedView {
@@ -167,14 +162,18 @@ impl RenderedView {
     }
 }
 
-impl View for RenderedView {
+impl RenderedView {
     fn window(&self) -> &Window {
         &self.window
     }
-    fn calculate_client_rect(&self, model: &NotificationModel) -> Result<RenderedMetrics, UiError> {
+    fn calculate_client_rect(
+        &self,
+        model: &NotificationModel,
+        dpi: f32,
+    ) -> Result<RenderedMetrics, UiError> {
         let err = || UiError(format!("failed to calculate client area"));
 
-        let scale = get_scale_for_window(self.window.hwnd());
+        let scale = dpi / 96.0;
         let text_format = unsafe {
             self.dwrite_factory
                 .CreateTextFormat(
@@ -232,12 +231,13 @@ impl View for RenderedView {
                 .or_raise(err)?
         };
 
+        let dpi = get_dpi_for_window(self.window.hwnd());
         let RenderedMetrics {
             width,
             height,
             hw_width,
             hw_height,
-        } = self.calculate_client_rect(model).or_raise(err)?;
+        } = self.calculate_client_rect(model, dpi).or_raise(err)?;
         unsafe {
             self.target.SetTarget(None);
             self.swapchain
@@ -249,12 +249,9 @@ impl View for RenderedView {
                     DXGI_SWAP_CHAIN_FLAG(0),
                 )
                 .or_raise(err)?;
-        }
-        let dpi = get_dpi_for_window(self.window.hwnd());
-        unsafe {
             self.target.SetDpi(dpi, dpi);
         }
-        create_swapchain_bitmap(&self.swapchain, &self.target, dpi).or_raise(err)?;
+        create_swapchain_bitmap(&self.swapchain, &self.target).or_raise(err)?;
 
         // Begin drawing
         let dc = &self.target;

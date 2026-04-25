@@ -4,7 +4,6 @@
 use std::{cell::RefCell, ops::Div, rc::Rc};
 
 use exn::{Result, ResultExt};
-use log::debug;
 use windows::Win32::{
     Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::{
@@ -22,10 +21,7 @@ use windows::Win32::{
         Dxgi::{
             Common::DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG, IDXGISwapChain1,
         },
-        Gdi::{
-            BeginPaint, EndPaint, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO,
-            MonitorFromPoint, PAINTSTRUCT,
-        },
+        Gdi::{BeginPaint, EndPaint, PAINTSTRUCT},
     },
     UI::WindowsAndMessaging::{
         CS_IME, GWLP_USERDATA, GetWindowLongPtrW, HWND_DESKTOP, IDC_ARROW, LoadCursorW,
@@ -38,8 +34,8 @@ use windows_core::{HSTRING, PCWSTR, w};
 use crate::ui::{
     UiError,
     gfx::{
-        create_render_target, create_swapchain, create_swapchain_bitmap, d3d11_device,
-        get_dpi_for_window, get_scale_for_window, setup_direct_composition,
+        clamp_point_to_monitor, create_render_target, create_swapchain, create_swapchain_bitmap,
+        d3d11_device, get_dpi_for_point, get_dpi_for_window, setup_direct_composition,
     },
     message_box::draw_message_box,
     window::Window,
@@ -76,13 +72,6 @@ pub(crate) struct CandidateListModel {
 //     NotHandled,
 // }
 
-trait View {
-    fn window(&self) -> &Window;
-    fn calculate_client_rect(&self, model: &CandidateListModel)
-    -> Result<RenderedMetrics, UiError>;
-    fn on_paint(&self, model: &CandidateListModel) -> Result<(), UiError>;
-}
-
 extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let get_this = || unsafe {
         let this_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const CandidateList;
@@ -102,16 +91,16 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
             LRESULT(0)
         }
         WM_WINDOWPOSCHANGING => {
-            let this = get_this();
-            let view = this.view.borrow();
-            // Recalculate the client rect
-            let model = this.model.borrow();
-            if let Ok(metrics) = view.calculate_client_rect(&model) {
-                debug!("calculat client rect wndproc: {metrics:?}");
-                let pos = lparam.0 as *mut WINDOWPOS;
-                unsafe {
-                    (*pos).cx = metrics.hw_width as i32;
-                    (*pos).cy = metrics.hw_height as i32;
+            let pos = lparam.0 as *mut WINDOWPOS;
+            if let Some(pos) = unsafe { pos.as_mut() } {
+                let this = get_this();
+                let view = this.view.borrow();
+                let model = this.model.borrow();
+                let dpi = get_dpi_for_point(POINT { x: pos.x, y: pos.y });
+                if let Ok(size) = view.calculate_client_rect(&model, dpi) {
+                    pos.cx = size.hw_width as i32;
+                    pos.cy = size.hw_height as i32;
+                    (pos.x, pos.y) = clamp_point_to_monitor(pos.x, pos.y, pos.cx, pos.cy);
                 }
             }
             LRESULT(0)
@@ -161,9 +150,7 @@ impl RenderedView {
             let device = d3d11_device().or_raise(err)?;
             let target = create_render_target(&factory, &device).or_raise(err)?;
             let swapchain = create_swapchain(&device, 10, 10).or_raise(err)?;
-            let dpi = get_dpi_for_window(window.hwnd());
-            target.SetDpi(dpi, dpi);
-            create_swapchain_bitmap(&swapchain, &target, dpi).or_raise(err)?;
+            create_swapchain_bitmap(&swapchain, &target).or_raise(err)?;
             let dcomptarget =
                 setup_direct_composition(&device, window.hwnd(), &swapchain).or_raise(err)?;
             Ok(RenderedView {
@@ -181,18 +168,19 @@ impl RenderedView {
 const ROW_SPACING: f32 = 4.0;
 const COL_SPACING: f32 = 8.0;
 
-impl View for RenderedView {
+impl RenderedView {
     fn window(&self) -> &Window {
         &self.window
     }
     fn calculate_client_rect(
         &self,
         model: &CandidateListModel,
+        dpi: f32,
     ) -> Result<RenderedMetrics, UiError> {
         let err = || UiError(format!("failed to calculate client area"));
 
         // Create a text format for the candidate list
-        let scale = get_scale_for_window(self.window.hwnd());
+        let scale = dpi / 96.0;
         let text_format = unsafe {
             self.dwrite_factory
                 .CreateTextFormat(
@@ -323,8 +311,8 @@ impl View for RenderedView {
                 .or_raise(err)?
         };
 
-        let rm = self.calculate_client_rect(model).or_raise(err)?;
-        debug!("calculat client rect on_paint: {rm:?}");
+        let dpi = get_dpi_for_window(self.window.hwnd());
+        let rm = self.calculate_client_rect(model, dpi).or_raise(err)?;
         let RenderedMetrics {
             width,
             height,
@@ -345,12 +333,9 @@ impl View for RenderedView {
                     DXGI_SWAP_CHAIN_FLAG(0),
                 )
                 .or_raise(err)?;
-        }
-        let dpi = get_dpi_for_window(self.window.hwnd());
-        unsafe {
             self.target.SetDpi(dpi, dpi);
         }
-        create_swapchain_bitmap(&self.swapchain, &self.target, dpi).or_raise(err)?;
+        create_swapchain_bitmap(&self.swapchain, &self.target).or_raise(err)?;
 
         // Begin drawing
         let dc = &self.target;
@@ -596,23 +581,9 @@ impl CandidateList {
     //     let sel = self.current_sel();
     //     self.model.borrow().items[sel].clone()
     // }
-    pub(crate) fn set_position(&self, mut x: i32, mut y: i32) {
+    pub(crate) fn set_position(&self, x: i32, y: i32) {
         let view = self.view.borrow();
         let window = view.window();
-        let hmonitor = unsafe { MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONEAREST) };
-        let mut monitor_info = MONITORINFO {
-            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-            ..Default::default()
-        };
-        let has_monitor_info = unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info) };
-        if has_monitor_info.as_bool()
-            && let Ok(size) = view.calculate_client_rect(&self.model.borrow())
-        {
-            // constraint window to screen
-            debug!("calculate client rect set_pos: {size:?}");
-            x = x.min(monitor_info.rcMonitor.right - size.hw_width as i32 - 10);
-            y = y.min(monitor_info.rcMonitor.bottom - size.hw_height as i32 - 10);
-        }
         window.set_position(x, y);
     }
     pub(crate) fn show(&self) {

@@ -14,6 +14,11 @@ use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::DirectComposition::*;
 use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
+use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
+use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use windows::Win32::Graphics::Gdi::MONITORINFO;
+use windows::Win32::Graphics::Gdi::MonitorFromPoint;
+use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::UI::HiDpi::*;
 use windows::core::Interface;
 
@@ -82,13 +87,8 @@ pub(crate) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2, G
 pub(crate) fn create_swapchain_bitmap(
     swapchain: &IDXGISwapChain1,
     target: &ID2D1DeviceContext,
-    dpi: f32,
 ) -> Result<(), GfxError> {
-    let err = || {
-        GfxError(format!(
-            "failed to create new swapchain bitmap with dpi {dpi}"
-        ))
-    };
+    let err = || GfxError(format!("failed to create new swapchain bitmap with dpi"));
     let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0).or_raise(err)? };
 
     let props = D2D1_BITMAP_PROPERTIES1 {
@@ -96,8 +96,6 @@ pub(crate) fn create_swapchain_bitmap(
             format: DXGI_FORMAT_B8G8R8A8_UNORM,
             alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
         },
-        dpiX: dpi,
-        dpiY: dpi,
         bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
         ..Default::default()
     };
@@ -169,13 +167,46 @@ pub(crate) fn setup_direct_composition(
 
 pub(crate) fn get_dpi_for_window(hwnd: HWND) -> f32 {
     unsafe {
-        let dpi = GetDpiForWindow(hwnd);
-        if dpi == 0 { 96.0 } else { dpi as f32 }
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        let mut dpi_x = 96;
+        let mut dpi_y = 96;
+        let _ = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
+        dpi_x as f32
     }
 }
 
-pub(crate) fn get_scale_for_window(hwnd: HWND) -> f32 {
-    get_dpi_for_window(hwnd) / 96.0
+pub(crate) fn get_dpi_for_point(point: POINT) -> f32 {
+    unsafe {
+        let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
+        let mut dpi_x = 96;
+        let mut dpi_y = 96;
+        let _ = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
+        dpi_x as f32
+    }
+}
+
+pub(crate) fn clamp_point_to_monitor(mut x: i32, mut y: i32, w: i32, h: i32) -> (i32, i32) {
+    // Ensure that the window does not fall outside of the screen.
+    let monitor = unsafe { MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONEAREST) };
+    let mut mi = MONITORINFO {
+        cbSize: size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    // Reinitialize rectangle if we can get the monitor bound
+    unsafe {
+        if GetMonitorInfoW(monitor, &mut mi).as_bool() {
+            let rc = mi.rcWork;
+            x = x.clamp(rc.left, rc.right - w);
+            if x + w > rc.right {
+                x = x.saturating_sub(w);
+            }
+            if y + h > rc.bottom {
+                y = y.saturating_sub(h + 10);
+            }
+        }
+    }
+
+    (x, y)
 }
 
 pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
