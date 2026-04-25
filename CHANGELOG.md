@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 26.7.1.0 - Unreleased
 
+### 🐛 Bug Fixes
+
+- tip: fix commit buffer racing in LINE or other Imm32 only applications
+
 ### 🚜 Refactor
 
 - tip: use separate process for UI rendering
