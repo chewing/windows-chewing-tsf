@@ -41,9 +41,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
 use windows::Win32::UI::TextServices::{
     GUID_COMPARTMENT_EMPTYCONTEXT, GUID_COMPARTMENT_KEYBOARD_DISABLED,
     GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, ITfCompartmentMgr, ITfCompositionSink,
-    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNCDONTCARE, TF_ES_READ,
-    TF_ES_READWRITE, TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT,
-    TF_LS_SOLID, TF_SD_READONLY,
+    ITfContext, TF_ATTR_INPUT, TF_DISPLAYATTRIBUTE, TF_ES_ASYNC, TF_ES_READ, TF_ES_READWRITE,
+    TF_ES_SYNC, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU, TF_LS_DOT, TF_LS_SOLID,
+    TF_SD_READONLY,
 };
 use windows::Win32::UI::TextServices::{
     ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
@@ -147,8 +147,9 @@ impl PartialEq<LanguageMode> for TsfLangMode {
     }
 }
 
-pub(super) struct CommitString {
-    pub(super) text: HSTRING,
+pub(super) struct CompositionString {
+    pub(super) commit: String,
+    pub(super) preedit: String,
     pub(super) segments: Vec<(usize, usize)>,
     pub(super) cursor: usize,
 }
@@ -180,7 +181,7 @@ pub(super) struct ChewingTextService {
     notification: Option<ComObject<Notification>>,
     candidate_list: Option<ComObject<CandidateList>>,
     composition: Rc<RefCell<Option<ITfComposition>>>,
-    pending_edit: Weak<RefCell<CommitString>>,
+    pending_edit: Weak<RefCell<CompositionString>>,
 }
 
 impl ChewingTextService {
@@ -703,19 +704,18 @@ impl ChewingTextService {
 
         debug!("updated candidates");
 
-        if last_behavior == EditorKeyBehavior::Commit {
-            let mut text = self.chewing_editor.display_commit().to_owned();
+        let commit = if last_behavior == EditorKeyBehavior::Commit {
+            let mut commit = self.chewing_editor.display_commit().to_owned();
             self.chewing_editor.ack();
             if let Some(param) = text_action {
-                text.push_str(&param);
+                commit.push_str(&param);
             }
-            debug!(text; "commit string");
-            self.set_composition_string(context, &text, vec![], 0)?;
-            self.end_composition(context)?;
-            debug!("commit string ok");
-        }
+            commit
+        } else {
+            String::new()
+        };
 
-        self.update_preedit(context)?;
+        self.update_preedit(context, commit)?;
 
         if !self.chewing_editor.notification().is_empty() {
             let msg = HSTRING::from(self.chewing_editor.notification());
@@ -880,9 +880,9 @@ impl ChewingTextService {
             self.sync_lang_mode(false)?;
             if self.is_composing() && self.lang_mode.get().is_disabled() {
                 self.chewing_editor.commit()?;
-                let text = self.chewing_editor.display_commit().to_owned();
+                let commit = self.chewing_editor.display_commit().to_owned();
                 self.chewing_editor.ack();
-                debug!(text; "commit string");
+                debug!(commit; "commit string");
                 unsafe {
                     let doc_mgr = self
                         .thread_mgr
@@ -891,7 +891,7 @@ impl ChewingTextService {
                     let context = doc_mgr
                         .GetTop()
                         .context("failed to get current ITfContext")?;
-                    self.set_composition_string(&context, &text, vec![], 0)?;
+                    self.set_composition_string(&context, &commit, "", vec![], 0)?;
                     self.end_composition(&context)?;
                 }
                 debug!("commit string ok");
@@ -971,7 +971,7 @@ impl ChewingTextService {
         }
     }
 
-    fn update_preedit(&mut self, context: &ITfContext) -> Result<()> {
+    fn update_preedit(&mut self, context: &ITfContext, commit: String) -> Result<()> {
         let mut composition_buf = String::new();
         let mut segments = vec![];
         let cursor = self.chewing_editor.cursor();
@@ -1000,11 +1000,11 @@ impl ChewingTextService {
 
         // has something in composition buffer
         if !composition_buf.is_empty() {
-            self.set_composition_string(context, &composition_buf, segments, cursor)?;
+            self.set_composition_string(context, &commit, &composition_buf, segments, cursor)?;
         } else {
             // nothing left in composition buffer, terminate composition status
             if self.is_composing() {
-                self.set_composition_string(context, "", vec![], 0)?;
+                self.set_composition_string(context, &commit, "", vec![], 0)?;
             }
             // We also need to make sure that the candidate window is not
             // currently shown. When typing symbols with ` key, it's possible
@@ -1025,7 +1025,7 @@ impl ChewingTextService {
             context,
             self.tid,
             session.as_interface(),
-            TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+            TF_ES_ASYNC | TF_ES_READWRITE,
         );
         Ok(())
     }
@@ -1039,7 +1039,7 @@ impl ChewingTextService {
             context,
             self.tid,
             session.as_interface(),
-            TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+            TF_ES_ASYNC | TF_ES_READWRITE,
         );
         Ok(())
     }
@@ -1047,26 +1047,34 @@ impl ChewingTextService {
     fn set_composition_string(
         &mut self,
         context: &ITfContext,
-        text: &str,
+        commit: &str,
+        preedit: &str,
         segments: Vec<(usize, usize)>,
         cursor: usize,
     ) -> Result<()> {
-        debug!(text; "set composition string");
-        let htext = if self.output_simp_chinese {
-            zhconv(text, Variant::ZhHans).into()
+        debug!(commit, preedit; "set composition string");
+        let commit = if self.output_simp_chinese {
+            zhconv(commit, Variant::ZhHans).into()
         } else {
-            text.into()
+            commit.into()
+        };
+        let preedit = if self.output_simp_chinese {
+            zhconv(preedit, Variant::ZhHans).into()
+        } else {
+            preedit.into()
         };
         if let Some(cell) = self.pending_edit.upgrade() {
-            debug!(cursor, htext:%; "Reuse existing edit session");
-            cell.replace(CommitString {
-                text: htext,
+            debug!(cursor, preedit:%; "Reuse existing edit session");
+            cell.replace(CompositionString {
+                commit,
+                preedit,
                 segments,
                 cursor,
             });
         } else {
-            let pending = Rc::new(RefCell::new(CommitString {
-                text: htext,
+            let pending = Rc::new(RefCell::new(CompositionString {
+                commit,
+                preedit,
                 segments,
                 cursor,
             }));
@@ -1083,7 +1091,7 @@ impl ChewingTextService {
                 context,
                 self.tid,
                 session.as_interface(),
-                TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
+                TF_ES_ASYNC | TF_ES_READWRITE,
             );
         }
         Ok(())

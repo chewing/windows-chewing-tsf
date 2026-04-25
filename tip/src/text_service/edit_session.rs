@@ -19,7 +19,7 @@ use windows::Win32::UI::TextServices::{
 };
 use windows_core::{BOOL, HSTRING, Interface, Param, Result, implement};
 
-use super::chewing::CommitString;
+use super::chewing::CompositionString;
 
 pub(crate) fn request_edit_session(
     context: &ITfContext,
@@ -89,7 +89,7 @@ pub(super) struct SetCompositionString {
     composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
     da_atom: [VARIANT; 2],
-    pending: Rc<RefCell<CommitString>>,
+    pending: Rc<RefCell<CompositionString>>,
 }
 
 impl SetCompositionString {
@@ -98,7 +98,7 @@ impl SetCompositionString {
         composition: Rc<RefCell<Option<ITfComposition>>>,
         composition_sink: ITfCompositionSink,
         da_atom: [VARIANT; 2],
-        pending: Rc<RefCell<CommitString>>,
+        pending: Rc<RefCell<CompositionString>>,
     ) -> SetCompositionString {
         Self {
             context,
@@ -130,13 +130,24 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
             if let Some(composition) = self.composition.borrow().as_ref() {
                 let pending = self.pending.borrow();
                 let range = composition.GetRange()?;
-                debug!(range:?, text:?=pending.text; "set composition string");
-                if let Err(error) = range.SetText(ec, 0, &pending.text) {
+                debug!(range:?, commit=pending.commit, preedit=pending.preedit; "set composition string");
+                let text = HSTRING::from(format!("{}{}", pending.commit, pending.preedit));
+                // Set text then shift the range to commit the string.
+                // It seems Cicero doesn't handle multiple edit session very well, so we do
+                // the commit and update composition in one single transaction.
+                if let Err(error) = range.SetText(ec, 0, &text) {
                     error!("set composition string failed: {error}");
                 }
+                let mut moved = 0;
+                range.ShiftStart(
+                    ec,
+                    pending.commit.chars().count() as i32,
+                    &mut moved,
+                    ptr::null(),
+                )?;
+                composition.ShiftStart(ec, &range)?;
                 let disp_attr_prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
                 let mut atoms = self.da_atom.iter().cycle();
-                let mut moved = 0;
                 for seg in &pending.segments {
                     let segment_range = range.Clone()?;
                     segment_range.Collapse(ec, TF_ANCHOR_START)?;
