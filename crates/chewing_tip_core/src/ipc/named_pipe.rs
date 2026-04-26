@@ -1,4 +1,11 @@
-use std::{fs::File, hash::Hasher, io::Read, path::PathBuf, time::Duration};
+use std::{
+    ffi::OsStr,
+    hash::Hasher,
+    iter::once,
+    os::windows::ffi::OsStrExt,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use exn::{Exn, Result, ResultExt, bail};
 use fnv::FnvHasher;
@@ -7,11 +14,15 @@ use interprocess::os::windows::{
     security_descriptor::SecurityDescriptor,
 };
 use log::{debug, error, info};
-use minisign_verify::{PublicKey, Signature};
 use widestring::U16CString;
 use windows::{
     Win32::{
-        Foundation::{CloseHandle, MAX_PATH},
+        Foundation::{CloseHandle, HWND, INVALID_HANDLE_VALUE, MAX_PATH, S_OK},
+        Security::WinTrust::{
+            WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_DATA_0, WINTRUST_FILE_INFO,
+            WTD_CHOICE_FILE, WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, WTD_REVOKE_WHOLECHAIN,
+            WTD_STATEACTION_CLOSE, WTD_STATEACTION_VERIFY, WTD_UI_NONE, WinVerifyTrust,
+        },
         System::{
             Pipes::WaitNamedPipeW,
             Threading::{
@@ -20,7 +31,7 @@ use windows::{
             },
         },
     },
-    core::{HSTRING, PWSTR},
+    core::{HSTRING, PCWSTR, PWSTR},
 };
 
 use crate::ipc::IpcError;
@@ -107,7 +118,6 @@ pub fn connect_and_attest(
 
 fn attest_server(pid: u32) -> Result<(), IpcError> {
     let err = || IpcError(format!("failed to attest server executible"));
-    let public_key = PublicKey::from_base64(TRUSTED_MINISIGN_KEY).or_raise(err)?;
 
     let exe_path = unsafe {
         let mut buffer = [0u16; MAX_PATH as usize];
@@ -124,20 +134,64 @@ fn attest_server(pid: u32) -> Result<(), IpcError> {
         }
         PathBuf::from(pwpath.to_string().or_raise(err)?)
     };
-    let sig_path = exe_path.with_added_extension("minisig");
 
-    let sig = Signature::from_file(sig_path).or_raise(err)?;
-    let mut verifier = public_key.verify_stream(&sig).or_raise(err)?;
-    let mut exe_file = File::open(exe_path).or_raise(err)?;
-    let mut buffer = [0u8; 8192];
-    loop {
-        let bytes_read = exe_file.read(&mut buffer).or_raise(err)?;
-        if bytes_read == 0 {
-            break; // End of file
-        }
-        verifier.update(&buffer[..bytes_read]);
+    if !verify_trust(&exe_path) {
+        bail!(IpcError(format!(
+            "unable to verify the signature of {}",
+            exe_path.display()
+        )));
     }
-    verifier.finalize().or_raise(err)?;
 
     Ok(())
+}
+
+fn os_to_wstring(value: &OsStr) -> Vec<u16> {
+    value.encode_wide().chain(once(0)).collect()
+}
+
+pub fn verify_trust(path: &Path) -> bool {
+    // Convert path to wide string
+    let wide_path: Vec<u16> = os_to_wstring(path.as_os_str());
+
+    let mut file_info = WINTRUST_FILE_INFO {
+        cbStruct: std::mem::size_of::<WINTRUST_FILE_INFO>() as u32,
+        pcwszFilePath: PCWSTR(wide_path.as_ptr()),
+        hFile: Default::default(),
+        pgKnownSubject: std::ptr::null_mut(),
+    };
+
+    let mut trust_data = WINTRUST_DATA {
+        cbStruct: std::mem::size_of::<WINTRUST_DATA>() as u32,
+        dwUIChoice: WTD_UI_NONE,
+        fdwRevocationChecks: WTD_REVOKE_WHOLECHAIN,
+        dwUnionChoice: WTD_CHOICE_FILE,
+        Anonymous: WINTRUST_DATA_0 {
+            pFile: &mut file_info as *mut _,
+        },
+        dwStateAction: WTD_STATEACTION_VERIFY,
+        dwProvFlags: WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT,
+        ..Default::default()
+    };
+
+    let mut pg_action_id = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+
+    // First verify trust
+    let status = unsafe {
+        WinVerifyTrust(
+            HWND(INVALID_HANDLE_VALUE.0),
+            &mut pg_action_id,
+            &trust_data as *const _ as *mut _,
+        )
+    };
+
+    unsafe {
+        trust_data.dwStateAction = WTD_STATEACTION_CLOSE;
+        WinVerifyTrust(
+            HWND(INVALID_HANDLE_VALUE.0),
+            &mut pg_action_id,
+            &trust_data as *const _ as *mut _,
+        );
+    }
+
+    status == S_OK.0
 }

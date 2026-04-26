@@ -47,7 +47,7 @@ jobs:
           echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
       - name: Install build dependencies
         run: |
-          sudo dnf -y install sequoia-sqv minisign
+          sudo dnf -y install sequoia-sqv
       - name: Setup rust targets
         run: |
           rustup set auto-self-update disable
@@ -101,13 +101,6 @@ jobs:
           x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
           i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
           x86_64-w64-mingw32-strip build/installer/*.exe
-
-      - name: Sign chewing_tip_host.exe
-        env:
-          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
-        run: |
-          echo "$MINISIGN_KEY" > minisign.key
-          minisign -S -m build/installer/chewing_tip_host.exe -s minisign.key
 
       - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         if: false

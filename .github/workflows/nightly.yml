@@ -13,7 +13,6 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       nightly: true
-    secrets: inherit
   code-signing:
     needs: [nightly-build]
     uses: ./.github/workflows/code-signing.yml

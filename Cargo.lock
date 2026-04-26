@@ -134,7 +134,6 @@ dependencies = [
  "fnv",
  "interprocess",
  "log",
- "minisign-verify",
  "serde",
  "serde_json",
  "widestring",

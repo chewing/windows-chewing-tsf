@@ -51,7 +51,6 @@
                 <File Source="WebView2Loader.dll" Bitness="always64" />
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing_tip_host.exe" Bitness="always64" />
-                <File Source="chewing_tip_host.exe.minisig" />
                 <File Source="chewing-update-svc.exe" Bitness="always64" />
                 <File Source="chewing.ico" />
                 <File Source="version.json" />
