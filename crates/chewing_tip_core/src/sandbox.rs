@@ -6,7 +6,7 @@ use windows::{
         Foundation::{ERROR_INSUFFICIENT_BUFFER, ERROR_NO_TOKEN, HANDLE},
         Security::{
             Authorization::ConvertSidToStringSidW, GetTokenInformation, TOKEN_ACCESS_MASK,
-            TOKEN_PRIMARY_GROUP, TOKEN_QUERY, TOKEN_USER, TokenPrimaryGroup, TokenUser,
+            TOKEN_QUERY, TOKEN_USER, TokenUser,
         },
         System::Threading::{
             GetCurrentProcess, GetCurrentThread, OpenProcessToken, OpenThreadToken,
@@ -15,10 +15,9 @@ use windows::{
     core::PWSTR,
 };
 
-/// Represents the user credential including SID and primary group SID.
+/// Represents the user credential including SID
 pub struct UserCred {
     pub token_user_sid: String,
-    pub token_primary_group_sid: String,
 }
 
 pub fn open_effective_token(desired_access: TOKEN_ACCESS_MASK) -> Result<HANDLE, SandboxError> {
@@ -69,51 +68,14 @@ pub fn get_token_user_sid_string(token: HANDLE) -> Result<String, SandboxError> 
     }
 }
 
-pub fn get_token_primary_group_sid_string(token: HANDLE) -> Result<String, SandboxError> {
-    let err = || SandboxError(format!("failed to extract primary group SID from token"));
-
-    let mut buffer_size = 0;
-    unsafe {
-        if let Err(error) = GetTokenInformation(token, TokenPrimaryGroup, None, 0, &mut buffer_size)
-        {
-            if error != ERROR_INSUFFICIENT_BUFFER.into() {
-                bail!(Exn::new(error).raise(err()));
-            }
-        }
-    }
-    let mut _return_size = 0;
-    let mut buffer = vec![0; buffer_size as usize];
-    unsafe {
-        GetTokenInformation(
-            token,
-            TokenPrimaryGroup,
-            Some(buffer.as_mut_ptr().cast()),
-            buffer_size,
-            &mut _return_size,
-        )
-        .or_raise(err)?;
-    }
-    unsafe {
-        let token_primary_group: *const TOKEN_PRIMARY_GROUP = transmute(buffer.as_ptr());
-        let sid = token_primary_group.as_ref().unwrap().PrimaryGroup;
-        let mut sid_string = PWSTR::null();
-        ConvertSidToStringSidW(sid, &mut sid_string).or_raise(err)?;
-        Ok(sid_string.to_string().or_raise(err)?)
-    }
-}
-
 pub fn get_user_cred() -> Result<UserCred, SandboxError> {
     let err = || SandboxError(format!("failed to get user credential"));
 
     let token = open_effective_token(TOKEN_QUERY).or_raise(err)?;
 
     let token_user_sid = get_token_user_sid_string(token).or_raise(err)?;
-    let token_primary_group_sid = get_token_primary_group_sid_string(token).or_raise(err)?;
 
-    Ok(UserCred {
-        token_user_sid,
-        token_primary_group_sid,
-    })
+    Ok(UserCred { token_user_sid })
 }
 
 #[derive(Debug)]

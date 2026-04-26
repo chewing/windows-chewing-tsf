@@ -41,15 +41,24 @@ pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
     let err = || IpcError(format!("failed to create named pipe listener"));
     let user_cred = get_user_cred().or_raise(err)?;
     let mut security_descriptor = String::new();
+    // Owner SID
     security_descriptor.push_str(&format!("O:{}", user_cred.token_user_sid));
-    security_descriptor.push_str(&format!("G:{}", user_cred.token_primary_group_sid));
+    // DACL - ACE Strings
     security_descriptor.push_str("D:");
+    // Remove default owner rights
     security_descriptor.push_str("(A;;;;;OW)");
+    // Allow local system
     security_descriptor.push_str("(A;;GA;;;SY)");
+    // Allow administrator
     security_descriptor.push_str("(A;;GA;;;BA)");
+    // Allow all read/write from app containers
     security_descriptor.push_str("(A;;GA;;;AC)");
+    // Allow all read/write from user
     security_descriptor.push_str(&format!("(A;;GA;;;{})", user_cred.token_user_sid));
+    // SACL - mandatory label - no execute up - low integrity level
     security_descriptor.push_str("S:(ML;;NX;;;LW)");
+
+    debug!("SDDL for NamedPipe: {security_descriptor}");
 
     let sd = SecurityDescriptor::deserialize(
         U16CString::from_str(&security_descriptor)
