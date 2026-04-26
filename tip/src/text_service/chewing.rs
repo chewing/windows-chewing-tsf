@@ -274,7 +274,7 @@ impl ChewingTextService {
         let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
         debug!("trying to connect to a named pipe");
-        let cth_client = ChewingIpcClient::connect().map_err(into_anyhow)?;
+        let cth_client = ChewingIpcClient::connect_with_retry().map_err(into_anyhow)?;
 
         let mut cts = ChewingTextService {
             thread_mgr,

@@ -27,8 +27,16 @@ pub struct ChewingIpcClient {
 }
 
 impl ChewingIpcClient {
-    pub fn connect() -> Result<ChewingIpcClient, IpcError> {
+    pub fn connect_with_retry() -> Result<ChewingIpcClient, IpcError> {
         let pipe = ChewingIpcClient::connect_pipe()?;
+        Ok(ChewingIpcClient {
+            pipe: Rc::new(RefCell::new(pipe)),
+        })
+    }
+    pub fn connect() -> Result<ChewingIpcClient, IpcError> {
+        let err = || IpcError(format!("unable to connect to chewing_tip_host"));
+        let pipe_path = named_pipe_path().or_raise(err)?;
+        let pipe = connect_and_attest(&pipe_path, Duration::from_millis(100)).or_raise(err)?;
         Ok(ChewingIpcClient {
             pipe: Rc::new(RefCell::new(pipe)),
         })
