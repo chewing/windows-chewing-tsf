@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 use std::ptr::null_mut;
 
-use anyhow::Result;
+use exn::{Result, ResultExt};
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VS_FIXEDFILEINFO, VerQueryValueW,
 };
 use windows::core::{HSTRING, w};
+
+use crate::update::UpdateError;
 
 pub(crate) fn chewing_dll_version() -> String {
     let Ok(dll_path) = program_dir().map(|path| path.join("chewing_tip.dll")) else {
@@ -106,11 +108,13 @@ pub(crate) fn version_gt(ver_a: &str, ver_b: &str) -> bool {
     false
 }
 
-fn program_dir() -> Result<PathBuf> {
+// TODO: move this to common
+fn program_dir() -> Result<PathBuf, UpdateError> {
     Ok(PathBuf::from(
         std::env::var("ProgramW6432")
             .or_else(|_| std::env::var("ProgramFiles"))
-            .or_else(|_| std::env::var("FrogramFiles(x86)"))?,
+            .or_else(|_| std::env::var("FrogramFiles(x86)"))
+            .or_raise(|| UpdateError("Failed to resolve Program Files path"))?,
     )
     .join("ChewingTextService"))
 }
@@ -125,7 +129,7 @@ pub const fn lo_word(v: u32) -> u16 {
 
 #[cfg(test)]
 mod tests {
-    use crate::version::{parse_version, version_gt};
+    use super::{parse_version, version_gt};
 
     #[test]
     fn parse_version_test() {

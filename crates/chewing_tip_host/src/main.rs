@@ -4,7 +4,7 @@ use std::{error::Error, path::PathBuf, thread};
 
 use chewing_tip_core::ipc::named_pipe::{create_pipe_listener, named_pipe_path};
 use log::{error, info};
-use logforth::record::LevelFilter;
+use logforth::record::{Level, LevelFilter};
 use windows::Win32::{
     System::{
         Console::{ATTACH_PARENT_PROCESS, AttachConsole},
@@ -18,6 +18,7 @@ use crate::{ipc::run_ipc_server, ui::event_loop::MainLoop};
 mod ipc;
 mod ui;
 mod ui_elements;
+mod update;
 
 fn main() -> Result<(), Box<dyn Error>> {
     if std::env::args().any(|arg| arg == "-a") {
@@ -26,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     logforth::starter_log::stdout()
-        .filter(LevelFilter::All)
+        .filter(LevelFilter::MoreSevereEqual(Level::Debug))
         .apply();
 
     info!("Register application for automatic restart");

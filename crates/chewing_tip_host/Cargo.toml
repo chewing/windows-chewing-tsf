@@ -9,7 +9,9 @@ exn.workspace = true
 interprocess = { workspace = true }
 log = { workspace = true, features = ["kv"] }
 logforth = { version = "0.29.1", features = ["bridge-log", "starter-log"] }
+roxmltree = "0.21.1"
 serde_json.workspace = true
+ureq = { version = "3.3.0", features = ["platform-verifier"] }
 windows = { version = "0.62.2", features = [
   "Win32_Graphics_Direct2D",
   "Win32_Graphics_Direct2D_Common",
@@ -20,6 +22,7 @@ windows = { version = "0.62.2", features = [
   "Win32_Graphics_Dxgi",
   "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
   "Win32_System_Console",
   "Win32_System_LibraryLoader",
   "Win32_System_Recovery",
@@ -29,3 +32,4 @@ windows = { version = "0.62.2", features = [
 ] }
 windows-core = "0.62.2"
 windows-numerics = "0.3.1"
+windows-registry = "0.6.1"

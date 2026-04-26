@@ -27,9 +27,11 @@ use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
 use chewing_tip_core::ipc::client::ChewingIpcClient;
-use chewing_tip_core::ipc::messages::{Position, ShowCandidateList, ShowNotification};
+use chewing_tip_core::ipc::messages::{CheckUpdate, Position, ShowCandidateList, ShowNotification};
+use chewing_tip_core::ipc::varlink::MethodCall;
 use exn_anyhow::into_anyhow;
 use log::{debug, error, info};
+use serde_json::Value;
 use windows::Foundation::Uri;
 use windows::System::Launcher;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
@@ -319,7 +321,15 @@ impl ChewingTextService {
         if cts.cfg.chewing_tsf.auto_check_update_channel != "none"
             && now.abs_diff(cts.cfg.chewing_tsf.last_update_check_time) > 3600
         {
-            open_url("chewing-update-svc://check-now");
+            if let Err(error) = cts.cth_client.send(MethodCall {
+                method: CheckUpdate::METHOD.to_string(),
+                oneway: Some(true),
+                parameters: Value::Null,
+                more: None,
+                upgrade: None,
+            }) {
+                error!("unable to send IPC message CheckUpdate: {error:?}");
+            }
         }
         Ok(cts)
     }

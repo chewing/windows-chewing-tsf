@@ -89,19 +89,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chewing-update-svc"
-version = "26.4.1"
-dependencies = [
- "anyhow",
- "log",
- "roxmltree",
- "ureq",
- "win_dbg_logger",
- "windows",
- "windows-registry",
-]
-
-[[package]]
 name = "chewing_tip"
 version = "26.4.1"
 dependencies = [
@@ -149,10 +136,13 @@ dependencies = [
  "interprocess",
  "log",
  "logforth",
+ "roxmltree",
  "serde_json",
+ "ureq",
  "windows",
  "windows-core",
  "windows-numerics",
+ "windows-registry",
 ]
 
 [[package]]
@@ -1543,15 +1533,6 @@ name = "widestring"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
-
-[[package]]
-name = "win_dbg_logger"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d1b4c22244dc27534d81e2f6fc3efd6b20e50c010f177efc20b719ec759a779"
-dependencies = [
- "log",
-]
 
 [[package]]
 name = "winapi-util"

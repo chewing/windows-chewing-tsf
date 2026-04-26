@@ -59,3 +59,10 @@ pub type StopReply = ();
 impl Stop {
     pub const METHOD: &str = "im.chewing.ui.Stop";
 }
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct CheckUpdate;
+pub type CheckUpdateReply = ();
+impl CheckUpdate {
+    pub const METHOD: &str = "im.chewing.ui.CheckUpdate";
+}

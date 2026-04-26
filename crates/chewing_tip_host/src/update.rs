@@ -1,10 +1,10 @@
-#![windows_subsystem = "windows"]
+use std::{error::Error, fmt::Display};
 
 mod config;
 mod releases;
 mod version;
 
-fn check_for_update() {
+pub(crate) fn check_for_update() {
     log::info!("Checking for update...");
     // Always clear update URL before a new check
     if let Err(error) = config::set_update_info_url("") {
@@ -52,21 +52,11 @@ fn check_for_update() {
     }
 }
 
-fn main() {
-    win_dbg_logger::init();
-    log::set_max_level(log::LevelFilter::Info);
-    log::info!("chewing-update-svc started");
-    let lock_path = std::env::temp_dir().join("chewing_update_svc.lock");
-    let lock_file = match std::fs::File::create(lock_path) {
-        Ok(file) => file,
-        Err(error) => {
-            log::error!("Unable to open the lock file: {error:#}");
-            return;
-        }
-    };
-    if lock_file.try_lock().is_err() {
-        log::info!("Another chewing-update-svc.exe is already running");
-        return;
+#[derive(Debug)]
+struct UpdateError(&'static str);
+impl Error for UpdateError {}
+impl Display for UpdateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "UpdateError: {}", self.0)
     }
-    check_for_update();
 }

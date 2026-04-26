@@ -5,14 +5,14 @@ use std::{
 };
 
 use chewing_tip_core::ipc::{
-    messages::{HideCandidateList, ShowCandidateList, ShowNotification, Stop},
+    messages::{CheckUpdate, HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::MethodCall,
 };
 use exn::{Result, ResultExt};
 use interprocess::os::windows::named_pipe::{PipeListener, PipeStream, pipe_mode::Bytes};
 use log::{debug, error, warn};
 
-use crate::ui::event_loop::MainLoopHandle;
+use crate::{ui::event_loop::MainLoopHandle, update::check_for_update};
 
 pub(crate) fn run_ipc_server(
     listener: PipeListener<Bytes, Bytes>,
@@ -46,28 +46,35 @@ fn run_ipc_loop(pipe: PipeStream<Bytes, Bytes>, mh: MainLoopHandle) {
 
         buffer.pop();
         match serde_json::from_slice::<MethodCall>(&buffer) {
-            Ok(call) => match call.method.as_str() {
-                ShowNotification::METHOD
-                | ShowCandidateList::METHOD
-                | HideCandidateList::METHOD
-                | Stop::METHOD => {
-                    let oneway = call.oneway.is_some_and(|v| v);
-                    if let Err(error) = mh.send(call) {
-                        error!("Failed to dispatch message: {error:?}");
-                        continue;
-                    }
-                    if !oneway {
-                        let reply = c"{}";
-                        if let Err(error) = sender.write_all(reply.to_bytes_with_nul()) {
-                            error!("Failed to reply varlink message: {error:?}");
+            Ok(call) => {
+                let oneway = call.oneway.is_some_and(|v| v);
+
+                match call.method.as_str() {
+                    ShowNotification::METHOD
+                    | ShowCandidateList::METHOD
+                    | HideCandidateList::METHOD
+                    | Stop::METHOD => {
+                        if let Err(error) = mh.send(call) {
+                            error!("Failed to dispatch message: {error:?}");
                             continue;
                         }
                     }
+                    CheckUpdate::METHOD => {
+                        check_for_update();
+                    }
+                    _ => {
+                        warn!("Unknown method: {call:?}");
+                    }
                 }
-                _ => {
-                    warn!("Unknown method: {call:?}");
+
+                if !oneway {
+                    let reply = c"{}";
+                    if let Err(error) = sender.write_all(reply.to_bytes_with_nul()) {
+                        error!("Failed to reply varlink message: {error:?}");
+                        continue;
+                    }
                 }
-            },
+            }
             Err(error) => {
                 error!("Failed to parse varlink message: {error:?}");
                 continue;
