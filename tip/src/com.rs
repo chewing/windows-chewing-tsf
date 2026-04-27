@@ -38,18 +38,18 @@ extern "system" fn DllMain(
                 unsafe {
                     let _ = AttachConsole(ATTACH_PARENT_PROCESS);
                 }
-            }
-            logforth::starter_log::builder()
-                .dispatch(|d| {
-                    d.filter(if cfg!(debug_assertions) {
-                        LevelFilter::MoreSevereEqual(Level::Debug)
-                    } else {
-                        LevelFilter::MoreSevereEqual(Level::Info)
+                logforth::starter_log::builder()
+                    .dispatch(|d| {
+                        d.filter(if cfg!(debug_assertions) {
+                            LevelFilter::MoreSevereEqual(Level::Debug)
+                        } else {
+                            LevelFilter::MoreSevereEqual(Level::Info)
+                        })
+                        .append(WinDbg::default())
+                        .append(logforth::append::Stderr::default())
                     })
-                    .append(WinDbg::default())
-                    .append(logforth::append::Stdout::default())
-                })
-                .apply();
+                    .apply();
+            }
             log::info!("chewing_tip.dll loaded");
         }
     }
