@@ -111,7 +111,7 @@ impl ShiftKeyState {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TsfLangMode {
     Chinese,
     English,
@@ -1301,6 +1301,7 @@ impl ChewingTextService {
     }
 
     fn toggle_lang_mode(&mut self) -> Result<()> {
+        let prev = self.lang_mode.get();
         self.lang_mode.update(|v| match v {
             TsfLangMode::English => TsfLangMode::Chinese,
             TsfLangMode::Chinese => TsfLangMode::English,
@@ -1308,6 +1309,20 @@ impl ChewingTextService {
             TsfLangMode::DisabledChinese => TsfLangMode::DisabledEnglish,
         });
         self.sync_lang_mode(true)?;
+
+        if prev != self.lang_mode.get() {
+            unsafe {
+                let doc_mgr = self
+                    .thread_mgr
+                    .GetFocus()
+                    .context("failed to get current ITfDocumentMgr")?;
+                let context = doc_mgr
+                    .GetTop()
+                    .context("failed to get current ITfContext")?;
+                self.chewing_editor.clear_syllable_editor();
+                self.update_preedit(&context, String::new())?;
+            }
+        }
 
         Ok(())
     }
