@@ -6,7 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
-- tip: fix commit buffer racing in LINE or other Imm32 only applications
+- tip: fix commit buffer racing in LINE or other Imm32 only applications.
+- tip: process the Shift key without consuming it.
+- tip: introduce a quirk mode for MyAB.
 
 ## 26.4.1.0 - 2026-04-11
 
