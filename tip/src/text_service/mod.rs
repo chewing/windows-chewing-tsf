@@ -154,9 +154,12 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
         debug!(tid; "tip::activate");
 
-        if let Some(quirk) = Quirk::query()
-            && !quirk.skip_imm32_patch
-        {
+        if matches!(
+            Quirk::query(),
+            None | Some(Quirk {
+                skip_imm32_patch: false
+            })
+        ) {
             debug!("trying to override the default IMM32 property set by MSCTF.dll");
             let pimedpi = match patch_ime_info() {
                 Ok(p) => p,
