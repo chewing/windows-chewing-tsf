@@ -38,7 +38,6 @@ use crate::ipc::IpcError;
 use crate::sandbox::get_user_cred;
 
 pub const NAMED_PIPE_PATH_BASE: &str = r"\\.\pipe\chewing.";
-pub const TRUSTED_MINISIGN_KEY: &str = "RWTgGhLoHRMztdiikZxoXuU4C3tabjFLP5PjdH934zCOxmhZa6ktuGbX";
 
 pub fn named_pipe_path() -> Result<String, IpcError> {
     let err = || IpcError(format!("failed to create unique user local NamedPipe path"));
@@ -91,7 +90,7 @@ pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
 }
 
 /// Connects to the well-known windows-chewing-tsf named pipe and validate the
-/// server executable is signed with a trusted minisign key.
+/// server executable is signed with a trusted key.
 pub fn connect_and_attest(
     pipe_path: &str,
     timeout: Duration,
