@@ -7,4 +7,5 @@ mod imm32;
 mod keybind;
 mod logging;
 mod msctf;
+mod quirk;
 mod text_service;
