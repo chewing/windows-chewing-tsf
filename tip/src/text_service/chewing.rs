@@ -531,6 +531,7 @@ impl ChewingTextService {
         {
             debug!("shift_key_state = Down");
             self.shift_key_state = ShiftKeyState::Down(Instant::now());
+            return Ok(false);
         }
 
         // Handle keybindings
