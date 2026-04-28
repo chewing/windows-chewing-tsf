@@ -18,6 +18,7 @@ use windows_core::{
 
 use crate::{
     imm32::{ImeDpi, patch_ime_info, release_ime_info},
+    quirk::Quirk,
     text_service::chewing::ReentrantOps,
 };
 
@@ -153,15 +154,19 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
         debug!(tid; "tip::activate");
 
-        debug!("trying to override the default IMM32 property set by MSCTF.dll");
-        let pimedpi = match patch_ime_info() {
-            Ok(p) => p,
-            Err(error) => {
-                error!("{:?}", error);
-                null_mut()
-            }
-        };
-        self.pimedpi.set(pimedpi);
+        if let Some(quirk) = Quirk::query()
+            && !quirk.skip_imm32_patch
+        {
+            debug!("trying to override the default IMM32 property set by MSCTF.dll");
+            let pimedpi = match patch_ime_info() {
+                Ok(p) => p,
+                Err(error) => {
+                    error!("{:?}", error);
+                    null_mut()
+                }
+            };
+            self.pimedpi.set(pimedpi);
+        }
 
         self.tid.set(tid);
         let mut ts = self.inner.borrow_mut();
