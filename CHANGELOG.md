@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - tip: introduce a quirk mode for MyAB.
 - tip: crash in Eclipse due to incorrect DisplayAttribute refcount.
 - tip: clear pending bopomofo when toggle Chi/Eng mode.
+- tip: correctly handle mid-segment inserted bopomofo.
 
 ### 🚜 Refactor
 

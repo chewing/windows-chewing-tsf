@@ -988,24 +988,38 @@ impl ChewingTextService {
         let cursor = self.chewing_editor.cursor();
         let bopomofo = self.chewing_editor.syllable_buffer_display();
         let bopomofo_len = bopomofo.chars().count();
-        let mut bopomofo_pushed = false;
+        let mut need_push_bopomofo = !bopomofo.is_empty();
 
         for it in self.chewing_editor.intervals() {
-            if it.start == cursor && !bopomofo.is_empty() {
-                segments.push((cursor, cursor + bopomofo_len));
+            if (it.start <= cursor && it.end >= cursor) && need_push_bopomofo {
+                // Bopomofo splits the segment
+                let head_len = cursor - it.start;
+                composition_buf.extend(it.text.chars().take(head_len));
                 composition_buf.push_str(&bopomofo);
-                bopomofo_pushed = true;
-            }
-            if it.start > cursor && !bopomofo.is_empty() {
-                segments.push((it.start + bopomofo_len, it.end + bopomofo_len));
+                composition_buf.extend(it.text.chars().skip(head_len));
+                if cursor == it.start {
+                    segments.push((cursor, cursor + bopomofo_len));
+                    segments.push((it.start + bopomofo_len, it.end + bopomofo_len));
+                } else if cursor == it.end {
+                    segments.push((it.start, it.end));
+                    segments.push((cursor, cursor + bopomofo_len));
+                } else {
+                    segments.push((it.start, cursor));
+                    segments.push((cursor, cursor + bopomofo_len));
+                    segments.push((cursor + bopomofo_len, it.end));
+                }
+                need_push_bopomofo = false;
             } else {
-                segments.push((it.start, it.end));
+                composition_buf.push_str(&it.text);
+                if it.start > cursor && !bopomofo.is_empty() {
+                    segments.push((it.start + bopomofo_len, it.end + bopomofo_len));
+                } else {
+                    segments.push((it.start, it.end));
+                }
             }
-            composition_buf.push_str(&it.text);
         }
-        if !bopomofo.is_empty() && !bopomofo_pushed {
-            let start = segments.last().map(|s| s.1).unwrap_or(0);
-            segments.push((start, start + bopomofo_len));
+        if need_push_bopomofo {
+            segments.push((0, bopomofo_len));
             composition_buf.push_str(&bopomofo);
         }
 
