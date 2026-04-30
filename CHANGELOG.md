@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - tip: fix commit buffer racing in LINE or other Imm32 only applications.
 - tip: process the Shift key without consuming it.
 - tip: introduce a quirk mode for MyAB.
+- tip: crash in Eclipse due to incorrect DisplayAttribute refcount.
 - tip: clear pending bopomofo when toggle Chi/Eng mode.
 
 ### 🚜 Refactor
