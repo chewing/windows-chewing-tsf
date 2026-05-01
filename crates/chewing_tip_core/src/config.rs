@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
+use std::{error::Error, fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
-use anyhow::{Error, Result, bail};
+use exn::{Result, ResultExt, bail};
 use log::error;
 use serde::{Deserialize, Serialize};
 use windows::{
@@ -149,8 +149,9 @@ impl Default for ChewingTsfConfig {
 }
 
 impl Config {
-    pub fn reload_if_needed(&mut self) -> Result<bool> {
-        let cfg = Config::from_reg()?;
+    pub fn reload_if_needed(&mut self) -> Result<bool, ConfigError> {
+        let cfg =
+            Config::from_reg().or_raise(|| ConfigError("failed to reload config".to_string()))?;
         if cfg == *self {
             Ok(false)
         } else {
@@ -158,12 +159,14 @@ impl Config {
             Ok(true)
         }
     }
-    pub fn from_reg() -> Result<Config> {
+    pub fn from_reg() -> Result<Config, ConfigError> {
+        let err = || ConfigError("failed to load config from registry".to_string());
         let key = CURRENT_USER
             .options()
             .read()
             .access(KEY_WOW64_64KEY.0)
-            .open("Software\\ChewingTextService")?;
+            .open("Software\\ChewingTextService")
+            .or_raise(err)?;
         let mut cfg = ChewingTsfConfig::default();
 
         // if let Ok(path) = user_symbols_dat_path() {
@@ -472,16 +475,16 @@ pub struct KeybindValue {
 }
 
 impl FromStr for KeybindValue {
-    type Err = Error;
+    type Err = ConfigError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let (key, action) = s
             .rsplit_once('=')
-            .ok_or_else(|| Error::msg("missing seperator ="))?;
+            .ok_or_else(|| ConfigError("missing seperator =".to_string()))?;
         let (action, param) = if action.contains(':') {
             action
                 .rsplit_once(':')
-                .ok_or_else(|| Error::msg("missing seperator :"))?
+                .ok_or_else(|| ConfigError("missing seperator :".to_string()))?
         } else {
             (action, "")
         };
@@ -503,7 +506,16 @@ impl Display for KeybindValue {
     }
 }
 
-fn grant_app_container_access(object: PCWSTR, typ: SE_OBJECT_TYPE, access: u32) -> Result<()> {
+fn grant_app_container_access(
+    object: PCWSTR,
+    typ: SE_OBJECT_TYPE,
+    access: u32,
+) -> Result<(), ConfigError> {
+    let err = || {
+        ConfigError(format!(
+            "failed to grant AppContainer access {access} to object {object:?}"
+        ))
+    };
     let mut success = false;
     let mut old_acl_mut_ptr = null_mut();
     let mut new_acl_mut_ptr = null_mut();
@@ -580,24 +592,42 @@ fn grant_app_container_access(object: PCWSTR, typ: SE_OBJECT_TYPE, access: u32) 
     if success {
         Ok(())
     } else {
-        bail!("Unable to update security descriptor");
+        bail!(err());
     }
 }
 
-fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32> {
-    Ok(hk.get_u32(value_name)? as i32)
+fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32, ConfigError> {
+    Ok(hk
+        .get_u32(value_name)
+        .or_raise(|| ConfigError(format!("failed to read {value_name} as i32")))? as i32)
 }
 
-fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool> {
-    Ok(hk.get_u32(value_name)? > 0)
+fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool, ConfigError> {
+    Ok(hk
+        .get_u32(value_name)
+        .or_raise(|| ConfigError(format!("failed to read {value_name} as bool")))?
+        > 0)
 }
 
-fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<()> {
-    Ok(hk.set_u32(value_name, value as u32)?)
+fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<(), ConfigError> {
+    Ok(hk
+        .set_u32(value_name, value as u32)
+        .or_raise(|| ConfigError(format!("failed to set {value_name} as {value}")))?)
 }
 
-fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<()> {
-    Ok(hk.set_u32(value_name, value as u32)?)
+fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<(), ConfigError> {
+    Ok(hk
+        .set_u32(value_name, value as u32)
+        .or_raise(|| ConfigError(format!("failed to set {value_name} as {value}")))?)
+}
+
+#[derive(Debug)]
+pub struct ConfigError(String);
+impl Error for ConfigError {}
+impl Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ConfigError: {}", self.0)
+    }
 }
 
 #[cfg(test)]

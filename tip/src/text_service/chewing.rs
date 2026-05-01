@@ -26,6 +26,7 @@ use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
+use chewing_tip_core::config::{ChewingTsfConfig, Config};
 use chewing_tip_core::ipc::client::ChewingIpcClient;
 use chewing_tip_core::ipc::messages::{CheckUpdate, Position, ShowCandidateList, ShowNotification};
 use chewing_tip_core::ipc::varlink::MethodCall;
@@ -59,7 +60,6 @@ use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PC
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
-use crate::config::{ChewingTsfConfig, Config};
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
@@ -1459,7 +1459,7 @@ impl ChewingTextService {
     }
 
     fn apply_config_if_changed(&mut self) -> Result<()> {
-        if self.cfg.reload_if_needed()? {
+        if self.cfg.reload_if_needed().map_err(into_anyhow)? {
             self.apply_config()?;
         }
         Ok(())

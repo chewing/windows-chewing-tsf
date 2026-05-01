@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Kan-Ru Chen
 
 mod com;
-pub mod config;
 mod imm32;
 mod keybind;
 mod logging;

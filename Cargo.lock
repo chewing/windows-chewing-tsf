@@ -124,6 +124,7 @@ dependencies = [
  "serde_json",
  "widestring",
  "windows",
+ "windows-registry",
 ]
 
 [[package]]

@@ -3,8 +3,7 @@
 
 use anyhow::{Context, Error};
 use chewing::input::{KeyState, KeyboardEvent, keysym::*};
-
-use crate::config::KeybindValue;
+use chewing_tip_core::config::KeybindValue;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Keybinding {
