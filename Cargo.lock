@@ -116,6 +116,7 @@ dependencies = [
 name = "chewing_tip_core"
 version = "26.4.1"
 dependencies = [
+ "chewing",
  "exn",
  "fnv",
  "interprocess",

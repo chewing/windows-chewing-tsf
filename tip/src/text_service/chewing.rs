@@ -4,11 +4,7 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::io::ErrorKind;
 use std::mem;
-use std::os::windows::ffi::OsStrExt;
-use std::os::windows::fs::MetadataExt;
-use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::OnceLock;
 use std::sync::atomic::Ordering;
@@ -30,15 +26,11 @@ use chewing_tip_core::config::{ChewingTsfConfig, Config};
 use chewing_tip_core::ipc::client::ChewingIpcClient;
 use chewing_tip_core::ipc::messages::{CheckUpdate, Position, ShowCandidateList, ShowNotification};
 use chewing_tip_core::ipc::varlink::MethodCall;
+use chewing_tip_core::shell::{open_url, program_dir, user_dir};
 use exn_anyhow::into_anyhow;
 use log::{debug, error, info};
 use serde_json::Value;
-use windows::Foundation::Uri;
-use windows::System::Launcher;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
-use windows::Win32::Storage::FileSystem::{
-    FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
-};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
 use windows::Win32::UI::TextServices::{
@@ -56,7 +48,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY,
     TPM_RETURNCMD, TrackPopupMenu,
 };
-use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR};
+use windows_core::{ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR};
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
@@ -1395,11 +1387,14 @@ impl ChewingTextService {
     }
 
     fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor> {
-        let user_path = user_dir()?;
+        let user_path = user_dir().map_err(into_anyhow)?;
         let chewing_path = format!(
             "{};{}",
             user_path.display(),
-            program_dir()?.join("Dictionary").display()
+            program_dir()
+                .map_err(into_anyhow)?
+                .join("Dictionary")
+                .display()
         );
         let user_dict_path = user_path.join("chewing.dat");
         // Recreate editor to load latest user files
@@ -1661,47 +1656,4 @@ fn load_icon_cached(icon_id: u32) -> Result<HICON> {
             Ok(icon)
         }
     })
-}
-
-fn user_dir() -> Result<PathBuf> {
-    let user_dir = chewing::path::data_dir().context("unable to determine user_dir")?;
-
-    // NB: chewing might be loaded into a low mandatory integrity level process (SearchHost.exe).
-    // In that case, it might not be able to check if a file exists using CreateFile
-    // If the file exists, it will get the PermissionDenied error instead.
-    let user_dir_exists = match std::fs::exists(&user_dir) {
-        Ok(true) => true,
-        Err(e) => matches!(e.kind(), ErrorKind::PermissionDenied),
-        _ => false,
-    };
-
-    if !user_dir_exists {
-        std::fs::create_dir(&user_dir)?;
-        let metadata = user_dir.metadata()?;
-        let attributes = metadata.file_attributes();
-        let user_dir_w: Vec<u16> = user_dir.as_os_str().encode_wide().collect();
-        unsafe {
-            SetFileAttributesW(
-                &BSTR::from_wide(&user_dir_w),
-                FILE_FLAGS_AND_ATTRIBUTES(attributes | FILE_ATTRIBUTE_HIDDEN.0),
-            )?;
-        };
-    }
-
-    Ok(user_dir)
-}
-
-fn program_dir() -> Result<PathBuf> {
-    Ok(PathBuf::from(
-        std::env::var("ProgramW6432")
-            .or_else(|_| std::env::var("ProgramFiles"))
-            .or_else(|_| std::env::var("ProgramFiles(x86)"))?,
-    )
-    .join("ChewingTextService"))
-}
-
-fn open_url(url: &str) {
-    if let Ok(uri) = Uri::CreateUri(&url.into()) {
-        let _ = Launcher::LaunchUriAsync(&uri);
-    }
 }

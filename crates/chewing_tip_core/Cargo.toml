@@ -4,6 +4,7 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
+chewing.workspace = true
 exn.workspace = true
 fnv = "1.0.7"
 interprocess.workspace = true
