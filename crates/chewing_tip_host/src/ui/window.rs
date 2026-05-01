@@ -97,7 +97,7 @@ impl Window {
 
     pub(crate) fn set_position(&self, x: c_int, y: c_int) {
         unsafe {
-            let _ = SetWindowPos(self.hwnd(), None, x, y, 0, 0, SWP_SHOWWINDOW);
+            let _ = SetWindowPos(self.hwnd(), Some(HWND_TOPMOST), x, y, 0, 0, SWP_SHOWWINDOW);
         }
     }
 
