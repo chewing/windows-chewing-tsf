@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/chewing_tip_core", "crates/chewing_tip_host", "tip", "xtask"]
+members = [
+  "crates/chewing_tip_core",
+  "crates/chewing_tip_host",
+  "crates/tsfreg",
+  "tip",
+  "xtask"
+]
 
 [workspace.package]
 version = "26.4.1"

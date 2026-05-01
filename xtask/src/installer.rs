@@ -88,7 +88,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
         .run()?;
         cmd!(
             sh,
-            "cargo build --bin tsfreg -p chewing_tip {release...} {nightly...} --target {x86_64_target}"
+            "cargo build -p tsfreg {release...} {nightly...} --target {x86_64_target}"
         )
         .run()?;
     }
