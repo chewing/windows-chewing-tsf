@@ -197,12 +197,7 @@ pub(crate) fn clamp_point_to_monitor(mut x: i32, mut y: i32, w: i32, h: i32) -> 
         if GetMonitorInfoW(monitor, &mut mi).as_bool() {
             let rc = mi.rcWork;
             x = x.clamp(rc.left, rc.right - w);
-            if x + w > rc.right {
-                x = x.saturating_sub(w);
-            }
-            if y + h > rc.bottom {
-                y = y.saturating_sub(h + 10);
-            }
+            y = y.clamp(rc.top, rc.bottom - h);
         }
     }
 
