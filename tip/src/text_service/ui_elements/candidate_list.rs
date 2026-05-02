@@ -13,7 +13,6 @@ use chewing_tip_core::ipc::{
     messages::{HideCandidateList, ShowCandidateList},
     varlink::MethodCall,
 };
-use exn_anyhow::into_anyhow;
 use log::error;
 use windows::Win32::{
     Foundation::{E_INVALIDARG, TRUE},
@@ -167,27 +166,23 @@ impl CandidateList {
         self.model.borrow().items[sel].clone()
     }
     pub(crate) fn show(&self) -> Result<()> {
-        self.cth_client
-            .send(MethodCall {
-                method: ShowCandidateList::METHOD.to_string(),
-                parameters: serde_json::to_value(&self.model)?,
-                oneway: Some(true),
-                more: None,
-                upgrade: None,
-            })
-            .map_err(into_anyhow)?;
+        self.cth_client.send(MethodCall {
+            method: ShowCandidateList::METHOD.to_string(),
+            parameters: serde_json::to_value(&self.model)?,
+            oneway: Some(true),
+            more: None,
+            upgrade: None,
+        })?;
         Ok(())
     }
     pub(crate) fn hide(&self) -> Result<()> {
-        self.cth_client
-            .send(MethodCall {
-                method: HideCandidateList::METHOD.to_string(),
-                parameters: serde_json::to_value(HideCandidateList)?,
-                oneway: Some(true),
-                more: None,
-                upgrade: None,
-            })
-            .map_err(into_anyhow)?;
+        self.cth_client.send(MethodCall {
+            method: HideCandidateList::METHOD.to_string(),
+            parameters: serde_json::to_value(HideCandidateList)?,
+            oneway: Some(true),
+            more: None,
+            upgrade: None,
+        })?;
         Ok(())
     }
 }

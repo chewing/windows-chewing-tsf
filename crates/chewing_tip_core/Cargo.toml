@@ -4,6 +4,8 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
+base64 = "0.22.1"
+base64-serde = "0.8.0"
 chewing.workspace = true
 exn.workspace = true
 fnv = "1.0.7"

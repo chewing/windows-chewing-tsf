@@ -1,72 +1,51 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
+use std::error::Error;
+
 use chewing::input::keycode::Keycode;
 use chewing::input::keymap::{
     INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
     INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, map_keycode,
 };
 use chewing::input::{KeyboardEvent, keysym::*};
+use chewing_tip_core::ipc::values::IpcKeyEvent;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyboardState, MAPVK_VK_TO_VSC, MapVirtualKeyW, ToAscii, VIRTUAL_KEY, VK_CAPITAL,
-    VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK, VK_SHIFT,
+    VIRTUAL_KEY, VK_CAPITAL, VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK, VK_SHIFT,
 };
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct SystemKeyboardEvent {
-    pub(super) vk: u16,
-    pub(super) scan_code: u16,
-    pub(super) ascii_code: u8,
-    pub(super) key_state: [u8; 256],
+pub(crate) struct SystemKeyboardEvent {
+    vk: u16,
+    scan_code: u16,
+    ascii_code: u8,
+    key_state: [u8; 256],
 }
 
-impl Default for SystemKeyboardEvent {
-    fn default() -> Self {
-        SystemKeyboardEvent::new(0, 0)
+impl TryFrom<IpcKeyEvent> for SystemKeyboardEvent {
+    type Error = Box<dyn Error + Send + Sync + 'static>;
+    fn try_from(value: IpcKeyEvent) -> Result<Self, Self::Error> {
+        let len = value.key_state.len();
+        let Ok(key_state) = value.key_state.try_into() else {
+            return Err(format!("expected 256 key_state elements but got {len}",).into());
+        };
+        Ok(SystemKeyboardEvent {
+            vk: value.vk,
+            scan_code: value.scan_code,
+            ascii_code: value.ascii_code,
+            key_state,
+        })
     }
 }
 
 impl SystemKeyboardEvent {
-    pub(super) fn new(vk: u16, lparam: isize) -> SystemKeyboardEvent {
-        let scan_code = {
-            let mut scan_code = ((lparam & 0xff0000) >> 16) as u16;
-            if scan_code == 0 {
-                // Workaround some applications that use WPF and send 0 scan_code (e.g. Fork)
-                scan_code = unsafe { MapVirtualKeyW(vk as u32, MAPVK_VK_TO_VSC) } as u16;
-            }
-            scan_code
-        };
-        let mut key_state = [0u8; 256];
-        let mut code = 0;
-        unsafe {
-            if GetKeyboardState(&mut key_state).is_err() {
-                key_state.fill(0);
-            }
-            // try to convert the key event to an ASCII character
-            // ToAscii API tries to convert Ctrl + printable characters to
-            // ASCII 0x00 - 0x31 non-printable escape characters, which we don't want
-            // So here is a hack: pretend that Ctrl key is not pressed
-            let mut ks = key_state;
-            ks[VK_CONTROL.0 as usize] = 0;
-            let mut result = 0u16;
-            if ToAscii(vk as u32, scan_code as u32, Some(&ks), &mut result, 0) == 1 {
-                code = result as u8;
-            }
-        }
-        SystemKeyboardEvent {
-            vk,
-            scan_code,
-            ascii_code: code,
-            key_state,
-        }
-    }
     fn is_key_down(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & (1 << 7) != 0
     }
     fn is_key_toggled(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & 1 != 0
     }
-    pub(super) fn to_keyboard_event(self, kbtype: i32) -> KeyboardEvent {
+    pub(crate) fn to_keyboard_event(self, kbtype: i32) -> KeyboardEvent {
         let keycode = SCANCODE_MAP
             .binary_search_by_key(&self.scan_code, |&(w, _)| w)
             .ok()

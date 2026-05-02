@@ -23,11 +23,15 @@ use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
 use chewing_tip_core::config::{ChewingTsfConfig, Config};
+use chewing_tip_core::impl_context_error;
 use chewing_tip_core::ipc::client::ChewingIpcClient;
-use chewing_tip_core::ipc::messages::{CheckUpdate, Position, ShowCandidateList, ShowNotification};
+use chewing_tip_core::ipc::messages::{
+    CheckUpdate, OnTestKeyDown, ShowCandidateList, ShowNotification,
+};
+use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState, Position};
 use chewing_tip_core::ipc::varlink::MethodCall;
+use chewing_tip_core::result::expect_error;
 use chewing_tip_core::shell::{open_url, program_dir, user_dir};
-use exn_anyhow::into_anyhow;
 use log::{debug, error, info};
 use serde_json::Value;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
@@ -75,6 +79,8 @@ const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2
 const GUID_SETTINGS_BUTTON: GUID = GUID::from_u128(0x4FAFA520_2104_407E_A532_9F1AAB7751CD);
 
 pub(crate) const CLSID_TEXT_SERVICE: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
+
+impl_context_error!(TsfError);
 
 const SEL_KEYS: [&str; 6] = [
     "1234567890",
@@ -268,7 +274,7 @@ impl ChewingTextService {
         let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
         debug!("trying to connect to a named pipe");
-        let cth_client = ChewingIpcClient::connect_with_retry().map_err(into_anyhow)?;
+        let cth_client = ChewingIpcClient::connect_with_retry()?;
 
         let mut cts = ChewingTextService {
             thread_mgr,
@@ -362,6 +368,35 @@ impl ChewingTextService {
         Ok(())
     }
 
+    fn is_context_mutable(&self, context: &ITfContext) -> Result<bool, TsfError> {
+        expect_error("Failed to query ITfContext status", || {
+            let status = unsafe { context.GetStatus()? };
+            if status.dwDynamicFlags & TF_SD_READONLY != 0 {
+                debug!("key not handled - readonly document");
+                return Ok(false);
+            }
+            let compartment_mgr: ITfCompartmentMgr = context.cast()?;
+            unsafe {
+                let empty_context =
+                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_EMPTYCONTEXT)?;
+                let value = i32::try_from(&empty_context.GetValue()?)?;
+                if value == 1 {
+                    debug!("key not handled - empty context");
+                    return Ok(false);
+                }
+
+                let disabled =
+                    compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_DISABLED)?;
+                let value = i32::try_from(&disabled.GetValue()?)?;
+                if value == 1 {
+                    debug!("key not handled - keyboard disabled");
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        })
+    }
+
     pub(super) fn on_test_keydown(
         &mut self,
         context: &ITfContext,
@@ -371,6 +406,8 @@ impl ChewingTextService {
         self.chewing_editor
             .set_editor_options(|opt| opt.language_mode = self.lang_mode.get().into());
 
+        let is_context_mutable = self.is_context_mutable(context)?;
+        let is_composing = self.is_composing();
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
         // Determine shift key state here, this might be our last chance seeing this key.
@@ -381,6 +418,40 @@ impl ChewingTextService {
             self.shift_key_state = ShiftKeyState::Consumed;
         }
         debug!(evt:?, shift_key_state:? = self.shift_key_state; "on_test_keydown");
+
+        // Send IPC
+        let handled = self.cth_client.send(MethodCall {
+            method: OnTestKeyDown::METHOD.to_string(),
+            parameters: serde_json::to_value(OnTestKeyDown {
+                is_context_mutable,
+                is_composing,
+                shift_key_state: match self.shift_key_state {
+                    ShiftKeyState::Down(_) => IpcShiftKeyState::Down,
+                    ShiftKeyState::Consumed => IpcShiftKeyState::Consumed,
+                    ShiftKeyState::Up => IpcShiftKeyState::Up,
+                },
+                event: IpcKeyEvent {
+                    vk: ev.vk,
+                    scan_code: ev.scan_code,
+                    ascii_code: ev.ascii_code,
+                    key_state: ev.key_state.to_vec(),
+                },
+            })?,
+            oneway: None,
+            more: None,
+            upgrade: None,
+        });
+        let mut shift_down = false;
+        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
+            && self.cfg.chewing_tsf.switch_lang_with_shift
+            && matches!(self.shift_key_state, ShiftKeyState::Up)
+        {
+            debug!("shift_key_state = Down");
+            self.shift_key_state = ShiftKeyState::Down(Instant::now());
+            shift_down = true;
+            // return Ok(false);
+        }
+        // Ok(handled?.parameters.as_bool().unwrap_or_default())
         //
         // Step 1. apply any config changes
         //
@@ -397,12 +468,7 @@ impl ChewingTextService {
         //
         // Step 2.1 handle switch lang with Shift
         //
-        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
-            && self.cfg.chewing_tsf.switch_lang_with_shift
-            && matches!(self.shift_key_state, ShiftKeyState::Up)
-        {
-            debug!("shift_key_state = Down");
-            self.shift_key_state = ShiftKeyState::Down(Instant::now());
+        if shift_down {
             return Ok(false);
         }
         //
@@ -419,31 +485,8 @@ impl ChewingTextService {
         //
         // Step 3. ignore key events if the document is readonly or inactive
         //
-        let status = unsafe { context.GetStatus()? };
-        if status.dwDynamicFlags & TF_SD_READONLY != 0 {
-            debug!("key not handled - readonly document");
+        if !is_context_mutable {
             return Ok(false);
-        }
-        let compartment_mgr: ITfCompartmentMgr = context.cast()?;
-        unsafe {
-            if let Ok(empty_context) =
-                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_EMPTYCONTEXT)
-            {
-                let value = i32::try_from(&empty_context.GetValue()?)?;
-                if value == 1 {
-                    debug!("key not handled - empty context");
-                    return Ok(false);
-                }
-            }
-            if let Ok(disabled) =
-                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_DISABLED)
-            {
-                let value = i32::try_from(&disabled.GetValue()?)?;
-                if value == 1 {
-                    debug!("key not handled - keyboard disabled");
-                    return Ok(false);
-                }
-            }
         }
         //
         // Step 4. ignore key events if they might be shortcut keys
@@ -1371,14 +1414,11 @@ impl ChewingTextService {
     }
 
     fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor> {
-        let user_path = user_dir().map_err(into_anyhow)?;
+        let user_path = user_dir()?;
         let chewing_path = format!(
             "{};{}",
             user_path.display(),
-            program_dir()
-                .map_err(into_anyhow)?
-                .join("Dictionary")
-                .display()
+            program_dir()?.join("Dictionary").display()
         );
         let user_dict_path = user_path.join("chewing.dat");
         // Recreate editor to load latest user files
@@ -1438,7 +1478,7 @@ impl ChewingTextService {
     }
 
     fn apply_config_if_changed(&mut self) -> Result<()> {
-        if self.cfg.reload_if_needed().map_err(into_anyhow)? {
+        if self.cfg.reload_if_needed()? {
             self.apply_runtime_config()?;
         }
         Ok(())

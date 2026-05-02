@@ -13,7 +13,6 @@ log = { workspace = true, features = ["kv"] }
 logforth = { version = "0.29.1", features = ["bridge-log", "starter-log"] }
 roxmltree = "0.21.1"
 serde_json.workspace = true
-thiserror.workspace = true
 ureq = { version = "3.3.0", features = ["platform-verifier"] }
 windows = { version = "0.62.2", features = [
   "Win32_Graphics_Direct2D",
@@ -31,6 +30,7 @@ windows = { version = "0.62.2", features = [
   "Win32_System_Recovery",
   "Win32_UI",
   "Win32_UI_HiDpi",
+  "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging"
 ] }
 windows-core = "0.62.2"

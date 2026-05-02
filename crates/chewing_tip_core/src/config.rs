@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use std::{error::Error, fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
+use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
-use exn::{Result, ResultExt, bail};
 use log::error;
 use serde::{Deserialize, Serialize};
 use windows::{
     Win32::{
-        Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree},
+        Foundation::{HLOCAL, LocalFree},
         Security::{
-            AllocateAndInitializeSid,
+            ACL, AllocateAndInitializeSid,
             Authorization::{
                 EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, SE_OBJECT_TYPE, SE_REGISTRY_KEY,
                 SET_ACCESS, SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_GROUP,
@@ -30,6 +29,8 @@ use windows::{
     core::{PCWSTR, PWSTR, w},
 };
 use windows_registry::{CURRENT_USER, Key};
+
+use crate::{impl_context_error, result::expect_error};
 
 #[derive(Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -150,8 +151,7 @@ impl Default for ChewingTsfConfig {
 
 impl Config {
     pub fn reload_if_needed(&mut self) -> Result<bool, ConfigError> {
-        let cfg =
-            Config::from_reg().or_raise(|| ConfigError("failed to reload config".to_string()))?;
+        let cfg = Config::from_reg()?;
         if cfg == *self {
             Ok(false)
         } else {
@@ -160,164 +160,164 @@ impl Config {
         }
     }
     pub fn from_reg() -> Result<Config, ConfigError> {
-        let err = || ConfigError("failed to load config from registry".to_string());
-        let key = CURRENT_USER
-            .options()
-            .read()
-            .access(KEY_WOW64_64KEY.0)
-            .open("Software\\ChewingTextService")
-            .or_raise(err)?;
-        let mut cfg = ChewingTsfConfig::default();
+        expect_error("Failed to load config from registry", || {
+            let key = CURRENT_USER
+                .options()
+                .read()
+                .access(KEY_WOW64_64KEY.0)
+                .open("Software\\ChewingTextService")?;
+            let mut cfg = ChewingTsfConfig::default();
 
-        // if let Ok(path) = user_symbols_dat_path() {
-        //     cfg.set_symbols_dat(fs::read_to_string(path)?.into());
-        // } else {
-        //     if let Ok(path) = system_symbols_dat_path() {
-        //         cfg.set_symbols_dat(fs::read_to_string(path)?.into());
-        //     }
-        // }
+            // if let Ok(path) = user_symbols_dat_path() {
+            //     cfg.set_symbols_dat(fs::read_to_string(path)?.into());
+            // } else {
+            //     if let Ok(path) = system_symbols_dat_path() {
+            //         cfg.set_symbols_dat(fs::read_to_string(path)?.into());
+            //     }
+            // }
 
-        // Load custom value from the registry
-        if let Ok(value) = reg_get_i32(&key, "KeyboardLayout") {
-            cfg.keyboard_layout = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "SimulateEnglishLayout") {
-            cfg.simulate_english_layout = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "SyncLangModeOpenclose") {
-            cfg.sync_lang_mode_openclose = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "CandPerRow") {
-            cfg.cand_per_row = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "DefaultEnglish") {
-            cfg.default_english = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "DefaultFullSpace") {
-            cfg.default_full_space = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "ShowCandWithSpaceKey") {
-            cfg.show_cand_with_space_key = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
-            cfg.switch_lang_with_shift = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "ShiftKeySensitivity") {
-            cfg.shift_key_sensitivity = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "ShowNotification") {
-            cfg.show_notification = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "OutputSimpChinese") {
-            cfg.output_simp_chinese = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "AddPhraseForward") {
-            cfg.add_phrase_forward = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "PhraseChoiceRearward") {
-            cfg.phrase_choice_rearward = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "AdvanceAfterSelection") {
-            cfg.advance_after_selection = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "DefFontSize") {
-            cfg.font_size = value;
-        }
-        if let Ok(value) = key.get_string("DefFontFamily") {
-            cfg.font_family = value;
-        }
-        if let Ok(value) = key.get_string("DefFontFgColor") {
-            cfg.font_fg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefFontBgColor") {
-            cfg.font_bg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
-            cfg.font_highlight_fg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefFontHighlightBgColor") {
-            cfg.font_highlight_bg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefFontNumberFgColor") {
-            cfg.font_number_fg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefCandListBorderColor") {
-            cfg.cand_list_border_color = value;
-        }
-        if let Ok(value) = key.get_string("DefNotifyFgColor") {
-            cfg.notify_fg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefNotifyBgColor") {
-            cfg.notify_bg_color = value;
-        }
-        if let Ok(value) = key.get_string("DefNotifyBorderColor") {
-            cfg.notify_border_color = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
-            cfg.sel_key_type = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "ConvEngine") {
-            cfg.conv_engine = value;
-        }
-        if let Ok(value) = reg_get_i32(&key, "SelAreaLen") {
-            cfg.cand_per_page = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "CursorCandList") {
-            cfg.cursor_cand_list = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "SortCandidatesByFrequency") {
-            cfg.sort_candidates_by_frequency = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "EnableCapsLock") {
-            cfg.enable_caps_lock = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "LockChineseOnCapsLock") {
-            cfg.lock_chinese_on_caps_lock = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
-            cfg.enable_auto_learn = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "FullShapeSymbols") {
-            cfg.full_shape_symbols = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "EscCleanAllBuf") {
-            cfg.esc_clean_all_buf = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShift") {
-            cfg.easy_symbols_with_shift = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShiftCtrl") {
-            cfg.easy_symbols_with_shift_ctrl = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
-            cfg.upper_case_with_shift = value;
-        }
-        if let Ok(value) = reg_get_bool(&key, "EnableFullwidthToggleKey") {
-            cfg.enable_fullwidth_toggle_key = value;
-        }
-        if let Ok(value) = key.get_string("AutoCheckUpdateChannel") {
-            cfg.auto_check_update_channel = value;
-        }
-        if let Ok(value) = key.get_string("UpdateInfoUrl") {
-            cfg.update_info_url = value;
-        }
-        if let Ok(value) = key.get_u64("LastUpdateCheckTime") {
-            cfg.last_update_check_time = value;
-        }
-        if let Ok(value) = key.get_u64("ModifiedTimestamp") {
-            cfg.modified_timestamp = value;
-        }
-        if let Ok(values) = key.get_multi_string("Keybind") {
-            cfg.keybind = values
-                .into_iter()
-                .flat_map(|value| KeybindValue::from_str(&value))
-                .collect();
-        }
+            // Load custom value from the registry
+            if let Ok(value) = reg_get_i32(&key, "KeyboardLayout") {
+                cfg.keyboard_layout = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "SimulateEnglishLayout") {
+                cfg.simulate_english_layout = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "SyncLangModeOpenclose") {
+                cfg.sync_lang_mode_openclose = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "CandPerRow") {
+                cfg.cand_per_row = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "DefaultEnglish") {
+                cfg.default_english = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "DefaultFullSpace") {
+                cfg.default_full_space = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "ShowCandWithSpaceKey") {
+                cfg.show_cand_with_space_key = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
+                cfg.switch_lang_with_shift = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "ShiftKeySensitivity") {
+                cfg.shift_key_sensitivity = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "ShowNotification") {
+                cfg.show_notification = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "OutputSimpChinese") {
+                cfg.output_simp_chinese = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "AddPhraseForward") {
+                cfg.add_phrase_forward = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "PhraseChoiceRearward") {
+                cfg.phrase_choice_rearward = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "AdvanceAfterSelection") {
+                cfg.advance_after_selection = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "DefFontSize") {
+                cfg.font_size = value;
+            }
+            if let Ok(value) = key.get_string("DefFontFamily") {
+                cfg.font_family = value;
+            }
+            if let Ok(value) = key.get_string("DefFontFgColor") {
+                cfg.font_fg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefFontBgColor") {
+                cfg.font_bg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefFontHighlightFgColor") {
+                cfg.font_highlight_fg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefFontHighlightBgColor") {
+                cfg.font_highlight_bg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefFontNumberFgColor") {
+                cfg.font_number_fg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefCandListBorderColor") {
+                cfg.cand_list_border_color = value;
+            }
+            if let Ok(value) = key.get_string("DefNotifyFgColor") {
+                cfg.notify_fg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefNotifyBgColor") {
+                cfg.notify_bg_color = value;
+            }
+            if let Ok(value) = key.get_string("DefNotifyBorderColor") {
+                cfg.notify_border_color = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "SelKeyType") {
+                cfg.sel_key_type = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "ConvEngine") {
+                cfg.conv_engine = value;
+            }
+            if let Ok(value) = reg_get_i32(&key, "SelAreaLen") {
+                cfg.cand_per_page = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "CursorCandList") {
+                cfg.cursor_cand_list = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "SortCandidatesByFrequency") {
+                cfg.sort_candidates_by_frequency = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "EnableCapsLock") {
+                cfg.enable_caps_lock = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "LockChineseOnCapsLock") {
+                cfg.lock_chinese_on_caps_lock = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
+                cfg.enable_auto_learn = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "FullShapeSymbols") {
+                cfg.full_shape_symbols = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "EscCleanAllBuf") {
+                cfg.esc_clean_all_buf = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShift") {
+                cfg.easy_symbols_with_shift = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "EasySymbolsWithShiftCtrl") {
+                cfg.easy_symbols_with_shift_ctrl = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "UpperCaseWithShift") {
+                cfg.upper_case_with_shift = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "EnableFullwidthToggleKey") {
+                cfg.enable_fullwidth_toggle_key = value;
+            }
+            if let Ok(value) = key.get_string("AutoCheckUpdateChannel") {
+                cfg.auto_check_update_channel = value;
+            }
+            if let Ok(value) = key.get_string("UpdateInfoUrl") {
+                cfg.update_info_url = value;
+            }
+            if let Ok(value) = key.get_u64("LastUpdateCheckTime") {
+                cfg.last_update_check_time = value;
+            }
+            if let Ok(value) = key.get_u64("ModifiedTimestamp") {
+                cfg.modified_timestamp = value;
+            }
+            if let Ok(values) = key.get_multi_string("Keybind") {
+                cfg.keybind = values
+                    .into_iter()
+                    .flat_map(|value| KeybindValue::from_str(&value))
+                    .collect();
+            }
 
-        Ok(Config {
-            chewing_tsf: cfg,
-            symbols_dat: String::new(),
-            swkb_dat: String::new(),
+            Ok(Config {
+                chewing_tsf: cfg,
+                symbols_dat: String::new(),
+                swkb_dat: String::new(),
+            })
         })
     }
     pub fn save_reg(&self) {
@@ -478,20 +478,18 @@ impl FromStr for KeybindValue {
     type Err = ConfigError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let (key, action) = s
-            .rsplit_once('=')
-            .ok_or_else(|| ConfigError("missing seperator =".to_string()))?;
-        let (action, param) = if action.contains(':') {
-            action
-                .rsplit_once(':')
-                .ok_or_else(|| ConfigError("missing seperator :".to_string()))?
-        } else {
-            (action, "")
-        };
-        Ok(KeybindValue {
-            key: key.to_string(),
-            action: action.to_string(),
-            param: param.to_string(),
+        expect_error("Failed to parse keybinding", || {
+            let (key, action) = s.rsplit_once('=').ok_or("missing seperator =")?;
+            let (action, param) = if action.contains(':') {
+                action.rsplit_once(':').ok_or("missing seperator :")?
+            } else {
+                (action, "")
+            };
+            Ok(KeybindValue {
+                key: key.to_string(),
+                action: action.to_string(),
+                param: param.to_string(),
+            })
         })
     }
 }
@@ -511,31 +509,43 @@ fn grant_app_container_access(
     typ: SE_OBJECT_TYPE,
     access: u32,
 ) -> Result<(), ConfigError> {
-    let err = || {
-        ConfigError(format!(
-            "failed to grant AppContainer access {access} to object {object:?}"
-        ))
-    };
-    let mut success = false;
-    let mut old_acl_mut_ptr = null_mut();
-    let mut new_acl_mut_ptr = null_mut();
-    let mut sd = PSECURITY_DESCRIPTOR::default();
-    // Get old security descriptor
-    unsafe {
-        if GetNamedSecurityInfoW(
-            object,
-            typ,
-            DACL_SECURITY_INFORMATION,
-            None,
-            None,
-            Some(&mut old_acl_mut_ptr),
-            None,
-            &mut sd,
-        ) == ERROR_SUCCESS
-        {
+    #[derive(Default)]
+    struct AclSdGuard {
+        new_acl_mut_ptr: *mut ACL,
+        sd: PSECURITY_DESCRIPTOR,
+    }
+    impl Drop for AclSdGuard {
+        fn drop(&mut self) {
+            unsafe {
+                if !self.sd.is_invalid() {
+                    LocalFree(Some(HLOCAL(self.sd.0)));
+                }
+                if !self.new_acl_mut_ptr.is_null() {
+                    LocalFree(Some(HLOCAL(self.new_acl_mut_ptr.cast())));
+                }
+            }
+        }
+    }
+    expect_error("Failed to grant AppContainer access to object", || {
+        let mut old_acl_mut_ptr = null_mut();
+        let mut result = AclSdGuard::default();
+        // Get old security descriptor
+        unsafe {
+            GetNamedSecurityInfoW(
+                object,
+                typ,
+                DACL_SECURITY_INFORMATION,
+                None,
+                None,
+                Some(&mut old_acl_mut_ptr),
+                None,
+                &mut result.sd,
+            )
+            .ok()?;
+
             // Create a well-known SID for the all appcontainers group.
             let mut psid = PSID::default();
-            if AllocateAndInitializeSid(
+            AllocateAndInitializeSid(
                 &SECURITY_APP_PACKAGE_AUTHORITY,
                 SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT as u8,
                 SECURITY_APP_PACKAGE_BASE_RID as u32,
@@ -547,88 +557,79 @@ fn grant_app_container_access(
                 0,
                 0,
                 &mut psid,
+            )?;
+
+            let ea = EXPLICIT_ACCESS_W {
+                grfAccessPermissions: access,
+                grfAccessMode: SET_ACCESS,
+                grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+                Trustee: TRUSTEE_W {
+                    TrusteeForm: TRUSTEE_IS_SID,
+                    TrusteeType: TRUSTEE_IS_GROUP,
+                    ptstrName: PWSTR::from_raw(psid.0.cast()),
+                    ..Default::default()
+                },
+            };
+            // Add the new entry to the existing DACL
+            SetEntriesInAclW(
+                Some(&[ea]),
+                Some(old_acl_mut_ptr),
+                &mut result.new_acl_mut_ptr,
             )
-            .is_ok()
-            {
-                let ea = EXPLICIT_ACCESS_W {
-                    grfAccessPermissions: access,
-                    grfAccessMode: SET_ACCESS,
-                    grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
-                    Trustee: TRUSTEE_W {
-                        TrusteeForm: TRUSTEE_IS_SID,
-                        TrusteeType: TRUSTEE_IS_GROUP,
-                        ptstrName: PWSTR::from_raw(psid.0.cast()),
-                        ..Default::default()
-                    },
-                };
-                // Add the new entry to the existing DACL
-                if SetEntriesInAclW(Some(&[ea]), Some(old_acl_mut_ptr), &mut new_acl_mut_ptr)
-                    == ERROR_SUCCESS
-                {
-                    // Set the new DACL back to the object
-                    if SetNamedSecurityInfoW(
-                        object,
-                        typ,
-                        DACL_SECURITY_INFORMATION,
-                        None,
-                        None,
-                        Some(new_acl_mut_ptr),
-                        None,
-                    ) == ERROR_SUCCESS
-                    {
-                        success = true;
-                    }
-                }
-                FreeSid(psid);
-            }
+            .ok()?;
+            // Set the new DACL back to the object
+            SetNamedSecurityInfoW(
+                object,
+                typ,
+                DACL_SECURITY_INFORMATION,
+                None,
+                None,
+                Some(result.new_acl_mut_ptr),
+                None,
+            )
+            .ok()?;
+
+            FreeSid(psid);
         }
-        if !sd.is_invalid() {
-            LocalFree(Some(HLOCAL(sd.0)));
-        }
-        if !new_acl_mut_ptr.is_null() {
-            LocalFree(Some(HLOCAL(new_acl_mut_ptr.cast())));
-        }
-    }
-    if success {
         Ok(())
-    } else {
-        bail!(err());
-    }
+    })
 }
 
 fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32, ConfigError> {
-    Ok(hk
-        .get_u32(value_name)
-        .or_raise(|| ConfigError(format!("failed to read {value_name} as i32")))? as i32)
+    hk.get_u32(value_name)
+        .map(|v| v as i32)
+        .map_err(|e| ConfigError {
+            msg: "Failed to read config as i32",
+            source: e.into(),
+        })
 }
 
 fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool, ConfigError> {
-    Ok(hk
-        .get_u32(value_name)
-        .or_raise(|| ConfigError(format!("failed to read {value_name} as bool")))?
-        > 0)
+    hk.get_u32(value_name)
+        .map(|v| v > 0)
+        .map_err(|e| ConfigError {
+            msg: "Failed to read config as bool",
+            source: e.into(),
+        })
 }
 
 fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<(), ConfigError> {
-    Ok(hk
-        .set_u32(value_name, value as u32)
-        .or_raise(|| ConfigError(format!("failed to set {value_name} as {value}")))?)
+    hk.set_u32(value_name, value as u32)
+        .map_err(|e| ConfigError {
+            msg: "Failed to set config as i32",
+            source: e.into(),
+        })
 }
 
 fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<(), ConfigError> {
-    Ok(hk
-        .set_u32(value_name, value as u32)
-        .or_raise(|| ConfigError(format!("failed to set {value_name} as {value}")))?)
+    hk.set_u32(value_name, value as u32)
+        .map_err(|e| ConfigError {
+            msg: "Failed to set config as bool",
+            source: e.into(),
+        })
 }
 
-#[derive(Debug)]
-pub struct ConfigError(String);
-impl Error for ConfigError {}
-impl Display for ConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ConfigError: {}", self.0)
-    }
-}
+impl_context_error!(pub ConfigError);
 
 #[cfg(test)]
 mod test {

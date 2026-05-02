@@ -1,11 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-// TODO: make sure the coordinate is DPI aware
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct Position {
-    pub x: i32,
-    pub y: i32,
-}
+use crate::ipc::values::{CandidateList, Composition, IpcKeyEvent, IpcShiftKeyState};
+
+use super::values::Position;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ShowNotification {
@@ -65,4 +62,61 @@ pub struct CheckUpdate;
 pub type CheckUpdateReply = ();
 impl CheckUpdate {
     pub const METHOD: &str = "im.chewing.ui.CheckUpdate";
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnTestKeyDown {
+    pub is_context_mutable: bool,
+    pub is_composing: bool,
+    pub shift_key_state: IpcShiftKeyState,
+    pub event: IpcKeyEvent,
+}
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnTestKeyDownReply {
+    pub handled: bool,
+}
+impl OnTestKeyDown {
+    pub const METHOD: &str = "im.chewing.tip.OnTestKeyDown";
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnKeyDown {
+    pub event: IpcKeyEvent,
+}
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnKeyDownReply {
+    pub handled: bool,
+    pub composition: Option<Composition>,
+    pub candidate_list: Option<CandidateList>,
+    pub notification: Option<String>,
+}
+impl OnKeyDown {
+    pub const METHOD: &str = "im.chewing.tip.OnKeydown";
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnTestKeyUp {
+    pub event: IpcKeyEvent,
+}
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnTestKeyUpReply {
+    pub handled: bool,
+}
+impl OnTestKeyUp {
+    pub const METHOD: &str = "im.chewing.tip.OnTestKeyUp";
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnKeyUp {
+    pub event: IpcKeyEvent,
+}
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnKeyUpReply {
+    pub handled: bool,
+    pub composition: Option<Composition>,
+    pub candidate_list: Option<CandidateList>,
+    pub notification: Option<String>,
+}
+impl OnKeyUp {
+    pub const METHOD: &str = "im.chewing.tip.OnKeyUp";
 }

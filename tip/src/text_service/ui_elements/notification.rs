@@ -7,7 +7,6 @@ use anyhow::Result;
 use chewing_tip_core::ipc::{
     client::ChewingIpcClient, messages::ShowNotification, varlink::MethodCall,
 };
-use exn_anyhow::into_anyhow;
 use log::error;
 use windows::Win32::{
     Foundation::TRUE,
@@ -63,15 +62,13 @@ impl Notification {
         self.element_id.set(id);
     }
     fn show(&self) -> Result<()> {
-        self.cth_client
-            .send(MethodCall {
-                method: ShowNotification::METHOD.to_string(),
-                parameters: serde_json::to_value(&self.model)?,
-                oneway: Some(true),
-                more: None,
-                upgrade: None,
-            })
-            .map_err(into_anyhow)?;
+        self.cth_client.send(MethodCall {
+            method: ShowNotification::METHOD.to_string(),
+            parameters: serde_json::to_value(&self.model)?,
+            oneway: Some(true),
+            more: None,
+            upgrade: None,
+        })?;
         Ok(())
     }
 }

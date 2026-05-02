@@ -3,6 +3,7 @@ use std::{error::Error, fmt::Display};
 pub mod client;
 pub mod messages;
 pub mod named_pipe;
+pub mod values;
 pub mod varlink;
 
 #[derive(Debug)]

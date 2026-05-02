@@ -13,9 +13,10 @@ use windows::Win32::{
     UI::HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext},
 };
 
-use crate::{ipc::run_ipc_server, ui::event_loop::MainLoop};
+use crate::{ipc::run_ipc_listener, ui::event_loop::MainLoop};
 
 mod ipc;
+mod text_service;
 mod ui;
 mod ui_elements;
 mod update;
@@ -61,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mh = main_loop.get_handle();
 
     info!("Spawn IPC thread");
-    thread::spawn(move || run_ipc_server(listener, mh));
+    thread::spawn(move || run_ipc_listener(listener, mh));
 
     info!("Starting main loop");
     main_loop.run();
