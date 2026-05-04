@@ -357,7 +357,7 @@ impl ChewingTextService {
 
     pub(super) fn on_thread_focus(&mut self) -> Result<()> {
         let _ = self.cfg.reload_if_needed();
-        self.apply_config()?;
+        self.apply_runtime_config()?;
         self.sync_lang_mode(true)?;
         Ok(())
     }
@@ -1366,23 +1366,8 @@ impl ChewingTextService {
     }
 
     fn init_chewing_context(&mut self) -> Result<()> {
-        self.apply_config()?;
-
-        self.chewing_editor.set_editor_options(|opt| {
-            if self.cfg.chewing_tsf.default_full_space {
-                opt.character_form = CharacterForm::Fullwidth;
-            }
-            opt.auto_commit_threshold = 50;
-        });
-
-        self.lang_mode.set(if self.cfg.chewing_tsf.default_english {
-            TsfLangMode::English
-        } else {
-            TsfLangMode::Chinese
-        });
-
+        self.apply_init_config()?;
         self.sync_lang_mode(true)?;
-
         Ok(())
     }
 
@@ -1455,16 +1440,14 @@ impl ChewingTextService {
 
     fn apply_config_if_changed(&mut self) -> Result<()> {
         if self.cfg.reload_if_needed().map_err(into_anyhow)? {
-            self.apply_config()?;
+            self.apply_runtime_config()?;
         }
         Ok(())
     }
 
-    fn apply_config(&mut self) -> Result<()> {
+    /// Initializes the config to the user default
+    fn apply_init_config(&mut self) -> Result<()> {
         let cfg = &self.cfg.chewing_tsf;
-        self.kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
-            .unwrap_or(KeyboardLayoutCompat::Default);
-        self.chewing_editor = Self::build_editor_from_cfg(cfg)?;
         self.output_simp_chinese = cfg.output_simp_chinese;
         let check_flag = if self.output_simp_chinese {
             MF_CHECKED
@@ -1474,6 +1457,28 @@ impl ChewingTextService {
         unsafe {
             CheckMenuItem(self.popup_menu, ID_OUTPUT_SIMP_CHINESE, check_flag.0);
         }
+        self.chewing_editor.set_editor_options(|opt| {
+            if self.cfg.chewing_tsf.default_full_space {
+                opt.character_form = CharacterForm::Fullwidth;
+            }
+            opt.auto_commit_threshold = 50;
+        });
+
+        self.lang_mode.set(if self.cfg.chewing_tsf.default_english {
+            TsfLangMode::English
+        } else {
+            TsfLangMode::Chinese
+        });
+        self.apply_runtime_config()?;
+        Ok(())
+    }
+
+    /// Applys config changes that should be effective at runtime
+    fn apply_runtime_config(&mut self) -> Result<()> {
+        let cfg = &self.cfg.chewing_tsf;
+        self.kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
+            .unwrap_or(KeyboardLayoutCompat::Default);
+        self.chewing_editor = Self::build_editor_from_cfg(cfg)?;
         let _ = self.update_lang_buttons();
         let keybindings = cfg
             .keybind
