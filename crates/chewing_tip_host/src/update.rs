@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Display};
+use chewing_tip_core::result::Report;
 
 mod config;
 mod releases;
@@ -8,12 +8,12 @@ pub(crate) fn check_for_update() {
     log::info!("Checking for update...");
     // Always clear update URL before a new check
     if let Err(error) = config::set_update_info_url("") {
-        log::error!("Unable to set update info URL: {error:#}");
+        log::error!("{}", Report(&error));
     }
     let cfg = match config::get_check_update_config() {
         Ok(cfg) => cfg,
         Err(error) => {
-            log::error!("Unable to get CheckUpdateConfig: {error:#}");
+            log::error!("{}", Report(&error));
             return;
         }
     };
@@ -29,34 +29,25 @@ pub(crate) fn check_for_update() {
                 if rel.channel == cfg.channel && version::version_gt(&rel.version, &dll_version) {
                     log::info!("Updates available: version {}", rel.version);
                     if let Err(error) = config::set_update_info_url(&rel.url) {
-                        log::error!("Unable to set update info URL: {error:#}");
+                        log::error!("{}", Report(&error));
                     }
                     break 'check;
                 }
             }
             // no new releases were found, clear update url
             if let Err(error) = config::set_update_info_url("") {
-                log::error!("Unable to set update info URL: {error:#}");
+                log::error!("{}", Report(&error));
             }
         }
         Err(error) => {
-            log::error!("Unable to fetch release metadata: {error:#}");
+            log::error!("{}", Report(&error));
             if let Err(error) = config::set_update_info_url("") {
-                log::error!("Unable to set update info URL: {error:#}");
+                log::error!("{}", Report(&error));
             }
             return;
         }
     }
     if let Err(error) = config::set_last_update_check_time() {
-        log::error!("Unable to set last update check time: {error:#}");
-    }
-}
-
-#[derive(Debug)]
-struct UpdateError(&'static str);
-impl Error for UpdateError {}
-impl Display for UpdateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "UpdateError: {}", self.0)
+        log::error!("{}", Report(&error));
     }
 }
