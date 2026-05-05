@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - tip: correctly handle mid-segment inserted bopomofo.
 - tip: preserve runtime config changes like Simp/Trad Chinese mode after
   window focus change.
+- tip: fix low quality phrase selection caused by incompatible user phrase
+  frequency interpretation (introduced in 26.4.1.0)
 
 ## 26.4.1.0 - 2026-04-11
 
