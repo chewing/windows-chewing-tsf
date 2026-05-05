@@ -80,9 +80,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chewing"
-version = "0.13.0-alpha.1"
+version = "0.13.0-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "509db6529dcb532a883f048f687aba006c6a525e020ace3899251ef5d2c07c78"
+checksum = "ddcdf6011c5ddaf3de15ca1bf2469eec154678d9e61f9478c2c4f5d3daac1b8d"
 dependencies = [
  "der",
  "log",
