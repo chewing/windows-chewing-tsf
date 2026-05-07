@@ -14,6 +14,7 @@ version = "26.4.2"
 [workspace.dependencies]
 anyhow = "1"
 chewing = "0.13.0-alpha.1"
+embed-resource = "3.0.1"
 exn = "0.3.0"
 interprocess = "2.4.1"
 log = "0.4.29"

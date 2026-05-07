@@ -48,7 +48,7 @@ zhconv = { version = "0.4.1", default-features = false, features = ["opencc"] }
 [build-dependencies]
 anyhow = "1.0.95"
 cc = "1.2.5"
-embed-resource = "3.0.1"
+embed-resource.workspace = true
 
 [features]
 nightly = []

@@ -135,6 +135,7 @@ dependencies = [
  "anyhow",
  "chewing",
  "chewing_tip_core",
+ "embed-resource",
  "exn",
  "interprocess",
  "log",
