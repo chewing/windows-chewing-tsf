@@ -392,8 +392,11 @@ impl ChewingTextService {
         //
         if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
             && self.cfg.chewing_tsf.switch_lang_with_shift
+            && matches!(self.shift_key_state, ShiftKeyState::Up)
         {
-            return Ok(true);
+            debug!("shift_key_state = Down");
+            self.shift_key_state = ShiftKeyState::Down(Instant::now());
+            return Ok(false);
         }
         //
         // Step 2.2 handle any keybindings
@@ -509,15 +512,6 @@ impl ChewingTextService {
         }
         let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
         debug!(evt:?; "on_keydown");
-
-        if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
-            && self.cfg.chewing_tsf.switch_lang_with_shift
-            && matches!(self.shift_key_state, ShiftKeyState::Up)
-        {
-            debug!("shift_key_state = Down");
-            self.shift_key_state = ShiftKeyState::Down(Instant::now());
-            return Ok(false);
-        }
 
         // Handle keybindings
         // FIXME: refactor this
