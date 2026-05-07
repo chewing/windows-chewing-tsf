@@ -88,7 +88,7 @@ pub(super) struct SetCompositionString {
     composition: Rc<RefCell<Option<ITfComposition>>>,
     composition_sink: ITfCompositionSink,
     da_atom: [VARIANT; 2],
-    pending: Rc<RefCell<CompositionString>>,
+    pending: Rc<RefCell<Option<CompositionString>>>,
 }
 
 impl SetCompositionString {
@@ -97,7 +97,7 @@ impl SetCompositionString {
         composition: Rc<RefCell<Option<ITfComposition>>>,
         composition_sink: ITfCompositionSink,
         da_atom: [VARIANT; 2],
-        pending: Rc<RefCell<CompositionString>>,
+        pending: Rc<RefCell<Option<CompositionString>>>,
     ) -> SetCompositionString {
         Self {
             context,
@@ -112,7 +112,7 @@ impl SetCompositionString {
 impl ITfEditSession_Impl for SetCompositionString_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         unsafe {
-            if self.composition.borrow().is_none() {
+            if self.composition.borrow().is_none() && self.pending.borrow().is_some() {
                 debug!("starting a new composition");
                 let context_composition: ITfContextComposition = self.context.cast()?;
                 let insert_at_selection: ITfInsertAtSelection = self.context.cast()?;
@@ -126,8 +126,9 @@ impl ITfEditSession_Impl for SetCompositionString_Impl {
                 }
                 self.composition.replace(Some(composition?));
             }
-            if let Some(composition) = self.composition.borrow().as_ref() {
-                let pending = self.pending.borrow();
+            if let Some(composition) = self.composition.borrow().as_ref()
+                && let Some(pending) = self.pending.borrow().as_ref()
+            {
                 let range = composition.GetRange()?;
                 debug!(range:?, commit=pending.commit, preedit=pending.preedit; "set composition string");
                 let text = HSTRING::from(format!("{}{}", pending.commit, pending.preedit));

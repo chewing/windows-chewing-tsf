@@ -70,6 +70,7 @@ pub(super) struct TextService {
     tid: Cell<u32>,
     thread_cookies: RefCell<Vec<u32>>,
     keyboard_openclose_cookie: Cell<u32>,
+    key_busy: Cell<bool>,
     composition_terminated: Cell<bool>,
     pimedpi: Cell<*mut ImeDpi>,
 }
@@ -81,6 +82,7 @@ impl TextService {
             tid: Cell::default(),
             thread_cookies: RefCell::new(vec![]),
             keyboard_openclose_cookie: Cell::new(TF_INVALID_COOKIE),
+            key_busy: Cell::new(false),
             composition_terminated: Cell::new(false),
             pimedpi: Cell::new(null_mut()),
         }
@@ -270,10 +272,14 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         pdimprevfocus: Ref<ITfDocumentMgr>,
     ) -> Result<()> {
         debug!(
-            focus = !pdimfocus.is_null(),
-            prevfocus = !pdimprevfocus.is_null(); "on_set_focus"
+            focus:? = pdimfocus.as_ref(),
+            prevfocus:? = pdimprevfocus.as_ref(); "on_set_focus"
         );
-
+        // Excel switches document upon first key down. Skip this superflos
+        // focus change.
+        if self.key_busy.get() {
+            return Ok(());
+        }
         let mut borrowed_ts = self.inner.borrow_mut();
         let Some(ts) = borrowed_ts.as_mut() else {
             debug!("nested borrow - abort on_set_focus");
@@ -381,6 +387,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keydown");
+        self.key_busy.set(true);
         let handled = {
             let mut borrowed_ts = self.inner.borrow_mut();
             let Some(ts) = borrowed_ts.as_mut() else {
@@ -401,6 +408,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         debug!(wparam:?, lparam:?; "on_keyup");
+        self.key_busy.set(false);
         let handled = {
             let mut borrowed_ts = self.inner.borrow_mut();
             let Some(ts) = borrowed_ts.as_mut() else {
@@ -444,6 +452,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         // this event is not triggered.
         let Ok(mut borrowed_ts) = self.inner.try_borrow_mut() else {
             // Some sync EditSession can trigger reentrant. We will handle them in the handler's tail.
+            debug!("reentrent detected, deferring on_composition_terminated to tail handler");
             self.composition_terminated.set(true);
             return Ok(());
         };

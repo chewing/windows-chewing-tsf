@@ -178,7 +178,7 @@ pub(super) struct ChewingTextService {
     notification: Option<ComObject<Notification>>,
     candidate_list: Option<ComObject<CandidateList>>,
     composition: Rc<RefCell<Option<ITfComposition>>>,
-    pending_edit: Weak<RefCell<CompositionString>>,
+    pending_edit: Weak<RefCell<Option<CompositionString>>>,
 }
 
 impl ChewingTextService {
@@ -835,6 +835,7 @@ impl ChewingTextService {
 
     // SAFETY: this method must not cause TSF callback reentrant
     pub(super) fn on_composition_terminated_tail(&mut self) -> Result<()> {
+        debug!(has_focus=self.has_focus; "on_composition_terminated_tail");
         if self.candidate_list.is_some() {
             self.hide_candidates();
         }
@@ -844,13 +845,17 @@ impl ChewingTextService {
         }
         editor.clear_syllable_editor();
         editor.clear_composition_editor();
+        if let Some(cell) = self.pending_edit.upgrade() {
+            debug!("Clear pending edits to avoid double commits");
+            cell.replace(None);
+        }
         self.pending_edit = Weak::new();
         self.composition.replace(None);
         Ok(())
     }
 
     pub(super) fn on_compartment_change_ro(&self, guid: &GUID) -> Result<()> {
-        debug!(has_focus=self.has_focus; "on_compartment_change");
+        debug!(has_focus=self.has_focus; "on_compartment_change_ro");
         if guid == &GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
             && !self.pending_lang_mode_change.take()
             && self.has_focus
@@ -1074,19 +1079,19 @@ impl ChewingTextService {
         };
         if let Some(cell) = self.pending_edit.upgrade() {
             debug!(cursor, preedit:%; "Reuse existing edit session");
-            cell.replace(CompositionString {
-                commit,
-                preedit,
-                segments,
-                cursor,
-            });
-        } else {
-            let pending = Rc::new(RefCell::new(CompositionString {
+            cell.replace(Some(CompositionString {
                 commit,
                 preedit,
                 segments,
                 cursor,
             }));
+        } else {
+            let pending = Rc::new(RefCell::new(Some(CompositionString {
+                commit,
+                preedit,
+                segments,
+                cursor,
+            })));
             let session = SetCompositionString::new(
                 context.clone(),
                 self.composition.clone(),
