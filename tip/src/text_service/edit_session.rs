@@ -8,8 +8,9 @@ use std::ptr;
 use std::rc::Rc;
 
 use log::{debug, error};
-use windows::Win32::Foundation::{FALSE, RECT};
+use windows::Win32::Foundation::{FALSE, POINT, RECT};
 use windows::Win32::System::Variant::VARIANT;
+use windows::Win32::UI::HiDpi::LogicalToPhysicalPointForPerMonitorDPI;
 use windows::Win32::UI::TextServices::{
     GUID_PROP_ATTRIBUTE, INSERT_TEXT_AT_SELECTION_FLAGS, ITfComposition, ITfCompositionSink,
     ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
@@ -263,6 +264,22 @@ impl ITfEditSession_Impl for SelectionRect_Impl {
                 let mut rc = RECT::default();
                 let mut clipped = BOOL::default();
                 view.GetTextExt(ec, sel_range, &mut rc, &mut clipped)?;
+                if let Ok(hwnd) = view.GetWnd() {
+                    let mut top_left = POINT {
+                        x: rc.left,
+                        y: rc.top,
+                    };
+                    let mut bottom_right = POINT {
+                        x: rc.right,
+                        y: rc.bottom,
+                    };
+                    let _ = LogicalToPhysicalPointForPerMonitorDPI(Some(hwnd), &mut top_left);
+                    let _ = LogicalToPhysicalPointForPerMonitorDPI(Some(hwnd), &mut bottom_right);
+                    rc.left = top_left.x;
+                    rc.top = top_left.y;
+                    rc.right = bottom_right.x;
+                    rc.bottom = bottom_right.y;
+                }
                 self.rect.set(rc);
             }
         }

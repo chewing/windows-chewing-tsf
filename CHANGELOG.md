@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 26.7.1.0 - Unreleased
+
+### 🐛 Bug Fixes
+
+### 🚜 Refactor
+
+- tip: use separate process for UI rendering.
+
 ## 26.4.2.0 - 2026-05-07
 
 ### 🐛 Bug Fixes

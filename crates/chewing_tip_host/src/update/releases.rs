@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use roxmltree::Document;
 
 #[derive(Debug)]
@@ -10,14 +9,9 @@ pub(crate) struct Release {
 
 const RELEASES: &str = "https://chewing.im/releases/im.chewing.windows_chewing_tsf.releases.xml";
 
-pub(crate) fn fetch_releases() -> Result<Vec<Release>> {
-    let releases_xml = ureq::get(RELEASES)
-        .call()
-        .context("Failed to send HTTP request")?
-        .body_mut()
-        .read_to_string()
-        .context("Failed to read HTTP response")?;
-    let doc = Document::parse(&releases_xml).context("Failed to parse release metadata")?;
+pub(crate) fn fetch_releases() -> Result<Vec<Release>, FetchReleasesError> {
+    let releases_xml = ureq::get(RELEASES).call()?.body_mut().read_to_string()?;
+    let doc = Document::parse(&releases_xml)?;
     let mut ret = vec![];
     for rel in doc.root_element().children() {
         if rel.has_tag_name("release") && rel.has_attribute("version") && rel.has_attribute("type")
@@ -37,4 +31,11 @@ pub(crate) fn fetch_releases() -> Result<Vec<Release>> {
         }
     }
     Ok(ret)
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("Failed to download release metadata")]
+pub(crate) enum FetchReleasesError {
+    Network(#[from] ureq::Error),
+    ParseXml(#[from] roxmltree::Error),
 }

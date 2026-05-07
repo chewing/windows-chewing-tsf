@@ -1,19 +1,19 @@
-#![windows_subsystem = "windows"]
+use chewing_tip_core::result::Report;
 
 mod config;
 mod releases;
 mod version;
 
-fn check_for_update() {
+pub(crate) fn check_for_update() {
     log::info!("Checking for update...");
     // Always clear update URL before a new check
     if let Err(error) = config::set_update_info_url("") {
-        log::error!("Unable to set update info URL: {error:#}");
+        log::error!("{}", Report(&error));
     }
     let cfg = match config::get_check_update_config() {
         Ok(cfg) => cfg,
         Err(error) => {
-            log::error!("Unable to get CheckUpdateConfig: {error:#}");
+            log::error!("{}", Report(&error));
             return;
         }
     };
@@ -29,44 +29,25 @@ fn check_for_update() {
                 if rel.channel == cfg.channel && version::version_gt(&rel.version, &dll_version) {
                     log::info!("Updates available: version {}", rel.version);
                     if let Err(error) = config::set_update_info_url(&rel.url) {
-                        log::error!("Unable to set update info URL: {error:#}");
+                        log::error!("{}", Report(&error));
                     }
                     break 'check;
                 }
             }
             // no new releases were found, clear update url
             if let Err(error) = config::set_update_info_url("") {
-                log::error!("Unable to set update info URL: {error:#}");
+                log::error!("{}", Report(&error));
             }
         }
         Err(error) => {
-            log::error!("Unable to fetch release metadata: {error:#}");
+            log::error!("{}", Report(&error));
             if let Err(error) = config::set_update_info_url("") {
-                log::error!("Unable to set update info URL: {error:#}");
+                log::error!("{}", Report(&error));
             }
             return;
         }
     }
     if let Err(error) = config::set_last_update_check_time() {
-        log::error!("Unable to set last update check time: {error:#}");
+        log::error!("{}", Report(&error));
     }
-}
-
-fn main() {
-    win_dbg_logger::init();
-    log::set_max_level(log::LevelFilter::Info);
-    log::info!("chewing-update-svc started");
-    let lock_path = std::env::temp_dir().join("chewing_update_svc.lock");
-    let lock_file = match std::fs::File::create(lock_path) {
-        Ok(file) => file,
-        Err(error) => {
-            log::error!("Unable to open the lock file: {error:#}");
-            return;
-        }
-    };
-    if lock_file.try_lock().is_err() {
-        log::info!("Another chewing-update-svc.exe is already running");
-        return;
-    }
-    check_for_update();
 }

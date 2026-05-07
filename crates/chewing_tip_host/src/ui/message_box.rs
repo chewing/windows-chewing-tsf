@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use anyhow::Result;
+use exn::{Result, ResultExt};
 use windows::Win32::Graphics::Direct2D::{
     CLSID_D2D1GaussianBlur,
     Common::{D2D_RECT_F, D2D_SIZE_F, D2D1_COLOR_F, D2D1_COMPOSITE_MODE_SOURCE_OVER},
@@ -10,7 +10,9 @@ use windows::Win32::Graphics::Direct2D::{
 };
 use windows_numerics::Vector2;
 
-pub(super) fn draw_message_box(
+use crate::ui::UiError;
+
+pub(crate) fn draw_message_box(
     dc: &ID2D1DeviceContext,
     left: f32,
     top: f32,
@@ -18,7 +20,9 @@ pub(super) fn draw_message_box(
     height: f32,
     bg_color: D2D1_COLOR_F,
     border_color: D2D1_COLOR_F,
-) -> Result<()> {
+) -> Result<(), UiError> {
+    let err = || UiError(format!("failed to draw message box"));
+
     let blur_radius = 3.0;
     let corner_radius = 8.0;
 
@@ -27,24 +31,28 @@ pub(super) fn draw_message_box(
             width: width + blur_radius * 2.0,
             height: height + blur_radius * 2.0,
         };
-        let shadow_render_target = dc.CreateCompatibleRenderTarget(
-            Some(&desired_size),
-            None,
-            None,
-            D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS_NONE,
-        )?;
+        let shadow_render_target = dc
+            .CreateCompatibleRenderTarget(
+                Some(&desired_size),
+                None,
+                None,
+                D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS_NONE,
+            )
+            .or_raise(err)?;
         shadow_render_target.BeginDraw();
         shadow_render_target.Clear(None);
 
-        let shadow_brush = shadow_render_target.CreateSolidColorBrush(
-            &D2D1_COLOR_F {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 0.1 * bg_color.a,
-            },
-            None,
-        )?;
+        let shadow_brush = shadow_render_target
+            .CreateSolidColorBrush(
+                &D2D1_COLOR_F {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.1 * bg_color.a,
+                },
+                None,
+            )
+            .or_raise(err)?;
         let rounded_rect = D2D1_ROUNDED_RECT {
             rect: D2D_RECT_F {
                 left,
@@ -66,12 +74,12 @@ pub(super) fn draw_message_box(
             radiusY: corner_radius,
         };
         shadow_render_target.FillRoundedRectangle(&shadow_rect, &shadow_brush);
-        shadow_render_target.EndDraw(None, None)?;
+        shadow_render_target.EndDraw(None, None).or_raise(err)?;
 
-        let shadow_bitmap = shadow_render_target.GetBitmap()?;
-        let gaussian_blur_effect = dc.CreateEffect(&CLSID_D2D1GaussianBlur)?;
+        let shadow_bitmap = shadow_render_target.GetBitmap().or_raise(err)?;
+        let gaussian_blur_effect = dc.CreateEffect(&CLSID_D2D1GaussianBlur).or_raise(err)?;
         gaussian_blur_effect.SetInput(0, &shadow_bitmap, false);
-        let blur_output = gaussian_blur_effect.GetOutput()?;
+        let blur_output = gaussian_blur_effect.GetOutput().or_raise(err)?;
         dc.DrawImage(
             &blur_output,
             Some(&Vector2 { X: left, Y: top }),
@@ -79,8 +87,10 @@ pub(super) fn draw_message_box(
             D2D1_INTERPOLATION_MODE_LINEAR,
             D2D1_COMPOSITE_MODE_SOURCE_OVER,
         );
-        let background_brush = dc.CreateSolidColorBrush(&bg_color, None)?;
-        let border_brush = dc.CreateSolidColorBrush(&border_color, None)?;
+        let background_brush = dc.CreateSolidColorBrush(&bg_color, None).or_raise(err)?;
+        let border_brush = dc
+            .CreateSolidColorBrush(&border_color, None)
+            .or_raise(err)?;
         dc.FillRoundedRectangle(&rounded_rect, &background_brush);
         dc.DrawRoundedRectangle(&rounded_rect, &border_brush, 0.5, None);
     }

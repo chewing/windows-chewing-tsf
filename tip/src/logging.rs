@@ -22,6 +22,7 @@ impl Append for WinDbg {
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         if is_debugger_present() {
             let mut bytes = self.layout.format(record, diags)?;
+            bytes.truncate(1999);
             bytes.push(b'\n');
             let text = String::from_utf8_lossy(&bytes);
             output_debug_string(&text);
@@ -39,6 +40,6 @@ pub(crate) fn output_debug_string(text: &str) {
     }
 }
 
-fn is_debugger_present() -> bool {
+pub(crate) fn is_debugger_present() -> bool {
     unsafe { IsDebuggerPresent().as_bool() }
 }

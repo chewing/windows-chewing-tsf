@@ -1,0 +1,28 @@
+[package]
+name = "chewing_tip_core"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+chewing.workspace = true
+exn.workspace = true
+fnv = "1.0.7"
+interprocess.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+widestring = "1.2.1"
+windows = { version = "0.62.2", features = [
+  "Foundation",
+  "System",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Security_Cryptography",
+  "Win32_Security_WinTrust",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Pipes",
+  "Win32_System_Registry",
+  "Win32_System_SystemServices",
+  "Win32_System_Threading"
+] }
+windows-registry = "0.6.1"

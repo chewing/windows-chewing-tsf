@@ -4,11 +4,7 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::io::ErrorKind;
 use std::mem;
-use std::os::windows::ffi::OsStrExt;
-use std::os::windows::fs::MetadataExt;
-use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::OnceLock;
 use std::sync::atomic::Ordering;
@@ -26,13 +22,15 @@ use chewing::input::keycode::Keycode;
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
+use chewing_tip_core::config::{ChewingTsfConfig, Config};
+use chewing_tip_core::ipc::client::ChewingIpcClient;
+use chewing_tip_core::ipc::messages::{CheckUpdate, Position, ShowCandidateList, ShowNotification};
+use chewing_tip_core::ipc::varlink::MethodCall;
+use chewing_tip_core::shell::{open_url, program_dir, user_dir};
+use exn_anyhow::into_anyhow;
 use log::{debug, error, info};
-use windows::Foundation::Uri;
-use windows::System::Launcher;
+use serde_json::Value;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
-use windows::Win32::Storage::FileSystem::{
-    FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
-};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
 use windows::Win32::UI::TextServices::{
@@ -50,16 +48,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
     MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY,
     TPM_RETURNCMD, TrackPopupMenu,
 };
-use windows_core::{BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR};
+use windows_core::{ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR};
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
-use crate::config::{ChewingTsfConfig, Config, color_s};
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
 use crate::text_service::lang_bar::LangBarFactory;
-use crate::ui::window::window_register_class;
 
 use super::CommandType;
 use super::GUID_INPUT_DISPLAY_ATTRIBUTE_1;
@@ -72,7 +68,7 @@ use super::lang_bar::LangBarButton;
 use super::menu::Menu;
 use super::resources::*;
 use super::theme::{ThemeDetector, WindowsTheme};
-use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, NotificationModel};
+use super::ui_elements::{CandidateList, FilterKeyResult, Notification};
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
@@ -160,6 +156,7 @@ pub(super) struct ChewingTextService {
     popup_menu: HMENU,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
     composition_sink: ITfCompositionSink,
+    cth_client: ChewingIpcClient,
 
     switch_lang_button: ComObject<LangBarButton>,
     switch_shape_button: ComObject<LangBarButton>,
@@ -202,8 +199,6 @@ impl ChewingTextService {
 
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let menu = Menu::load(g_hinstance, IDR_MENU);
-
-        window_register_class();
 
         let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
         info!("Detected theme info: {:?}", ThemeDetector::get_theme_info());
@@ -272,10 +267,14 @@ impl ChewingTextService {
         // Initialize a temp editor, this will be replaced in init_chewing_context.
         let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
+        debug!("trying to connect to a named pipe");
+        let cth_client = ChewingIpcClient::connect_with_retry().map_err(into_anyhow)?;
+
         let mut cts = ChewingTextService {
             thread_mgr,
             tid,
             composition_sink: ts.cast()?,
+            cth_client,
             input_da_atom: [input_da_atom_1, input_da_atom_2],
             _menu: menu,
             popup_menu,
@@ -314,7 +313,15 @@ impl ChewingTextService {
         if cts.cfg.chewing_tsf.auto_check_update_channel != "none"
             && now.abs_diff(cts.cfg.chewing_tsf.last_update_check_time) > 3600
         {
-            open_url("chewing-update-svc://check-now");
+            if let Err(error) = cts.cth_client.send(MethodCall {
+                method: CheckUpdate::METHOD.to_string(),
+                oneway: Some(true),
+                parameters: Value::Null,
+                more: None,
+                upgrade: None,
+            }) {
+                error!("unable to send IPC message CheckUpdate: {error:?}");
+            }
         }
         Ok(cts)
     }
@@ -606,7 +613,9 @@ impl ChewingTextService {
                         key_handled = true;
                     }
                     FilterKeyResult::Handled => {
-                        candidate_list.show();
+                        if let Err(error) = candidate_list.show() {
+                            error!("{error:?}");
+                        }
                         return Ok(true);
                     }
                     FilterKeyResult::NotHandled => {
@@ -648,7 +657,6 @@ impl ChewingTextService {
                                         self.show_message(
                                             context,
                                             &format!("刪除：{phrase}").into(),
-                                            Duration::from_millis(500),
                                         )?;
                                         key_handled = true;
                                     }
@@ -708,7 +716,7 @@ impl ChewingTextService {
 
         if !self.chewing_editor.notification().is_empty() {
             let msg = HSTRING::from(self.chewing_editor.notification());
-            self.show_message(context, &msg, Duration::from_millis(500))?;
+            self.show_message(context, &msg)?;
         }
 
         Ok(true)
@@ -751,7 +759,7 @@ impl ChewingTextService {
                     _ => HSTRING::from("輸入法關閉中"), // unreachable
                 };
                 if self.cfg.chewing_tsf.show_notification {
-                    self.show_message(context, &msg, Duration::from_millis(500))?;
+                    self.show_message(context, &msg)?;
                 }
             } else {
                 self.toggle_lang_mode()?;
@@ -761,7 +769,7 @@ impl ChewingTextService {
                     _ => HSTRING::from("輸入法關閉中"), // unreachable
                 };
                 if self.cfg.chewing_tsf.show_notification {
-                    self.show_message(context, &msg, Duration::from_millis(500))?;
+                    self.show_message(context, &msg)?;
                 }
             }
         }
@@ -774,7 +782,7 @@ impl ChewingTextService {
                 _ => HSTRING::from("輸入法關閉中"), // unreachable
             };
             if self.cfg.chewing_tsf.show_notification {
-                self.show_message(context, &msg, Duration::from_millis(500))?;
+                self.show_message(context, &msg)?;
             }
         }
 
@@ -1116,35 +1124,28 @@ impl ChewingTextService {
         Ok(session.rect())
     }
 
-    fn show_message(&mut self, context: &ITfContext, text: &HSTRING, dur: Duration) -> Result<()> {
-        let hwnd = unsafe {
-            let view = context.GetActiveView()?;
-            // UILess console may not have valid HWND
-            view.GetWnd().unwrap_or_default()
-        };
-        let notification = Notification::new(hwnd, self.thread_mgr.clone())?;
-        notification.set_model(NotificationModel {
-            text: text.clone(),
-            font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
+    fn show_message(&mut self, context: &ITfContext, text: &HSTRING) -> Result<()> {
+        let rect = self.get_selection_rect(context).unwrap_or_default();
+        let call = ShowNotification {
+            position: Position {
+                x: rect.left + 50,
+                y: rect.bottom + 50,
+            },
+            text: text.to_string_lossy(),
+            font_family: self.cfg.chewing_tsf.font_family.clone(),
             font_size: self.cfg.chewing_tsf.font_size as f32,
-            fg_color: color_s(&self.cfg.chewing_tsf.notify_fg_color),
-            bg_color: color_s(&self.cfg.chewing_tsf.notify_bg_color),
-            border_color: color_s(&self.cfg.chewing_tsf.notify_border_color),
-        });
-        if let Ok(rect) = self.get_selection_rect(context) {
-            notification.set_position(rect.left + 50, rect.bottom + 50);
-            // HACK set position again to use correct DPI setting
-            notification.set_position(rect.left + 50, rect.bottom + 50);
-        }
-        notification.show();
-        notification.set_timer(dur);
+            fg_color: self.cfg.chewing_tsf.notify_fg_color.clone(),
+            bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
+            border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
+        };
+        let cth_client = self.cth_client.clone();
+        let notification = Notification::new(self.thread_mgr.clone(), cth_client, call)?;
         self.notification = Some(notification);
         Ok(())
     }
 
     fn hide_message(&mut self) {
         if let Some(notification) = self.notification.take() {
-            notification.set_timer(Duration::ZERO);
             notification.end_ui_element();
         }
     }
@@ -1155,10 +1156,11 @@ impl ChewingTextService {
             return Ok(());
         }
         if self.candidate_list.is_none() {
-            let view = unsafe { context.GetActiveView()? };
-            // UILess console may not have valid HWND
-            let hwnd = unsafe { view.GetWnd().unwrap_or_default() };
-            let candidate_list = CandidateList::new(hwnd, self.thread_mgr.clone())?;
+            let candidate_list = CandidateList::new(
+                self.thread_mgr.clone(),
+                self.cth_client.clone(),
+                ShowCandidateList::default(),
+            )?;
             self.candidate_list = Some(candidate_list);
         }
 
@@ -1177,31 +1179,29 @@ impl ChewingTextService {
                 return Ok(());
             }
             items.truncate(n);
-            candidate_list.set_model(Model {
+            let rect = self.get_selection_rect(context).unwrap_or_default();
+            candidate_list.set_model(ShowCandidateList {
+                position: Position {
+                    x: rect.left,
+                    y: rect.bottom,
+                },
                 items,
                 selkeys: sel_keys.chars().take(n).map(|k| k as u16).collect(),
                 cand_per_row: cfg.cand_per_row as u32,
                 total_page,
                 current_page,
-                font_family: HSTRING::from(&cfg.font_family),
+                font_family: cfg.font_family.clone(),
                 font_size: cfg.font_size as f32,
-                fg_color: color_s(&cfg.font_fg_color),
-                bg_color: color_s(&cfg.font_bg_color),
-                highlight_fg_color: color_s(&cfg.font_highlight_fg_color),
-                highlight_bg_color: color_s(&cfg.font_highlight_bg_color),
-                border_color: color_s(&cfg.cand_list_border_color),
-                selkey_color: color_s(&cfg.font_number_fg_color),
+                fg_color: cfg.font_fg_color.clone(),
+                bg_color: cfg.font_bg_color.clone(),
+                highlight_fg_color: cfg.font_highlight_fg_color.clone(),
+                highlight_bg_color: cfg.font_highlight_bg_color.clone(),
+                border_color: cfg.cand_list_border_color.clone(),
+                selkey_color: cfg.font_number_fg_color.clone(),
                 use_cursor: cfg.cursor_cand_list,
                 current_sel: 0,
             });
-
-            candidate_list.show();
-
-            if let Ok(rect) = self.get_selection_rect(context) {
-                candidate_list.set_position(rect.left, rect.bottom);
-                // HACK set position again to use correct DPI setting
-                candidate_list.set_position(rect.left, rect.bottom);
-            }
+            candidate_list.show()?;
         }
 
         Ok(())
@@ -1255,20 +1255,12 @@ impl ChewingTextService {
             self.kbtype = KeyboardLayoutCompat::Default;
             self.chewing_editor
                 .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Default));
-            self.show_message(
-                context,
-                &HSTRING::from("標準鍵盤"),
-                Duration::from_millis(500),
-            )?;
+            self.show_message(context, &HSTRING::from("標準鍵盤"))?;
         } else {
             self.kbtype = KeyboardLayoutCompat::Hsu;
             self.chewing_editor
                 .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Hsu));
-            self.show_message(
-                context,
-                &HSTRING::from("許氏鍵盤"),
-                Duration::from_millis(500),
-            )?;
+            self.show_message(context, &HSTRING::from("許氏鍵盤"))?;
         }
         Ok(())
     }
@@ -1379,11 +1371,14 @@ impl ChewingTextService {
     }
 
     fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor> {
-        let user_path = user_dir()?;
+        let user_path = user_dir().map_err(into_anyhow)?;
         let chewing_path = format!(
             "{};{}",
             user_path.display(),
-            program_dir()?.join("Dictionary").display()
+            program_dir()
+                .map_err(into_anyhow)?
+                .join("Dictionary")
+                .display()
         );
         let user_dict_path = user_path.join("chewing.dat");
         // Recreate editor to load latest user files
@@ -1443,7 +1438,7 @@ impl ChewingTextService {
     }
 
     fn apply_config_if_changed(&mut self) -> Result<()> {
-        if self.cfg.reload_if_needed()? {
+        if self.cfg.reload_if_needed().map_err(into_anyhow)? {
             self.apply_runtime_config()?;
         }
         Ok(())
@@ -1665,47 +1660,4 @@ fn load_icon_cached(icon_id: u32) -> Result<HICON> {
             Ok(icon)
         }
     })
-}
-
-fn user_dir() -> Result<PathBuf> {
-    let user_dir = chewing::path::data_dir().context("unable to determine user_dir")?;
-
-    // NB: chewing might be loaded into a low mandatory integrity level process (SearchHost.exe).
-    // In that case, it might not be able to check if a file exists using CreateFile
-    // If the file exists, it will get the PermissionDenied error instead.
-    let user_dir_exists = match std::fs::exists(&user_dir) {
-        Ok(true) => true,
-        Err(e) => matches!(e.kind(), ErrorKind::PermissionDenied),
-        _ => false,
-    };
-
-    if !user_dir_exists {
-        std::fs::create_dir(&user_dir)?;
-        let metadata = user_dir.metadata()?;
-        let attributes = metadata.file_attributes();
-        let user_dir_w: Vec<u16> = user_dir.as_os_str().encode_wide().collect();
-        unsafe {
-            SetFileAttributesW(
-                &BSTR::from_wide(&user_dir_w),
-                FILE_FLAGS_AND_ATTRIBUTES(attributes | FILE_ATTRIBUTE_HIDDEN.0),
-            )?;
-        };
-    }
-
-    Ok(user_dir)
-}
-
-fn program_dir() -> Result<PathBuf> {
-    Ok(PathBuf::from(
-        std::env::var("ProgramW6432")
-            .or_else(|_| std::env::var("ProgramFiles"))
-            .or_else(|_| std::env::var("ProgramFiles(x86)"))?,
-    )
-    .join("ChewingTextService"))
-}
-
-fn open_url(url: &str) {
-    if let Ok(uri) = Uri::CreateUri(&url.into()) {
-        let _ = Launcher::LaunchUriAsync(&uri);
-    }
 }

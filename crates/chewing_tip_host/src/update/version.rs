@@ -1,7 +1,6 @@
-use std::path::PathBuf;
 use std::ptr::null_mut;
 
-use anyhow::Result;
+use chewing_tip_core::shell::program_dir;
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VS_FIXEDFILEINFO, VerQueryValueW,
 };
@@ -106,15 +105,6 @@ pub(crate) fn version_gt(ver_a: &str, ver_b: &str) -> bool {
     false
 }
 
-fn program_dir() -> Result<PathBuf> {
-    Ok(PathBuf::from(
-        std::env::var("ProgramW6432")
-            .or_else(|_| std::env::var("ProgramFiles"))
-            .or_else(|_| std::env::var("FrogramFiles(x86)"))?,
-    )
-    .join("ChewingTextService"))
-}
-
 pub const fn hi_word(v: u32) -> u16 {
     (v >> 16 & 0xffff) as _
 }
@@ -125,7 +115,7 @@ pub const fn lo_word(v: u32) -> u16 {
 
 #[cfg(test)]
 mod tests {
-    use crate::version::{parse_version, version_gt};
+    use super::{parse_version, version_gt};
 
     #[test]
     fn parse_version_test() {

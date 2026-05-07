@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
+use std::{error::Error, fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
-use anyhow::{Error, Result, bail};
+use exn::{Result, ResultExt, bail};
 use log::error;
 use serde::{Deserialize, Serialize};
 use windows::{
     Win32::{
         Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree},
-        Graphics::Direct2D::Common::D2D1_COLOR_F,
         Security::{
             AllocateAndInitializeSid,
             Authorization::{
@@ -150,8 +149,9 @@ impl Default for ChewingTsfConfig {
 }
 
 impl Config {
-    pub fn reload_if_needed(&mut self) -> Result<bool> {
-        let cfg = Config::from_reg()?;
+    pub fn reload_if_needed(&mut self) -> Result<bool, ConfigError> {
+        let cfg =
+            Config::from_reg().or_raise(|| ConfigError("failed to reload config".to_string()))?;
         if cfg == *self {
             Ok(false)
         } else {
@@ -159,12 +159,14 @@ impl Config {
             Ok(true)
         }
     }
-    pub fn from_reg() -> Result<Config> {
+    pub fn from_reg() -> Result<Config, ConfigError> {
+        let err = || ConfigError("failed to load config from registry".to_string());
         let key = CURRENT_USER
             .options()
             .read()
             .access(KEY_WOW64_64KEY.0)
-            .open("Software\\ChewingTextService")?;
+            .open("Software\\ChewingTextService")
+            .or_raise(err)?;
         let mut cfg = ChewingTsfConfig::default();
 
         // if let Ok(path) = user_symbols_dat_path() {
@@ -473,16 +475,16 @@ pub struct KeybindValue {
 }
 
 impl FromStr for KeybindValue {
-    type Err = Error;
+    type Err = ConfigError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let (key, action) = s
             .rsplit_once('=')
-            .ok_or_else(|| Error::msg("missing seperator ="))?;
+            .ok_or_else(|| ConfigError("missing seperator =".to_string()))?;
         let (action, param) = if action.contains(':') {
             action
                 .rsplit_once(':')
-                .ok_or_else(|| Error::msg("missing seperator :"))?
+                .ok_or_else(|| ConfigError("missing seperator :".to_string()))?
         } else {
             (action, "")
         };
@@ -504,7 +506,16 @@ impl Display for KeybindValue {
     }
 }
 
-fn grant_app_container_access(object: PCWSTR, typ: SE_OBJECT_TYPE, access: u32) -> Result<()> {
+fn grant_app_container_access(
+    object: PCWSTR,
+    typ: SE_OBJECT_TYPE,
+    access: u32,
+) -> Result<(), ConfigError> {
+    let err = || {
+        ConfigError(format!(
+            "failed to grant AppContainer access {access} to object {object:?}"
+        ))
+    };
     let mut success = false;
     let mut old_acl_mut_ptr = null_mut();
     let mut new_acl_mut_ptr = null_mut();
@@ -581,83 +592,48 @@ fn grant_app_container_access(object: PCWSTR, typ: SE_OBJECT_TYPE, access: u32) 
     if success {
         Ok(())
     } else {
-        bail!("Unable to update security descriptor");
+        bail!(err());
     }
 }
 
-fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32> {
-    Ok(hk.get_u32(value_name)? as i32)
+fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32, ConfigError> {
+    Ok(hk
+        .get_u32(value_name)
+        .or_raise(|| ConfigError(format!("failed to read {value_name} as i32")))? as i32)
 }
 
-fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool> {
-    Ok(hk.get_u32(value_name)? > 0)
+fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool, ConfigError> {
+    Ok(hk
+        .get_u32(value_name)
+        .or_raise(|| ConfigError(format!("failed to read {value_name} as bool")))?
+        > 0)
 }
 
-fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<()> {
-    Ok(hk.set_u32(value_name, value as u32)?)
+fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<(), ConfigError> {
+    Ok(hk
+        .set_u32(value_name, value as u32)
+        .or_raise(|| ConfigError(format!("failed to set {value_name} as {value}")))?)
 }
 
-fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<()> {
-    Ok(hk.set_u32(value_name, value as u32)?)
+fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<(), ConfigError> {
+    Ok(hk
+        .set_u32(value_name, value as u32)
+        .or_raise(|| ConfigError(format!("failed to set {value_name} as {value}")))?)
 }
 
-pub fn color_f(r: f32, g: f32, b: f32, a: f32) -> D2D1_COLOR_F {
-    D2D1_COLOR_F { r, g, b, a }
-}
-
-// XXX: Rust and LLVM assumes the floating point environment is in the default
-// state and divide by zero does not trigger exception. However, chewing_tip is
-// loaded to host program that may set the MXCSR register and trigger UB. Never
-// inline this function to ensure the 4 values used by the SSE instruction DIVPS
-// are all defined.
-//
-// Reference:
-// * https://github.com/rust-lang/unsafe-code-guidelines/issues/471
-// * https://github.com/chewing/windows-chewing-tsf/issues/412
-#[inline(never)]
-pub fn color_uf(r: u16, g: u16, b: u16, a: u16) -> D2D1_COLOR_F {
-    D2D1_COLOR_F {
-        r: (r as f32) / 255.0,
-        g: (g as f32) / 255.0,
-        b: (b as f32) / 255.0,
-        a: (a as f32) / 255.0,
+#[derive(Debug)]
+pub struct ConfigError(String);
+impl Error for ConfigError {}
+impl Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ConfigError: {}", self.0)
     }
-}
-
-pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
-    let mut rgb_u32 = u32::from_str_radix(rgb, 16).unwrap_or(0);
-    let a = if rgb.len() > 6 {
-        let a = rgb_u32 & 0xFF;
-        rgb_u32 >>= 8;
-        a as u16
-    } else {
-        255
-    };
-    let r = ((rgb_u32 >> 16) & 0xFF) as u16;
-    let g = ((rgb_u32 >> 8) & 0xFF) as u16;
-    let b = (rgb_u32 & 0xFF) as u16;
-    color_uf(r, g, b, a)
 }
 
 #[cfg(test)]
 mod test {
     use crate::config::KeybindValue;
 
-    use super::{color_f, color_s};
-
-    #[test]
-    fn color_rgb() {
-        assert_eq!(color_f(1.0, 0.0, 1.0, 1.0), color_s("FF00FF"));
-    }
-    #[test]
-    fn color_rgba() {
-        assert_eq!(color_f(1.0, 0.0, 1.0, 0.0), color_s("FF00FF00"));
-    }
-    #[test]
-    fn color_alpha_only() {
-        assert_eq!(color_f(0.0, 0.0, 1.0, 1.0), color_s("0000FFFF"));
-        assert_eq!(color_f(0.0, 0.0, 0.0, 1.0), color_s("000000FF"));
-    }
     #[test]
     fn parse_keybind_action() {
         let keybind = "ctrl+c=text";
