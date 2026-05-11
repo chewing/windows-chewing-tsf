@@ -1,7 +1,8 @@
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use windows::Foundation::Uri;
 use windows::System::Launcher;
@@ -58,6 +59,13 @@ pub fn open_url(url: &str) {
     if let Ok(uri) = Uri::CreateUri(&url.into()) {
         let _ = Launcher::LaunchUriAsync(&uri);
     }
+}
+
+pub fn execute(exe: &Path) -> Result<(), ShellError> {
+    expect_error("Failed to execute program", || {
+        let _ = Command::new(exe).env_clear().spawn()?;
+        Ok(())
+    })
 }
 
 impl_context_error!(pub ShellError);

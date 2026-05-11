@@ -18,7 +18,7 @@ use crate::{
         varlink::{MethodCall, MethodReply},
     },
     result::expect_error,
-    shell::open_url,
+    shell::{execute, program_dir},
 };
 
 #[derive(Clone)]
@@ -44,6 +44,7 @@ impl ChewingIpcClient {
     }
     fn connect_pipe() -> Result<DuplexPipeStream<Bytes>, IpcOpError> {
         expect_error("Unable to connect to chewing_tip_host", || {
+            let tip_host_path = program_dir()?.join("chewing_tip_host.exe");
             let pipe_path = named_pipe_path()?;
 
             let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
@@ -54,7 +55,7 @@ impl ChewingIpcClient {
             log::error!("Failed to connect to chewing_tip_host...");
             log::error!("{error:?}");
             log::error!("Trying to launch chewing_tip_host and retry...");
-            open_url("chewing-tip-host://init");
+            execute(&tip_host_path)?;
             for _ in 0..5 {
                 thread::sleep(Duration::from_millis(100));
                 let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
@@ -65,7 +66,7 @@ impl ChewingIpcClient {
             log::error!("Failed to connect to chewing_tip_host...");
             log::error!("{error:?}");
             log::error!("Trying to launch chewing_tip_host and retry...");
-            open_url("chewing-tip-host://init");
+            execute(&tip_host_path)?;
             for _ in 0..10 {
                 thread::sleep(Duration::from_millis(100));
                 let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
