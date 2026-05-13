@@ -11,6 +11,7 @@
       <dpiAwareness>permonitorv2, permonitor</dpiAwareness>
     </asmv3:windowsSettings>
   </asmv3:application>
+  <!--
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
@@ -18,4 +19,5 @@
       </requestedPrivileges>
     </security>
   </trustInfo>
+  -->
 </assembly>
