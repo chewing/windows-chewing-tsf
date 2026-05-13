@@ -6,6 +6,10 @@ use std::{
     ptr::null_mut,
 };
 
+use chewing_tip_core::{
+    impl_context_error,
+    result::{Report, expect_error},
+};
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
@@ -35,6 +39,8 @@ mod menu;
 mod resources;
 mod theme;
 mod ui_elements;
+
+impl_context_error!(TipError);
 
 const CHEWING_TSF_CLSID: GUID = GUID::from_u128(0x13F2EF08_575C_4D8C_88E0_F67BB8052B84);
 const GUID_INPUT_DISPLAY_ATTRIBUTE_1: GUID = GUID::from_u128(0xEEA32958_DC57_4542_9FC833C74F5CAAA9);
@@ -154,96 +160,110 @@ impl IFnRunCommand_Impl for TextService_Impl {
 
 impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
-        debug!(tid; "tip::activate");
+        let res = expect_error::<(), TipError>("Failed to activate chewing_tip", || {
+            debug!(tid; "tip::activate");
 
-        if matches!(
-            Quirk::query(),
-            None | Some(Quirk {
-                skip_imm32_patch: false
-            })
-        ) {
-            debug!("trying to override the default IMM32 property set by MSCTF.dll");
-            let pimedpi = match patch_ime_info() {
-                Ok(p) => p,
-                Err(error) => {
-                    error!("{:?}", error);
-                    null_mut()
-                }
-            };
-            self.pimedpi.set(pimedpi);
-        }
-
-        self.tid.set(tid);
-        let mut ts = self.inner.borrow_mut();
-        let mut thread_cookies = self.thread_cookies.borrow_mut();
-        let thread_mgr = ptim.ok()?;
-        let composition_sink: InterfaceRef<ITfCompositionSink> = self.as_interface_ref();
-        let Ok(cts) =
-            ChewingTextService::new(thread_mgr.clone(), tid, composition_sink.cast_object()?)
-        else {
-            return Err(E_UNEXPECTED.into());
-        };
-        ts.replace(cts);
-
-        let punk: InterfaceRef<IUnknown> = self.as_interface_ref();
-        // Set up event sinks
-        unsafe {
-            let source: ITfSource = thread_mgr.cast()?;
-            thread_cookies
-                .push(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
-            thread_cookies
-                .push(source.AdviseSink(&ITfThreadFocusSink::IID, self.as_interface_ref())?);
-            let source_single: ITfSourceSingle = thread_mgr.cast()?;
-            if let Err(error) = source_single.AdviseSingleSink(tid, &ITfFunctionProvider::IID, punk)
-            {
-                error!("Unable to register function provider: {error:#}");
+            if matches!(
+                Quirk::query(),
+                None | Some(Quirk {
+                    skip_imm32_patch: false
+                })
+            ) {
+                debug!("trying to override the default IMM32 property set by MSCTF.dll");
+                let pimedpi = match patch_ime_info() {
+                    Ok(p) => p,
+                    Err(error) => {
+                        error!("{:?}", error);
+                        null_mut()
+                    }
+                };
+                self.pimedpi.set(pimedpi);
             }
-            let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
-            if let Err(error) = keystroke_mgr.AdviseKeyEventSink(tid, self.as_interface_ref(), true)
-            {
-                error!("Unable to register key event sink: {error:#}");
-            }
-            let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
-            let openclose_compartment =
-                compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
-            let source: ITfSource = openclose_compartment.cast()?;
-            self.keyboard_openclose_cookie
-                .set(source.AdviseSink(&ITfCompartmentEventSink::IID, self.as_interface_ref())?);
-        }
 
-        Ok(())
-    }
+            self.tid.set(tid);
+            let mut ts = self.inner.borrow_mut();
+            let mut thread_cookies = self.thread_cookies.borrow_mut();
+            let thread_mgr = ptim.ok()?;
+            let composition_sink: InterfaceRef<ITfCompositionSink> = self.as_interface_ref();
+            let cts =
+                ChewingTextService::new(thread_mgr.clone(), tid, composition_sink.cast_object()?)?;
+            ts.replace(cts);
 
-    fn Deactivate(&self) -> Result<()> {
-        debug!("tip::deactivate");
-        if !self.pimedpi.get().is_null() {
-            debug!("releasing previously acquired PIMEDPI pointer");
-            if let Err(error) = release_ime_info(self.pimedpi.get()) {
-                error!("{:?}", error);
-            }
-            self.pimedpi.set(null_mut());
-        }
-        let thread_cookies = self.thread_cookies.take();
-
-        if let Some(ts) = self.inner.borrow_mut().take() {
-            let thread_mgr = ts.deactivate();
-
-            // Remove event sinks
+            let punk: InterfaceRef<IUnknown> = self.as_interface_ref();
+            // Set up event sinks
             unsafe {
                 let source: ITfSource = thread_mgr.cast()?;
-                for cookie in thread_cookies {
-                    source.UnadviseSink(cookie)?;
-                }
+                thread_cookies
+                    .push(source.AdviseSink(&ITfThreadMgrEventSink::IID, self.as_interface_ref())?);
+                thread_cookies
+                    .push(source.AdviseSink(&ITfThreadFocusSink::IID, self.as_interface_ref())?);
                 let source_single: ITfSourceSingle = thread_mgr.cast()?;
-                source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
+                if let Err(error) =
+                    source_single.AdviseSingleSink(tid, &ITfFunctionProvider::IID, punk)
+                {
+                    error!("Unable to register function provider: {error:#}");
+                }
                 let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
-                keystroke_mgr.UnadviseKeyEventSink(self.tid.get())?;
+                if let Err(error) =
+                    keystroke_mgr.AdviseKeyEventSink(tid, self.as_interface_ref(), true)
+                {
+                    error!("Unable to register key event sink: {error:#}");
+                }
                 let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
                 let openclose_compartment =
                     compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
                 let source: ITfSource = openclose_compartment.cast()?;
-                source.UnadviseSink(self.keyboard_openclose_cookie.get())?;
+                self.keyboard_openclose_cookie.set(
+                    source.AdviseSink(&ITfCompartmentEventSink::IID, self.as_interface_ref())?,
+                );
             }
+            Ok(())
+        });
+
+        // Log error - never return failure from this method because the
+        // TSF manager might not be able to initialize again.
+        if let Err(error) = res {
+            error!("{}", Report(&error));
+        }
+        Ok(())
+    }
+
+    fn Deactivate(&self) -> Result<()> {
+        let res = expect_error::<(), TipError>("Failed to deactivate chewing_tip", || {
+            debug!("tip::deactivate");
+            if !self.pimedpi.get().is_null() {
+                debug!("releasing previously acquired PIMEDPI pointer");
+                if let Err(error) = release_ime_info(self.pimedpi.get()) {
+                    error!("{:?}", error);
+                }
+                self.pimedpi.set(null_mut());
+            }
+            let thread_cookies = self.thread_cookies.take();
+
+            if let Some(ts) = self.inner.borrow_mut().take() {
+                let thread_mgr = ts.deactivate();
+
+                // Remove event sinks
+                unsafe {
+                    let source: ITfSource = thread_mgr.cast()?;
+                    for cookie in thread_cookies {
+                        source.UnadviseSink(cookie)?;
+                    }
+                    let source_single: ITfSourceSingle = thread_mgr.cast()?;
+                    source_single.UnadviseSingleSink(self.tid.get(), &ITfFunctionProvider::IID)?;
+                    let keystroke_mgr: ITfKeystrokeMgr = thread_mgr.cast()?;
+                    keystroke_mgr.UnadviseKeyEventSink(self.tid.get())?;
+                    let compartment_mgr: ITfCompartmentMgr = thread_mgr.cast()?;
+                    let openclose_compartment =
+                        compartment_mgr.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)?;
+                    let source: ITfSource = openclose_compartment.cast()?;
+                    source.UnadviseSink(self.keyboard_openclose_cookie.get())?;
+                }
+            }
+            Ok(())
+        });
+        if let Err(error) = res {
+            error!("{}", Report(&error));
         }
         Ok(())
     }

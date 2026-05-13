@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- tip: improved error recovery from initialization errors.
+
 ### 🚜 Refactor
 
 - tip: use separate process for UI rendering.

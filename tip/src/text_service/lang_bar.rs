@@ -328,7 +328,9 @@ impl LangBarFactory {
                 self.thread_mgr.clone(),
             )
             .into_object();
-            self.lang_bar_item_mgr.AddItem(button.as_interface())?;
+            if let Err(error) = self.lang_bar_item_mgr.AddItem(button.as_interface()) {
+                log::error!("Failed to register LangBarButton: {error}");
+            }
             Ok(button)
         }
     }
