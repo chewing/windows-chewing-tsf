@@ -2,6 +2,7 @@
 name = "chewing_tip_host"
 version.workspace = true
 edition = "2024"
+description = "新酷音輸入法輔助主程式"
 
 [dependencies]
 anyhow.workspace = true
@@ -39,3 +40,4 @@ windows-registry = "0.6.1"
 
 [build-dependencies]
 embed-resource.workspace = true
+embedinator = "0.1.0"

@@ -143,6 +143,7 @@ dependencies = [
  "chewing",
  "chewing_tip_core",
  "embed-resource",
+ "embedinator",
  "exn",
  "interprocess",
  "log",
@@ -288,6 +289,12 @@ dependencies = [
  "vswhom",
  "winreg",
 ]
+
+[[package]]
+name = "embedinator"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3256cbdc89c2df68120db69147af2c080d8aabb6bffbae7644eb8d8fdd4e3130"
 
 [[package]]
 name = "equivalent"
