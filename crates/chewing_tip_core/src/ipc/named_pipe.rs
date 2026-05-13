@@ -7,7 +7,6 @@ use std::{
     time::Duration,
 };
 
-use exn::{Exn, Result, ResultExt, bail};
 use fnv::FnvHasher;
 use interprocess::os::windows::{
     named_pipe::{DuplexPipeStream, PipeListener, PipeListenerOptions, PipeMode, pipe_mode::Bytes},
@@ -34,59 +33,56 @@ use windows::{
     core::{HSTRING, PCWSTR, PWSTR},
 };
 
-use crate::ipc::IpcError;
 use crate::sandbox::get_user_cred;
+use crate::{ipc::IpcError, result::expect_error};
 
 pub const NAMED_PIPE_PATH_BASE: &str = r"\\.\pipe\chewing.";
 
 pub fn named_pipe_path() -> Result<String, IpcError> {
-    let err = || IpcError(format!("failed to create unique user local NamedPipe path"));
-    let user_cred = get_user_cred().or_raise(err)?;
-    let mut hasher = FnvHasher::default();
-    hasher.write(user_cred.token_user_sid.as_bytes());
-    Ok(format!("{NAMED_PIPE_PATH_BASE}{:x}.pipe", hasher.finish()))
+    expect_error("Failed to create unique user local NamedPipe path", || {
+        let user_cred = get_user_cred()?;
+        let mut hasher = FnvHasher::default();
+        hasher.write(user_cred.token_user_sid.as_bytes());
+        Ok(format!("{NAMED_PIPE_PATH_BASE}{:x}.pipe", hasher.finish()))
+    })
 }
 
 pub fn create_pipe_listener() -> Result<PipeListener<Bytes, Bytes>, IpcError> {
-    let err = || IpcError(format!("failed to create named pipe listener"));
-    let user_cred = get_user_cred().or_raise(err)?;
-    let mut security_descriptor = String::new();
-    // Owner SID
-    security_descriptor.push_str(&format!("O:{}", user_cred.token_user_sid));
-    // DACL - ACE Strings
-    security_descriptor.push_str("D:");
-    // Remove default owner rights
-    security_descriptor.push_str("(A;;;;;OW)");
-    // Allow local system
-    security_descriptor.push_str("(A;;GA;;;SY)");
-    // Allow administrator
-    security_descriptor.push_str("(A;;GA;;;BA)");
-    // Allow all read/write from app containers
-    security_descriptor.push_str("(A;;GA;;;AC)");
-    // Allow all read/write from user
-    security_descriptor.push_str(&format!("(A;;GA;;;{})", user_cred.token_user_sid));
-    // SACL - mandatory label - no execute up - low integrity level
-    security_descriptor.push_str("S:(ML;;NX;;;LW)");
+    expect_error("Failed to create named pipe listener", || {
+        let user_cred = get_user_cred()?;
+        let mut security_descriptor = String::new();
+        // Owner SID
+        security_descriptor.push_str(&format!("O:{}", user_cred.token_user_sid));
+        // DACL - ACE Strings
+        security_descriptor.push_str("D:");
+        // Remove default owner rights
+        security_descriptor.push_str("(A;;;;;OW)");
+        // Allow local system
+        security_descriptor.push_str("(A;;GA;;;SY)");
+        // Allow administrator
+        security_descriptor.push_str("(A;;GA;;;BA)");
+        // Allow all read/write from app containers
+        security_descriptor.push_str("(A;;GA;;;AC)");
+        // Allow all read/write from user
+        security_descriptor.push_str(&format!("(A;;GA;;;{})", user_cred.token_user_sid));
+        // SACL - mandatory label - no execute up - low integrity level
+        security_descriptor.push_str("S:(ML;;NX;;;LW)");
 
-    debug!("SDDL for NamedPipe: {security_descriptor}");
+        debug!("SDDL for NamedPipe: {security_descriptor}");
 
-    let sd = SecurityDescriptor::deserialize(
-        U16CString::from_str(&security_descriptor)
-            .or_raise(err)?
-            .as_ucstr(),
-    )
-    .or_raise(|| IpcError(format!("failed to parse SDDL: {security_descriptor}")))
-    .or_raise(err)?;
+        let sd = SecurityDescriptor::deserialize(
+            U16CString::from_str(&security_descriptor)?.as_ucstr(),
+        )?;
 
-    let pipe_path = named_pipe_path().or_raise(err)?;
+        let pipe_path = named_pipe_path()?;
 
-    info!("Creating named pipe at {pipe_path}");
-    Ok(PipeListenerOptions::new()
-        .path(pipe_path)
-        .mode(PipeMode::Bytes)
-        .security_descriptor(Some(sd))
-        .create_duplex::<Bytes>()
-        .or_raise(err)?)
+        info!("Creating named pipe at {pipe_path}");
+        Ok(PipeListenerOptions::new()
+            .path(pipe_path)
+            .mode(PipeMode::Bytes)
+            .security_descriptor(Some(sd))
+            .create_duplex::<Bytes>()?)
+    })
 }
 
 /// Connects to the well-known windows-chewing-tsf named pipe and validate the
@@ -95,53 +91,52 @@ pub fn connect_and_attest(
     pipe_path: &str,
     timeout: Duration,
 ) -> Result<DuplexPipeStream<Bytes>, IpcError> {
-    let err = || IpcError(format!("failed to connect to named pipe {pipe_path}"));
-
-    debug!("trying to connect to named pipe {pipe_path}");
-    unsafe {
-        let _ = WaitNamedPipeW(&HSTRING::from(pipe_path), timeout.as_millis() as u32);
-    }
-    let pipe = DuplexPipeStream::connect_by_path(pipe_path).or_raise(err)?;
-
-    let peer_pid = pipe.server_process_id().or_raise(err)?;
-    if let Err(error) = attest_server(peer_pid) {
-        if cfg!(debug_assertions) {
-            error!("failed to validate signature: {error:?}");
-        } else {
-            bail!(error.raise(err()));
+    expect_error("Failed to connect to named pipe", || {
+        debug!("trying to connect to named pipe {pipe_path}");
+        unsafe {
+            let _ = WaitNamedPipeW(&HSTRING::from(pipe_path), timeout.as_millis() as u32);
         }
-    }
+        let pipe = DuplexPipeStream::connect_by_path(pipe_path)?;
 
-    Ok(pipe)
+        let peer_pid = pipe.server_process_id()?;
+        if let Err(error) = attest_server(peer_pid) {
+            if cfg!(debug_assertions) {
+                error!("failed to validate signature: {error:?}");
+            } else {
+                Err(format!("Failed to validate signature: {error}"))?;
+            }
+        }
+
+        Ok(pipe)
+    })
 }
 
 fn attest_server(pid: u32) -> Result<(), IpcError> {
-    let err = || IpcError(format!("failed to attest server executible"));
-
-    let exe_path = unsafe {
-        let mut buffer = [0u16; MAX_PATH as usize];
-        let mut size = MAX_PATH;
-        let pwpath = PWSTR::from_raw(buffer.as_mut_ptr());
-        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).or_raise(err)?;
-        if let Err(error) =
-            QueryFullProcessImageNameW(handle, PROCESS_NAME_FORMAT(0), pwpath, &mut size)
-        {
-            if let Err(e) = CloseHandle(handle) {
-                bail!(Exn::raise_all(err(), [error, e]));
+    expect_error("Failed to attest server executible", || {
+        let exe_path = unsafe {
+            let mut buffer = [0u16; MAX_PATH as usize];
+            let mut size = MAX_PATH;
+            let pwpath = PWSTR::from_raw(buffer.as_mut_ptr());
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)?;
+            if let Err(error) =
+                QueryFullProcessImageNameW(handle, PROCESS_NAME_FORMAT(0), pwpath, &mut size)
+            {
+                // FIXME tree error
+                CloseHandle(handle)?;
+                Err(error)?;
             }
-            bail!(err());
+            PathBuf::from(pwpath.to_string()?)
+        };
+
+        if !verify_trust(&exe_path) {
+            Err(format!(
+                "unable to verify the signature of {}",
+                exe_path.display()
+            ))?;
         }
-        PathBuf::from(pwpath.to_string().or_raise(err)?)
-    };
 
-    if !verify_trust(&exe_path) {
-        bail!(IpcError(format!(
-            "unable to verify the signature of {}",
-            exe_path.display()
-        )));
-    }
-
-    Ok(())
+        Ok(())
+    })
 }
 
 fn os_to_wstring(value: &OsStr) -> Vec<u16> {

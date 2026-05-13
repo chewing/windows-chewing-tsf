@@ -274,7 +274,7 @@ impl ChewingTextService {
         let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
         debug!("trying to connect to a named pipe");
-        let cth_client = ChewingIpcClient::connect_with_retry()?;
+        let cth_client = ChewingIpcClient::connect_with_retry();
 
         let mut cts = ChewingTextService {
             thread_mgr,
@@ -420,7 +420,7 @@ impl ChewingTextService {
         debug!(evt:?, shift_key_state:? = self.shift_key_state; "on_test_keydown");
 
         // Send IPC
-        let handled = self.cth_client.send(MethodCall {
+        let _handled = self.cth_client.send(MethodCall {
             method: OnTestKeyDown::METHOD.to_string(),
             parameters: serde_json::to_value(OnTestKeyDown {
                 is_context_mutable,
