@@ -1,13 +1,17 @@
 use std::io::ErrorKind;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::os::windows::process::CommandExt;
+use std::path::PathBuf;
 use std::process::Command;
 
 use windows::Foundation::Uri;
 use windows::System::Launcher;
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_HIDDEN, FILE_FLAGS_AND_ATTRIBUTES, SetFileAttributesW,
+};
+use windows::Win32::System::Threading::{
+    CREATE_BREAKAWAY_FROM_JOB, CREATE_DEFAULT_ERROR_MODE, CREATE_NEW_PROCESS_GROUP,
 };
 use windows::core::BSTR;
 
@@ -61,9 +65,18 @@ pub fn open_url(url: &str) {
     }
 }
 
-pub fn execute(exe: &Path) -> Result<(), ShellError> {
-    expect_error("Failed to execute program", || {
-        let _ = Command::new(exe).env_clear().spawn()?;
+pub fn launch_tip_host() -> Result<(), ShellError> {
+    expect_error("Unable to launch chewing_tip_host.exe", || {
+        let path = program_dir()?.join("chewing_tip_host.exe");
+        let _ = Command::new(path)
+            .env_clear()
+            .creation_flags(
+                CREATE_BREAKAWAY_FROM_JOB.0
+                    | CREATE_DEFAULT_ERROR_MODE.0
+                    | CREATE_NEW_PROCESS_GROUP.0,
+            )
+            .arg("-d")
+            .spawn()?;
         Ok(())
     })
 }

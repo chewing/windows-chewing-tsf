@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use std::{error::Error, path::PathBuf, thread};
+use std::{error::Error, path::PathBuf, process::Command, thread};
 
 use chewing_tip_core::ipc::named_pipe::{create_pipe_listener, named_pipe_path};
 use log::{error, info};
@@ -22,6 +22,12 @@ mod ui_elements;
 mod update;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if std::env::args().any(|arg| arg == "-d") {
+        // daemonize
+        let self_exe = std::env::current_exe()?;
+        let _ = Command::new(self_exe).spawn()?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "-a") {
         unsafe {
             let _ = AttachConsole(ATTACH_PARENT_PROCESS);
