@@ -1,5 +1,3 @@
-use std::{error::Error, fmt::Display};
-
 use error_plus::impl_context_error;
 
 pub(crate) mod event_loop;

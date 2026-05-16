@@ -3,11 +3,9 @@ use std::{
     ops::ControlFlow,
 };
 
+use chewing_tip_core::ipc::messages::{OnTestKeyDown, OnTestKeyDownReply};
 use chewing_tip_core::ipc::{
-    messages::{
-        CheckUpdate, HideCandidateList, OnKeyDownReply, OnTestKeyDown, OnTestKeyDownReply,
-        ShowCandidateList, ShowNotification, Stop,
-    },
+    messages::{CheckUpdate, HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::{MethodCall, MethodReply},
 };
 use error_plus::{ErrorExt, expect_error, impl_context_error};
