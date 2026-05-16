@@ -3,17 +3,14 @@ use std::{
     ops::ControlFlow,
 };
 
-use chewing_tip_core::{
-    impl_context_error,
-    ipc::{
-        messages::{
-            CheckUpdate, HideCandidateList, OnKeyDownReply, OnTestKeyDown, OnTestKeyDownReply,
-            ShowCandidateList, ShowNotification, Stop,
-        },
-        varlink::{MethodCall, MethodReply},
+use chewing_tip_core::ipc::{
+    messages::{
+        CheckUpdate, HideCandidateList, OnKeyDownReply, OnTestKeyDown, OnTestKeyDownReply,
+        ShowCandidateList, ShowNotification, Stop,
     },
-    result::{Report, expect_error},
+    varlink::{MethodCall, MethodReply},
 };
+use error_plus::{ErrorExt, expect_error, impl_context_error};
 use interprocess::os::windows::named_pipe::{PipeListener, PipeStream, pipe_mode::Bytes};
 use log::{debug, error, warn};
 
@@ -46,7 +43,7 @@ fn ipc_loop(pipe: PipeStream<Bytes, Bytes>, mh: MainLoopHandle) {
             Ok(ControlFlow::Continue(_)) => continue,
             Ok(ControlFlow::Break(_)) => break,
             Err(error) => {
-                error!("{}", Report(&error))
+                error!("{}", error.error_report())
                 // FIXME reply with errors if not oneway
             }
         }

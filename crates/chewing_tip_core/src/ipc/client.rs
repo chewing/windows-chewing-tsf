@@ -6,18 +6,17 @@ use std::{
     time::Duration,
 };
 
+use error_plus::{ErrorExt, expect_error, impl_context_error};
 use interprocess::{
     TryClone,
     os::windows::named_pipe::{DuplexPipeStream, pipe_mode::Bytes},
 };
 
 use crate::{
-    impl_context_error,
     ipc::{
         named_pipe::{connect_and_attest, named_pipe_path},
         varlink::{MethodCall, MethodReply},
     },
-    result::{Report, expect_error},
     shell::launch_tip_host,
 };
 
@@ -30,7 +29,7 @@ impl ChewingIpcClient {
     pub fn connect_with_retry() -> ChewingIpcClient {
         let pipe = ChewingIpcClient::connect_pipe()
             .inspect_err(|error| {
-                log::error!("{}", Report(&error));
+                log::error!("{}", error.error_report());
             })
             .ok();
         ChewingIpcClient {
@@ -42,7 +41,7 @@ impl ChewingIpcClient {
             let pipe_path = named_pipe_path()?;
             let pipe = connect_and_attest(&pipe_path, Duration::from_millis(100))
                 .inspect_err(|error| {
-                    log::error!("{}", Report(&error));
+                    log::error!("{}", error.error_report());
                 })
                 .ok();
             Ok(ChewingIpcClient {

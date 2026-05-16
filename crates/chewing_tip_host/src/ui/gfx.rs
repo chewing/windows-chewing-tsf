@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use std::error::Error;
-use std::fmt::Display;
 use std::sync::LazyLock;
 
-use exn::{Result, ResultExt};
+use error_plus::expect_error;
+use error_plus::expect_error_fn;
+use error_plus::impl_context_error;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;
@@ -26,26 +26,28 @@ static DEVICE: LazyLock<Result<ID3D11Device, GfxError>> =
     LazyLock::new(|| create_device_with_type(D3D_DRIVER_TYPE_WARP));
 
 fn create_device_with_type(drive_type: D3D_DRIVER_TYPE) -> Result<ID3D11Device, GfxError> {
-    let mut device = None;
-    unsafe {
-        D3D11CreateDevice(
-            None,
-            drive_type,
-            HMODULE::default(),
-            D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-            None,
-            D3D11_SDK_VERSION,
-            Some(&mut device),
-            None,
-            None,
-        )
-        .map(|()| device.unwrap())
-        .or_raise(|| {
-            GfxError(format!(
-                "failed to create D3D11 device with type {drive_type:?}"
-            ))
-        })
-    }
+    let err = || GfxError {
+        message: format!("Failed to create D3D11 device with type {drive_type:?}").into(),
+        source: None,
+        location: None,
+    };
+    expect_error_fn(err, || {
+        let mut device = None;
+        unsafe {
+            Ok(D3D11CreateDevice(
+                None,
+                drive_type,
+                HMODULE::default(),
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                None,
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                None,
+            )
+            .map(|()| device.unwrap())?)
+        }
+    })
 }
 
 pub(crate) fn d3d11_device() -> Result<ID3D11Device, GfxError> {
@@ -59,55 +61,43 @@ pub(crate) fn create_render_target(
     factory: &ID2D1Factory1,
     device: &ID3D11Device,
 ) -> Result<ID2D1DeviceContext, GfxError> {
-    let err = || GfxError("failed to create render target".to_string());
-
-    unsafe {
-        let d2device = factory
-            .CreateDevice(&device.cast::<IDXGIDevice>().or_raise(err)?)
-            .or_raise(err)?;
-        let target = d2device
-            .CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)
-            .or_raise(err)?;
+    expect_error("Failed to create render target", || unsafe {
+        let d2device = factory.CreateDevice(&device.cast::<IDXGIDevice>()?)?;
+        let target = d2device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
         Ok(target)
-    }
+    })
 }
 
 pub(crate) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2, GfxError> {
-    let err = || GfxError("failed to get DXGI factory".to_string());
-    let dxdevice = device.cast::<IDXGIDevice>().or_raise(err)?;
-    unsafe {
-        dxdevice
-            .GetAdapter()
-            .or_raise(err)?
-            .GetParent()
-            .or_raise(err)
-    }
+    expect_error("Failed to get DXGI factory", || {
+        let dxdevice = device.cast::<IDXGIDevice>()?;
+        unsafe { Ok(dxdevice.GetAdapter()?.GetParent()?) }
+    })
 }
 
 pub(crate) fn create_swapchain_bitmap(
     swapchain: &IDXGISwapChain1,
     target: &ID2D1DeviceContext,
 ) -> Result<(), GfxError> {
-    let err = || GfxError(format!("failed to create new swapchain bitmap with dpi"));
-    let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0).or_raise(err)? };
+    expect_error("Failed to create new swapchain bitmap with dpi", || {
+        let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0)? };
 
-    let props = D2D1_BITMAP_PROPERTIES1 {
-        pixelFormat: D2D1_PIXEL_FORMAT {
-            format: DXGI_FORMAT_B8G8R8A8_UNORM,
-            alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-        },
-        bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        ..Default::default()
-    };
+        let props = D2D1_BITMAP_PROPERTIES1 {
+            pixelFormat: D2D1_PIXEL_FORMAT {
+                format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+            },
+            bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+            ..Default::default()
+        };
 
-    unsafe {
-        let bitmap = target
-            .CreateBitmapFromDxgiSurface(&surface, Some(&props))
-            .or_raise(err)?;
-        target.SetTarget(&bitmap);
-    };
+        unsafe {
+            let bitmap = target.CreateBitmapFromDxgiSurface(&surface, Some(&props))?;
+            target.SetTarget(&bitmap);
+        };
 
-    Ok(())
+        Ok(())
+    })
 }
 
 pub(crate) fn create_swapchain(
@@ -115,33 +105,31 @@ pub(crate) fn create_swapchain(
     width: u32,
     height: u32,
 ) -> Result<IDXGISwapChain1, GfxError> {
-    let err = || {
-        GfxError(format!(
-            "failed to create new swapchain with size {width}x{height}"
-        ))
+    let err = || GfxError {
+        message: format!("failed to create new swapchain with size {width}x{height}").into(),
+        source: None,
+        location: None,
     };
-    let factory = get_dxgi_factory(device).or_raise(err)?;
+    expect_error_fn(err, || {
+        let factory = get_dxgi_factory(device)?;
 
-    let props = DXGI_SWAP_CHAIN_DESC1 {
-        Width: width,
-        Height: height,
-        Format: DXGI_FORMAT_B8G8R8A8_UNORM,
-        SampleDesc: DXGI_SAMPLE_DESC {
-            Count: 1,
-            Quality: 0,
-        },
-        BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        BufferCount: 2,
-        SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
-        AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
-        ..Default::default()
-    };
+        let props = DXGI_SWAP_CHAIN_DESC1 {
+            Width: width,
+            Height: height,
+            Format: DXGI_FORMAT_B8G8R8A8_UNORM,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            BufferCount: 2,
+            SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+            AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
+            ..Default::default()
+        };
 
-    unsafe {
-        factory
-            .CreateSwapChainForComposition(device, &props, None)
-            .or_raise(err)
-    }
+        unsafe { Ok(factory.CreateSwapChainForComposition(device, &props, None)?) }
+    })
 }
 
 pub(crate) fn setup_direct_composition(
@@ -149,20 +137,18 @@ pub(crate) fn setup_direct_composition(
     window: HWND,
     swapchain: &IDXGISwapChain,
 ) -> Result<IDCompositionTarget, GfxError> {
-    let err = || GfxError("failed to setup direct composition".to_string());
-    let dxgidevice = device.cast::<IDXGIDevice>().or_raise(err)?;
-    unsafe {
-        let dcompdevice: IDCompositionDevice =
-            DCompositionCreateDevice(&dxgidevice).or_raise(err)?;
-        let dcomptarget: IDCompositionTarget = dcompdevice
-            .CreateTargetForHwnd(window, true)
-            .or_raise(err)?;
-        let visual: IDCompositionVisual = dcompdevice.CreateVisual().or_raise(err)?;
-        visual.SetContent(swapchain).or_raise(err)?;
-        dcomptarget.SetRoot(&visual).or_raise(err)?;
-        dcompdevice.Commit().or_raise(err)?;
-        Ok(dcomptarget)
-    }
+    expect_error("Failed to setup direct composition", || {
+        let dxgidevice = device.cast::<IDXGIDevice>()?;
+        unsafe {
+            let dcompdevice: IDCompositionDevice = DCompositionCreateDevice(&dxgidevice)?;
+            let dcomptarget: IDCompositionTarget = dcompdevice.CreateTargetForHwnd(window, true)?;
+            let visual: IDCompositionVisual = dcompdevice.CreateVisual()?;
+            visual.SetContent(swapchain)?;
+            dcomptarget.SetRoot(&visual)?;
+            dcompdevice.Commit()?;
+            Ok(dcomptarget)
+        }
+    })
 }
 
 pub(crate) fn get_dpi_for_window(hwnd: HWND) -> f32 {
@@ -224,12 +210,14 @@ pub fn color_s(rgb: &str) -> D2D1_COLOR_F {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct GfxError(String);
-impl Error for GfxError {}
-impl Display for GfxError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "GfxError: {}", self.0)
+impl_context_error!(GfxError);
+impl Clone for GfxError {
+    fn clone(&self) -> Self {
+        GfxError {
+            message: self.message.clone(),
+            source: None,
+            location: self.location.clone(),
+        }
     }
 }
 

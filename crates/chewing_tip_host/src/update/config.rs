@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use chewing_tip_core::{impl_context_error, result::expect_error};
+use error_plus::{expect_error, impl_context_error};
 use windows_registry::CURRENT_USER;
 
 use super::version;

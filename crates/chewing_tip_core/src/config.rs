@@ -3,6 +3,7 @@
 
 use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
+use error_plus::{expect_error, expect_error_fn, impl_context_error};
 use log::error;
 use serde::{Deserialize, Serialize};
 use windows::{
@@ -29,8 +30,6 @@ use windows::{
     core::{PCWSTR, PWSTR, w},
 };
 use windows_registry::{CURRENT_USER, Key};
-
-use crate::{impl_context_error, result::expect_error};
 
 #[derive(Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -596,37 +595,39 @@ fn grant_app_container_access(
 }
 
 fn reg_get_i32(hk: &Key, value_name: &str) -> Result<i32, ConfigError> {
-    hk.get_u32(value_name)
-        .map(|v| v as i32)
-        .map_err(|e| ConfigError {
-            msg: "Failed to read config as i32",
-            source: e.into(),
-        })
+    let err = || ConfigError {
+        message: format!("Failed to read config {value_name} as i32").into(),
+        source: None,
+        location: None,
+    };
+    expect_error_fn(err, || Ok(hk.get_u32(value_name).map(|v| v as i32)?))
 }
 
 fn reg_get_bool(hk: &Key, value_name: &str) -> Result<bool, ConfigError> {
-    hk.get_u32(value_name)
-        .map(|v| v > 0)
-        .map_err(|e| ConfigError {
-            msg: "Failed to read config as bool",
-            source: e.into(),
-        })
+    let err = || ConfigError {
+        message: format!("Failed to read config {value_name} as bool").into(),
+        source: None,
+        location: None,
+    };
+    expect_error_fn(err, || Ok(hk.get_u32(value_name).map(|v| v > 0)?))
 }
 
 fn reg_set_i32(hk: &Key, value_name: &str, value: i32) -> Result<(), ConfigError> {
-    hk.set_u32(value_name, value as u32)
-        .map_err(|e| ConfigError {
-            msg: "Failed to set config as i32",
-            source: e.into(),
-        })
+    let err = || ConfigError {
+        message: format!("Failed to set config {value_name} to {value}").into(),
+        source: None,
+        location: None,
+    };
+    expect_error_fn(err, || Ok(hk.set_u32(value_name, value as u32)?))
 }
 
 fn reg_set_bool(hk: &Key, value_name: &str, value: bool) -> Result<(), ConfigError> {
-    hk.set_u32(value_name, value as u32)
-        .map_err(|e| ConfigError {
-            msg: "Failed to set config as bool",
-            source: e.into(),
-        })
+    let err = || ConfigError {
+        message: format!("Failed to set config {value_name} to {value}").into(),
+        source: None,
+        location: None,
+    };
+    expect_error_fn(err, || Ok(hk.set_u32(value_name, value as u32)?))
 }
 
 impl_context_error!(pub ConfigError);

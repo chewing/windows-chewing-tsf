@@ -8,7 +8,7 @@ description = "新酷音輸入法輔助主程式"
 anyhow.workspace = true
 chewing.workspace = true
 chewing_tip_core = { path = "../chewing_tip_core" }
-exn.workspace = true
+error_plus.workspace = true
 interprocess = { workspace = true }
 log = { workspace = true, features = ["kv"] }
 logforth = { version = "0.29.1", features = ["bridge-log", "starter-log"] }

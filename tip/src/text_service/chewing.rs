@@ -23,15 +23,15 @@ use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
 use chewing_tip_core::config::{ChewingTsfConfig, Config};
-use chewing_tip_core::impl_context_error;
 use chewing_tip_core::ipc::client::ChewingIpcClient;
 use chewing_tip_core::ipc::messages::{
     CheckUpdate, OnTestKeyDown, ShowCandidateList, ShowNotification,
 };
 use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState, Position};
 use chewing_tip_core::ipc::varlink::MethodCall;
-use chewing_tip_core::result::expect_error;
 use chewing_tip_core::shell::{open_url, program_dir, user_dir};
+use error_plus::expect_error;
+use error_plus::impl_context_error;
 use log::{debug, error, info};
 use serde_json::Value;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};

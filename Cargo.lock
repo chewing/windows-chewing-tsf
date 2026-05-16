@@ -103,7 +103,7 @@ dependencies = [
  "chewing",
  "chewing_tip_core",
  "embed-resource",
- "exn",
+ "error_plus",
  "getrandom 0.4.2",
  "interprocess",
  "log",
@@ -124,7 +124,7 @@ dependencies = [
  "base64",
  "base64-serde",
  "chewing",
- "exn",
+ "error_plus",
  "fnv",
  "interprocess",
  "log",
@@ -144,7 +144,7 @@ dependencies = [
  "chewing_tip_core",
  "embed-resource",
  "embedinator",
- "exn",
+ "error_plus",
  "interprocess",
  "log",
  "logforth",
@@ -314,10 +314,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "exn"
-version = "0.3.0"
+name = "error_plus"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca6badeb8a07b76663c7d7cb0903c1cc40c38d6fc06d3a2206780c63e8b9496"
+checksum = "45bae93234db67d7d563140d31453182765543fa85914cc89c2ab3b108baf258"
 
 [[package]]
 name = "find-msvc-tools"

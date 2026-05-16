@@ -3,7 +3,7 @@
 
 use std::{cell::RefCell, fmt::Debug, rc::Rc, time::Duration};
 
-use exn::{Result, ResultExt};
+use error_plus::expect_error;
 use windows::Win32::{
     Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::{
@@ -127,38 +127,37 @@ struct RenderedMetrics {
 // TODO: make this generic - complete same as CandidateList
 impl RenderedView {
     fn new(user_data: *const Notification) -> Result<RenderedView, UiError> {
-        let err = || UiError(format!("failed to create new RenderedView"));
-
-        let window = Window::new();
-        window.create(
-            HWND_DESKTOP,
-            w!("ChewingNotificationWindow"),
-            WS_POPUP | WS_CLIPCHILDREN,
-            WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-            user_data.cast(),
-        );
-        unsafe {
-            let factory: ID2D1Factory1 =
-                D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).or_raise(err)?;
-            let dwrite_factory: IDWriteFactory1 =
-                DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).or_raise(err)?;
-            let device = d3d11_device().or_raise(err)?;
-            let target = create_render_target(&factory, &device).or_raise(err)?;
-            let swapchain = create_swapchain(&device, 10, 10).or_raise(err)?;
-            let dpi = get_dpi_for_window(window.hwnd());
-            target.SetDpi(dpi, dpi);
-            create_swapchain_bitmap(&swapchain, &target).or_raise(err)?;
-            let dcomptarget =
-                setup_direct_composition(&device, window.hwnd(), &swapchain).or_raise(err)?;
-            Ok(RenderedView {
-                _factory: factory,
-                _dcomptarget: dcomptarget,
-                dwrite_factory,
-                target,
-                swapchain,
-                window,
-            })
-        }
+        expect_error("Failed to create new RenderedView", || {
+            let window = Window::new();
+            window.create(
+                HWND_DESKTOP,
+                w!("ChewingNotificationWindow"),
+                WS_POPUP | WS_CLIPCHILDREN,
+                WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                user_data.cast(),
+            );
+            unsafe {
+                let factory: ID2D1Factory1 =
+                    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None)?;
+                let dwrite_factory: IDWriteFactory1 =
+                    DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
+                let device = d3d11_device()?;
+                let target = create_render_target(&factory, &device)?;
+                let swapchain = create_swapchain(&device, 10, 10)?;
+                let dpi = get_dpi_for_window(window.hwnd());
+                target.SetDpi(dpi, dpi);
+                create_swapchain_bitmap(&swapchain, &target)?;
+                let dcomptarget = setup_direct_composition(&device, window.hwnd(), &swapchain)?;
+                Ok(RenderedView {
+                    _factory: factory,
+                    _dcomptarget: dcomptarget,
+                    dwrite_factory,
+                    target,
+                    swapchain,
+                    window,
+                })
+            }
+        })
     }
 }
 
@@ -171,12 +170,10 @@ impl RenderedView {
         model: &NotificationModel,
         dpi: f32,
     ) -> Result<RenderedMetrics, UiError> {
-        let err = || UiError(format!("failed to calculate client area"));
-
-        let scale = dpi / 96.0;
-        let text_format = unsafe {
-            self.dwrite_factory
-                .CreateTextFormat(
+        expect_error("Failed to calculate client area", || {
+            let scale = dpi / 96.0;
+            let text_format = unsafe {
+                self.dwrite_factory.CreateTextFormat(
                     &model.font_family,
                     None,
                     DWRITE_FONT_WEIGHT_NORMAL,
@@ -184,42 +181,43 @@ impl RenderedView {
                     DWRITE_FONT_STRETCH_NORMAL,
                     model.font_size,
                     w!("zh-TW"),
-                )
-                .or_raise(err)?
-        };
-        let text_layout = unsafe {
-            self.dwrite_factory
-                .CreateTextLayout(&model.text, &text_format, f32::MAX, f32::MAX)
-                .or_raise(err)?
-        };
-        let mut metrics = DWRITE_TEXT_METRICS::default();
-        unsafe { text_layout.GetMetrics(&mut metrics).or_raise(err)? };
+                )?
+            };
+            let text_layout = unsafe {
+                self.dwrite_factory.CreateTextLayout(
+                    &model.text,
+                    &text_format,
+                    f32::MAX,
+                    f32::MAX,
+                )?
+            };
+            let mut metrics = DWRITE_TEXT_METRICS::default();
+            unsafe { text_layout.GetMetrics(&mut metrics)? };
 
-        let margin = 10.0;
-        let width = metrics.width + margin * 2.0;
-        let height = metrics.height + margin * 2.0;
+            let margin = 10.0;
+            let width = metrics.width + margin * 2.0;
+            let height = metrics.height + margin * 2.0;
 
-        // Convert to HW pixels
-        let hw_width = (width * scale + 25.0).ceil();
-        let hw_height = (height * scale + 25.0).ceil();
+            // Convert to HW pixels
+            let hw_width = (width * scale + 25.0).ceil();
+            let hw_height = (height * scale + 25.0).ceil();
 
-        Ok(RenderedMetrics {
-            width,
-            height,
-            hw_width,
-            hw_height,
+            Ok(RenderedMetrics {
+                width,
+                height,
+                hw_width,
+                hw_height,
+            })
         })
     }
 
     fn on_paint(&self, model: &NotificationModel) -> Result<(), UiError> {
-        let err = || UiError("failed to paint UI".to_string());
-
-        if model.text.is_empty() {
-            return Ok(());
-        }
-        let text_format = unsafe {
-            self.dwrite_factory
-                .CreateTextFormat(
+        expect_error("Failed to paint UI", || {
+            if model.text.is_empty() {
+                return Ok(());
+            }
+            let text_format = unsafe {
+                self.dwrite_factory.CreateTextFormat(
                     &model.font_family,
                     None,
                     DWRITE_FONT_WEIGHT_NORMAL,
@@ -227,75 +225,67 @@ impl RenderedView {
                     DWRITE_FONT_STRETCH_NORMAL,
                     model.font_size,
                     w!("zh-TW"),
-                )
-                .or_raise(err)?
-        };
+                )?
+            };
 
-        let dpi = get_dpi_for_window(self.window.hwnd());
-        let RenderedMetrics {
-            width,
-            height,
-            hw_width,
-            hw_height,
-        } = self.calculate_client_rect(model, dpi).or_raise(err)?;
-        unsafe {
-            self.target.SetTarget(None);
-            self.swapchain
-                .ResizeBuffers(
+            let dpi = get_dpi_for_window(self.window.hwnd());
+            let RenderedMetrics {
+                width,
+                height,
+                hw_width,
+                hw_height,
+            } = self.calculate_client_rect(model, dpi)?;
+            unsafe {
+                self.target.SetTarget(None);
+                self.swapchain.ResizeBuffers(
                     0,
                     hw_width as u32,
                     hw_height as u32,
                     DXGI_FORMAT_B8G8R8A8_UNORM,
                     DXGI_SWAP_CHAIN_FLAG(0),
-                )
-                .or_raise(err)?;
-            self.target.SetDpi(dpi, dpi);
-        }
-        create_swapchain_bitmap(&self.swapchain, &self.target).or_raise(err)?;
+                )?;
+                self.target.SetDpi(dpi, dpi);
+            }
+            create_swapchain_bitmap(&self.swapchain, &self.target)?;
 
-        // Begin drawing
-        let dc = &self.target;
-        unsafe {
-            dc.BeginDraw();
+            // Begin drawing
+            let dc = &self.target;
+            unsafe {
+                dc.BeginDraw();
 
-            draw_message_box(
-                dc,
-                0.0,
-                0.0,
-                width,
-                height,
-                model.bg_color,
-                model.border_color,
-            )
-            .or_raise(err)?;
+                draw_message_box(
+                    dc,
+                    0.0,
+                    0.0,
+                    width,
+                    height,
+                    model.bg_color,
+                    model.border_color,
+                )?;
 
-            let margin = 10.0;
-            let text_rect = D2D_RECT_F {
-                left: margin,
-                top: margin,
-                right: margin + width,
-                bottom: margin + height,
-            };
-            let brush = dc
-                .CreateSolidColorBrush(&model.fg_color, None)
-                .or_raise(err)?;
-            dc.DrawText(
-                &model.text,
-                &text_format,
-                &text_rect,
-                &brush,
-                D2D1_DRAW_TEXT_OPTIONS_NONE,
-                DWRITE_MEASURING_MODE_NATURAL,
-            );
-            dc.EndDraw(None, None).or_raise(err)?;
+                let margin = 10.0;
+                let text_rect = D2D_RECT_F {
+                    left: margin,
+                    top: margin,
+                    right: margin + width,
+                    bottom: margin + height,
+                };
+                let brush = dc.CreateSolidColorBrush(&model.fg_color, None)?;
+                dc.DrawText(
+                    &model.text,
+                    &text_format,
+                    &text_rect,
+                    &brush,
+                    D2D1_DRAW_TEXT_OPTIONS_NONE,
+                    DWRITE_MEASURING_MODE_NATURAL,
+                );
+                dc.EndDraw(None, None)?;
 
-            // Present the draw buffer
-            self.swapchain
-                .Present(1, DXGI_PRESENT(0))
-                .ok()
-                .or_raise(err)?;
-        }
-        Ok(())
+                // Present the draw buffer
+                self.swapchain.Present(1, DXGI_PRESENT(0)).ok()?;
+            }
+            Ok(())
+        })
     }
 }
 
@@ -316,15 +306,16 @@ impl Notification {
         unsafe { RegisterClassExW(&wc) };
     }
     pub(crate) fn new() -> Result<Rc<Notification>, UiError> {
-        let err = || UiError("failed to create notification window".to_string());
-        let mut notification = Rc::new_uninit();
-        let user_data = Rc::as_ptr(&notification);
-        Rc::get_mut(&mut notification).unwrap().write(Notification {
-            model: RefCell::new(NotificationModel::default()),
-            view: RefCell::new(RenderedView::new(user_data.cast()).or_raise(err)?),
-        });
-        // SAFETY: notification is unconditionally initialized
-        unsafe { Ok(notification.assume_init()) }
+        expect_error("Failed to create notification window", || {
+            let mut notification = Rc::new_uninit();
+            let user_data = Rc::as_ptr(&notification);
+            Rc::get_mut(&mut notification).unwrap().write(Notification {
+                model: RefCell::new(NotificationModel::default()),
+                view: RefCell::new(RenderedView::new(user_data.cast())?),
+            });
+            // SAFETY: notification is unconditionally initialized
+            unsafe { Ok(notification.assume_init()) }
+        })
     }
     pub(crate) fn set_timer(&self, dur: Duration) {
         let view = self.view.borrow();

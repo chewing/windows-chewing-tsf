@@ -7,6 +7,7 @@ use std::{
     time::Duration,
 };
 
+use error_plus::expect_error;
 use fnv::FnvHasher;
 use interprocess::os::windows::{
     named_pipe::{DuplexPipeStream, PipeListener, PipeListenerOptions, PipeMode, pipe_mode::Bytes},
@@ -33,8 +34,8 @@ use windows::{
     core::{HSTRING, PCWSTR, PWSTR},
 };
 
+use crate::ipc::IpcError;
 use crate::sandbox::get_user_cred;
-use crate::{ipc::IpcError, result::expect_error};
 
 pub const NAMED_PIPE_PATH_BASE: &str = r"\\.\pipe\chewing.";
 

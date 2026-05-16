@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 anyhow = "1.0.95"
 chewing = { workspace = true }
 chewing_tip_core = { path = "../crates/chewing_tip_core" }
-exn = "0.3.0"
+error_plus.workspace = true
 getrandom = ">= 0.3.0, < 0.5.0"
 interprocess = { workspace = true }
 log = { version = "0.4.0", features = ["kv"] }

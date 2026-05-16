@@ -8,7 +8,7 @@ use chewing_tip_core::ipc::{
     messages::{HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::MethodCall,
 };
-use exn::{Result, ResultExt};
+use error_plus::{ErrorExt, expect_error};
 use log::{debug, error, info, warn};
 use windows::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
@@ -149,13 +149,13 @@ pub(crate) struct MainLoopHandle {
 
 impl MainLoopHandle {
     pub(crate) fn send(&self, msg: MethodCall) -> Result<(), UiError> {
-        let err = || UiError("failed to send message to main loop".to_string());
-        unsafe {
-            PostThreadMessageW(self.main_thread_id, PM_APP_COMMAND, WPARAM(0), LPARAM(0))
-                .or_raise(err)?;
-        }
-        self.sender.send(msg).or_raise(err)?;
-        Ok(())
+        expect_error("Failed to send message to main loop", || {
+            unsafe {
+                PostThreadMessageW(self.main_thread_id, PM_APP_COMMAND, WPARAM(0), LPARAM(0))?;
+            }
+            self.sender.send(msg)?;
+            Ok(())
+        })
     }
 }
 
@@ -168,62 +168,60 @@ impl MainLoop {
                 std::process::exit(0);
             }
             if let Err(error) = self.process(cmd) {
-                error!("{error:?}");
+                error!("{}", error.error_report());
             }
         }
     }
     fn process(&self, cmd: MethodCall) -> Result<(), UiError> {
-        let err = || UiError(format!("failed to handle IPC command"));
-        match cmd.method.as_str() {
-            ShowNotification::METHOD => {
-                let params: ShowNotification =
-                    serde_json::from_value(cmd.parameters).or_raise(err)?;
-                self.notification.set_model(NotificationModel {
-                    text: HSTRING::from(params.text),
-                    font_family: HSTRING::from(params.font_family),
-                    font_size: params.font_size,
-                    fg_color: color_s(&params.fg_color),
-                    bg_color: color_s(&params.bg_color),
-                    border_color: color_s(&params.border_color),
-                });
-                self.notification
-                    .set_position(params.position.x, params.position.y);
-                self.notification.show();
-                self.notification.set_timer(Duration::from_millis(500));
+        expect_error("Failed to handle IPC command", || {
+            match cmd.method.as_str() {
+                ShowNotification::METHOD => {
+                    let params: ShowNotification = serde_json::from_value(cmd.parameters)?;
+                    self.notification.set_model(NotificationModel {
+                        text: HSTRING::from(params.text),
+                        font_family: HSTRING::from(params.font_family),
+                        font_size: params.font_size,
+                        fg_color: color_s(&params.fg_color),
+                        bg_color: color_s(&params.bg_color),
+                        border_color: color_s(&params.border_color),
+                    });
+                    self.notification
+                        .set_position(params.position.x, params.position.y);
+                    self.notification.show();
+                    self.notification.set_timer(Duration::from_millis(500));
+                }
+                ShowCandidateList::METHOD => {
+                    let params: ShowCandidateList = serde_json::from_value(cmd.parameters)?;
+                    self.candidate_list.set_model(CandidateListModel {
+                        items: params.items,
+                        selkeys: params.selkeys,
+                        total_page: params.total_page,
+                        current_page: params.current_page,
+                        font_family: HSTRING::from(params.font_family),
+                        font_size: params.font_size,
+                        cand_per_row: params.cand_per_row,
+                        use_cursor: params.use_cursor,
+                        current_sel: params.current_sel,
+                        selkey_color: color_s(&params.selkey_color),
+                        fg_color: color_s(&params.fg_color),
+                        bg_color: color_s(&params.bg_color),
+                        highlight_fg_color: color_s(&params.highlight_fg_color),
+                        highlight_bg_color: color_s(&params.highlight_bg_color),
+                        border_color: color_s(&params.border_color),
+                    });
+                    self.candidate_list
+                        .set_position(params.position.x, params.position.y);
+                    self.candidate_list.show();
+                }
+                HideCandidateList::METHOD => {
+                    let _params: HideCandidateList = serde_json::from_value(cmd.parameters)?;
+                    self.candidate_list.hide();
+                }
+                _ => {
+                    warn!("Unknown method: {cmd:?}");
+                }
             }
-            ShowCandidateList::METHOD => {
-                let params: ShowCandidateList =
-                    serde_json::from_value(cmd.parameters).or_raise(err)?;
-                self.candidate_list.set_model(CandidateListModel {
-                    items: params.items,
-                    selkeys: params.selkeys,
-                    total_page: params.total_page,
-                    current_page: params.current_page,
-                    font_family: HSTRING::from(params.font_family),
-                    font_size: params.font_size,
-                    cand_per_row: params.cand_per_row,
-                    use_cursor: params.use_cursor,
-                    current_sel: params.current_sel,
-                    selkey_color: color_s(&params.selkey_color),
-                    fg_color: color_s(&params.fg_color),
-                    bg_color: color_s(&params.bg_color),
-                    highlight_fg_color: color_s(&params.highlight_fg_color),
-                    highlight_bg_color: color_s(&params.highlight_bg_color),
-                    border_color: color_s(&params.border_color),
-                });
-                self.candidate_list
-                    .set_position(params.position.x, params.position.y);
-                self.candidate_list.show();
-            }
-            HideCandidateList::METHOD => {
-                let _params: HideCandidateList =
-                    serde_json::from_value(cmd.parameters).or_raise(err)?;
-                self.candidate_list.hide();
-            }
-            _ => {
-                warn!("Unknown method: {cmd:?}");
-            }
-        }
-        Ok(())
+            Ok(())
+        })
     }
 }

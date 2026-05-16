@@ -12,11 +12,10 @@ use chewing::{
 };
 use chewing_tip_core::{
     config::{ChewingTsfConfig, Config},
-    impl_context_error,
     ipc::values::IpcShiftKeyState,
-    result::{Report, expect_error},
     shell::{program_dir, user_dir},
 };
+use error_plus::{ErrorExt, expect_error, impl_context_error};
 
 use crate::text_service::{keybind::Keybinding, keyevent::SystemKeyboardEvent};
 
@@ -35,7 +34,10 @@ pub(crate) struct TipSession {
 impl TipSession {
     pub(crate) fn new() -> TipSession {
         let cfg = Config::from_reg().unwrap_or_else(|error| {
-            log::error!("Failed to load config from registry: {}", Report(&error));
+            log::error!(
+                "Failed to load config from registry: {}",
+                error.error_report()
+            );
             log::error!("Fallback to default config");
             Config::default()
         });
@@ -136,7 +138,7 @@ impl TipSession {
             // Step 1. apply any config changes
             //
             if let Err(error) = self.apply_config_if_changed() {
-                log::error!("{}", Report(&error));
+                log::error!("{}", error.error_report());
             }
             //
             // Step 2. handle any mode change related keydown

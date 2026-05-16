@@ -6,10 +6,7 @@ use std::{
     ptr::null_mut,
 };
 
-use chewing_tip_core::{
-    impl_context_error,
-    result::{Report, expect_error},
-};
+use error_plus::{ErrorExt, expect_error, impl_context_error};
 use log::{debug, error};
 use windows::Win32::{
     Foundation::{E_UNEXPECTED, FALSE, LPARAM, WPARAM},
@@ -223,7 +220,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         // Log error - never return failure from this method because the
         // TSF manager might not be able to initialize again.
         if let Err(error) = res {
-            error!("{}", Report(&error));
+            error!("{}", error.error_report());
         }
         Ok(())
     }
@@ -263,7 +260,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
             Ok(())
         });
         if let Err(error) = res {
-            error!("{}", Report(&error));
+            error!("{}", error.error_report());
         }
         Ok(())
     }
