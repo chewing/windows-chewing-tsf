@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 26.7.1.0 - Unreleased
+## 26.5.1.0 - 2026-05-17
 
 ### 🐛 Bug Fixes
 
@@ -10,7 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
-- tip: use separate process for UI rendering.
+- tip: use separate process (chewing_tip_host.exe) for UI rendering and
+  update checks.
 
 ## 26.4.2.0 - 2026-05-07
 
