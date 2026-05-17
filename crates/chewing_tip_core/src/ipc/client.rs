@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use error_plus::{ErrorExt, expect_error, impl_context_error};
+use error_plus::{expect_error, impl_context_error};
 use interprocess::{
     TryClone,
     os::windows::named_pipe::{DuplexPipeStream, pipe_mode::Bytes},
@@ -29,12 +29,8 @@ impl ChewingIpcClient {
     pub fn connect(&self) -> Result<(), IpcOpError> {
         expect_error("Unable to connect to chewing_tip_host", || {
             let pipe_path = named_pipe_path()?;
-            let pipe = connect_and_attest(&pipe_path, Duration::from_millis(100))
-                .inspect_err(|error| {
-                    log::error!("{}", error.error_report());
-                })
-                .ok();
-            self.pipe.replace(pipe);
+            let pipe = connect_and_attest(&pipe_path, Duration::from_millis(100))?;
+            self.pipe.replace(Some(pipe));
             Ok(())
         })
     }
