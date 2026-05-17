@@ -13,6 +13,7 @@ use chewing_tip_core::ipc::{
     messages::{HideCandidateList, ShowCandidateList},
     varlink::MethodCall,
 };
+use error_plus::expect_error;
 use log::error;
 use windows::Win32::{
     Foundation::{E_INVALIDARG, TRUE},
@@ -165,15 +166,17 @@ impl CandidateList {
         let sel = self.current_sel();
         self.model.borrow().items[sel].clone()
     }
-    pub(crate) fn show(&self) -> Result<()> {
-        self.cth_client.send(MethodCall {
-            method: ShowCandidateList::METHOD.to_string(),
-            parameters: serde_json::to_value(&self.model)?,
-            oneway: Some(true),
-            more: None,
-            upgrade: None,
-        })?;
-        Ok(())
+    pub(crate) fn show(&self) -> Result<(), error_plus::Error> {
+        expect_error("Failed to show candidate window", || {
+            self.cth_client.send(MethodCall {
+                method: ShowCandidateList::METHOD.to_string(),
+                parameters: serde_json::to_value(&self.model)?,
+                oneway: Some(true),
+                more: None,
+                upgrade: None,
+            })?;
+            Ok(())
+        })
     }
     pub(crate) fn hide(&self) -> Result<()> {
         self.cth_client.send(MethodCall {

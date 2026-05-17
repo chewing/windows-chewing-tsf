@@ -5,6 +5,30 @@ use crate::ipc::values::{CandidateList, Composition, IpcKeyEvent, IpcShiftKeySta
 use super::values::Position;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Ping {
+    pub uuid: String,
+}
+impl Ping {
+    pub fn new() -> Ping {
+        Ping {
+            uuid: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+}
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct PingReply {
+    pub uuid: String,
+}
+impl From<Ping> for PingReply {
+    fn from(value: Ping) -> Self {
+        Self { uuid: value.uuid }
+    }
+}
+impl Ping {
+    pub const METHOD: &str = "im.chewing.ipc.Ping";
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ShowNotification {
     pub position: Position,
     pub text: String,

@@ -3,7 +3,7 @@ use std::{
     ops::ControlFlow,
 };
 
-use chewing_tip_core::ipc::messages::{OnTestKeyDown, OnTestKeyDownReply};
+use chewing_tip_core::ipc::messages::{OnTestKeyDown, OnTestKeyDownReply, Ping, PingReply};
 use chewing_tip_core::ipc::{
     messages::{CheckUpdate, HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::{MethodCall, MethodReply},
@@ -65,6 +65,17 @@ fn ipc_loop_once(
         let oneway = call.oneway.is_some_and(|v| v);
 
         match call.method.as_str() {
+            Ping::METHOD => {
+                if !oneway {
+                    let ping: Ping = serde_json::from_value(call.parameters)?;
+                    let reply = MethodReply {
+                        parameters: serde_json::to_value(PingReply::from(ping))?,
+                        continues: None,
+                        error: None,
+                    };
+                    sender.write_all(&reply.to_bytes()?)?;
+                }
+            }
             ShowNotification::METHOD
             | ShowCandidateList::METHOD
             | HideCandidateList::METHOD

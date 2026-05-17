@@ -29,9 +29,9 @@ use chewing_tip_core::ipc::messages::{
 };
 use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState, Position};
 use chewing_tip_core::ipc::varlink::MethodCall;
-use chewing_tip_core::shell::{open_url, program_dir, user_dir};
-use error_plus::expect_error;
+use chewing_tip_core::shell::{launch_tip_host, open_url, program_dir, user_dir};
 use error_plus::impl_context_error;
+use error_plus::{ErrorExt, expect_error};
 use log::{debug, error, info};
 use serde_json::Value;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
@@ -162,7 +162,7 @@ pub(super) struct ChewingTextService {
     popup_menu: HMENU,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
     composition_sink: ITfCompositionSink,
-    cth_client: ChewingIpcClient,
+    ipc_client: ChewingIpcClient,
 
     switch_lang_button: ComObject<LangBarButton>,
     switch_shape_button: ComObject<LangBarButton>,
@@ -273,14 +273,11 @@ impl ChewingTextService {
         // Initialize a temp editor, this will be replaced in init_chewing_context.
         let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
 
-        debug!("trying to connect to a named pipe");
-        let cth_client = ChewingIpcClient::connect_with_retry();
-
         let mut cts = ChewingTextService {
             thread_mgr,
             tid,
             composition_sink: ts.cast()?,
-            cth_client,
+            ipc_client: ChewingIpcClient::new(),
             input_da_atom: [input_da_atom_1, input_da_atom_2],
             _menu: menu,
             popup_menu,
@@ -319,7 +316,7 @@ impl ChewingTextService {
         if cts.cfg.chewing_tsf.auto_check_update_channel != "none"
             && now.abs_diff(cts.cfg.chewing_tsf.last_update_check_time) > 3600
         {
-            if let Err(error) = cts.cth_client.send(MethodCall {
+            if let Err(error) = cts.ipc_client.send(MethodCall {
                 method: CheckUpdate::METHOD.to_string(),
                 oneway: Some(true),
                 parameters: Value::Null,
@@ -406,6 +403,19 @@ impl ChewingTextService {
         self.chewing_editor
             .set_editor_options(|opt| opt.language_mode = self.lang_mode.get().into());
 
+        if let Err(error) = self.ipc_client.ping() {
+            error!("{}", error.error_report());
+            if let Err(error) = self.ipc_client.connect() {
+                error!("{}", error.error_report());
+                info!("Restarting chewing_tip_host...");
+                if let Err(error) = launch_tip_host() {
+                    error!("{}", error.error_report());
+                } else if let Err(error) = self.ipc_client.connect() {
+                    error!("{}", error.error_report());
+                }
+            }
+        }
+
         let is_context_mutable = self.is_context_mutable(context)?;
         let is_composing = self.is_composing();
         let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
@@ -420,7 +430,7 @@ impl ChewingTextService {
         debug!(evt:?, shift_key_state:? = self.shift_key_state; "on_test_keydown");
 
         // Send IPC
-        let _handled = self.cth_client.send(MethodCall {
+        let _handled = self.ipc_client.send(MethodCall {
             method: OnTestKeyDown::METHOD.to_string(),
             parameters: serde_json::to_value(OnTestKeyDown {
                 is_context_mutable,
@@ -740,7 +750,9 @@ impl ChewingTextService {
             return Ok(true);
         }
 
-        self.update_candidates(context)?;
+        if let Err(error) = self.update_candidates(context) {
+            error!("{}", error.error_report());
+        }
 
         debug!("updated candidates");
 
@@ -759,7 +771,9 @@ impl ChewingTextService {
 
         if !self.chewing_editor.notification().is_empty() {
             let msg = HSTRING::from(self.chewing_editor.notification());
-            self.show_message(context, &msg)?;
+            if let Err(error) = self.show_message(context, &msg) {
+                error!("{}", error.error_report());
+            }
         }
 
         Ok(true)
@@ -1167,24 +1181,30 @@ impl ChewingTextService {
         Ok(session.rect())
     }
 
-    fn show_message(&mut self, context: &ITfContext, text: &HSTRING) -> Result<()> {
-        let rect = self.get_selection_rect(context).unwrap_or_default();
-        let call = ShowNotification {
-            position: Position {
-                x: rect.left + 50,
-                y: rect.bottom + 50,
-            },
-            text: text.to_string_lossy(),
-            font_family: self.cfg.chewing_tsf.font_family.clone(),
-            font_size: self.cfg.chewing_tsf.font_size as f32,
-            fg_color: self.cfg.chewing_tsf.notify_fg_color.clone(),
-            bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
-            border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
-        };
-        let cth_client = self.cth_client.clone();
-        let notification = Notification::new(self.thread_mgr.clone(), cth_client, call)?;
-        self.notification = Some(notification);
-        Ok(())
+    fn show_message(
+        &mut self,
+        context: &ITfContext,
+        text: &HSTRING,
+    ) -> Result<(), error_plus::Error> {
+        expect_error("Failed to show message", || {
+            let rect = self.get_selection_rect(context).unwrap_or_default();
+            let call = ShowNotification {
+                position: Position {
+                    x: rect.left + 50,
+                    y: rect.bottom + 50,
+                },
+                text: text.to_string_lossy(),
+                font_family: self.cfg.chewing_tsf.font_family.clone(),
+                font_size: self.cfg.chewing_tsf.font_size as f32,
+                fg_color: self.cfg.chewing_tsf.notify_fg_color.clone(),
+                bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
+                border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
+            };
+            let cth_client = self.ipc_client.clone();
+            let notification = Notification::new(self.thread_mgr.clone(), cth_client, call)?;
+            self.notification = Some(notification);
+            Ok(())
+        })
     }
 
     fn hide_message(&mut self) {
@@ -1193,61 +1213,63 @@ impl ChewingTextService {
         }
     }
 
-    fn update_candidates(&mut self, context: &ITfContext) -> Result<()> {
-        if !self.chewing_editor.is_selecting() {
-            self.hide_candidates();
-            return Ok(());
-        }
-        if self.candidate_list.is_none() {
-            let candidate_list = CandidateList::new(
-                self.thread_mgr.clone(),
-                self.cth_client.clone(),
-                ShowCandidateList::default(),
-            )?;
-            self.candidate_list = Some(candidate_list);
-        }
-
-        let editor = &self.chewing_editor;
-        if let Some(candidate_list) = &self.candidate_list {
-            let cfg = &self.cfg.chewing_tsf;
-            let sel_keys = SEL_KEYS[cfg.sel_key_type as usize];
-            let n = editor.editor_options().candidates_per_page;
-            let total_page = editor.total_page()? as u32;
-            let current_page = editor.current_page_no()? as u32 + 1;
-            let mut items = editor.paginated_candidates()?;
-            if total_page == 0 {
-                // TODO: handle this properly in chewing-rs
-                self.chewing_editor.cancel_selecting()?;
+    fn update_candidates(&mut self, context: &ITfContext) -> Result<(), error_plus::Error> {
+        expect_error("Failed to refresh candidate window", || {
+            if !self.chewing_editor.is_selecting() {
                 self.hide_candidates();
                 return Ok(());
             }
-            items.truncate(n);
-            let rect = self.get_selection_rect(context).unwrap_or_default();
-            candidate_list.set_model(ShowCandidateList {
-                position: Position {
-                    x: rect.left,
-                    y: rect.bottom,
-                },
-                items,
-                selkeys: sel_keys.chars().take(n).map(|k| k as u16).collect(),
-                cand_per_row: cfg.cand_per_row as u32,
-                total_page,
-                current_page,
-                font_family: cfg.font_family.clone(),
-                font_size: cfg.font_size as f32,
-                fg_color: cfg.font_fg_color.clone(),
-                bg_color: cfg.font_bg_color.clone(),
-                highlight_fg_color: cfg.font_highlight_fg_color.clone(),
-                highlight_bg_color: cfg.font_highlight_bg_color.clone(),
-                border_color: cfg.cand_list_border_color.clone(),
-                selkey_color: cfg.font_number_fg_color.clone(),
-                use_cursor: cfg.cursor_cand_list,
-                current_sel: 0,
-            });
-            candidate_list.show()?;
-        }
+            if self.candidate_list.is_none() {
+                let candidate_list = CandidateList::new(
+                    self.thread_mgr.clone(),
+                    self.ipc_client.clone(),
+                    ShowCandidateList::default(),
+                )?;
+                self.candidate_list = Some(candidate_list);
+            }
 
-        Ok(())
+            let editor = &self.chewing_editor;
+            if let Some(candidate_list) = &self.candidate_list {
+                let cfg = &self.cfg.chewing_tsf;
+                let sel_keys = SEL_KEYS[cfg.sel_key_type as usize];
+                let n = editor.editor_options().candidates_per_page;
+                let total_page = editor.total_page()? as u32;
+                let current_page = editor.current_page_no()? as u32 + 1;
+                let mut items = editor.paginated_candidates()?;
+                if total_page == 0 {
+                    // TODO: handle this properly in chewing-rs
+                    self.chewing_editor.cancel_selecting()?;
+                    self.hide_candidates();
+                    return Ok(());
+                }
+                items.truncate(n);
+                let rect = self.get_selection_rect(context).unwrap_or_default();
+                candidate_list.set_model(ShowCandidateList {
+                    position: Position {
+                        x: rect.left,
+                        y: rect.bottom,
+                    },
+                    items,
+                    selkeys: sel_keys.chars().take(n).map(|k| k as u16).collect(),
+                    cand_per_row: cfg.cand_per_row as u32,
+                    total_page,
+                    current_page,
+                    font_family: cfg.font_family.clone(),
+                    font_size: cfg.font_size as f32,
+                    fg_color: cfg.font_fg_color.clone(),
+                    bg_color: cfg.font_bg_color.clone(),
+                    highlight_fg_color: cfg.font_highlight_fg_color.clone(),
+                    highlight_bg_color: cfg.font_highlight_bg_color.clone(),
+                    border_color: cfg.cand_list_border_color.clone(),
+                    selkey_color: cfg.font_number_fg_color.clone(),
+                    use_cursor: cfg.cursor_cand_list,
+                    current_sel: 0,
+                });
+                candidate_list.show()?;
+            }
+
+            Ok(())
+        })
     }
 
     fn hide_candidates(&mut self) {

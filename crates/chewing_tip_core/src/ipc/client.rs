@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     io::{BufRead, BufReader, Write},
     rc::Rc,
-    thread,
     time::Duration,
 };
 
@@ -12,31 +11,22 @@ use interprocess::{
     os::windows::named_pipe::{DuplexPipeStream, pipe_mode::Bytes},
 };
 
-use crate::{
-    ipc::{
-        named_pipe::{connect_and_attest, named_pipe_path},
-        varlink::{MethodCall, MethodReply},
-    },
-    shell::launch_tip_host,
+use crate::ipc::{
+    messages::{Ping, PingReply},
+    named_pipe::{connect_and_attest, named_pipe_path},
+    varlink::{MethodCall, MethodReply},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ChewingIpcClient {
     pipe: Rc<RefCell<Option<DuplexPipeStream<Bytes>>>>,
 }
 
 impl ChewingIpcClient {
-    pub fn connect_with_retry() -> ChewingIpcClient {
-        let pipe = ChewingIpcClient::connect_pipe()
-            .inspect_err(|error| {
-                log::error!("{}", error.error_report());
-            })
-            .ok();
-        ChewingIpcClient {
-            pipe: Rc::new(RefCell::new(pipe)),
-        }
+    pub fn new() -> ChewingIpcClient {
+        Self::default()
     }
-    pub fn connect() -> Result<ChewingIpcClient, IpcOpError> {
+    pub fn connect(&self) -> Result<(), IpcOpError> {
         expect_error("Unable to connect to chewing_tip_host", || {
             let pipe_path = named_pipe_path()?;
             let pipe = connect_and_attest(&pipe_path, Duration::from_millis(100))
@@ -44,89 +34,19 @@ impl ChewingIpcClient {
                     log::error!("{}", error.error_report());
                 })
                 .ok();
-            Ok(ChewingIpcClient {
-                pipe: Rc::new(RefCell::new(pipe)),
-            })
-        })
-    }
-    fn connect_pipe() -> Result<DuplexPipeStream<Bytes>, IpcOpError> {
-        expect_error("Unable to connect to chewing_tip_host", || {
-            let pipe_path = named_pipe_path()?;
-
-            let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
-            if let Ok(pipe) = res {
-                return Ok(pipe);
-            }
-            let error = res.unwrap_err();
-            log::error!("Failed to connect to chewing_tip_host...");
-            log::error!("{error:?}");
-            log::error!("Trying to launch chewing_tip_host and retry...");
-            launch_tip_host()?;
-            for _ in 0..5 {
-                thread::sleep(Duration::from_millis(100));
-                let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
-                if let Ok(pipe) = res {
-                    return Ok(pipe);
-                }
-            }
-            log::error!("Failed to connect to chewing_tip_host...");
-            log::error!("{error:?}");
-            log::error!("Trying to launch chewing_tip_host and retry...");
-            launch_tip_host()?;
-            for _ in 0..10 {
-                thread::sleep(Duration::from_millis(100));
-                let res = connect_and_attest(&pipe_path, Duration::from_millis(100));
-                if let Ok(pipe) = res {
-                    return Ok(pipe);
-                }
-            }
-            // FIXME
-            Ok(connect_and_attest(&pipe_path, Duration::from_millis(100))?)
-        })
-    }
-    fn reconnect(&self) -> Result<(), IpcOpError> {
-        expect_error("Failed to reconnect to chewing_tip_host", || {
-            let pipe = Self::connect_pipe()?;
-            if let Some(pipe) = self.pipe.borrow().as_ref() {
-                pipe.assume_flushed();
-            }
-            self.pipe.replace(Some(pipe));
+            self.pipe.replace(pipe);
             Ok(())
         })
     }
     pub fn send(&self, method_call: MethodCall) -> Result<MethodReply, IpcOpError> {
-        // FIXME move retry logic out
         expect_error("Failed to call IPC method", || {
             let mut bytes = serde_json::to_vec(&method_call)?;
             bytes.push(0);
-            let write_result = self
-                .pipe
+            self.pipe
                 .try_borrow_mut()?
                 .as_mut()
-                .map(|pipe| pipe.write_all(&bytes));
-            match write_result {
-                None => {
-                    log::error!("Retrying...");
-                    self.reconnect()?;
-                    self.pipe
-                        .try_borrow_mut()?
-                        .as_mut()
-                        .ok_or("Unable to connect")?
-                        .write_all(&bytes)?;
-                }
-                Some(Err(error)) => {
-                    log::error!("Error calling ipc method: {}", &method_call.method);
-                    log::error!("{error:?}");
-                    log::error!("Retrying...");
-                    self.reconnect()?;
-                    self.pipe
-                        .try_borrow_mut()?
-                        .as_mut()
-                        .ok_or("Unable to connect")?
-                        .write_all(&bytes)?;
-                }
-                Some(Ok(_)) => {}
-            }
+                .map(|pipe| pipe.write_all(&bytes))
+                .ok_or("IPC Client was not connected")??;
             if matches!(method_call.oneway, Some(true)) {
                 return Ok(MethodReply {
                     parameters: serde_json::Value::Null,
@@ -142,25 +62,26 @@ impl ChewingIpcClient {
                     .ok_or("Broken Pipe")?
                     .try_clone()?,
             );
-            if let Err(error) = reader.read_until(0, &mut buffer) {
-                log::error!("Failed to read from pipe: {error:?}");
-                log::error!("Retrying...");
-                self.reconnect()?;
-                reader = BufReader::new(
-                    self.pipe
-                        .try_borrow()?
-                        .as_ref()
-                        .ok_or("Broken Pipe")?
-                        .try_clone()?,
-                );
-                reader.read_until(0, &mut buffer)?;
-            }
+            reader.read_until(0, &mut buffer)?;
             if buffer.last().is_none_or(|b| *b != 0) {
                 log::debug!("EOF - server exited");
                 return Err("EOF - server exited".into());
             }
             buffer.pop();
             Ok(serde_json::from_slice::<MethodReply>(&buffer)?)
+        })
+    }
+    pub fn ping(&self) -> Result<String, IpcOpError> {
+        expect_error("Cannot ping server", || {
+            let reply = self.send(MethodCall {
+                method: Ping::METHOD.to_string(),
+                parameters: serde_json::to_value(Ping::new())?,
+                oneway: Some(false),
+                more: Some(false),
+                upgrade: Some(false),
+            })?;
+            let params: PingReply = serde_json::from_value(reply.parameters)?;
+            Ok(params.uuid)
         })
     }
 }
