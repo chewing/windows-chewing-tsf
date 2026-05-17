@@ -308,6 +308,10 @@ impl ChewingTextService {
             error!("unable to initialize chewing: {error:#}");
         }
 
+        if let Err(error) = cts.ipc_client.connect() {
+            error!("{}", error.error_report());
+        }
+
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .as_ref()
@@ -323,7 +327,10 @@ impl ChewingTextService {
                 more: None,
                 upgrade: None,
             }) {
-                error!("unable to send IPC message CheckUpdate: {error:?}");
+                error!(
+                    "unable to send IPC message CheckUpdate: {}",
+                    error.error_report()
+                );
             }
         }
         Ok(cts)

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 26.5.2.0 - 2026-05-18
+
+### 🐛 Bug Fixes
+
+- tip: refresh update flag after starting up
+
 ## 26.5.1.0 - 2026-05-17
 
 ### 🐛 Bug Fixes
