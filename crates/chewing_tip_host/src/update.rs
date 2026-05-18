@@ -1,6 +1,6 @@
 use error_plus::ErrorExt;
 
-mod config;
+pub(crate) mod config;
 mod releases;
 mod version;
 

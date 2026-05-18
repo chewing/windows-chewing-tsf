@@ -6,12 +6,9 @@ use chewing_tip_core::ipc::named_pipe::{create_pipe_listener, named_pipe_path};
 use error_plus::{ErrorExt, expect_error};
 use log::{error, info};
 use logforth::record::{Level, LevelFilter};
-use windows::Win32::{
-    System::{
-        Console::{ATTACH_PARENT_PROCESS, AttachConsole},
-        Recovery::{REGISTER_APPLICATION_RESTART_FLAGS, RegisterApplicationRestart},
-    },
-    UI::HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext},
+use windows::Win32::System::{
+    Console::{ATTACH_PARENT_PROCESS, AttachConsole},
+    Recovery::{REGISTER_APPLICATION_RESTART_FLAGS, RegisterApplicationRestart},
 };
 
 use crate::{ipc::run_ipc_listener, ui::event_loop::MainLoop};
@@ -50,16 +47,9 @@ fn main() -> Result<(), error_plus::Error> {
                 );
             }
         }
-        info!("Declare the application is DPI aware");
-        unsafe {
-            if let Err(error) =
-                SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
-            {
-                error!(
-                    "Failed to set process DPI awareness context: {}",
-                    error.error_report()
-                );
-            }
+        info!("Clear update info URL on restart");
+        if let Err(error) = update::config::set_update_info_url("") {
+            log::error!("{}", error.error_report());
         }
 
         info!("Create NamedPipe listener");

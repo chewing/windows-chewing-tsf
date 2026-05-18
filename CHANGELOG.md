@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### 🐛 Bug Fixes
+
+- tip_host: always reset pending update info on restart to avoid stale info.
+
 ## 26.5.2.0 - 2026-05-18
 
 ### 🐛 Bug Fixes
