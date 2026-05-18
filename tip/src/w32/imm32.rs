@@ -7,14 +7,14 @@ pub(crate) const IME_PROP_COMPLETE_ON_UNSELECT: u32 = 0x00100000;
 
 use std::mem;
 
-use error_plus::{expect_error, impl_context_error};
+use error_plus::{expect_error, expect_error_fn, impl_context_error};
 use log::debug;
 use windows::Win32::{
     Foundation::HINSTANCE,
     System::LibraryLoader::{GetProcAddress, LoadLibraryW},
     UI::Input::KeyboardAndMouse::{GetKeyboardLayout, HKL},
 };
-use windows_core::{s, w};
+use windows_core::{PCSTR, PCWSTR, s, w};
 
 // Retrieve the pointer to an IME instance
 //
@@ -54,49 +54,62 @@ pub(crate) struct ImeDpi {
 }
 
 pub(crate) fn patch_ime_info() -> Result<*mut ImeDpi, Imm32Error> {
-    expect_error("Failed to load imm32.dll", || {
-        // Load imm32.dll
-        let lib = unsafe { LoadLibraryW(w!("imm32.dll"))? };
-        if lib.is_invalid() {
-            Err("DLL handle is invalid")?;
+    expect_error("Failed to patch PIMEDPI", || {
+        let void_fn = load_dynamic_fn(w!("imm32.dll"), s!("ImmLockImeDpi"))?;
+
+        unsafe {
+            let lock_fn: ImmLockImeDpiFn = mem::transmute(void_fn);
+
+            let hkl = GetKeyboardLayout(0);
+            let pimedpi = lock_fn(hkl);
+            if let Some(imedpi) = pimedpi.as_mut() {
+                imedpi.ime_info.fdw_property |= IME_PROP_COMPLETE_ON_UNSELECT;
+                debug!("done adding IME_PROP_COMPLETE_ON_UNSELECT to IME property");
+            } else {
+                debug!("unable to get the PIMEDPI pointer");
+            }
+            Ok(pimedpi)
         }
-
-        let maybe_imm_lock_fn = unsafe { GetProcAddress(lib, s!("ImmLockImeDpi")) };
-
-        let Some(imm_lock_fn) = maybe_imm_lock_fn else {
-            return Err("ImmLockImeDpi not found".into());
-        };
-        let lock_fn: ImmLockImeDpiFn = unsafe { mem::transmute(imm_lock_fn) };
-
-        let hkl = unsafe { GetKeyboardLayout(0) };
-        let pimedpi = unsafe { lock_fn(hkl) };
-        if let Some(imedpi) = unsafe { pimedpi.as_mut() } {
-            imedpi.ime_info.fdw_property |= IME_PROP_COMPLETE_ON_UNSELECT;
-            debug!("done adding IME_PROP_COMPLETE_ON_UNSELECT to IME property");
-        } else {
-            debug!("unable to get the PIMEDPI pointer");
-        }
-
-        Ok(pimedpi)
     })
 }
 
 pub(crate) fn release_ime_info(pimedpi: *mut ImeDpi) -> Result<(), Imm32Error> {
     expect_error("Failed to release imm32.dll", || {
-        // Load imm32.dll
-        let lib = unsafe { LoadLibraryW(w!("imm32.dll"))? };
-        if lib.is_invalid() {
-            Err("DLL handle is invalid")?;
+        let void_fn = load_dynamic_fn(w!("imm32.dll"), s!("ImmUnlockImeDpi"))?;
+        unsafe {
+            let unlock_fn: ImmUnlockImeDpiFn = mem::transmute(void_fn);
+            unlock_fn(pimedpi);
+            Ok(())
         }
-        let maybe_imm_unlock_fn = unsafe { GetProcAddress(lib, s!("ImmUnlockImeDpi")) };
-        let Some(imm_unlock_fn) = maybe_imm_unlock_fn else {
-            return Err("ImmLockImeDpi not found".into());
-        };
-        let unlock_fn: ImmUnlockImeDpiFn = unsafe { mem::transmute(imm_unlock_fn) };
-        unsafe { unlock_fn(pimedpi) };
-
-        Ok(())
     })
+}
+
+fn load_dynamic_fn(
+    lib: PCWSTR,
+    name: PCSTR,
+) -> Result<unsafe extern "system" fn() -> isize, Imm32Error> {
+    unsafe {
+        let err = || Imm32Error {
+            message: format!(
+                "Failed to load method {} from {}",
+                lib.display(),
+                name.display()
+            )
+            .into(),
+            source: None,
+            location: None,
+        };
+        expect_error_fn(err, || {
+            let lib = LoadLibraryW(lib)?;
+            if lib.is_invalid() {
+                Err("Loaded DLL handle is invalid")?;
+            }
+            let Some(void_fn) = GetProcAddress(lib, name) else {
+                return Err("Method not found".into());
+            };
+            Ok(void_fn)
+        })
+    }
 }
 
 impl_context_error!(Imm32Error);
