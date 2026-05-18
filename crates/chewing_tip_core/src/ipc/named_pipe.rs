@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use error_plus::expect_error;
+use error_plus::{ErrorExt, expect_error};
 use fnv::FnvHasher;
 use interprocess::os::windows::{
     named_pipe::{DuplexPipeStream, PipeListener, PipeListenerOptions, PipeMode, pipe_mode::Bytes},
@@ -102,9 +102,9 @@ pub fn connect_and_attest(
         let peer_pid = pipe.server_process_id()?;
         if let Err(error) = attest_server(peer_pid) {
             if cfg!(debug_assertions) {
-                error!("failed to validate signature: {error:?}");
+                error!("failed to validate signature: {}", error.error_report());
             } else {
-                Err(format!("Failed to validate signature: {error}"))?;
+                Err(error)?;
             }
         }
 
