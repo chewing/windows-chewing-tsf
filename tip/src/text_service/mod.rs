@@ -18,9 +18,9 @@ use windows_core::{
 };
 
 use crate::{
-    imm32::{ImeDpi, patch_ime_info, release_ime_info},
     quirk::Quirk,
     text_service::chewing::ReentrantOps,
+    w32::imm32::{ImeDpi, patch_ime_info, release_ime_info},
 };
 
 use self::chewing::ChewingTextService;

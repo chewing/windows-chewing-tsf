@@ -12,7 +12,7 @@ use windows::Win32::UI::TextServices::{
 };
 use windows_core::{BSTR, ComObjectInner, GUID, Result, implement};
 
-use crate::msctf::tf_create_category_mgr;
+use crate::w32::msctf::tf_create_category_mgr;
 
 static ATTRS: RwLock<Vec<DisplayAttributeInfo>> = RwLock::new(Vec::new());
 
