@@ -1,4 +1,4 @@
-use error_plus::impl_context_error;
+use scoped_error::impl_context_error;
 
 pub(crate) mod event_loop;
 pub(crate) mod gfx;

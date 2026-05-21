@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-use error_plus::expect_error;
+use scoped_error::expect_error;
 use windows::Win32::Graphics::Direct2D::{
     CLSID_D2D1GaussianBlur,
     Common::{D2D_RECT_F, D2D_SIZE_F, D2D1_COLOR_F, D2D1_COMPOSITE_MODE_SOURCE_OVER},

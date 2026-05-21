@@ -7,10 +7,10 @@ edition = "2024"
 base64 = "0.22.1"
 base64-serde = "0.8.0"
 chewing.workspace = true
-error_plus.workspace = true
 fnv = "1.0.7"
 interprocess.workspace = true
 log.workspace = true
+scoped-error.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid = { version = "1.23.1", features = ["v4"] }

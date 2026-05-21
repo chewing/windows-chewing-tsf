@@ -13,8 +13,8 @@ use chewing_tip_core::ipc::{
     messages::{HideCandidateList, ShowCandidateList},
     varlink::MethodCall,
 };
-use error_plus::expect_error;
 use log::error;
+use scoped_error::expect_error;
 use windows::Win32::{
     Foundation::{E_INVALIDARG, TRUE},
     UI::TextServices::{
@@ -166,7 +166,7 @@ impl CandidateList {
         let sel = self.current_sel();
         self.model.borrow().items[sel].clone()
     }
-    pub(crate) fn show(&self) -> Result<(), error_plus::Error> {
+    pub(crate) fn show(&self) -> Result<(), scoped_error::Error> {
         expect_error("Failed to show candidate window", || {
             self.cth_client.send(MethodCall {
                 method: ShowCandidateList::METHOD.to_string(),

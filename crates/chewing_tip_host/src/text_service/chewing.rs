@@ -15,7 +15,7 @@ use chewing_tip_core::{
     ipc::values::IpcShiftKeyState,
     shell::{program_dir, user_dir},
 };
-use error_plus::{ErrorExt, expect_error, impl_context_error};
+use scoped_error::{ErrorExt, expect_error, impl_context_error};
 
 use crate::text_service::{keybind::Keybinding, keyevent::SystemKeyboardEvent};
 
@@ -34,10 +34,7 @@ pub(crate) struct TipSession {
 impl TipSession {
     pub(crate) fn new() -> TipSession {
         let cfg = Config::from_reg().unwrap_or_else(|error| {
-            log::error!(
-                "Failed to load config from registry: {}",
-                error.error_report()
-            );
+            log::error!("Failed to load config from registry: {}", error.report());
             log::error!("Fallback to default config");
             Config::default()
         });
@@ -138,7 +135,7 @@ impl TipSession {
             // Step 1. apply any config changes
             //
             if let Err(error) = self.apply_config_if_changed() {
-                log::error!("{}", error.error_report());
+                log::error!("{}", error.report());
             }
             //
             // Step 2. handle any mode change related keydown

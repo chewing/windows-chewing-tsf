@@ -1,4 +1,4 @@
-use error_plus::{expect_error, impl_context_error};
+use scoped_error::{expect_error, impl_context_error};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

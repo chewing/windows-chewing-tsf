@@ -1,18 +1,18 @@
 use std::mem::transmute;
 
-use error_plus::{expect_error, impl_context_error};
+use scoped_error::{expect_error, impl_context_error};
 use windows::{
-    core::PWSTR,
     Win32::{
         Foundation::{ERROR_INSUFFICIENT_BUFFER, ERROR_NO_TOKEN, HANDLE},
         Security::{
-            Authorization::ConvertSidToStringSidW, GetTokenInformation, TokenUser,
-            TOKEN_ACCESS_MASK, TOKEN_QUERY, TOKEN_USER,
+            Authorization::ConvertSidToStringSidW, GetTokenInformation, TOKEN_ACCESS_MASK,
+            TOKEN_QUERY, TOKEN_USER, TokenUser,
         },
         System::Threading::{
             GetCurrentProcess, GetCurrentThread, OpenProcessToken, OpenThreadToken,
         },
     },
+    core::PWSTR,
 };
 
 /// Represents the user credential including SID

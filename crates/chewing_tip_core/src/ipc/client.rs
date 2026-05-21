@@ -5,11 +5,11 @@ use std::{
     time::Duration,
 };
 
-use error_plus::{expect_error, impl_context_error};
 use interprocess::{
     TryClone,
     os::windows::named_pipe::{DuplexPipeStream, pipe_mode::Bytes},
 };
+use scoped_error::{expect_error, impl_context_error};
 
 use crate::ipc::{
     messages::{Ping, PingReply},

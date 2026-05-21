@@ -103,11 +103,11 @@ dependencies = [
  "chewing",
  "chewing_tip_core",
  "embed-resource",
- "error_plus",
  "getrandom 0.4.2",
  "interprocess",
  "log",
  "logforth",
+ "scoped-error",
  "serde",
  "serde_json",
  "windows",
@@ -124,10 +124,10 @@ dependencies = [
  "base64",
  "base64-serde",
  "chewing",
- "error_plus",
  "fnv",
  "interprocess",
  "log",
+ "scoped-error",
  "serde",
  "serde_json",
  "uuid",
@@ -145,11 +145,11 @@ dependencies = [
  "chewing_tip_core",
  "embed-resource",
  "embedinator",
- "error_plus",
  "interprocess",
  "log",
  "logforth",
  "roxmltree",
+ "scoped-error",
  "serde_json",
  "ureq",
  "windows",
@@ -313,12 +313,6 @@ dependencies = [
  "serde_core",
  "typeid",
 ]
-
-[[package]]
-name = "error_plus"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45bae93234db67d7d563140d31453182765543fa85914cc89c2ab3b108baf258"
 
 [[package]]
 name = "find-msvc-tools"
@@ -972,6 +966,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoped-error"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b52fa553a4e6af6bc29004bc0815c9ad8f2a7a421ffc4397a8e730bbd021d59"
+
+[[package]]
 name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1312,7 +1312,7 @@ name = "tsfreg"
 version = "26.5.2"
 dependencies = [
  "chewing_tip_core",
- "error_plus",
+ "scoped-error",
  "serde_json",
  "windows",
  "windows-registry",

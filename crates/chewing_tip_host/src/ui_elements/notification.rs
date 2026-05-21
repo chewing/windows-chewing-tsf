@@ -3,7 +3,7 @@
 
 use std::{cell::RefCell, fmt::Debug, rc::Rc, time::Duration};
 
-use error_plus::expect_error;
+use scoped_error::expect_error;
 use windows::Win32::{
     Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::{

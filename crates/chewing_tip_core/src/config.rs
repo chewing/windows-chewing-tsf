@@ -3,8 +3,8 @@
 
 use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
-use error_plus::{expect_error, expect_error_fn, impl_context_error};
 use log::error;
+use scoped_error::{expect_error, expect_error_fn, impl_context_error};
 use serde::{Deserialize, Serialize};
 use windows::{
     Win32::{

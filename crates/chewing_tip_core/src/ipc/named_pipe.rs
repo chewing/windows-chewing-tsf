@@ -7,13 +7,13 @@ use std::{
     time::Duration,
 };
 
-use error_plus::{ErrorExt, expect_error};
 use fnv::FnvHasher;
 use interprocess::os::windows::{
     named_pipe::{DuplexPipeStream, PipeListener, PipeListenerOptions, PipeMode, pipe_mode::Bytes},
     security_descriptor::SecurityDescriptor,
 };
 use log::{debug, error, info};
+use scoped_error::{ErrorExt, Many, expect_error};
 use widestring::U16CString;
 use windows::{
     Win32::{
@@ -102,7 +102,7 @@ pub fn connect_and_attest(
         let peer_pid = pipe.server_process_id()?;
         if let Err(error) = attest_server(peer_pid) {
             if cfg!(debug_assertions) {
-                error!("failed to validate signature: {}", error.error_report());
+                error!("failed to validate signature: {}", error.report());
             } else {
                 Err(error)?;
             }
@@ -122,9 +122,11 @@ fn attest_server(pid: u32) -> Result<(), IpcError> {
             if let Err(error) =
                 QueryFullProcessImageNameW(handle, PROCESS_NAME_FORMAT(0), pwpath, &mut size)
             {
-                // FIXME tree error
-                CloseHandle(handle)?;
-                Err(error)?;
+                let mut errors = vec![error];
+                if let Err(e) = CloseHandle(handle) {
+                    errors.push(e);
+                }
+                Err(Many::from_errors("Failed to close process handle", errors))?;
             }
             PathBuf::from(pwpath.to_string()?)
         };

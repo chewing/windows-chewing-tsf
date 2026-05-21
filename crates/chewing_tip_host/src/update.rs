@@ -1,4 +1,4 @@
-use error_plus::ErrorExt;
+use scoped_error::ErrorExt;
 
 pub(crate) mod config;
 mod releases;
@@ -8,12 +8,12 @@ pub(crate) fn check_for_update() {
     log::info!("Checking for update...");
     // Always clear update URL before a new check
     if let Err(error) = config::set_update_info_url("") {
-        log::error!("{}", error.error_report());
+        log::error!("{}", error.report());
     }
     let cfg = match config::get_check_update_config() {
         Ok(cfg) => cfg,
         Err(error) => {
-            log::error!("{}", error.error_report());
+            log::error!("{}", error.report());
             return;
         }
     };
@@ -29,25 +29,25 @@ pub(crate) fn check_for_update() {
                 if rel.channel == cfg.channel && version::version_gt(&rel.version, &dll_version) {
                     log::info!("Updates available: version {}", rel.version);
                     if let Err(error) = config::set_update_info_url(&rel.url) {
-                        log::error!("{}", error.error_report());
+                        log::error!("{}", error.report());
                     }
                     break 'check;
                 }
             }
             // no new releases were found, clear update url
             if let Err(error) = config::set_update_info_url("") {
-                log::error!("{}", error.error_report());
+                log::error!("{}", error.report());
             }
         }
         Err(error) => {
-            log::error!("{}", error.error_report());
+            log::error!("{}", error.report());
             if let Err(error) = config::set_update_info_url("") {
-                log::error!("{}", error.error_report());
+                log::error!("{}", error.report());
             }
             return;
         }
     }
     if let Err(error) = config::set_last_update_check_time() {
-        log::error!("{}", error.error_report());
+        log::error!("{}", error.report());
     }
 }

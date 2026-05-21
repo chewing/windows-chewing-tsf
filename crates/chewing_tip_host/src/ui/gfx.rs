@@ -3,9 +3,9 @@
 
 use std::sync::LazyLock;
 
-use error_plus::expect_error;
-use error_plus::expect_error_fn;
-use error_plus::impl_context_error;
+use scoped_error::expect_error;
+use scoped_error::expect_error_fn;
+use scoped_error::impl_context_error;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Direct2D::Common::*;
 use windows::Win32::Graphics::Direct2D::*;

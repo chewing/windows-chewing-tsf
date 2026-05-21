@@ -15,8 +15,8 @@ use windows::Win32::System::Threading::{
 };
 use windows::core::BSTR;
 
-use error_plus::expect_error;
-use error_plus::impl_context_error;
+use scoped_error::expect_error;
+use scoped_error::impl_context_error;
 
 pub fn user_dir() -> Result<PathBuf, ShellError> {
     expect_error("Unable to determine user dir", || {

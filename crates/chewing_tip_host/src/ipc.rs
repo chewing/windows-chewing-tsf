@@ -8,9 +8,9 @@ use chewing_tip_core::ipc::{
     messages::{CheckUpdate, HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::{MethodCall, MethodReply},
 };
-use error_plus::{ErrorExt, expect_error, impl_context_error};
 use interprocess::os::windows::named_pipe::{PipeListener, PipeStream, pipe_mode::Bytes};
 use log::{debug, error, warn};
+use scoped_error::{ErrorExt, expect_error, impl_context_error};
 
 use crate::{
     text_service::chewing::TipSession, ui::event_loop::MainLoopHandle, update::check_for_update,
@@ -41,7 +41,7 @@ fn ipc_loop(pipe: PipeStream<Bytes, Bytes>, mh: MainLoopHandle) {
             Ok(ControlFlow::Continue(_)) => continue,
             Ok(ControlFlow::Break(_)) => break,
             Err(error) => {
-                error!("{}", error.error_report())
+                error!("{}", error.report())
                 // FIXME reply with errors if not oneway
             }
         }

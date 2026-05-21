@@ -7,8 +7,8 @@ pub(crate) const IME_PROP_COMPLETE_ON_UNSELECT: u32 = 0x00100000;
 
 use std::mem;
 
-use error_plus::{expect_error, expect_error_fn, impl_context_error};
 use log::debug;
+use scoped_error::{expect_error, expect_error_fn, impl_context_error};
 use windows::Win32::{
     Foundation::HINSTANCE,
     System::LibraryLoader::{GetProcAddress, LoadLibraryW},

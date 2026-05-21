@@ -8,8 +8,8 @@ use chewing_tip_core::ipc::{
     messages::{HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::MethodCall,
 };
-use error_plus::{ErrorExt, expect_error};
 use log::{debug, error, info, warn};
+use scoped_error::{ErrorExt, expect_error};
 use windows::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
@@ -168,7 +168,7 @@ impl MainLoop {
                 std::process::exit(0);
             }
             if let Err(error) = self.process(cmd) {
-                error!("{}", error.error_report());
+                error!("{}", error.report());
             }
         }
     }

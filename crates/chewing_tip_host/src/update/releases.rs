@@ -1,5 +1,5 @@
-use error_plus::{expect_error, impl_context_error};
 use roxmltree::Document;
+use scoped_error::{expect_error, impl_context_error};
 
 #[derive(Debug)]
 pub(crate) struct Release {

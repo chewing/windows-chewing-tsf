@@ -30,9 +30,9 @@ use chewing_tip_core::ipc::messages::{
 use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState, Position};
 use chewing_tip_core::ipc::varlink::MethodCall;
 use chewing_tip_core::shell::{launch_tip_host, open_url, program_dir, user_dir};
-use error_plus::impl_context_error;
-use error_plus::{ErrorExt, expect_error};
 use log::{debug, error, info};
+use scoped_error::impl_context_error;
+use scoped_error::{ErrorExt, expect_error};
 use serde_json::Value;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
 use windows::Win32::System::Variant::VARIANT;
@@ -309,7 +309,7 @@ impl ChewingTextService {
         }
 
         if let Err(error) = cts.ipc_client.connect() {
-            error!("{}", error.error_report());
+            error!("{}", error.report());
         }
 
         let now = SystemTime::now()
@@ -327,10 +327,7 @@ impl ChewingTextService {
                 more: None,
                 upgrade: None,
             }) {
-                error!(
-                    "unable to send IPC message CheckUpdate: {}",
-                    error.error_report()
-                );
+                error!("unable to send IPC message CheckUpdate: {}", error.report());
             }
         }
         Ok(cts)
@@ -411,14 +408,14 @@ impl ChewingTextService {
             .set_editor_options(|opt| opt.language_mode = self.lang_mode.get().into());
 
         if let Err(error) = self.ipc_client.ping() {
-            error!("{}", error.error_report());
+            error!("{}", error.report());
             if let Err(error) = self.ipc_client.connect() {
-                error!("{}", error.error_report());
+                error!("{}", error.report());
                 info!("Restarting chewing_tip_host...");
                 if let Err(error) = launch_tip_host() {
-                    error!("{}", error.error_report());
+                    error!("{}", error.report());
                 } else if let Err(error) = self.ipc_client.connect() {
-                    error!("{}", error.error_report());
+                    error!("{}", error.report());
                 }
             }
         }
@@ -758,7 +755,7 @@ impl ChewingTextService {
         }
 
         if let Err(error) = self.update_candidates(context) {
-            error!("{}", error.error_report());
+            error!("{}", error.report());
         }
 
         debug!("updated candidates");
@@ -779,7 +776,7 @@ impl ChewingTextService {
         if !self.chewing_editor.notification().is_empty() {
             let msg = HSTRING::from(self.chewing_editor.notification());
             if let Err(error) = self.show_message(context, &msg) {
-                error!("{}", error.error_report());
+                error!("{}", error.report());
             }
         }
 
@@ -1192,7 +1189,7 @@ impl ChewingTextService {
         &mut self,
         context: &ITfContext,
         text: &HSTRING,
-    ) -> Result<(), error_plus::Error> {
+    ) -> Result<(), scoped_error::Error> {
         expect_error("Failed to show message", || {
             let rect = self.get_selection_rect(context).unwrap_or_default();
             let call = ShowNotification {
@@ -1220,7 +1217,7 @@ impl ChewingTextService {
         }
     }
 
-    fn update_candidates(&mut self, context: &ITfContext) -> Result<(), error_plus::Error> {
+    fn update_candidates(&mut self, context: &ITfContext) -> Result<(), scoped_error::Error> {
         expect_error("Failed to refresh candidate window", || {
             if !self.chewing_editor.is_selecting() {
                 self.hide_candidates();
