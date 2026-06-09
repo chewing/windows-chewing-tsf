@@ -4,7 +4,7 @@
 use chewing::input::keycode::Keycode;
 use chewing::input::keymap::{
     INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
-    INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, map_keycode,
+    INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP, Keymap, map_ascii, map_keycode,
 };
 use chewing::input::{KeyboardEvent, keysym::*};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -66,27 +66,30 @@ impl SystemKeyboardEvent {
     fn is_key_toggled(&self, vk: VIRTUAL_KEY) -> bool {
         self.key_state[vk.0 as usize] & 1 != 0
     }
-    pub(super) fn to_keyboard_event(self, kbtype: i32) -> KeyboardEvent {
-        let keycode = SCANCODE_MAP
+    pub(super) fn to_keyboard_event(self, keymap: KeymapOp) -> KeyboardEvent {
+        let mut keycode = SCANCODE_MAP
             .binary_search_by_key(&self.scan_code, |&(w, _)| w)
             .ok()
             .map(|idx| Keycode(SCANCODE_MAP[idx].1))
             .unwrap_or_default();
-        let keymap = KB_KEYMAP_MAP
-            .iter()
-            .find(|it| it.0 == kbtype)
-            .map(|it| it.1);
-        let keysym = VKEY_MAP
+        let mut keysym = VKEY_MAP
             .binary_search_by_key(&self.vk, |&(k, _)| k)
             .ok()
             .map(|idx| VKEY_MAP[idx].1)
-            .unwrap_or_else(|| {
-                if let Some(keymap) = keymap {
-                    map_keycode(keymap, keycode, self.is_key_down(VK_SHIFT)).ksym
-                } else {
-                    Keysym(self.ascii_code as u32)
-                }
-            });
+            .unwrap_or(Keysym(self.ascii_code as u32));
+        if let KeymapOp::Ksym(keymap) = keymap {
+            let mapped = map_ascii(keymap, self.ascii_code);
+            if !mapped.is_invalid() {
+                keycode = mapped.code;
+                keysym = mapped.ksym;
+            }
+        } else if let KeymapOp::Code(keymap) = keymap {
+            let mapped = map_keycode(keymap, keycode, self.is_key_down(VK_SHIFT));
+            if !mapped.is_invalid() {
+                keycode = mapped.code;
+                keysym = mapped.ksym;
+            }
+        }
         KeyboardEvent::builder()
             .code(keycode)
             .ksym(keysym)
@@ -100,14 +103,53 @@ impl SystemKeyboardEvent {
     }
 }
 
-const KB_KEYMAP_MAP: &[(i32, &[(u8, KeyboardEvent)])] = &[
-    (1, &INVERTED_DVORAK_MAP),
-    (2, &INVERTED_QGMLWY_MAP),
-    (3, &INVERTED_COLEMAK_MAP),
-    (4, &INVERTED_COLEMAK_DH_ANSI_MAP),
-    (5, &INVERTED_COLEMAK_DH_ORTH_MAP),
-    (6, &INVERTED_WORKMAN_MAP),
-];
+#[derive(Debug, Default)]
+pub(crate) enum SimulatedKeyboard {
+    #[default]
+    Qwerty,
+    Dvorak,
+    Qgmlwy,
+    Colemak,
+    ColemakDhAnsi,
+    ColemakDhOrth,
+    Workman,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) enum KeymapOp {
+    #[default]
+    None,
+    Code(&'static Keymap),
+    Ksym(&'static Keymap),
+}
+
+impl From<i32> for SimulatedKeyboard {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => SimulatedKeyboard::Dvorak,
+            2 => SimulatedKeyboard::Qgmlwy,
+            3 => SimulatedKeyboard::Colemak,
+            4 => SimulatedKeyboard::ColemakDhAnsi,
+            5 => SimulatedKeyboard::ColemakDhOrth,
+            6 => SimulatedKeyboard::Workman,
+            _ => SimulatedKeyboard::Qwerty,
+        }
+    }
+}
+
+impl From<SimulatedKeyboard> for KeymapOp {
+    fn from(value: SimulatedKeyboard) -> Self {
+        match value {
+            SimulatedKeyboard::Qwerty => KeymapOp::None,
+            SimulatedKeyboard::Dvorak => KeymapOp::Code(&INVERTED_DVORAK_MAP),
+            SimulatedKeyboard::Qgmlwy => KeymapOp::Code(&INVERTED_QGMLWY_MAP),
+            SimulatedKeyboard::Colemak => KeymapOp::Code(&INVERTED_COLEMAK_MAP),
+            SimulatedKeyboard::ColemakDhAnsi => KeymapOp::Code(&INVERTED_COLEMAK_DH_ANSI_MAP),
+            SimulatedKeyboard::ColemakDhOrth => KeymapOp::Code(&INVERTED_COLEMAK_DH_ORTH_MAP),
+            SimulatedKeyboard::Workman => KeymapOp::Code(&INVERTED_WORKMAN_MAP),
+        }
+    }
+}
 
 // Windows Set 1 scancode to X11 keycode mapping
 const SCANCODE_MAP: &[(u16, u8)] = &[

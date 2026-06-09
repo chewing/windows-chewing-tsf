@@ -19,6 +19,10 @@ use chewing::editor::{
     UserPhraseAddDirection,
 };
 use chewing::input::keycode::Keycode;
+use chewing::input::keymap::{
+    DVORAK_MAP, INVERTED_COLEMAK_DH_ANSI_MAP, INVERTED_COLEMAK_DH_ORTH_MAP, INVERTED_COLEMAK_MAP,
+    INVERTED_DVORAK_MAP, INVERTED_QGMLWY_MAP, INVERTED_WORKMAN_MAP,
+};
 use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT, SYM_SPACE};
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
@@ -59,6 +63,7 @@ use crate::com::G_HINSTANCE;
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
+use crate::text_service::key_event::{KeymapOp, SimulatedKeyboard};
 use crate::text_service::lang_bar::LangBarFactory;
 
 use super::CommandType;
@@ -176,6 +181,7 @@ pub(super) struct ChewingTextService {
     shift_key_state: ShiftKeyState,
     cfg: Config,
     kbtype: KeyboardLayoutCompat,
+    keymap: KeymapOp,
     keybindings: Vec<Keybinding>,
     chewing_editor: Editor,
     notification: Option<ComObject<Notification>>,
@@ -287,6 +293,7 @@ impl ChewingTextService {
             shift_key_state: ShiftKeyState::Up,
             cfg,
             kbtype: KeyboardLayoutCompat::Default,
+            keymap: KeymapOp::None,
             keybindings: vec![],
             chewing_editor: editor,
             lang_bar_buttons,
@@ -422,7 +429,7 @@ impl ChewingTextService {
 
         let is_context_mutable = self.is_context_mutable(context)?;
         let is_composing = self.is_composing();
-        let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
+        let evt = ev.to_keyboard_event(self.keymap);
         let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
         // Determine shift key state here, this might be our last chance seeing this key.
         if evt.ksym != SYM_LEFTSHIFT
@@ -574,7 +581,7 @@ impl ChewingTextService {
         if !self.on_test_keydown(context, ev)? {
             return Ok(false);
         }
-        let mut evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
+        let mut evt = ev.to_keyboard_event(self.keymap);
         debug!(evt:?; "on_keydown");
 
         // Handle keybindings
@@ -799,7 +806,7 @@ impl ChewingTextService {
         context: &ITfContext,
         ev: SystemKeyboardEvent,
     ) -> Result<bool> {
-        let evt = ev.to_keyboard_event(self.cfg.chewing_tsf.simulate_english_layout);
+        let evt = ev.to_keyboard_event(self.keymap);
         let last_is_shift = evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT;
         let last_is_capslock = evt.ksym == SYM_CAPSLOCK;
 
@@ -1322,11 +1329,13 @@ impl ChewingTextService {
     fn toggle_hsu_keyboard(&mut self, context: &ITfContext) -> Result<()> {
         if self.kbtype == KeyboardLayoutCompat::Hsu {
             self.kbtype = KeyboardLayoutCompat::Default;
+            self.keymap = keymap_from_kbtype(self.kbtype);
             self.chewing_editor
                 .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Default));
             self.show_message(context, &HSTRING::from("標準鍵盤"))?;
         } else {
             self.kbtype = KeyboardLayoutCompat::Hsu;
+            self.keymap = keymap_from_kbtype(self.kbtype);
             self.chewing_editor
                 .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Hsu));
             self.show_message(context, &HSTRING::from("許氏鍵盤"))?;
@@ -1339,7 +1348,7 @@ impl ChewingTextService {
         self.pending_lang_mode_change.set(internal);
         if !self.lang_mode.get().is_disabled() {
             let cfg = &self.cfg.chewing_tsf;
-            let evt = SystemKeyboardEvent::default().to_keyboard_event(cfg.simulate_english_layout);
+            let evt = SystemKeyboardEvent::default().to_keyboard_event(self.keymap);
             if cfg.enable_caps_lock {
                 let (locked_mode, unlocked_mode) = if cfg.lock_chinese_on_caps_lock {
                     (TsfLangMode::Chinese, TsfLangMode::English)
@@ -1543,6 +1552,11 @@ impl ChewingTextService {
         let cfg = &self.cfg.chewing_tsf;
         self.kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
             .unwrap_or(KeyboardLayoutCompat::Default);
+        self.keymap = keymap_from_kbtype(self.kbtype);
+        if cfg.simulate_english_layout != 0 {
+            let sim = SimulatedKeyboard::from(cfg.simulate_english_layout);
+            self.keymap = sim.into();
+        }
         self.chewing_editor = Self::build_editor_from_cfg(cfg)?;
         let _ = self.update_lang_buttons();
         let keybindings = cfg
@@ -1699,6 +1713,19 @@ fn syl_editor_from_kbtype(kbtype: KeyboardLayoutCompat) -> Box<dyn SyllableEdito
         | KeyboardLayoutCompat::ColemakDhOrth
         | KeyboardLayoutCompat::Workman
         | KeyboardLayoutCompat::Colemak => Box::new(Standard::new()),
+    }
+}
+
+fn keymap_from_kbtype(kbtype: KeyboardLayoutCompat) -> KeymapOp {
+    match kbtype {
+        KeyboardLayoutCompat::Dvorak => KeymapOp::Ksym(&INVERTED_DVORAK_MAP),
+        KeyboardLayoutCompat::DvorakHsu => KeymapOp::Ksym(&DVORAK_MAP),
+        KeyboardLayoutCompat::Carpalx => KeymapOp::Ksym(&INVERTED_QGMLWY_MAP),
+        KeyboardLayoutCompat::ColemakDhAnsi => KeymapOp::Ksym(&INVERTED_COLEMAK_DH_ANSI_MAP),
+        KeyboardLayoutCompat::ColemakDhOrth => KeymapOp::Ksym(&INVERTED_COLEMAK_DH_ORTH_MAP),
+        KeyboardLayoutCompat::Workman => KeymapOp::Ksym(&INVERTED_WORKMAN_MAP),
+        KeyboardLayoutCompat::Colemak => KeymapOp::Ksym(&INVERTED_COLEMAK_MAP),
+        _ => KeymapOp::None,
     }
 }
 
