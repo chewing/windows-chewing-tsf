@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- prefs: make font loading async
 - tip: add back scancode mapped keyboard layout support (dvorak, etc.)
 - tip_host: always reset pending update info on restart to avoid stale info.
 
