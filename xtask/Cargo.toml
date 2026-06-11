@@ -8,5 +8,7 @@ edition = "2024"
 anyhow = "1.0.94"
 indoc = "2.0.5"
 jiff = { version = "0.2.0", default-features = false, features = ["std"] }
+rpgpie-sop = "0.10.0"
+sop = "0.8.2"
 xflags = "0.3.2"
 xshell = "0.2.7"

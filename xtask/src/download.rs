@@ -1,4 +1,8 @@
-use anyhow::{Context, Result};
+use std::{ffi::OsString, io::Cursor};
+
+use anyhow::{Context, Result, bail};
+use rpgpie_sop::{Certs, RPGSOP, Sigs};
+use sop::{Load, SOP};
 use xshell::{Shell, cmd};
 
 use crate::flags::DownloadComponents;
@@ -49,16 +53,28 @@ fn sq_download(url: &str, sig_url: &str, cert_file: &str, output: &str, dest: &s
     cmd!(sh, "curl -L -o {temp_path}/{output}.asc {sig_url}")
         .run()
         .with_context(err)?;
-    // sq-download cannot verify with signer-file yet: https://gitlab.com/sequoia-pgp/sequoia-sq/-/work_items/637
-    // cmd!(sh, "sq --overwrite download --url {url} --signature-url {sig_url} --signer-file {cert_file} --output {output}")
-    //     .run()
-    //     .with_context(err)?;
-    cmd!(
-        sh,
-        "sqv --keyring release.pgp --signature-file {temp_path}/{output}.asc {temp_path}/{output}"
-    )
-    .run()
-    .with_context(err)?;
+
+    let sop = RPGSOP::default();
+    let certs = Certs::from_file(&sop, "release.pgp")?;
+
+    let mut sig_path = temp_dir.path().join(output);
+    let extension = sig_path.extension().map_or(OsString::from("asc"), |ext| {
+        let mut ext = ext.to_os_string();
+        ext.push(".asc");
+        ext
+    });
+    sig_path.set_extension(extension);
+    let sig = Sigs::from_file(&sop, sig_path)?;
+    let data = std::fs::read(temp_dir.path().join(output))?;
+    let mut cursor = Cursor::new(data);
+    let verifications = sop
+        .verify()?
+        .certs(&certs)?
+        .signatures(&sig)?
+        .data(&mut cursor)?;
+    if verifications.is_empty() {
+        bail!("unable to verify");
+    }
     cmd!(sh, "unzip -uoj {temp_path}/{output} -d {dest}")
         .run()
         .with_context(err)?;
