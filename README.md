@@ -39,6 +39,7 @@ All parts are licensed under GPL-3.0-or-later license.
 * Use this xtask command to build the installer
     ```
     cargo xtask build-installer --target msvc --release
+    cargo xtask download-components
     cargo xtask package-installer
     ```
 
