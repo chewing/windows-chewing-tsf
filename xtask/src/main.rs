@@ -5,6 +5,7 @@ use anyhow::Result;
 mod download;
 mod installer;
 mod version;
+mod zip;
 
 mod flags {
     use super::installer::Target;
