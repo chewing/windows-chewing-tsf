@@ -1,50 +1,29 @@
-use std::ptr::null_mut;
+use std::fs;
 
 use chewing_tip_core::shell::program_dir;
-use windows::Win32::Storage::FileSystem::{
-    GetFileVersionInfoSizeW, GetFileVersionInfoW, VS_FIXEDFILEINFO, VerQueryValueW,
-};
-use windows::core::{HSTRING, w};
+use serde::Deserialize;
 
-pub(crate) fn chewing_dll_version() -> String {
-    let Ok(dll_path) = program_dir().map(|path| path.join("chewing_tip.dll")) else {
-        return String::from("0.0.0.0");
+#[derive(Debug, Deserialize)]
+struct ProductVersion {
+    product_version: String,
+    #[allow(unused)]
+    build_date: String,
+}
+
+pub(crate) fn chewing_product_version() -> String {
+    let default = String::from("0.0.0.0");
+    let Ok(json_path) = program_dir().map(|path| path.join("version.json")) else {
+        return default;
     };
-
-    let h_dll_path: HSTRING = dll_path.into_os_string().into();
-
-    unsafe {
-        let size = GetFileVersionInfoSizeW(&h_dll_path, None);
-        if size == 0 {
-            return String::from("0.0.0.0");
-        }
-        let mut lpdata = vec![0u8; size as usize];
-        let mut file_info: *mut VS_FIXEDFILEINFO = null_mut();
-        let pfile_info: *mut *mut VS_FIXEDFILEINFO = &mut file_info;
-        let mut pulen = 0u32;
-        if GetFileVersionInfoW(&h_dll_path, None, size, lpdata.as_mut_ptr().cast()).is_ok()
-            && VerQueryValueW(
-                lpdata.as_ptr().cast(),
-                w!("\\"),
-                pfile_info.cast(),
-                &mut pulen,
-            )
-            .as_bool()
-        {
-            return format!(
-                "{}.{}.{}.{}",
-                hi_word((*file_info).dwProductVersionMS),
-                lo_word((*file_info).dwProductVersionMS),
-                hi_word((*file_info).dwProductVersionLS),
-                lo_word((*file_info).dwProductVersionLS)
-            );
-        }
-    }
-    "0.0.0.0".to_string()
+    let Ok(json) = fs::read_to_string(json_path) else {
+        return default;
+    };
+    let pv = serde_json::from_str::<ProductVersion>(&json);
+    pv.map(|v| v.product_version).unwrap_or(default)
 }
 
 pub(crate) fn chewing_dll_channel() -> String {
-    let (_, _, _, build) = parse_version(&chewing_dll_version());
+    let (_, _, _, build) = parse_version(&chewing_product_version());
     if build == 0 {
         "stable".to_string()
     } else {
@@ -103,14 +82,6 @@ pub(crate) fn version_gt(ver_a: &str, ver_b: &str) -> bool {
         return false;
     }
     false
-}
-
-pub const fn hi_word(v: u32) -> u16 {
-    (v >> 16 & 0xffff) as _
-}
-
-pub const fn lo_word(v: u32) -> u16 {
-    (v & 0xffff) as _
 }
 
 #[cfg(test)]

@@ -30,6 +30,7 @@ use self::key_event::SystemKeyboardEvent;
 mod chewing;
 mod display_attribute;
 mod edit_session;
+mod icons;
 mod key_event;
 mod lang_bar;
 mod menu;

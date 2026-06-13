@@ -339,6 +339,7 @@ dependencies = [
  "logforth",
  "roxmltree",
  "scoped-error",
+ "serde",
  "serde_json",
  "ureq",
  "windows",

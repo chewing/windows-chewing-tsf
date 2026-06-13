@@ -2,13 +2,11 @@
 // Copyright (c) 2026 Kan-Ru Chen
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem;
 use std::rc::{Rc, Weak};
-use std::sync::OnceLock;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use chewing::conversion::{ChewingEngine, FuzzyChewingEngine, SimpleEngine};
@@ -52,17 +50,18 @@ use windows::Win32::UI::TextServices::{
     ITfComposition, ITfLangBarItemButton, ITfLangBarItemMgr, ITfThreadMgr,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CheckMenuItem, EnableMenuItem, GetCursorPos, HICON, HMENU, LoadIconW, MF_CHECKED, MF_ENABLED,
-    MF_GRAYED, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY,
-    TPM_RETURNCMD, TrackPopupMenu,
+    CheckMenuItem, EnableMenuItem, GetCursorPos, HICON, HMENU, MF_CHECKED, MF_ENABLED, MF_GRAYED,
+    MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_LEFTBUTTON, TPM_NONOTIFY, TPM_RETURNCMD,
+    TrackPopupMenu,
 };
-use windows_core::{ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR};
+use windows_core::{ComObject, ComObjectInner, GUID, HSTRING, Interface};
 use zhconv::{Variant, zhconv};
 
 use crate::com::G_HINSTANCE;
 use crate::keybind::Keybinding;
 use crate::text_service::TextService;
 use crate::text_service::edit_session::request_edit_session;
+use crate::text_service::icons::LangIconSet;
 use crate::text_service::key_event::{KeymapOp, SimulatedKeyboard};
 use crate::text_service::lang_bar::LangBarFactory;
 
@@ -165,6 +164,7 @@ pub(super) struct ChewingTextService {
     input_da_atom: [VARIANT; 2],
     _menu: Menu,
     popup_menu: HMENU,
+    lang_icons: LangIconSet,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
     composition_sink: ITfCompositionSink,
     ipc_client: ChewingIpcClient,
@@ -287,6 +287,7 @@ impl ChewingTextService {
             input_da_atom: [input_da_atom_1, input_da_atom_2],
             _menu: menu,
             popup_menu,
+            lang_icons: LangIconSet::load(),
             lang_mode: Cell::new(TsfLangMode::English),
             has_focus: true,
             output_simp_chinese: Default::default(),
@@ -319,14 +320,7 @@ impl ChewingTextService {
             error!("{}", error.report());
         }
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .as_ref()
-            .map(Duration::as_secs)
-            .unwrap_or_default();
-        if cts.cfg.chewing_tsf.auto_check_update_channel != "none"
-            && now.abs_diff(cts.cfg.chewing_tsf.last_update_check_time) > 3600
-        {
+        if cts.cfg.chewing_tsf.auto_check_update_channel != "none" {
             if let Err(error) = cts.ipc_client.send(MethodCall {
                 method: CheckUpdate::METHOD.to_string(),
                 oneway: Some(true),
@@ -1410,30 +1404,18 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn get_lang_icon_id(&self) -> u32 {
-        let mut icon_id = match (ThemeDetector::detect_theme(), self.lang_mode.get()) {
-            (WindowsTheme::Light, TsfLangMode::Chinese) => IDI_CHI,
-            (WindowsTheme::Light, TsfLangMode::English) => IDI_ENG,
-            (WindowsTheme::Dark, TsfLangMode::Chinese) => IDI_CHI_DARK,
-            (WindowsTheme::Dark, TsfLangMode::English) => IDI_ENG_DARK,
-            _ => IDI_CHI,
+    fn get_lang_icon(&self) -> HICON {
+        let icons = match (self.lang_mode.get(), self.output_simp_chinese) {
+            (TsfLangMode::Chinese, true) => self.lang_icons.sc,
+            (TsfLangMode::Chinese, false) => self.lang_icons.tc,
+            _ => self.lang_icons.en,
         };
-        if self.output_simp_chinese {
-            icon_id = match icon_id {
-                IDI_CHI => IDI_SIMP,
-                IDI_CHI_DARK => IDI_SIMP_DARK,
-                _ => icon_id,
-            }
-        }
         let show_dot = !self.cfg.chewing_tsf.update_info_url.is_empty();
-        match (icon_id, show_dot) {
-            (IDI_CHI, true) => IDI_CHI_DOT,
-            (IDI_CHI_DARK, true) => IDI_CHI_DARK_DOT,
-            (IDI_ENG, true) => IDI_ENG_DOT,
-            (IDI_ENG_DARK, true) => IDI_ENG_DARK_DOT,
-            (IDI_SIMP, true) => IDI_SIMP_DOT,
-            (IDI_SIMP_DARK, true) => IDI_SIMP_DARK_DOT,
-            _ => icon_id,
+        match (ThemeDetector::detect_theme(), show_dot) {
+            (WindowsTheme::Light | WindowsTheme::Unknown, true) => icons.light_dot,
+            (WindowsTheme::Light | WindowsTheme::Unknown, false) => icons.light,
+            (WindowsTheme::Dark, true) => icons.dark_dot,
+            (WindowsTheme::Dark, false) => icons.dark,
         }
     }
 
@@ -1569,8 +1551,7 @@ impl ChewingTextService {
     }
 
     fn update_lang_buttons(&self) -> Result<()> {
-        let icon_id = self.get_lang_icon_id();
-        let icon = load_icon_cached(icon_id)?;
+        let icon = self.get_lang_icon();
         self.switch_lang_button.set_icon(icon)?;
         self.ime_mode_button.set_icon(icon)?;
         let _ = self
@@ -1578,12 +1559,11 @@ impl ChewingTextService {
             .set_enabled(!self.lang_mode.get().is_disabled());
         // TODO extract shape mode change to dedicated method
         let shape_mode = self.chewing_editor.editor_options().character_form;
-        let icon_id = if shape_mode == CharacterForm::Fullwidth {
-            IDI_FULL_SHAPE
+        let icon = if shape_mode == CharacterForm::Fullwidth {
+            self.lang_icons.full_shape
         } else {
-            IDI_HALF_SHAPE
+            self.lang_icons.half_shape
         };
-        let icon = load_icon_cached(icon_id)?;
         self.switch_shape_button.set_icon(icon)?;
 
         unsafe {
@@ -1727,30 +1707,4 @@ fn keymap_from_kbtype(kbtype: KeyboardLayoutCompat) -> KeymapOp {
         KeyboardLayoutCompat::Colemak => KeymapOp::Ksym(&INVERTED_COLEMAK_MAP),
         _ => KeymapOp::None,
     }
-}
-
-// Simple global icon cache to avoid redundant LoadIconW calls.
-//
-// HICON is a small handle type; we keep it for the service lifetime.
-thread_local! {
-    static ICON_CACHE: OnceLock<RefCell<HashMap<u32, HICON>>> = OnceLock::new();
-}
-
-fn load_icon_cached(icon_id: u32) -> Result<HICON> {
-    ICON_CACHE.with(|cache| {
-        let map = cache.get_or_init(|| RefCell::new(HashMap::new()));
-        // Fast path: check cache under lock
-        {
-            if let Some(&icon) = map.borrow().get(&icon_id) {
-                return Ok(icon);
-            }
-        }
-        // Slow path: load the icon and insert into cache
-        let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
-        unsafe {
-            let icon = LoadIconW(Some(g_hinstance), PCWSTR::from_raw(icon_id as *const u16))?;
-            map.borrow_mut().insert(icon_id, icon);
-            Ok(icon)
-        }
-    })
 }

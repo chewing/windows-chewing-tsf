@@ -21,7 +21,7 @@ pub(crate) fn check_for_update() {
         log::info!("Check for update was disabled");
         return;
     }
-    let dll_version = version::chewing_dll_version();
+    let dll_version = version::chewing_product_version();
     log::info!("Current version = {dll_version}");
     match releases::fetch_releases() {
         Ok(releases) => 'check: {
