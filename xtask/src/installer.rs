@@ -2,7 +2,7 @@
 
 use std::{path::PathBuf, str::FromStr};
 
-use anyhow::{Error, Result, bail};
+use scoped_error::{Error, expect_error};
 use xshell::{Shell, cmd};
 
 use crate::flags::{BuildInstaller, PackageInstaller};
@@ -17,169 +17,173 @@ pub(super) enum Target {
 impl FromStr for Target {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        expect_error("Failed to parse target", || match s {
             "gnu" => Ok(Target::Gnu),
             "gnullvm" => Ok(Target::GnuLlvm),
             "msvc" => Ok(Target::Msvc),
-            _ => bail!("unknown target: {s}"),
-        }
+            _ => Err(format!("unknown target: {s}"))?,
+        })
     }
 }
 
-pub(crate) fn build_installer(flags: BuildInstaller) -> Result<()> {
-    let sh = Shell::new()?;
+pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
+    expect_error("Failed to build installer", || {
+        let sh = Shell::new()?;
 
-    let release = if flags.release {
-        Some("--release")
-    } else {
-        None
-    };
-    let nightly = if flags.nightly {
-        vec!["--features", "nightly"]
-    } else {
-        vec![]
-    };
+        let release = if flags.release {
+            Some("--release")
+        } else {
+            None
+        };
+        let nightly = if flags.nightly {
+            vec!["--features", "nightly"]
+        } else {
+            vec![]
+        };
 
-    let x86_64_target = match flags.target {
-        Some(Target::Gnu) => "x86_64-pc-windows-gnu",
-        Some(Target::GnuLlvm) => "x86_64-pc-windows-gnullvm",
-        None | Some(Target::Msvc) => "x86_64-pc-windows-msvc",
-    };
-    let i686_target = match flags.target {
-        Some(Target::Gnu) => "i686-pc-windows-gnu",
-        Some(Target::GnuLlvm) => "i686-pc-windows-gnullvm",
-        None | Some(Target::Msvc) => "i686-pc-windows-msvc",
-    };
+        let x86_64_target = match flags.target {
+            Some(Target::Gnu) => "x86_64-pc-windows-gnu",
+            Some(Target::GnuLlvm) => "x86_64-pc-windows-gnullvm",
+            None | Some(Target::Msvc) => "x86_64-pc-windows-msvc",
+        };
+        let i686_target = match flags.target {
+            Some(Target::Gnu) => "i686-pc-windows-gnu",
+            Some(Target::GnuLlvm) => "i686-pc-windows-gnullvm",
+            None | Some(Target::Msvc) => "i686-pc-windows-msvc",
+        };
 
-    let x86_64_target_dir = PathBuf::from("target").join(x86_64_target);
-    let x86_64_target_dir = if flags.release {
-        x86_64_target_dir.join("release")
-    } else {
-        x86_64_target_dir.join("debug")
-    };
-    let i686_target_dir = PathBuf::from("target").join(i686_target);
-    let i686_target_dir = if flags.release {
-        i686_target_dir.join("release")
-    } else {
-        i686_target_dir.join("debug")
-    };
+        let x86_64_target_dir = PathBuf::from("target").join(x86_64_target);
+        let x86_64_target_dir = if flags.release {
+            x86_64_target_dir.join("release")
+        } else {
+            x86_64_target_dir.join("debug")
+        };
+        let i686_target_dir = PathBuf::from("target").join(i686_target);
+        let i686_target_dir = if flags.release {
+            i686_target_dir.join("release")
+        } else {
+            i686_target_dir.join("debug")
+        };
 
-    sh.set_var("RUSTFLAGS", "-Ctarget-feature=+crt-static");
-    if matches!(flags.target, Some(Target::GnuLlvm)) {
-        sh.set_var("RC", "llvm-rc");
-    }
+        sh.set_var("RUSTFLAGS", "-Ctarget-feature=+crt-static");
+        if matches!(flags.target, Some(Target::GnuLlvm)) {
+            sh.set_var("RC", "llvm-rc");
+        }
 
-    {
-        cmd!(
-            sh,
-            "cargo install --locked chewing-cli --version 0.13.0-alpha.1
+        {
+            cmd!(
+                sh,
+                "cargo install --locked chewing-cli --version 0.13.0-alpha.1
                  --root build --target {x86_64_target} --features sqlite-bundled"
-        )
-        .run()?;
-        cmd!(
-            sh,
-            "cargo build -p chewing_tip {release...} --target {x86_64_target}"
-        )
-        .run()?;
-        cmd!(
-            sh,
-            "cargo build -p chewing_tip_host {release...} --target {x86_64_target}"
-        )
-        .run()?;
-        cmd!(
-            sh,
-            "cargo build -p tsfreg {release...} {nightly...} --target {x86_64_target}"
-        )
-        .run()?;
-    }
-    {
-        cmd!(
-            sh,
-            "cargo build -p chewing_tip {release...} --target {i686_target}"
-        )
-        .run()?;
-    }
-
-    sh.create_dir("build/installer")?;
-    {
-        let _p = sh.push_dir("installer");
-        for file in [
-            "gpl-notice.rtf",
-            "windows-chewing-tsf.wixproj",
-            "windows-chewing-tsf.wxs",
-            "windows-chewing-tsf.wxl",
-            "version.wxi",
-            "version.json",
-        ] {
-            sh.copy_file(file, "../build/installer")?;
+            )
+            .run()?;
+            cmd!(
+                sh,
+                "cargo build -p chewing_tip {release...} --target {x86_64_target}"
+            )
+            .run()?;
+            cmd!(
+                sh,
+                "cargo build -p chewing_tip_host {release...} --target {x86_64_target}"
+            )
+            .run()?;
+            cmd!(
+                sh,
+                "cargo build -p tsfreg {release...} {nightly...} --target {x86_64_target}"
+            )
+            .run()?;
         }
-    }
-    sh.copy_file(
-        "tip/rc/im.chewing.Chewing.ico",
-        "build/installer/chewing.ico",
-    )?;
-    sh.copy_file("build/bin/chewing-cli.exe", "build/installer")?;
+        {
+            cmd!(
+                sh,
+                "cargo build -p chewing_tip {release...} --target {i686_target}"
+            )
+            .run()?;
+        }
 
-    sh.create_dir("build/installer/Dictionary")?;
+        sh.create_dir("build/installer")?;
+        {
+            let _p = sh.push_dir("installer");
+            for file in [
+                "gpl-notice.rtf",
+                "windows-chewing-tsf.wixproj",
+                "windows-chewing-tsf.wxs",
+                "windows-chewing-tsf.wxl",
+                "version.wxi",
+                "version.json",
+            ] {
+                sh.copy_file(file, "../build/installer")?;
+            }
+        }
+        sh.copy_file(
+            "tip/rc/im.chewing.Chewing.ico",
+            "build/installer/chewing.ico",
+        )?;
+        sh.copy_file("build/bin/chewing-cli.exe", "build/installer")?;
 
-    sh.create_dir("build/installer/x64")?;
-    for file in ["chewing_tip.dll"] {
-        sh.copy_file(
-            format!("{}/{file}", x86_64_target_dir.display()),
-            "build/installer/x64",
-        )?;
-    }
-    for file in ["chewing_tip.pdb"] {
-        let _ = sh.copy_file(
-            format!("{}/{file}", x86_64_target_dir.display()),
-            "build/installer/x64",
-        );
-    }
-    for file in ["chewing_tip_host.exe", "tsfreg.exe"] {
-        sh.copy_file(
-            format!("{}/{file}", x86_64_target_dir.display()),
-            "build/installer",
-        )?;
-    }
-    for file in ["chewing_tip_host.pdb", "tsfreg.pdb"] {
-        let _ = sh.copy_file(
-            format!("{}/{file}", x86_64_target_dir.display()),
-            "build/installer",
-        );
-    }
-    sh.create_dir("build/installer/x86")?;
-    for file in ["chewing_tip.dll"] {
-        sh.copy_file(
-            format!("{}/{file}", i686_target_dir.display()),
-            "build/installer/x86",
-        )?;
-    }
-    for file in ["chewing_tip.pdb"] {
-        let _ = sh.copy_file(
-            format!("{}/{file}", i686_target_dir.display()),
-            "build/installer/x86",
-        );
-    }
+        sh.create_dir("build/installer/Dictionary")?;
 
-    Ok(())
+        sh.create_dir("build/installer/x64")?;
+        for file in ["chewing_tip.dll"] {
+            sh.copy_file(
+                format!("{}/{file}", x86_64_target_dir.display()),
+                "build/installer/x64",
+            )?;
+        }
+        for file in ["chewing_tip.pdb"] {
+            let _ = sh.copy_file(
+                format!("{}/{file}", x86_64_target_dir.display()),
+                "build/installer/x64",
+            );
+        }
+        for file in ["chewing_tip_host.exe", "tsfreg.exe"] {
+            sh.copy_file(
+                format!("{}/{file}", x86_64_target_dir.display()),
+                "build/installer",
+            )?;
+        }
+        for file in ["chewing_tip_host.pdb", "tsfreg.pdb"] {
+            let _ = sh.copy_file(
+                format!("{}/{file}", x86_64_target_dir.display()),
+                "build/installer",
+            );
+        }
+        sh.create_dir("build/installer/x86")?;
+        for file in ["chewing_tip.dll"] {
+            sh.copy_file(
+                format!("{}/{file}", i686_target_dir.display()),
+                "build/installer/x86",
+            )?;
+        }
+        for file in ["chewing_tip.pdb"] {
+            let _ = sh.copy_file(
+                format!("{}/{file}", i686_target_dir.display()),
+                "build/installer/x86",
+            );
+        }
+
+        Ok(())
+    })
 }
 
-pub(crate) fn package_installer(_flags: PackageInstaller) -> Result<()> {
-    let sh = Shell::new()?;
+pub(crate) fn package_installer(_flags: PackageInstaller) -> Result<(), Error> {
+    expect_error("Failed to package installer", || {
+        let sh = Shell::new()?;
 
-    sh.create_dir("dist")?;
-    {
-        let _p = sh.push_dir("build/installer");
-        cmd!(
-            sh,
-            "msbuild -p:Configuration=Release -restore windows-chewing-tsf.wixproj"
-        )
-        .run()?;
-    }
-    sh.copy_file(
-        "build/installer/bin/Release/zh-TW/windows-chewing-tsf.msi",
-        "dist/windows-chewing-tsf-unsigned.msi",
-    )?;
+        sh.create_dir("dist")?;
+        {
+            let _p = sh.push_dir("build/installer");
+            cmd!(
+                sh,
+                "msbuild -p:Configuration=Release -restore windows-chewing-tsf.wixproj"
+            )
+            .run()?;
+        }
+        sh.copy_file(
+            "build/installer/bin/Release/zh-TW/windows-chewing-tsf.msi",
+            "dist/windows-chewing-tsf-unsigned.msi",
+        )?;
 
-    Ok(())
+        Ok(())
+    })
 }

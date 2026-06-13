@@ -3,24 +3,25 @@
 use std::fs::File;
 use std::io::Write;
 
-use anyhow::Result;
 use jiff::Zoned;
+use scoped_error::{Error, expect_error};
 
 use super::flags::UpdateVersion;
 
-pub(super) fn update_version(flags: UpdateVersion) -> Result<()> {
-    let now = Zoned::now();
-    let year = now.year();
-    let month = now.month();
-    let day = now.day();
-    let yy = flags.major;
-    let mm = flags.minor;
-    let rv = flags.patch;
-    let bn = flags.build.unwrap_or_default();
-    let mut version_rc = File::create("tip/rc/version.rc")?;
-    indoc::writedoc!(
-        version_rc,
-        r#"
+pub(super) fn update_version(flags: UpdateVersion) -> Result<(), Error> {
+    expect_error("Failed to update version", || {
+        let now = Zoned::now();
+        let year = now.year();
+        let month = now.month();
+        let day = now.day();
+        let yy = flags.major;
+        let mm = flags.minor;
+        let rv = flags.patch;
+        let bn = flags.build.unwrap_or_default();
+        let mut version_rc = File::create("tip/rc/version.rc")?;
+        indoc::writedoc!(
+            version_rc,
+            r#"
             #define VER_FILEVERSION             {yy},{mm},{rv},{bn}
             #define VER_FILEVERSION_STR         "{yy}.{mm}.{rv}.{bn}\0"
             #define VER_PRODUCTVERSION          {yy},{mm},{rv},{bn}
@@ -30,27 +31,28 @@ pub(super) fn update_version(flags: UpdateVersion) -> Result<()> {
             #define ABOUT_RELEASE_DATE_STR      "發行日期：{year} 年 {month:02} 月 {day:02} 日\0"
             #define PREFS_TITLE_WITH_VER        "設定新酷音輸入法 ({yy}.{mm}.{rv}.{bn})\0"
         "#
-    )?;
-    let mut version_json = File::create("installer/version.json")?;
-    indoc::writedoc!(
-        version_json,
-        r#"
+        )?;
+        let mut version_json = File::create("installer/version.json")?;
+        indoc::writedoc!(
+            version_json,
+            r#"
             {{
                 "product_version": "{yy}.{mm}.{rv}.{bn}",
                 "build_date": "{year} 年 {month:02} 月 {day:02} 日"
             }}
         "#
-    )?;
+        )?;
 
-    let mut version_wxi = File::create("installer/version.wxi")?;
-    indoc::writedoc!(
-        version_wxi,
-        r#"
+        let mut version_wxi = File::create("installer/version.wxi")?;
+        indoc::writedoc!(
+            version_wxi,
+            r#"
             <?xml version="1.0" encoding="UTF-8"?>
             <Include>
                 <?define Version = "{yy}.{mm}.{rv}.{bn}"?>
             </Include>
         "#
-    )?;
-    Ok(())
+        )?;
+        Ok(())
+    })
 }

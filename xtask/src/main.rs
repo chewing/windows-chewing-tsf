@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use anyhow::Result;
+use scoped_error::{Error, expect_error};
 
 mod download;
 mod installer;
@@ -101,23 +101,25 @@ mod flags {
     // generated end
 }
 
-fn main() -> Result<()> {
-    let flags = flags::Xtask::from_env()?;
+fn main() -> Result<(), Error> {
+    expect_error("failed to run command", || {
+        let flags = flags::Xtask::from_env()?;
 
-    match flags.subcommand {
-        flags::XtaskCmd::UpdateVersion(flags) => {
-            version::update_version(flags)?;
+        match flags.subcommand {
+            flags::XtaskCmd::UpdateVersion(flags) => {
+                version::update_version(flags)?;
+            }
+            flags::XtaskCmd::BuildInstaller(flags) => {
+                installer::build_installer(flags)?;
+            }
+            flags::XtaskCmd::DownloadComponents(flags) => {
+                download::download_components(flags)?;
+            }
+            flags::XtaskCmd::PackageInstaller(flags) => {
+                installer::package_installer(flags)?;
+            }
         }
-        flags::XtaskCmd::BuildInstaller(flags) => {
-            installer::build_installer(flags)?;
-        }
-        flags::XtaskCmd::DownloadComponents(flags) => {
-            download::download_components(flags)?;
-        }
-        flags::XtaskCmd::PackageInstaller(flags) => {
-            installer::package_installer(flags)?;
-        }
-    }
 
-    Ok(())
+        Ok(())
+    })
 }

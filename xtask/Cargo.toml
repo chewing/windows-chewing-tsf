@@ -1,11 +1,10 @@
 [package]
 name = "xtask"
-license = "GPL-3.0-or-later"
 version = "0.1.0"
 edition = "2024"
+license = "GPL-3.0-or-later"
 
 [dependencies]
-anyhow = "1.0.94"
 indoc = "2.0.5"
 jiff = { version = "0.2.0", default-features = false, features = ["std"] }
 rpgpie-sop = "0.10.0"
