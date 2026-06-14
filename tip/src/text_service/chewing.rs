@@ -335,8 +335,12 @@ impl ChewingTextService {
     }
 
     pub(super) fn deactivate(mut self) -> ITfThreadMgr {
-        if let Err(error) = self.remove_buttons() {
-            error!("failed to remove buttons: {error:#}");
+        if let Ok(lang_bar_item_mgr) = self.thread_mgr.cast::<ITfLangBarItemMgr>() {
+            for button in self.lang_bar_buttons.drain(0..) {
+                if let Err(error) = unsafe { lang_bar_item_mgr.RemoveItem(&button) } {
+                    error!("unable to remove lang bar item: {error}");
+                }
+            }
         }
         // TSF doc: The corresponding ITfTextInputProcessor::Deactivate
         // method that shuts down the text service must release all references
@@ -1586,16 +1590,6 @@ impl ChewingTextService {
                     _ => MF_ENABLED,
                 },
             );
-        }
-        Ok(())
-    }
-
-    fn remove_buttons(&mut self) -> Result<()> {
-        let lang_bar_item_mgr: ITfLangBarItemMgr = self.thread_mgr.cast()?;
-        for button in self.lang_bar_buttons.drain(0..) {
-            if let Err(error) = unsafe { lang_bar_item_mgr.RemoveItem(&button) } {
-                error!("unable to remove lang bar item: {error}");
-            }
         }
         Ok(())
     }
