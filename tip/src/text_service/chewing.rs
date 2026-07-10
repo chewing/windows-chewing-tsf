@@ -320,17 +320,16 @@ impl ChewingTextService {
             error!("{}", error.report());
         }
 
-        if cts.cfg.chewing_tsf.auto_check_update_channel != "none" {
-            if let Err(error) = cts.ipc_client.send(MethodCall {
-                method: CheckUpdate::METHOD.to_string(),
-                oneway: Some(true),
-                parameters: Value::Null,
-                more: None,
-                upgrade: None,
-            }) {
-                error!("unable to send IPC message CheckUpdate: {}", error.report());
-            }
+        if let Err(error) = cts.ipc_client.send(MethodCall {
+            method: CheckUpdate::METHOD.to_string(),
+            oneway: Some(true),
+            parameters: Value::Null,
+            more: None,
+            upgrade: None,
+        }) {
+            error!("unable to send IPC message CheckUpdate: {}", error.report());
         }
+
         Ok(cts)
     }
 

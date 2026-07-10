@@ -8,6 +8,8 @@ use super::version;
 pub(crate) struct CheckUpdateConfig {
     pub(crate) enabled: bool,
     pub(crate) channel: String,
+    pub(crate) current_update_info_url: String,
+    pub(crate) last_update_check_time: u64,
 }
 
 pub(crate) fn get_check_update_config() -> Result<CheckUpdateConfig, UpdateError> {
@@ -22,7 +24,14 @@ pub(crate) fn get_check_update_config() -> Result<CheckUpdateConfig, UpdateError
             }
         };
         let enabled = channel == "stable" || channel == "development";
-        Ok(CheckUpdateConfig { enabled, channel })
+        let current_update_info_url = key.get_string("UpdateInfoUrl").unwrap_or_default();
+        let last_update_check_time = key.get_u64("LastUpdateCheckTime").unwrap_or_default();
+        Ok(CheckUpdateConfig {
+            enabled,
+            channel,
+            current_update_info_url,
+            last_update_check_time,
+        })
     })
 }
 
