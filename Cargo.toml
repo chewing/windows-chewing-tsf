@@ -13,7 +13,7 @@ version = "26.5.2"
 
 [workspace.dependencies]
 anyhow = "1"
-chewing = "0.13.0-alpha.1"
+chewing = "0.13.0"
 embed-resource = "3.0.1"
 interprocess = "2.4.1"
 log = "0.4.29"
@@ -26,5 +26,5 @@ debug = true
 lto = "thin"
 panic = "abort"
 
-[patch."crates-io"]
-chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
+# [patch."crates-io"]
+# chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
