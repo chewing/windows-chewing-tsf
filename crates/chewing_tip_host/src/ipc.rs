@@ -86,7 +86,7 @@ fn ipc_loop_once(
                 }
             }
             CheckUpdate::METHOD => {
-                check_for_update();
+                std::thread::spawn(|| check_for_update());
                 if !oneway {
                     sender.write_all(c"{}".to_bytes_with_nul())?;
                 }

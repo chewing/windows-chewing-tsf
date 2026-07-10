@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - tip: add back scancode mapped keyboard layout support (dvorak, etc.)
 - tip: fixed candidate cycling via Tab
 - tip_host: always reset pending update info on restart to avoid stale info.
+- tip_host: move update checks to background threads to avoid blocking UI.
 
 ## 26.5.2.0 - 2026-05-18
 
