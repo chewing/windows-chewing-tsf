@@ -5,6 +5,7 @@ env:
   VER_MINOR: 7
   VER_PATCH: 1
   LLVM_MINGW_VERSION: 20260311
+  RUST_VERSION: 1.97.0
 
 on:
   push:
@@ -54,6 +55,7 @@ jobs:
       - name: Setup rust targets
         run: |
           rustup set auto-self-update disable
+          rustup default $RUST_VERSION
           rustup target add i686-pc-windows-gnullvm
           rustup target add x86_64-pc-windows-gnullvm
 
@@ -139,7 +141,7 @@ jobs:
       - name: Build Package
         shell: cmd
         run: |
-          cargo xtask package-installer
+          cargo +$RUST_VERSION xtask package-installer
 
       - id: upload-unsigned
         uses: actions/upload-artifact@v7
