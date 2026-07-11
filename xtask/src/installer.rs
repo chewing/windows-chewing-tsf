@@ -73,7 +73,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
         {
             cmd!(
                 sh,
-                "cargo install --locked chewing-cli --version 0.13.0-alpha.1
+                "cargo install --locked chewing-cli --version 0.13.0
                  --root build --target {x86_64_target} --features sqlite-bundled"
             )
             .run()?;
