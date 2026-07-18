@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 26.7.2.0 - unreleased
+
+### 🐛 Bug Fixes
+
+- ci: rebuild with rust 1.97.1 to avoid miscompilation issue.
+
 ## 26.7.1.0 - 2026-07-11
 
 ### 🐛 Bug Fixes
