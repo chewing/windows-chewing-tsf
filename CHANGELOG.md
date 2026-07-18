@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - ci: rebuild with rust 1.97.1 to avoid miscompilation issue.
+- tip: update libchewing to fix unstable Tab candidates cycling.
 
 ## 26.7.1.0 - 2026-07-11
 
