@@ -6,4 +6,5 @@ mod keybind;
 mod logging;
 mod quirk;
 mod text_service;
+mod ui;
 mod w32;
