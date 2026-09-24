@@ -26,10 +26,8 @@ use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
 use chewing_tip_core::config::{ChewingTsfConfig, Config};
 use chewing_tip_core::ipc::client::ChewingIpcClient;
-use chewing_tip_core::ipc::messages::{
-    CheckUpdate, OnTestKeyDown, ShowCandidateList, ShowNotification,
-};
-use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState, Position};
+use chewing_tip_core::ipc::messages::{CheckUpdate, OnTestKeyDown};
+use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState};
 use chewing_tip_core::ipc::varlink::MethodCall;
 use chewing_tip_core::shell::{launch_tip_host, open_url, program_dir, user_dir};
 use log::{debug, error, info};
@@ -78,7 +76,7 @@ use super::lang_bar::LangBarButton;
 use super::menu::Menu;
 use super::resources::*;
 use super::theme::{ThemeDetector, WindowsTheme};
-use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification};
+use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, NotificationModel};
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
@@ -720,6 +718,7 @@ impl ChewingTextService {
                                         self.show_message(
                                             context,
                                             &format!("刪除：{phrase}").into(),
+                                            Duration::from_millis(500),
                                         )?;
                                         key_handled = true;
                                     }
@@ -781,9 +780,7 @@ impl ChewingTextService {
 
         if !self.chewing_editor.notification().is_empty() {
             let msg = HSTRING::from(self.chewing_editor.notification());
-            if let Err(error) = self.show_message(context, &msg) {
-                error!("{}", error.report());
-            }
+            self.show_message(context, &msg, Duration::from_millis(500))?;
         }
 
         Ok(true)
@@ -826,7 +823,7 @@ impl ChewingTextService {
                     _ => HSTRING::from("輸入法關閉中"), // unreachable
                 };
                 if self.cfg.chewing_tsf.show_notification {
-                    self.show_message(context, &msg)?;
+                    self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
             } else {
                 self.toggle_lang_mode()?;
@@ -836,7 +833,7 @@ impl ChewingTextService {
                     _ => HSTRING::from("輸入法關閉中"), // unreachable
                 };
                 if self.cfg.chewing_tsf.show_notification {
-                    self.show_message(context, &msg)?;
+                    self.show_message(context, &msg, Duration::from_millis(500))?;
                 }
             }
         }
@@ -849,7 +846,7 @@ impl ChewingTextService {
                 _ => HSTRING::from("輸入法關閉中"), // unreachable
             };
             if self.cfg.chewing_tsf.show_notification {
-                self.show_message(context, &msg)?;
+                self.show_message(context, &msg, Duration::from_millis(500))?;
             }
         }
 
@@ -1195,23 +1192,30 @@ impl ChewingTextService {
         &mut self,
         context: &ITfContext,
         text: &HSTRING,
+        dur: Duration,
     ) -> Result<(), scoped_error::Error> {
         expect_error("Failed to show message", || {
-            let rect = self.get_selection_rect(context).unwrap_or_default();
-            let call = ShowNotification {
-                position: Position {
-                    x: rect.left + 50,
-                    y: rect.bottom + 50,
-                },
-                text: text.to_string_lossy(),
-                font_family: self.cfg.chewing_tsf.font_family.clone(),
-                font_size: self.cfg.chewing_tsf.font_size as f32,
-                fg_color: self.cfg.chewing_tsf.notify_fg_color.clone(),
-                bg_color: self.cfg.chewing_tsf.notify_bg_color.clone(),
-                border_color: self.cfg.chewing_tsf.notify_border_color.clone(),
+            let hwnd = unsafe {
+                let view = context.GetActiveView()?;
+                // UILess console may not have valid HWND
+                view.GetWnd().unwrap_or_default()
             };
-            let cth_client = self.ipc_client.clone();
-            let notification = Notification::new(self.thread_mgr.clone(), cth_client, call)?;
+            let notification = Notification::new(hwnd, self.thread_mgr.clone())?;
+            notification.set_model(NotificationModel {
+                text: text.clone(),
+                font_family: HSTRING::from(&self.cfg.chewing_tsf.font_family),
+                font_size: self.cfg.chewing_tsf.font_size as f32,
+                fg_color: color_s(&self.cfg.chewing_tsf.notify_fg_color),
+                bg_color: color_s(&self.cfg.chewing_tsf.notify_bg_color),
+                border_color: color_s(&self.cfg.chewing_tsf.notify_border_color),
+            });
+            if let Ok(rect) = self.get_selection_rect(context) {
+                notification.set_position(rect.left + 50, rect.bottom + 50);
+                // HACK set position again to use correct DPI setting
+                notification.set_position(rect.left + 50, rect.bottom + 50);
+            }
+            notification.show();
+            notification.set_timer(dur);
             self.notification = Some(notification);
             Ok(())
         })
@@ -1219,6 +1223,7 @@ impl ChewingTextService {
 
     fn hide_message(&mut self) {
         if let Some(notification) = self.notification.take() {
+            notification.set_timer(Duration::ZERO);
             notification.end_ui_element();
         }
     }
@@ -1332,13 +1337,21 @@ impl ChewingTextService {
             self.keymap = keymap_from_kbtype(self.kbtype);
             self.chewing_editor
                 .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Default));
-            self.show_message(context, &HSTRING::from("標準鍵盤"))?;
+            self.show_message(
+                context,
+                &HSTRING::from("標準鍵盤"),
+                Duration::from_millis(500),
+            )?;
         } else {
             self.kbtype = KeyboardLayoutCompat::Hsu;
             self.keymap = keymap_from_kbtype(self.kbtype);
             self.chewing_editor
                 .set_syllable_editor(syl_editor_from_kbtype(KeyboardLayoutCompat::Hsu));
-            self.show_message(context, &HSTRING::from("許氏鍵盤"))?;
+            self.show_message(
+                context,
+                &HSTRING::from("許氏鍵盤"),
+                Duration::from_millis(500),
+            )?;
         }
         Ok(())
     }
