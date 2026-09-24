@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### 🚜 Refactor
+
+- tip: revert the change to use separate process (chewing_tip_host.exe)
+  for UI rendering due to various UI layering priviledge issues.
+
 ## 26.7.2.0 - 2026-07-20
 
 ### 🐛 Bug Fixes
