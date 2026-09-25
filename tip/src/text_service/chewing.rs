@@ -9,8 +9,6 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
-use chewing::conversion::{ChewingEngine, FuzzyChewingEngine, SimpleEngine};
-use chewing::dictionary::{DEFAULT_DICT_NAMES, LookupStrategy};
 use chewing::editor::zhuyin_layout::{self, KeyboardLayoutCompat, SyllableEditor};
 use chewing::editor::{
     BasicEditor, CharacterForm, ConversionEngineKind, Editor, EditorKeyBehavior, LanguageMode,
@@ -29,7 +27,7 @@ use chewing_tip_core::ipc::client::ChewingIpcClient;
 use chewing_tip_core::ipc::messages::{CheckUpdate, OnTestKeyDown};
 use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState};
 use chewing_tip_core::ipc::varlink::MethodCall;
-use chewing_tip_core::shell::{launch_tip_host, open_url, program_dir, user_dir};
+use chewing_tip_core::shell::{launch_tip_host, open_url};
 use log::{debug, error, info};
 use scoped_error::impl_context_error;
 use scoped_error::{ErrorExt, expect_error};
@@ -279,7 +277,7 @@ impl ChewingTextService {
         });
 
         // Initialize a temp editor, this will be replaced in init_chewing_context.
-        let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
+        let editor = Editor::chewing(None, None)?;
 
         let mut cts = ChewingTextService {
             thread_mgr,
@@ -1450,20 +1448,8 @@ impl ChewingTextService {
     }
 
     fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor> {
-        let user_path = user_dir()?;
-        let chewing_path = format!(
-            "{};{}",
-            user_path.display(),
-            program_dir()?.join("Dictionary").display()
-        );
-        let user_dict_path = user_path.join("chewing.dat");
         // Recreate editor to load latest user files
-        let mut editor = Editor::chewing(
-            Some(chewing_path),
-            // NB: the current API requires a *file* path
-            Some(user_dict_path.to_string_lossy().into_owned()),
-            &["word.dat", "tsi.dat", "chewing.dat", "chewing-deleted.dat"],
-        );
+        let mut editor = Editor::chewing(None, None)?;
         editor.set_editor_options(|opt| {
             opt.easy_symbol_input = cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;
             // NB: Historically the config was inverted
@@ -1480,17 +1466,10 @@ impl ChewingTextService {
             opt.disable_auto_learn_phrase = !cfg.enable_auto_learn;
             opt.enable_fullwidth_toggle_key = cfg.enable_fullwidth_toggle_key;
             opt.sort_candidates_by_frequency = cfg.sort_candidates_by_frequency;
-            // FIXME
             opt.conversion_engine = match cfg.conv_engine {
                 0 => ConversionEngineKind::SimpleEngine,
                 2 => ConversionEngineKind::FuzzyChewingEngine,
                 _ => ConversionEngineKind::ChewingEngine,
-            };
-            // FIXME
-            opt.lookup_strategy = match cfg.conv_engine {
-                0 => LookupStrategy::Standard,
-                2 => LookupStrategy::FuzzyPartialPrefix,
-                _ => LookupStrategy::Standard,
             };
             // TODO experimental
             opt.auto_snapshot_selections = true;
@@ -1498,18 +1477,6 @@ impl ChewingTextService {
         let kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
             .unwrap_or(KeyboardLayoutCompat::Default);
         editor.set_syllable_editor(syl_editor_from_kbtype(kbtype));
-        // FIXME
-        match editor.editor_options().conversion_engine {
-            ConversionEngineKind::SimpleEngine => {
-                editor.set_conversion_engine(Box::new(SimpleEngine::new()));
-            }
-            ConversionEngineKind::ChewingEngine => {
-                editor.set_conversion_engine(Box::new(ChewingEngine::new()));
-            }
-            ConversionEngineKind::FuzzyChewingEngine => {
-                editor.set_conversion_engine(Box::new(FuzzyChewingEngine::new()));
-            }
-        }
         Ok(editor)
     }
 

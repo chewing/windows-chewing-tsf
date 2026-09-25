@@ -18,7 +18,7 @@ use windows_core::{
 };
 
 use crate::{
-    quirk::Quirk,
+    quirk::{FpGuard, Quirk},
     text_service::chewing::ReentrantOps,
     w32::imm32::{ImeDpi, patch_ime_info, release_ime_info},
 };
@@ -158,6 +158,7 @@ impl IFnRunCommand_Impl for TextService_Impl {
 
 impl ITfTextInputProcessor_Impl for TextService_Impl {
     fn Activate(&self, ptim: Ref<ITfThreadMgr>, tid: u32) -> Result<()> {
+        let _fp = FpGuard::enter();
         let res = expect_error::<(), TipError>("Failed to activate chewing_tip", || {
             debug!(tid; "tip::activate");
 
@@ -227,6 +228,7 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
     }
 
     fn Deactivate(&self) -> Result<()> {
+        let _fp = FpGuard::enter();
         let res = expect_error::<(), TipError>("Failed to deactivate chewing_tip", || {
             debug!("tip::deactivate");
             if !self.pimedpi.get().is_null() {
@@ -289,6 +291,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
         pdimfocus: Ref<ITfDocumentMgr>,
         pdimprevfocus: Ref<ITfDocumentMgr>,
     ) -> Result<()> {
+        let _fp = FpGuard::enter();
         debug!(
             focus:? = pdimfocus.as_ref(),
             prevfocus:? = pdimprevfocus.as_ref(); "on_set_focus"
@@ -329,6 +332,7 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
 
 impl ITfThreadFocusSink_Impl for TextService_Impl {
     fn OnSetThreadFocus(&self) -> Result<()> {
+        let _fp = FpGuard::enter();
         debug!("on_set_thread_focus");
         let mut borrowed_ts = self.inner.borrow_mut();
         let Some(ts) = borrowed_ts.as_mut() else {
@@ -358,6 +362,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        let _fp = FpGuard::enter();
         debug!(wparam:?, lparam:?; "on_test_keydown");
         let should_handle = {
             let mut borrowed_ts = self.inner.borrow_mut();
@@ -378,6 +383,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnTestKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        let _fp = FpGuard::enter();
         debug!(wparam:?, lparam:?; "on_test_keyup");
         let should_handle = {
             let mut borrowed_ts = self.inner.borrow_mut();
@@ -404,6 +410,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyDown(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        let _fp = FpGuard::enter();
         debug!(wparam:?, lparam:?; "on_keydown");
         self.key_busy.set(true);
         let handled = {
@@ -425,6 +432,7 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
     }
 
     fn OnKeyUp(&self, pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        let _fp = FpGuard::enter();
         debug!(wparam:?, lparam:?; "on_keyup");
         self.key_busy.set(false);
         let handled = {
@@ -462,6 +470,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
         ecwrite: u32,
         pcomposition: Ref<ITfComposition>,
     ) -> Result<()> {
+        let _fp = FpGuard::enter();
         debug!("on_composition_terminated");
         // This is called by TSF when our composition is terminated by others.
         // For example, when the user click on another text editor and the input focus is
@@ -489,6 +498,7 @@ impl ITfCompositionSink_Impl for TextService_Impl {
 
 impl ITfCompartmentEventSink_Impl for TextService_Impl {
     fn OnChange(&self, rguid: *const GUID) -> Result<()> {
+        let _fp = FpGuard::enter();
         if let Some(rguid) = unsafe { rguid.as_ref() } {
             debug!(rguid:?; "compartment::on_change");
             if self

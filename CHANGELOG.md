@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- tip: upgrade to libchewing 0.14.0-alpha.2 with bigram model support
+  for better conversion accuracy.
+- tip: upgrade to libchewing-data 2026.9.25 for new bigram model.
 - tip: revert the change to use separate process (chewing_tip_host.exe)
   for UI rendering due to various UI layering priviledge issues.
 

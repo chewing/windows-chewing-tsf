@@ -1,6 +1,4 @@
 use chewing::{
-    conversion::{ChewingEngine, FuzzyChewingEngine, SimpleEngine},
-    dictionary::{DEFAULT_DICT_NAMES, LookupStrategy},
     editor::{
         CharacterForm, ConversionEngineKind, Editor, LanguageMode, UserPhraseAddDirection,
         zhuyin_layout::{self, KeyboardLayoutCompat, SyllableEditor},
@@ -32,21 +30,23 @@ pub(crate) struct TipSession {
 }
 
 impl TipSession {
-    pub(crate) fn new() -> TipSession {
-        let cfg = Config::from_reg().unwrap_or_else(|error| {
-            log::error!("Failed to load config from registry: {}", error.report());
-            log::error!("Fallback to default config");
-            Config::default()
-        });
-        let editor = Editor::chewing(None, None, DEFAULT_DICT_NAMES);
-        TipSession {
-            output_simp_chinese: cfg.chewing_tsf.output_simp_chinese,
-            cfg,
-            lang_mode: TsfLangMode::English,
-            kbtype: KeyboardLayoutCompat::Default,
-            keybindings: vec![],
-            chewing_editor: editor,
-        }
+    pub(crate) fn new() -> Result<TipSession, TipError> {
+        expect_error("Failed to create new TipSession", || {
+            let cfg = Config::from_reg().unwrap_or_else(|error| {
+                log::error!("Failed to load config from registry: {}", error.report());
+                log::error!("Fallback to default config");
+                Config::default()
+            });
+            let editor = Editor::chewing(None, None)?;
+            Ok(TipSession {
+                output_simp_chinese: cfg.chewing_tsf.output_simp_chinese,
+                cfg,
+                lang_mode: TsfLangMode::English,
+                kbtype: KeyboardLayoutCompat::Default,
+                keybindings: vec![],
+                chewing_editor: editor,
+            })
+        })
     }
     pub(crate) fn init_chewing_context(&mut self) {
         // self.apply_config()?;
@@ -258,8 +258,7 @@ fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor, TipError> {
             Some(chewing_path),
             // NB: the current API requires a *file* path
             Some(user_dict_path.to_string_lossy().into_owned()),
-            &["word.dat", "tsi.dat", "chewing.dat", "chewing-deleted.dat"],
-        );
+        )?;
         editor.set_editor_options(|opt| {
             opt.easy_symbol_input = cfg.easy_symbols_with_shift || cfg.easy_symbols_with_shift_ctrl;
             // NB: Historically the config was inverted
@@ -282,30 +281,12 @@ fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor, TipError> {
                 2 => ConversionEngineKind::FuzzyChewingEngine,
                 _ => ConversionEngineKind::ChewingEngine,
             };
-            // FIXME
-            opt.lookup_strategy = match cfg.conv_engine {
-                0 => LookupStrategy::Standard,
-                2 => LookupStrategy::FuzzyPartialPrefix,
-                _ => LookupStrategy::Standard,
-            };
             // TODO experimental
             opt.auto_snapshot_selections = true;
         });
         let kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
             .unwrap_or(KeyboardLayoutCompat::Default);
         editor.set_syllable_editor(syl_editor_from_kbtype(kbtype));
-        // FIXME
-        match editor.editor_options().conversion_engine {
-            ConversionEngineKind::SimpleEngine => {
-                editor.set_conversion_engine(Box::new(SimpleEngine::new()));
-            }
-            ConversionEngineKind::ChewingEngine => {
-                editor.set_conversion_engine(Box::new(ChewingEngine::new()));
-            }
-            ConversionEngineKind::FuzzyChewingEngine => {
-                editor.set_conversion_engine(Box::new(FuzzyChewingEngine::new()));
-            }
-        }
         Ok(editor)
     })
 }

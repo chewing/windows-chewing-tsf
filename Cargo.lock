@@ -209,6 +209,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bb31b46c14244e20ee9984b11bf5c992b91fb6939fea616e3512c8baecdbe5f"
+dependencies = [
+ "memchr",
+ "regex-automata",
+ "serde_core",
+]
+
+[[package]]
 name = "buffer-redux"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -281,12 +292,14 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "chewing"
-version = "0.13.1"
+version = "0.14.0-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fc533f0b524ce84ec20fe9025169e64c866df84a50b497acb6a62f6dccac264"
+checksum = "32bca9af9fb1b5e30a7c25a18eb91f3d9f3e3cf7eec32e4e1b1608921f347abf"
 dependencies = [
+ "bstr",
  "der",
  "log",
+ "scoped-error",
 ]
 
 [[package]]

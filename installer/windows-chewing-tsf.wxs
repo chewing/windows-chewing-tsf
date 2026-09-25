@@ -22,11 +22,10 @@
                 <Directory Id="Dictionary" Name="Dictionary">
                     <File Source="Dictionary\swkb.dat" Bitness="always64" />
                     <File Source="Dictionary\symbols.dat" Bitness="always64" />
-                    <File Source="Dictionary\tsi.dat" Bitness="always64" />
-                    <File Source="Dictionary\word.dat" Bitness="always64" />
-                    <Directory Name="dictionary.d">
-                        <File Source="Dictionary\alt.dat" Bitness="always64" />
-                    </Directory>
+                    <File Source="Dictionary\static_dict.bin" Bitness="always64" />
+                    <File Source="Dictionary\rare_dict.bin" Bitness="always64" />
+                    <File Source="Dictionary\static_words.bin" Bitness="always64" />
+                    <File Source="Dictionary\static_lm.bin" Bitness="always64" />
                 </Directory>
                 <Component Bitness="always64">
                     <File Source="x64\chewing_tip.dll">
@@ -107,7 +106,7 @@
                     <RegistryKey Root="HKCR" Key="chewing-tip-host\shell\open\command">
                         <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing_tip_host.exe&quot; &quot;%1&quot;" />
                     </RegistryKey>
-                    
+
                     <!-- Start chewing_tip_host after login -->
                     <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
                          <RegistryValue Type="string"

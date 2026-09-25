@@ -25,27 +25,32 @@ pub(crate) fn run_ipc_listener(
             let mh = mh.clone();
             let pipe = pipe?;
             std::thread::spawn(move || {
-                ipc_loop(pipe, mh);
+                if let Err(error) = ipc_loop(pipe, mh) {
+                    error!("{}", error.report());
+                }
             });
         }
         Ok(())
     })
 }
 
-fn ipc_loop(pipe: PipeStream<Bytes, Bytes>, mh: MainLoopHandle) {
-    let (receiver_inner, mut sender) = pipe.split();
-    let mut receiver = BufReader::new(receiver_inner);
-    let mut tip_session = TipSession::new();
-    loop {
-        match ipc_loop_once(&mut receiver, &mut sender, &mh, &mut tip_session) {
-            Ok(ControlFlow::Continue(_)) => continue,
-            Ok(ControlFlow::Break(_)) => break,
-            Err(error) => {
-                error!("{}", error.report())
-                // FIXME reply with errors if not oneway
+fn ipc_loop(pipe: PipeStream<Bytes, Bytes>, mh: MainLoopHandle) -> Result<(), HandleIpcError> {
+    expect_error("Failed to initialize IPC loop", || {
+        let (receiver_inner, mut sender) = pipe.split();
+        let mut receiver = BufReader::new(receiver_inner);
+        let mut tip_session = TipSession::new()?;
+        loop {
+            match ipc_loop_once(&mut receiver, &mut sender, &mh, &mut tip_session) {
+                Ok(ControlFlow::Continue(_)) => continue,
+                Ok(ControlFlow::Break(_)) => break,
+                Err(error) => {
+                    error!("{}", error.report())
+                    // FIXME reply with errors if not oneway
+                }
             }
         }
-    }
+        Ok(())
+    })
 }
 
 fn ipc_loop_once(
