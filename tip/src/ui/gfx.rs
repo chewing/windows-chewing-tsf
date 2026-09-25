@@ -78,7 +78,6 @@ pub(crate) fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2, G
 pub(crate) fn create_swapchain_bitmap(
     swapchain: &IDXGISwapChain1,
     target: &ID2D1DeviceContext,
-    dpi: f32,
 ) -> Result<(), GfxError> {
     expect_error("Failed to create new swapchain bitmap with dpi", || {
         let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0)? };
@@ -88,8 +87,6 @@ pub(crate) fn create_swapchain_bitmap(
                 format: DXGI_FORMAT_B8G8R8A8_UNORM,
                 alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
             },
-            dpiX: dpi,
-            dpiY: dpi,
             bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
             ..Default::default()
         };
@@ -162,10 +159,6 @@ pub(crate) fn get_dpi_for_window(hwnd: HWND) -> f32 {
         let _ = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
         dpi_x as f32
     }
-}
-
-pub(crate) fn get_scale_for_window(hwnd: HWND) -> f32 {
-    get_dpi_for_window(hwnd) / 96.0
 }
 
 pub(crate) fn get_dpi_for_point(point: POINT) -> f32 {

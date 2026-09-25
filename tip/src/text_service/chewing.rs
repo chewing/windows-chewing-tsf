@@ -53,16 +53,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use windows_core::{ComObject, ComObjectInner, GUID, HSTRING, Interface};
 use zhconv::{Variant, zhconv};
 
-use crate::com::G_HINSTANCE;
-use crate::keybind::Keybinding;
-use crate::text_service::TextService;
-use crate::text_service::edit_session::request_edit_session;
-use crate::text_service::icons::LangIconSet;
-use crate::text_service::key_event::{KeymapOp, SimulatedKeyboard};
-use crate::text_service::lang_bar::LangBarFactory;
-use crate::ui::gfx::color_s;
-use crate::ui::window::window_register_class;
-
 use super::CommandType;
 use super::GUID_INPUT_DISPLAY_ATTRIBUTE_1;
 use super::GUID_INPUT_DISPLAY_ATTRIBUTE_2;
@@ -75,6 +65,14 @@ use super::menu::Menu;
 use super::resources::*;
 use super::theme::{ThemeDetector, WindowsTheme};
 use super::ui_elements::{CandidateList, FilterKeyResult, Model, Notification, NotificationModel};
+use crate::com::G_HINSTANCE;
+use crate::keybind::Keybinding;
+use crate::text_service::TextService;
+use crate::text_service::edit_session::request_edit_session;
+use crate::text_service::icons::LangIconSet;
+use crate::text_service::key_event::{KeymapOp, SimulatedKeyboard};
+use crate::text_service::lang_bar::LangBarFactory;
+use crate::ui::gfx::color_s;
 
 const GUID_MODE_BUTTON: GUID = GUID::from_u128(0xB59D51B9_B832_40D2_9A8D_56959372DDC7);
 const GUID_SHAPE_TYPE_BUTTON: GUID = GUID::from_u128(0x5325DBF5_5FBE_467B_ADF0_2395BE9DD2BB);
@@ -210,7 +208,8 @@ impl ChewingTextService {
         let g_hinstance = HINSTANCE(G_HINSTANCE.load(Ordering::Relaxed) as *mut c_void);
         let menu = Menu::load(g_hinstance, IDR_MENU);
 
-        window_register_class();
+        CandidateList::window_register_class(g_hinstance);
+        Notification::window_register_class(g_hinstance);
 
         let lang_bar_item_mgr: ITfLangBarItemMgr = thread_mgr.cast()?;
         info!("Detected theme info: {:?}", ThemeDetector::get_theme_info());
