@@ -15,8 +15,8 @@ const MANIFEST: [(&str, &str, &str, &str); 3] = [
         "build/installer",
     ),
     (
-        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/v26.4.1.0/windows-chewing-editor-26.4.1.0-x86_64-pc-windows.zip",
-        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/v26.4.1.0/windows-chewing-editor-26.4.1.0-x86_64-pc-windows.zip.asc",
+        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/nightly/windows-chewing-editor-x86_64-pc-windows.zip",
+        "https://codeberg.org/chewing/windows-chewing-editor/releases/download/nightly/windows-chewing-editor-x86_64-pc-windows.zip.asc",
         "windows-chewing-editor.zip",
         "build/installer",
     ),
