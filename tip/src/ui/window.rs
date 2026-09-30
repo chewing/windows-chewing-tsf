@@ -40,7 +40,7 @@ pub(crate) extern "system" fn wnd_proc(
             unsafe {
                 if let Some(create_data) = create_ptr.as_ref() {
                     // Attach user_data to window
-                    #[cfg(target_arch = "x86_64")]
+                    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
                     SetWindowLongPtrW(hwnd, GWLP_USERDATA, create_data.lpCreateParams as isize);
                     #[cfg(target_arch = "x86")]
                     SetWindowLongPtrW(hwnd, GWLP_USERDATA, create_data.lpCreateParams as i32);

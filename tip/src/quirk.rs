@@ -133,3 +133,13 @@ impl Drop for FpGuard {
         }
     }
 }
+
+#[cfg(not(any(target_arch = "x86_64", target_arch = "x86")))]
+pub(crate) struct FpGuard;
+
+#[cfg(not(any(target_arch = "x86_64", target_arch = "x86")))]
+impl FpGuard {
+    pub fn enter() -> Self {
+        FpGuard
+    }
+}

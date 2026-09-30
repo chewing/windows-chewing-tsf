@@ -84,12 +84,19 @@ pub(crate) struct NotificationModel {
 }
 
 extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let get_this = || unsafe {
+    let this = unsafe {
         let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const NotificationInner;
+        if ptr.is_null() {
+            // not initialized yet
+            return crate::ui::window::wnd_proc(hwnd, msg, wparam, lparam);
+        }
         let weak = Weak::from_raw(ptr);
         let this = weak.upgrade();
         let _ = weak.into_raw();
-        this
+        match this {
+            Some(t) => t,
+            None => return crate::ui::window::wnd_proc(hwnd, msg, wparam, lparam),
+        }
     };
     match msg {
         WM_NCDESTROY => unsafe {
@@ -98,9 +105,6 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
             LRESULT(0)
         },
         WM_PAINT => {
-            let Some(this) = get_this() else {
-                return LRESULT(1);
-            };
             let view = this.view.borrow();
             let model = this.model.borrow();
             let mut ps = PAINTSTRUCT::default();
@@ -112,9 +116,6 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
         WM_WINDOWPOSCHANGING => {
             let pos = lparam.0 as *mut WINDOWPOS;
             if let Some(pos) = unsafe { pos.as_mut() } {
-                let Some(this) = get_this() else {
-                    return LRESULT(1);
-                };
                 let view = this.view.borrow();
                 let model = this.model.borrow();
                 let dpi = get_dpi_for_point(POINT { x: pos.x, y: pos.y });
@@ -128,9 +129,6 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
         }
         WM_TIMER => {
             if wparam.0 == ID_TIMEOUT {
-                let Some(this) = get_this() else {
-                    return LRESULT(1);
-                };
                 let view = this.view.borrow();
                 let window = view.window().expect("View window");
                 let _ = unsafe { KillTimer(Some(hwnd), ID_TIMEOUT) };
