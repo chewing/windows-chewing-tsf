@@ -46,6 +46,11 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
             Some(Target::GnuLlvm) => "x86_64-pc-windows-gnullvm",
             None | Some(Target::Msvc) => "x86_64-pc-windows-msvc",
         };
+        let aarch64_target = match flags.target {
+            Some(Target::Gnu) => "aarch64-pc-windows-gnu",
+            Some(Target::GnuLlvm) => "aarch64-pc-windows-gnullvm",
+            None | Some(Target::Msvc) => "aarch64-pc-windows-msvc",
+        };
         let i686_target = match flags.target {
             Some(Target::Gnu) => "i686-pc-windows-gnu",
             Some(Target::GnuLlvm) => "i686-pc-windows-gnullvm",
@@ -57,6 +62,12 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
             x86_64_target_dir.join("release")
         } else {
             x86_64_target_dir.join("debug")
+        };
+        let aarch64_target_dir = PathBuf::from("target").join(aarch64_target);
+        let aarch64_target_dir = if flags.release {
+            aarch64_target_dir.join("release")
+        } else {
+            aarch64_target_dir.join("debug")
         };
         let i686_target_dir = PathBuf::from("target").join(i686_target);
         let i686_target_dir = if flags.release {
@@ -96,6 +107,13 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
         {
             cmd!(
                 sh,
+                "cargo build -p chewing_tip {release...} --target {aarch64_target}"
+            )
+            .run()?;
+        }
+        {
+            cmd!(
+                sh,
                 "cargo build -p chewing_tip {release...} --target {i686_target}"
             )
             .run()?;
@@ -124,18 +142,26 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
         sh.create_dir("build/installer/Dictionary")?;
 
         sh.create_dir("build/installer/x64")?;
-        for file in ["chewing_tip.dll"] {
-            sh.copy_file(
-                format!("{}/{file}", x86_64_target_dir.display()),
-                "build/installer/x64",
-            )?;
-        }
-        for file in ["chewing_tip.pdb"] {
-            let _ = sh.copy_file(
-                format!("{}/{file}", x86_64_target_dir.display()),
-                "build/installer/x64",
-            );
-        }
+        sh.copy_file(
+            format!("{}/chewing_tip.dll", x86_64_target_dir.display()),
+            "build/installer/x64/chewing_tip_x64.dll",
+        )?;
+        let _ = sh.copy_file(
+            format!("{}/chewing_tip.pdb", x86_64_target_dir.display()),
+            "build/installer/x64/chewing_tip_x64.pdb",
+        );
+        sh.copy_file(
+            format!("{}/chewing_tip.dll", aarch64_target_dir.display()),
+            "build/installer/x64/chewing_tip_arm64.dll",
+        )?;
+        let _ = sh.copy_file(
+            format!("{}/chewing_tip.dll", aarch64_target_dir.display()),
+            "build/installer/x64/chewing_tip_arm64.pdb",
+        );
+        sh.copy_file(
+            "platform/arm64x/chewing_tip.dll",
+            "build/installer/x64/chewing_tip.dll",
+        )?;
         for file in ["chewing_tip_host.exe", "tsfreg.exe"] {
             sh.copy_file(
                 format!("{}/{file}", x86_64_target_dir.display()),
@@ -149,18 +175,14 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
             );
         }
         sh.create_dir("build/installer/x86")?;
-        for file in ["chewing_tip.dll"] {
-            sh.copy_file(
-                format!("{}/{file}", i686_target_dir.display()),
-                "build/installer/x86",
-            )?;
-        }
-        for file in ["chewing_tip.pdb"] {
-            let _ = sh.copy_file(
-                format!("{}/{file}", i686_target_dir.display()),
-                "build/installer/x86",
-            );
-        }
+        sh.copy_file(
+            format!("{}/chewing_tip.dll", i686_target_dir.display()),
+            "build/installer/x86",
+        )?;
+        let _ = sh.copy_file(
+            format!("{}/chewing_tip.pdb", i686_target_dir.display()),
+            "build/installer/x86",
+        );
 
         Ok(())
     })
@@ -175,14 +197,21 @@ pub(crate) fn package_installer(_flags: PackageInstaller) -> Result<(), Error> {
             let _p = sh.push_dir("build/installer");
             cmd!(
                 sh,
-                "msbuild -p:Configuration=Release -restore windows-chewing-tsf.wixproj"
+                "wix build -acceptEula wix7 -arch x64 -culture zh-TW -ext WixToolset.UI.wixext
+                    -d MsiProcessorArchitecture=x64
+                    -o ../../dist/windows-chewing-tsf-unsigned-x64.msi -pdbtype none
+                    windows-chewing-tsf.wxs"
+            )
+            .run()?;
+            cmd!(
+                sh,
+                "wix build -acceptEula wix7 -arch arm64 -culture zh-TW -ext WixToolset.UI.wixext
+                    -d MsiProcessorArchitecture=arm64
+                    -o ../../dist/windows-chewing-tsf-unsigned-arm64.msi -pdbtype none
+                    windows-chewing-tsf.wxs"
             )
             .run()?;
         }
-        sh.copy_file(
-            "build/installer/bin/Release/zh-TW/windows-chewing-tsf.msi",
-            "dist/windows-chewing-tsf-unsigned.msi",
-        )?;
 
         Ok(())
     })

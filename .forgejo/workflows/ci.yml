@@ -55,6 +55,7 @@ jobs:
           rustup default $RUST_VERSION
           rustup target add i686-pc-windows-gnullvm
           rustup target add x86_64-pc-windows-gnullvm
+          rustup target add aarch64-pc-windows-gnullvm
 
       - uses: actions/checkout@v6
 

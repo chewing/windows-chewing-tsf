@@ -14,6 +14,11 @@
         UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
         <MajorUpgrade AllowDowngrades="yes" />
         <MediaTemplate CompressionLevel="high" EmbedCab="yes" />
+        <Property Id="MSI_PROCESSOR_ARCHITECTURE" Value="$(var.MsiProcessorArchitecture)" />
+        <Property Id="PROCESSOR_ARCHITECTURE" Secure="yes">
+            <RegistrySearch Id="ProcessorArchitectureValue" Type="raw" Root="HKLM" Key="System\CurrentControlSet\Control\Session Manager\Environment" Name="PROCESSOR_ARCHITECTURE" />
+        </Property>
+        <Launch Condition="(MSI_PROCESSOR_ARCHITECTURE = &quot;arm64&quot;) AND (PROCESSOR_ARCHITECTURE = &quot;ARM64&quot;)" Message="此安裝程式不支援 ARM64 版 Windows。請使用另外提供的專用安裝程式。" />
         <StandardDirectory Id="ProgramMenuFolder">
             <Directory Id="ApplicationProgramsFolder" Name="新酷音輸入法 (TSF)" />
         </StandardDirectory>
@@ -27,8 +32,9 @@
                     <File Source="Dictionary\static_words.bin" Bitness="always64" />
                     <File Source="Dictionary\static_lm.bin" Bitness="always64" />
                 </Directory>
+                <?if $(var.MsiProcessorArchitecture) == "x64" ?>
                 <Component Bitness="always64">
-                    <File Source="x64\chewing_tip.dll">
+                    <File Id="tipMain" Source="x64\chewing_tip_x64.dll">
                         <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
                             Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
                             ThreadingModel="apartment" />
@@ -36,6 +42,23 @@
                     <!-- Remove NSIS Uninstaller -->
                     <RemoveFile Name="Uninstall.exe" On="install" />
                 </Component>
+                <?endif?>
+                <?if $(var.MsiProcessorArchitecture) == "arm64" ?>
+                <Component Bitness="always64">
+                    <File Source="x64\chewing_tip.dll">
+                        <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
+                            Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
+                            ThreadingModel="apartment" />
+                    </File>
+                </Component>
+                <Component Bitness="always64" Condition="PROCESSOR_ARCHITECTURE = &quot;ARM64&quot;">
+                    <File Source="x64\chewing_tip_arm64.dll" />
+                </Component>
+                <Component Bitness="always64" Condition="PROCESSOR_ARCHITECTURE = &quot;ARM64&quot;">
+                    <File Id="tipForward" Source="x64\chewing_tip_x64.dll" />
+                </Component>
+                <?endif?>
+                <!-- end aarch64 -->
                 <Component Bitness="always64">
                     <File Source="ChewingPreferences.exe" KeyPath="yes">
                         <Shortcut Advertise="yes" Icon="icon.exe" Name="設定新酷音輸入法" Directory="ApplicationProgramsFolder" />

@@ -1,0 +1,3 @@
+EXPORTS
+  DllMain = chewing_tip_arm64.DllMain
+  DllGetClassObject = chewing_tip_arm64.DllGetClassObject
