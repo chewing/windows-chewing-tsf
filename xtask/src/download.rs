@@ -1,9 +1,9 @@
 use std::{ffi::OsString, io::Cursor, path::PathBuf};
 
-use rpgpie_sop::{Certs, RPGSOP, Sigs};
-use scoped_error::{Error, expect_error, expect_error_fn};
+use rpgpie_sop::{Certs, Sigs, RPGSOP};
+use scoped_error::{expect_error, expect_error_fn, Error};
 use sop::{Load, SOP};
-use xshell::{Shell, cmd};
+use xshell::{cmd, Shell};
 
 use crate::{flags::DownloadComponents, zip::unzip};
 
@@ -21,8 +21,8 @@ const MANIFEST: [(&str, &str, &str, &str); 3] = [
         "build/installer",
     ),
     (
-        "https://codeberg.org/chewing/libchewing-data/releases/download/v2026.9.25/libchewing-data-2026.9.25-Generic.zip",
-        "https://codeberg.org/chewing/libchewing-data/releases/download/v2026.9.25/libchewing-data-2026.9.25-Generic.zip.asc",
+        "https://codeberg.org/chewing/libchewing-data/releases/download/v2026.10.4/libchewing-data-2026.10.4-Generic.zip",
+        "https://codeberg.org/chewing/libchewing-data/releases/download/v2026.10.4/libchewing-data-2026.10.4-Generic.zip.asc",
         "libchewing-data.zip",
         "build/installer/Dictionary",
     ),
