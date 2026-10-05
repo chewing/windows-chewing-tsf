@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### 🚀 Features
+
+- tip: added initial support for Windows on Arm platform.
+
 ### 🚜 Refactor
 
 - tip: upgrade to libchewing 0.14.0-alpha.2 with bigram model support

@@ -198,16 +198,7 @@ pub(crate) fn package_installer(_flags: PackageInstaller) -> Result<(), Error> {
             cmd!(
                 sh,
                 "wix build -acceptEula wix7 -arch x64 -culture zh-TW -ext WixToolset.UI.wixext
-                    -d MsiProcessorArchitecture=x64
-                    -o ../../dist/windows-chewing-tsf-unsigned-x64.msi -pdbtype none
-                    windows-chewing-tsf.wxs"
-            )
-            .run()?;
-            cmd!(
-                sh,
-                "wix build -acceptEula wix7 -arch arm64 -culture zh-TW -ext WixToolset.UI.wixext
-                    -d MsiProcessorArchitecture=arm64
-                    -o ../../dist/windows-chewing-tsf-unsigned-arm64.msi -pdbtype none
+                    -o ../../dist/windows-chewing-tsf-unsigned.msi -pdbtype none
                     windows-chewing-tsf.wxs"
             )
             .run()?;
