@@ -126,7 +126,7 @@ jobs:
 
       - name: Install wix-cli
         run: |
-          winget install WiXToolset.WiXCLI
+          winget install --accept-package-agreements --accept-source-agreements WiXToolset.WiXCLI
 
       # - name: Start SSH session
       #   uses: luchihoratiu/debug-via-ssh@main
