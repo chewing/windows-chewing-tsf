@@ -124,6 +124,10 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v3
 
+      - name: Install wix-cli
+        run: |
+          winget install WiXToolset.WiXCLI
+
       # - name: Start SSH session
       #   uses: luchihoratiu/debug-via-ssh@main
       #   with:
