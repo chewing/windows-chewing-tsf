@@ -102,7 +102,8 @@ jobs:
 
       - name: Strip debug info
         run: |
-          x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
+          x86_64-w64-mingw32-strip build/installer/x64/chewing_tip_x64.dll
+          aarch64-w64-mingw32-strip build/installer/x64/chewing_tip_arm64.dll
           i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
           x86_64-w64-mingw32-strip build/installer/*.exe
 
@@ -125,8 +126,10 @@ jobs:
         uses: microsoft/setup-msbuild@v3
 
       - name: Install wix-cli
+        shell: pwsh
         run: |
           winget install --accept-package-agreements --accept-source-agreements WiXToolset.WiXCLI
+          echo "C:\Program Files\WiX Toolset v7.0\bin" >> $Env:GITHUB_PATH
 
       # - name: Start SSH session
       #   uses: luchihoratiu/debug-via-ssh@main
