@@ -24,7 +24,7 @@ serde_json = "1.0.149"
 [profile.release]
 debug = true
 lto = true
-panic = "unwind"
+panic = "abort"
 
 [patch."crates-io"]
 # chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
