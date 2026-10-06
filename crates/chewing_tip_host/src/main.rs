@@ -17,7 +17,6 @@ mod ipc;
 mod text_service;
 mod ui;
 mod ui_elements;
-mod update;
 
 fn main() -> Result<(), scoped_error::Error> {
     expect_error("Running chewing_tip_host failed", || {
@@ -46,10 +45,6 @@ fn main() -> Result<(), scoped_error::Error> {
                     error.report()
                 );
             }
-        }
-        info!("Clear update info URL on restart");
-        if let Err(error) = update::config::set_update_info_url("") {
-            log::error!("{}", error.report());
         }
 
         info!("Create NamedPipe listener");

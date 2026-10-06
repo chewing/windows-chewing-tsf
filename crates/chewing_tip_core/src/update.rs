@@ -6,7 +6,7 @@ pub(crate) mod config;
 mod releases;
 mod version;
 
-pub(crate) fn check_for_update() {
+pub fn check_for_update() {
     log::info!("Checking for update...");
     let cfg = match config::get_check_update_config() {
         Ok(cfg) => cfg,

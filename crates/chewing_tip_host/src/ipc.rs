@@ -3,18 +3,19 @@ use std::{
     ops::ControlFlow,
 };
 
-use chewing_tip_core::ipc::messages::{OnTestKeyDown, OnTestKeyDownReply, Ping, PingReply};
 use chewing_tip_core::ipc::{
     messages::{CheckUpdate, HideCandidateList, ShowCandidateList, ShowNotification, Stop},
     varlink::{MethodCall, MethodReply},
+};
+use chewing_tip_core::{
+    ipc::messages::{OnTestKeyDown, OnTestKeyDownReply, Ping, PingReply},
+    update::check_for_update,
 };
 use interprocess::os::windows::named_pipe::{PipeListener, PipeStream, pipe_mode::Bytes};
 use log::{debug, error, warn};
 use scoped_error::{ErrorExt, expect_error, impl_context_error};
 
-use crate::{
-    text_service::chewing::TipSession, ui::event_loop::MainLoopHandle, update::check_for_update,
-};
+use crate::{text_service::chewing::TipSession, ui::event_loop::MainLoopHandle};
 
 pub(crate) fn run_ipc_listener(
     listener: PipeListener<Bytes, Bytes>,

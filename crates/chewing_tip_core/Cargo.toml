@@ -10,9 +10,11 @@ chewing.workspace = true
 fnv = "1.0.7"
 interprocess.workspace = true
 log.workspace = true
+roxmltree = "0.21.1"
 scoped-error.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+ureq = { version = "3.4.2", features = ["platform-verifier"] }
 uuid = { version = "1.23.1", features = ["v4"] }
 widestring = "1.2.1"
 windows = { version = "0.62.2", features = [

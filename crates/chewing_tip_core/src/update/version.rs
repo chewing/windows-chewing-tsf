@@ -1,6 +1,6 @@
 use std::fs;
 
-use chewing_tip_core::shell::program_dir;
+use crate::shell::program_dir;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

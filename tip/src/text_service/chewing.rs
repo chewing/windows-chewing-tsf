@@ -23,15 +23,10 @@ use chewing::input::keysym::{Keysym, SYM_CAPSLOCK, SYM_LEFTSHIFT, SYM_RIGHTSHIFT
 use chewing::input::{KeyState, KeyboardEvent, keycode, keysym};
 use chewing::zhuyin::Syllable;
 use chewing_tip_core::config::{ChewingTsfConfig, Config};
-use chewing_tip_core::ipc::client::ChewingIpcClient;
-use chewing_tip_core::ipc::messages::{CheckUpdate, OnTestKeyDown};
-use chewing_tip_core::ipc::values::{IpcKeyEvent, IpcShiftKeyState};
-use chewing_tip_core::ipc::varlink::MethodCall;
-use chewing_tip_core::shell::{launch_tip_host, open_url};
+use chewing_tip_core::shell::open_url;
 use log::{debug, error, info};
 use scoped_error::impl_context_error;
 use scoped_error::{ErrorExt, expect_error};
-use serde_json::Value;
 use windows::Win32::Foundation::{GetLastError, HINSTANCE, POINT, RECT};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
@@ -163,7 +158,6 @@ pub(super) struct ChewingTextService {
     lang_icons: LangIconSet,
     lang_bar_buttons: Vec<ITfLangBarItemButton>,
     composition_sink: ITfCompositionSink,
-    ipc_client: ChewingIpcClient,
 
     switch_lang_button: ComObject<LangBarButton>,
     switch_shape_button: ComObject<LangBarButton>,
@@ -282,7 +276,6 @@ impl ChewingTextService {
             thread_mgr,
             tid,
             composition_sink: ts.cast()?,
-            ipc_client: ChewingIpcClient::new(),
             input_da_atom: [input_da_atom_1, input_da_atom_2],
             _menu: menu,
             popup_menu,
@@ -315,19 +308,7 @@ impl ChewingTextService {
             error!("unable to initialize chewing: {error:#}");
         }
 
-        if let Err(error) = cts.ipc_client.connect() {
-            error!("{}", error.report());
-        }
-
-        if let Err(error) = cts.ipc_client.send(MethodCall {
-            method: CheckUpdate::METHOD.to_string(),
-            oneway: Some(true),
-            parameters: Value::Null,
-            more: None,
-            upgrade: None,
-        }) {
-            error!("unable to send IPC message CheckUpdate: {}", error.report());
-        }
+        chewing_tip_core::update::check_for_update();
 
         Ok(cts)
     }
@@ -410,21 +391,7 @@ impl ChewingTextService {
         self.chewing_editor
             .set_editor_options(|opt| opt.language_mode = self.lang_mode.get().into());
 
-        if let Err(error) = self.ipc_client.ping() {
-            error!("{}", error.report());
-            if let Err(error) = self.ipc_client.connect() {
-                error!("{}", error.report());
-                info!("Restarting chewing_tip_host...");
-                if let Err(error) = launch_tip_host() {
-                    error!("{}", error.report());
-                } else if let Err(error) = self.ipc_client.connect() {
-                    error!("{}", error.report());
-                }
-            }
-        }
-
         let is_context_mutable = self.is_context_mutable(context)?;
-        let is_composing = self.is_composing();
         let evt = ev.to_keyboard_event(self.keymap);
         let simulate_english_layout = self.cfg.chewing_tsf.simulate_english_layout != 0;
         // Determine shift key state here, this might be our last chance seeing this key.
@@ -436,28 +403,6 @@ impl ChewingTextService {
         }
         debug!(evt:?, shift_key_state:? = self.shift_key_state; "on_test_keydown");
 
-        // Send IPC
-        let _handled = self.ipc_client.send(MethodCall {
-            method: OnTestKeyDown::METHOD.to_string(),
-            parameters: serde_json::to_value(OnTestKeyDown {
-                is_context_mutable,
-                is_composing,
-                shift_key_state: match self.shift_key_state {
-                    ShiftKeyState::Down(_) => IpcShiftKeyState::Down,
-                    ShiftKeyState::Consumed => IpcShiftKeyState::Consumed,
-                    ShiftKeyState::Up => IpcShiftKeyState::Up,
-                },
-                event: IpcKeyEvent {
-                    vk: ev.vk,
-                    scan_code: ev.scan_code,
-                    ascii_code: ev.ascii_code,
-                    key_state: ev.key_state.to_vec(),
-                },
-            })?,
-            oneway: None,
-            more: None,
-            upgrade: None,
-        });
         let mut shift_down = false;
         if (evt.ksym == SYM_LEFTSHIFT || evt.ksym == SYM_RIGHTSHIFT)
             && self.cfg.chewing_tsf.switch_lang_with_shift
