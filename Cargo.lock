@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "chewing_tip"
-version = "26.7.2"
+version = "26.9.0"
 dependencies = [
  "anyhow",
  "cc",
@@ -326,7 +326,7 @@ dependencies = [
 
 [[package]]
 name = "chewing_tip_core"
-version = "26.7.2"
+version = "26.9.0"
 dependencies = [
  "base64 0.22.1",
  "base64-serde",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "chewing_tip_host"
-version = "26.7.2"
+version = "26.9.0"
 dependencies = [
  "anyhow",
  "chewing",
@@ -2648,7 +2648,7 @@ checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
 name = "tsfreg"
-version = "26.7.2"
+version = "26.9.0"
 dependencies = [
  "chewing_tip_core",
  "scoped-error",

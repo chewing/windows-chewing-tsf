@@ -411,9 +411,7 @@ impl ChewingTextService {
             debug!("shift_key_state = Down");
             self.shift_key_state = ShiftKeyState::Down(Instant::now());
             shift_down = true;
-            // return Ok(false);
         }
-        // Ok(handled?.parameters.as_bool().unwrap_or_default())
         //
         // Step 1. apply any config changes
         //

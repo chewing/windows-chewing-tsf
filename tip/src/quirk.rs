@@ -1,3 +1,4 @@
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use core::arch::asm;
 
 use windows::Win32::{Foundation::MAX_PATH, System::LibraryLoader::GetModuleFileNameW};
@@ -27,6 +28,7 @@ impl Quirk {
 
 // ========= Floating Point Environment Normalization
 
+#[cfg(target_arch = "x86_64")]
 #[inline]
 unsafe fn stmxcsr() -> u32 {
     let mut mx: u32 = 0;
@@ -39,6 +41,7 @@ unsafe fn stmxcsr() -> u32 {
     mx
 }
 
+#[cfg(target_arch = "x86_64")]
 #[inline]
 unsafe fn ldmxcsr(mx: u32) {
     unsafe {
@@ -73,6 +76,7 @@ unsafe fn fldcw(cw: u16) {
     }
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 const MXCSR_RUST_DEFAULT: u32 = 0x1F80;
 
 #[cfg(target_arch = "x86_64")]
