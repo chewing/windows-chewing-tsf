@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "26.7.2"
+version = "26.9.0"
 
 [workspace.dependencies]
 anyhow = "1"
