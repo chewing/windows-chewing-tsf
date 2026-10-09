@@ -182,6 +182,8 @@ pub(crate) fn clamp_point_to_monitor(mut x: i32, mut y: i32, w: i32, h: i32) -> 
     unsafe {
         if GetMonitorInfoW(monitor, &mut mi).as_bool() {
             let rc = mi.rcWork;
+            let w = w.min(rc.right);
+            let h = h.min(rc.bottom);
             x = x.clamp(rc.left, rc.right - w);
             y = y.clamp(rc.top, rc.bottom - h);
         }
