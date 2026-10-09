@@ -2,8 +2,8 @@
 
 use std::{path::PathBuf, str::FromStr};
 
-use scoped_error::{Error, expect_error};
-use xshell::{Shell, cmd};
+use scoped_error::{expect_error, Error};
+use xshell::{cmd, Shell};
 
 use crate::flags::{BuildInstaller, PackageInstaller};
 
@@ -123,10 +123,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
         {
             let _p = sh.push_dir("installer");
             for file in [
-                "gpl-notice.rtf",
-                "windows-chewing-tsf.wixproj",
                 "windows-chewing-tsf.wxs",
-                "windows-chewing-tsf.wxl",
                 "version.wxi",
                 "version.json",
             ] {
@@ -197,7 +194,7 @@ pub(crate) fn package_installer(_flags: PackageInstaller) -> Result<(), Error> {
             let _p = sh.push_dir("build/installer");
             cmd!(
                 sh,
-                "wix build -acceptEula wix7 -arch x64 -culture zh-TW -ext WixToolset.UI.wixext
+                "wix build -acceptEula wix7 -arch x64 -culture zh-TW
                     -o ../../dist/windows-chewing-tsf-unsigned.msi -pdbtype none
                     windows-chewing-tsf.wxs"
             )

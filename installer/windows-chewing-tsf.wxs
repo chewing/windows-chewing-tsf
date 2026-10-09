@@ -1,4 +1,6 @@
-﻿<?include version.wxi?>
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?include version.wxi?>
 
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
     <Package Name="新酷音輸入法 (TSF)" Codepage="65001" Language="1028" Manufacturer="新酷音輸入法開發團隊" Version="$(var.Version)" UpgradeStrategy="majorUpgrade" UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
@@ -130,8 +132,6 @@
             <Custom Action="UnregisterTSF" Before="RemoveRegistryValues" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
             <Custom Action="DisableTIP" Before="UnregisterTSF" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
         </InstallExecuteSequence>
-        <ui:WixUI Id="WixUI_Minimal" />
-        <WixVariable Id="WixUILicenseRtf" Value="gpl-notice.rtf" />
 
         <Property Id="NSISUNINSTALLFOLDER32">
             <RegistrySearch Id="NSISUNINSTALLFOLDER32" Type="file" Root="HKLM" Bitness="always32" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />

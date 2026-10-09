@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - installer: change core DLL installation path to System64Folder or SystemFolder
   as recommended in Microsoft integration guide. This is required for arm64x
   forwarding DLL to work correctly in sandboxed applications.
+- installer: simplified the installer experience.
 - tip: upgrade to libchewing 0.14.0-alpha.2 with bigram model support
   for better conversion accuracy.
 - tip: upgrade to libchewing-data 2026.9.25 for new bigram model.
