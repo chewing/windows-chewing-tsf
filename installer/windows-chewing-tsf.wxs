@@ -1,17 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?include version.wxi?>
 
-<?include version.wxi?>
-
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-    xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
-    xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
-    <Package Name="新酷音輸入法 (TSF)"
-        Codepage="65001"
-        Language="1028"
-        Manufacturer="新酷音輸入法開發團隊"
-        Version="$(var.Version)"
-        UpgradeStrategy="majorUpgrade"
-        UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+    <Package Name="新酷音輸入法 (TSF)" Codepage="65001" Language="1028" Manufacturer="新酷音輸入法開發團隊" Version="$(var.Version)" UpgradeStrategy="majorUpgrade" UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
         <MajorUpgrade AllowDowngrades="yes" />
         <MediaTemplate CompressionLevel="high" EmbedCab="yes" />
         <Property Id="PROCESSOR_ARCHITECTURE" Secure="yes">
@@ -30,23 +20,6 @@
                     <File Source="Dictionary\static_words.bin" Bitness="always64" />
                     <File Source="Dictionary\static_lm.bin" Bitness="always64" />
                 </Directory>
-                <File Id="ChewingTipArm64X" Source="x64\chewing_tip.dll" Bitness="always64" />
-                <File Id="ChewingTipArm64" Source="x64\chewing_tip_arm64.dll" Bitness="always64" />
-                <File Id="ChewingTipX64" Source="x64\chewing_tip_x64.dll" Bitness="always64" />
-                <Component Guid="fd558430-35f7-49b5-8408-b42befcb4f32" Id="ServerChewingTipX64" Condition="PROCESSOR_ARCHITECTURE = &quot;AMD64&quot;">
-                    <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                        Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                        ThreadingModel="apartment"
-                        Server="ChewingTipX64" />
-                    <!-- Remove NSIS Uninstaller -->
-                    <RemoveFile Name="Uninstall.exe" On="install" />
-                </Component>
-                <Component Guid="010d3ae4-e059-4dbd-be9a-411548e8f869" Id="ServerChewingTipArm64X" Condition="PROCESSOR_ARCHITECTURE = &quot;ARM64&quot;">
-                    <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                        Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                        ThreadingModel="apartment"
-                        Server="ChewingTipArm64X" />
-                </Component>
                 <Component Bitness="always64">
                     <File Source="ChewingPreferences.exe" KeyPath="yes">
                         <Shortcut Advertise="yes" Icon="icon.exe" Name="設定新酷音輸入法" Directory="ApplicationProgramsFolder" />
@@ -120,85 +93,68 @@
 
                     <!-- Start chewing_tip_host after login -->
                     <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
-                         <RegistryValue Type="string"
-                                        Name="ChewingTipHost"
-                                        Value="[INSTALLFOLDER64]chewing_tip_host.exe" />
+                        <RegistryValue Type="string" Name="ChewingTipHost" Value="[INSTALLFOLDER64]chewing_tip_host.exe" />
                     </RegistryKey>
                 </Component>
             </Directory>
         </StandardDirectory>
-        <StandardDirectory Id="ProgramFilesFolder">
-            <Directory Id="INSTALLFOLDER32" Name="ChewingTextService">
-                <Component Bitness="always32">
-                    <File Source="x86\chewing_tip.dll">
-                        <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)"
-                            Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0"
-                            ThreadingModel="apartment" />
-                    </File>
-                    <!-- Remove NSIS Uninstaller -->
-                    <RemoveFile Name="Uninstall.exe" On="install" />
-                </Component>
-            </Directory>
+        <StandardDirectory Id="System64Folder">
+            <File Id="ChewingTipArm64X" Source="x64\chewing_tip.dll" Bitness="always64" />
+            <File Id="ChewingTipArm64" Source="x64\chewing_tip_arm64.dll" Bitness="always64" />
+            <File Id="ChewingTipX64" Source="x64\chewing_tip_x64.dll" Bitness="always64" />
+            <Component Guid="fd558430-35f7-49b5-8408-b42befcb4f32" Id="ServerChewingTipX64" Condition="PROCESSOR_ARCHITECTURE = &quot;AMD64&quot;">
+                <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="ChewingTipX64" />
+            </Component>
+            <Component Guid="010d3ae4-e059-4dbd-be9a-411548e8f869" Id="ServerChewingTipArm64X" Condition="PROCESSOR_ARCHITECTURE = &quot;ARM64&quot;">
+                <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="ChewingTipArm64X" />
+            </Component>
+        </StandardDirectory>
+        <StandardDirectory Id="SystemFolder">
+            <Component Bitness="always32">
+                <File Source="x86\chewing_tip.dll">
+                    <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" />
+                </File>
+            </Component>
         </StandardDirectory>
         <Icon Id="icon.exe" SourceFile="chewing.ico" />
         <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
-        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg"
-            ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;"
-            Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
         <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
         <CustomAction Id="EnableTIP" BinaryRef="tsfreg" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
         <CustomAction Id="DisableTIP" BinaryRef="tsfreg" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
         <CustomAction Id="StopChewingTipHost" BinaryRef="tsfreg" ExeCommand="-s" Impersonate="yes" Execute="immediate" Return="check" />
         <InstallExecuteSequence>
             <Custom Action="StopChewingTipHost" Before="InstallValidate" />
-            <Custom Action="RegisterTSF" After="WriteRegistryValues"
-                Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
-            <Custom Action="EnableTIP" After="RegisterTSF"
-                Condition='Installed="" AND PREVIOUSVERSIONSINSTALLED=""' />
-            <Custom Action="UnregisterTSF" Before="RemoveRegistryValues"
-                Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
-            <Custom Action="DisableTIP" Before="UnregisterTSF"
-                Condition='PREVIOUSVERSIONSINSTALLED="" AND REMOVE="ALL"' />
+            <Custom Action="RegisterTSF" After="WriteRegistryValues" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
+            <Custom Action="EnableTIP" After="RegisterTSF" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
+            <Custom Action="UnregisterTSF" Before="RemoveRegistryValues" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
+            <Custom Action="DisableTIP" Before="UnregisterTSF" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
         </InstallExecuteSequence>
         <ui:WixUI Id="WixUI_Minimal" />
         <WixVariable Id="WixUILicenseRtf" Value="gpl-notice.rtf" />
 
         <Property Id="NSISUNINSTALLFOLDER32">
-            <RegistrySearch Id="NSISUNINSTALLFOLDER32" Type="file" Root="HKLM"
-                Bitness="always32" Name="UninstallString"
-                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
+            <RegistrySearch Id="NSISUNINSTALLFOLDER32" Type="file" Root="HKLM" Bitness="always32" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
         </Property>
         <Property Id="NSISUNINSTALLCMD32">
-            <RegistrySearch Id="NSISUNINSTALLCMD32" Type="file" Root="HKLM"
-                Bitness="always32" Name="UninstallString"
-                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
+            <RegistrySearch Id="NSISUNINSTALLCMD32" Type="file" Root="HKLM" Bitness="always32" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
                 <FileSearch Name="Uninstall.exe" />
             </RegistrySearch>
         </Property>
         <Property Id="NSISUNINSTALLFOLDER64">
-            <RegistrySearch Id="NSISUNINSTALLFOLDER64" Type="file" Root="HKLM"
-                Bitness="always64" Name="UninstallString"
-                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
+            <RegistrySearch Id="NSISUNINSTALLFOLDER64" Type="file" Root="HKLM" Bitness="always64" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
         </Property>
         <Property Id="NSISUNINSTALLCMD64">
-            <RegistrySearch Id="NSISUNINSTALLCMD64" Type="file" Root="HKLM"
-                Bitness="always64" Name="UninstallString"
-                Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
+            <RegistrySearch Id="NSISUNINSTALLCMD64" Type="file" Root="HKLM" Bitness="always64" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
                 <FileSearch Name="Uninstall.exe" />
             </RegistrySearch>
         </Property>
 
-        <CustomAction Id="RemoveNsisInst32" Property="NSISUNINSTALLCMD32"
-            ExeCommand="/S _?=[NSISUNINSTALLFOLDER32]"
-            Execute="deferred" Impersonate="no" Return="ignore" />
-        <CustomAction Id="RemoveNsisInst64" Property="NSISUNINSTALLCMD64"
-            ExeCommand="/S _?=[NSISUNINSTALLFOLDER64]"
-            Execute="deferred" Impersonate="no" Return="ignore" />
+        <CustomAction Id="RemoveNsisInst32" Property="NSISUNINSTALLCMD32" ExeCommand="/S _?=[NSISUNINSTALLFOLDER32]" Execute="deferred" Impersonate="no" Return="ignore" />
+        <CustomAction Id="RemoveNsisInst64" Property="NSISUNINSTALLCMD64" ExeCommand="/S _?=[NSISUNINSTALLFOLDER64]" Execute="deferred" Impersonate="no" Return="ignore" />
         <InstallExecuteSequence>
-            <Custom Action="RemoveNsisInst32" After="InstallInitialize"
-                Condition='NSISUNINSTALLCMD32&lt;&gt;""' />
-            <Custom Action="RemoveNsisInst64" After="InstallInitialize"
-                Condition='NSISUNINSTALLCMD64&lt;&gt;""' />
+            <Custom Action="RemoveNsisInst32" After="InstallInitialize" Condition="NSISUNINSTALLCMD32&lt;&gt;&quot;&quot;" />
+            <Custom Action="RemoveNsisInst64" After="InstallInitialize" Condition="NSISUNINSTALLCMD64&lt;&gt;&quot;&quot;" />
         </InstallExecuteSequence>
     </Package>
 </Wix>
