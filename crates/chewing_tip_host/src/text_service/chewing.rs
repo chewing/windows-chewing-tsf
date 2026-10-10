@@ -281,8 +281,6 @@ fn build_editor_from_cfg(cfg: &ChewingTsfConfig) -> Result<Editor, TipError> {
                 2 => ConversionEngineKind::FuzzyChewingEngine,
                 _ => ConversionEngineKind::ChewingEngine,
             };
-            // TODO experimental
-            opt.auto_snapshot_selections = true;
         });
         let kbtype = KeyboardLayoutCompat::try_from(cfg.keyboard_layout as u8)
             .unwrap_or(KeyboardLayoutCompat::Default);
