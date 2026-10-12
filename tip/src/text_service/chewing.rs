@@ -574,8 +574,13 @@ impl ChewingTextService {
                     && self.cfg.chewing_tsf.easy_symbols_with_shift_ctrl)
             {
                 momentary_english_mode = true;
+                // First determine the case by Shift
                 if !self.cfg.chewing_tsf.upper_case_with_shift {
                     upper_case = false;
+                }
+                // Then invert it with CapsLock state
+                if evt.is_state_on(KeyState::CapsLock) {
+                    upper_case = !upper_case;
                 }
             }
             evt.ksym = if evt.ksym.is_ascii() {

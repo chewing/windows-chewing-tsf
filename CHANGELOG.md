@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - tip: fixed a crash when calculating oversized candidate window.
+- tip: CapsLock now also affects the letter case when in Chinese mode.
 
 ## 26.7.2.0 - 2026-07-20
 
