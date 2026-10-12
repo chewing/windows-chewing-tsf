@@ -268,6 +268,7 @@ impl ChewingTextService {
             error!("unable to load config: {error}");
             Config::default()
         });
+        cfg.grant_sandbox_access();
 
         // Initialize a temp editor, this will be replaced in init_chewing_context.
         let editor = Editor::chewing(None, None)?;

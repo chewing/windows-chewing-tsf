@@ -3,6 +3,7 @@
 
 use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
+use chewing::path::SearchPath;
 use log::error;
 use scoped_error::{expect_error, expect_error_fn, impl_context_error};
 use serde::{Deserialize, Serialize};
@@ -10,24 +11,27 @@ use windows::{
     Win32::{
         Foundation::{HLOCAL, LocalFree},
         Security::{
-            ACL, AllocateAndInitializeSid,
+            ACL, ACL_REVISION, AddMandatoryAce, AllocateAndInitializeSid,
             Authorization::{
-                EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, SE_OBJECT_TYPE, SE_REGISTRY_KEY,
-                SET_ACCESS, SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_GROUP,
-                TRUSTEE_IS_SID, TRUSTEE_W,
+                EXPLICIT_ACCESS_W, GRANT_ACCESS, GetNamedSecurityInfoW, SE_FILE_OBJECT,
+                SE_OBJECT_TYPE, SE_REGISTRY_KEY, SetEntriesInAclW, SetNamedSecurityInfoW,
+                TRUSTEE_IS_GROUP, TRUSTEE_IS_SID, TRUSTEE_W,
             },
-            DACL_SECURITY_INFORMATION, FreeSid, PSECURITY_DESCRIPTOR, PSID,
-            SECURITY_APP_PACKAGE_AUTHORITY, SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+            DACL_SECURITY_INFORMATION, FreeSid, InitializeAcl, LABEL_SECURITY_INFORMATION,
+            PSECURITY_DESCRIPTOR, PSID, SECURITY_APP_PACKAGE_AUTHORITY,
+            SECURITY_MANDATORY_LABEL_AUTHORITY, SUB_CONTAINERS_AND_OBJECTS_INHERIT,
         },
+        Storage::FileSystem::{DELETE, FILE_GENERIC_READ, FILE_GENERIC_WRITE},
         System::{
             Registry::{KEY_READ, KEY_WOW64_64KEY},
             SystemServices::{
                 SECURITY_APP_PACKAGE_BASE_RID, SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT,
-                SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE,
+                SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE, SECURITY_MANDATORY_LOW_RID,
+                SYSTEM_MANDATORY_LABEL_NO_WRITE_UP,
             },
         },
     },
-    core::{PCWSTR, PWSTR, w},
+    core::{HSTRING, PCWSTR, PWSTR, Param, w},
 };
 use windows_registry::{CURRENT_USER, Key};
 
@@ -149,6 +153,27 @@ impl Default for ChewingTsfConfig {
 }
 
 impl Config {
+    pub fn grant_sandbox_access(&self) {
+        // AppContainer app, like the SearchHost.exe powering the start menu search bar
+        // needs this to access the settings.
+        if let Err(error) = grant_app_container_access(
+            w!(r"CURRENT_USER\Software\ChewingTextService"),
+            SE_REGISTRY_KEY,
+            KEY_READ.0,
+        ) {
+            error!("Failed to grant app container access: {error:#}");
+        }
+        let sp = SearchPath::from_env();
+        if let Some(user_datadir) = sp.user_datadir() {
+            if let Err(error) = grant_app_container_access(
+                &HSTRING::from(user_datadir.to_string_lossy().to_string()),
+                SE_FILE_OBJECT,
+                FILE_GENERIC_READ.0 | FILE_GENERIC_WRITE.0 | DELETE.0,
+            ) {
+                error!("Failed to grant app container access: {error:#}");
+            }
+        }
+    }
     pub fn reload_if_needed(&mut self) -> Result<bool, ConfigError> {
         let cfg = Config::from_reg()?;
         if cfg == *self {
@@ -453,16 +478,6 @@ impl Config {
                 .unwrap_or_default()
                 .as_secs(),
         );
-
-        // AppContainer app, like the SearchHost.exe powering the start menu search bar
-        // needs this to access the settings.
-        if let Err(error) = grant_app_container_access(
-            w!(r"CURRENT_USER\Software\ChewingTextService"),
-            SE_REGISTRY_KEY,
-            KEY_READ.0,
-        ) {
-            error!("Failed to grant app container access: {error:#}");
-        }
     }
 }
 
@@ -503,8 +518,8 @@ impl Display for KeybindValue {
     }
 }
 
-fn grant_app_container_access(
-    object: PCWSTR,
+pub fn grant_app_container_access(
+    object: impl Param<PCWSTR> + Copy,
     typ: SE_OBJECT_TYPE,
     access: u32,
 ) -> Result<(), ConfigError> {
@@ -512,10 +527,14 @@ fn grant_app_container_access(
     struct AclSdGuard {
         new_acl_mut_ptr: *mut ACL,
         sd: PSECURITY_DESCRIPTOR,
+        sid: PSID,
     }
     impl Drop for AclSdGuard {
         fn drop(&mut self) {
             unsafe {
+                if !self.sid.is_invalid() {
+                    FreeSid(self.sid);
+                }
                 if !self.sd.is_invalid() {
                     LocalFree(Some(HLOCAL(self.sd.0)));
                 }
@@ -525,7 +544,7 @@ fn grant_app_container_access(
             }
         }
     }
-    expect_error("Failed to grant AppContainer access to object", || {
+    expect_error::<(), ConfigError>("Failed to grant AppContainer access to object", || {
         let mut old_acl_mut_ptr = null_mut();
         let mut result = AclSdGuard::default();
         // Get old security descriptor
@@ -543,7 +562,6 @@ fn grant_app_container_access(
             .ok()?;
 
             // Create a well-known SID for the all appcontainers group.
-            let mut psid = PSID::default();
             AllocateAndInitializeSid(
                 &SECURITY_APP_PACKAGE_AUTHORITY,
                 SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT as u8,
@@ -555,17 +573,17 @@ fn grant_app_container_access(
                 0,
                 0,
                 0,
-                &mut psid,
+                &mut result.sid,
             )?;
 
             let ea = EXPLICIT_ACCESS_W {
                 grfAccessPermissions: access,
-                grfAccessMode: SET_ACCESS,
+                grfAccessMode: GRANT_ACCESS,
                 grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
                 Trustee: TRUSTEE_W {
                     TrusteeForm: TRUSTEE_IS_SID,
                     TrusteeType: TRUSTEE_IS_GROUP,
-                    ptstrName: PWSTR::from_raw(psid.0.cast()),
+                    ptstrName: PWSTR::from_raw(result.sid.0.cast()),
                     ..Default::default()
                 },
             };
@@ -587,8 +605,49 @@ fn grant_app_container_access(
                 None,
             )
             .ok()?;
+        }
+        Ok(())
+    })?;
 
-            FreeSid(psid);
+    expect_error("Failed to grant low integrity to object", || {
+        let mut result = AclSdGuard::default();
+        let mut acl_buf = [0u8; 64];
+        let acl = acl_buf.as_mut_ptr().cast::<ACL>();
+
+        unsafe {
+            AllocateAndInitializeSid(
+                &SECURITY_MANDATORY_LABEL_AUTHORITY,
+                1,
+                SECURITY_MANDATORY_LOW_RID as u32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                &mut result.sid,
+            )?;
+
+            InitializeAcl(acl, acl_buf.len() as u32, ACL_REVISION)?;
+            AddMandatoryAce(
+                acl,
+                ACL_REVISION,
+                SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+                SYSTEM_MANDATORY_LABEL_NO_WRITE_UP,
+                result.sid,
+            )?;
+
+            SetNamedSecurityInfoW(
+                object,
+                typ,
+                LABEL_SECURITY_INFORMATION,
+                None,
+                None,
+                None,
+                Some(acl),
+            )
+            .ok()?;
         }
         Ok(())
     })
