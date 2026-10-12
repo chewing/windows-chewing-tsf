@@ -31,9 +31,9 @@ All parts are licensed under GPL-3.0-or-later license.
 
 ## How to Build
 
-* Get source from github
+* Get source from codeberg
     ```bash
-    git clone --recursive https://github.com/chewing/windows-chewing-tsf.git
+    git clone https://codeberg.org/chewing/windows-chewing-tsf.git
     cd windows-chewing-tsf
     ```
 * Use this xtask command to build the installer
@@ -69,8 +69,8 @@ This [project](https://signpath.org/projects/chewing-im/) is sponsored by SignPa
 
 **People and roles:**
 
-* Committers and reviewers: [Chewing core team](https://github.com/orgs/chewing/teams/core), [Windows Chewing maintainers](https://github.com/orgs/chewing/teams/windows)
-* Approvers: [Chewing core team](https://github.com/orgs/chewing/teams/core)
+* Committers and reviewers: [Chewing core team](https://codeberg.org/org/chewing/teams/owners), [Windows Chewing maintainers](https://codeberg.org/org/chewing/teams/windows)
+* Approvers: [Chewing core team](https://codeberg.org/org/chewing/teams/owners)
 
 # Privacy Policy
 
@@ -78,4 +78,4 @@ This program will not transfer any information to other networked systems unless
 specifically requested by the user or the person installing or operating it.
 
 # Bug Report
-Please report any issue to [here](https://github.com/chewing/windows-chewing-tsf/issues).
+Please report any issue to [here](https://codeberg.org/chewing/windows-chewing-tsf/issues).
