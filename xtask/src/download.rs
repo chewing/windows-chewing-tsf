@@ -1,16 +1,16 @@
 use std::{ffi::OsString, io::Cursor, path::PathBuf};
 
-use rpgpie_sop::{Certs, Sigs, RPGSOP};
-use scoped_error::{expect_error, expect_error_fn, Error};
+use rpgpie_sop::{Certs, RPGSOP, Sigs};
+use scoped_error::{Error, expect_error, expect_error_fn};
 use sop::{Load, SOP};
-use xshell::{cmd, Shell};
+use xshell::{Shell, cmd};
 
 use crate::{flags::DownloadComponents, zip::unzip};
 
 const MANIFEST: [(&str, &str, &str, &str); 3] = [
     (
-        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/v26.6.0.1/windows-chewing-preferences-26.6.0.1-x86_64-pc-windows.zip",
-        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/v26.6.0.1/windows-chewing-preferences-26.6.0.1-x86_64-pc-windows.zip.asc",
+        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/nightly/windows-chewing-preferences-x86_64-pc-windows.zip",
+        "https://codeberg.org/chewing/windows-chewing-preferences/releases/download/nightly/windows-chewing-preferences-x86_64-pc-windows.zip.asc",
         "windows-chewing-preferences.zip",
         "build/installer",
     ),
