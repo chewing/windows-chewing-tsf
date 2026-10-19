@@ -1408,6 +1408,7 @@ impl ChewingTextService {
             };
             opt.phrase_choice_rearward = cfg.phrase_choice_rearward;
             opt.auto_shift_cursor = cfg.advance_after_selection;
+            opt.auto_wrap_cursor = cfg.auto_wrap_cursor;
             opt.candidates_per_page = cfg.cand_per_page as usize;
             opt.esc_clear_all_buffer = cfg.esc_clean_all_buf;
             opt.space_is_select_key = cfg.show_cand_with_space_key;

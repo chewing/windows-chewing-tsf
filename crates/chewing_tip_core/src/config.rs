@@ -58,6 +58,7 @@ pub struct ChewingTsfConfig {
     pub phrase_choice_rearward: bool,
     pub easy_symbols_with_shift: bool,
     pub easy_symbols_with_shift_ctrl: bool,
+    pub auto_wrap_cursor: bool,
     pub cursor_cand_list: bool,
     pub sort_candidates_by_frequency: bool,
     pub show_cand_with_space_key: bool,
@@ -105,6 +106,7 @@ impl Default for ChewingTsfConfig {
             upper_case_with_shift: false,
             add_phrase_forward: true,
             phrase_choice_rearward: false,
+            auto_wrap_cursor: false,
             easy_symbols_with_shift: true,
             easy_symbols_with_shift_ctrl: false,
             cursor_cand_list: true,
@@ -242,6 +244,9 @@ impl Config {
             }
             if let Ok(value) = reg_get_bool(&key, "AdvanceAfterSelection") {
                 cfg.advance_after_selection = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "AutoWrapCursor") {
+                cfg.auto_wrap_cursor = value;
             }
             if let Ok(value) = reg_get_i32(&key, "DefFontSize") {
                 cfg.font_size = value;
@@ -405,6 +410,7 @@ impl Config {
             "AdvanceAfterSelection",
             chewing_tsf.advance_after_selection,
         );
+        let _ = reg_set_bool(&key, "AutoWrapCursor", chewing_tsf.auto_wrap_cursor);
         let _ = reg_set_i32(&key, "DefFontSize", chewing_tsf.font_size);
         let _ = key.set_string("DefFontFamily", &chewing_tsf.font_family);
         let _ = key.set_string("DefFontFgColor", &chewing_tsf.font_fg_color);
