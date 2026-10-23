@@ -4,8 +4,6 @@ env:
   VER_MAJOR: 26
   VER_MINOR: 9
   VER_PATCH: 0
-  LLVM_MINGW_VERSION: 20260922
-  RUST_VERSION: 1.97.1
 
 on:
   push:
@@ -31,82 +29,76 @@ jobs:
     runs-on: fedora-latest
     name: Build
     steps:
-      - name: Cache llvm-mingw
-        id: cache-llvm-linux
-        uses: actions/cache@v5
-        with:
-          path: /opt/llvm-mingw
-          key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
-      - name: Install llvm-mingw ${{ env.LLVM_MINGW_VERSION }}
-        if: steps.cache-llvm-linux.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /opt/llvm-mingw
-          cd /opt/llvm-mingw
-          curl -L https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz | tar xJ --strip-components=1
-      - name: Setup llvm-mingw
-        run: |
-          echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
       - name: Install build dependencies
         run: |
-          sudo dnf -y install sequoia-sqv
-      - name: Setup rust targets
-        run: |
-          rustup set auto-self-update disable
-          rustup default $RUST_VERSION
-          rustup target add i686-pc-windows-gnullvm
-          rustup target add x86_64-pc-windows-gnullvm
-          rustup target add aarch64-pc-windows-gnullvm
+          sudo dnf -y install nix
 
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - uses: https://github.com/Swatinem/rust-cache@v2
-
-      - name: Generate nightly version info
-        if: ${{ inputs.nightly }}
+      - name: Generate version info
         run: |
-          cargo xtask update-version --major $VER_MAJOR --minor $VER_MINOR --patch $VER_PATCH -b $GITHUB_RUN_NUMBER
+          nix/version.sh
           cat tip/rc/version.rc
           cat installer/version.json
           cat installer/version.wxi
 
-      - name: Generate pull_request version info
-        if: github.event_name == 'pull_request'
+      - name: Setup SSH
         env:
-          PR_NUMBER: ${{ github.event.number }}
+          SSH_KEY: ${{ secrets.BINARY_CACHE_SSH_KEY }}
+          SSH_HOST_KEY: ${{ vars.BINARY_CACHE_SSH_HOST_KEY }}
         run: |
-          cargo xtask update-version --major 0 --minor 0 --patch $PR_NUMBER -b $GITHUB_RUN_NUMBER
-          cat tip/rc/version.rc
-          cat installer/version.json
-          cat installer/version.wxi
+          mkdir $HOME/.ssh
+          echo "$SSH_KEY" > $HOME/.ssh/id_ed25519
+          echo "$SSH_HOST_KEY" >> $HOME/.ssh/known_hosts
+          chmod 600 $HOME/.ssh/id_ed25519
 
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+        env:
+          CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org
+          CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
         run: |
-          cargo xtask build-installer --nightly --release --target gnullvm
+          nix-build --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
+        env:
+          CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org
+          CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
         run: |
-          cargo xtask build-installer --release --target gnullvm
+          nix-build --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
-      - name: Download pre-built components
-        run: cargo xtask download-components
+      # - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+      #   if: false
+      #   with:
+      #     name: Installer Artifact With Debuginfo
+      #     path: result
 
-      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
-        if: false
-        with:
-          name: Installer Artifact With Debuginfo
-          path: build/installer
+      # - name: Strip debug info
+      #   if: false
+      #   run: |
+      #     x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
+      #     i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
+      #     x86_64-w64-mingw32-strip build/installer/*.exe
 
-      - name: Strip debug info
-        if: false
+      - env:
+          BINARY_CACHE_KEY: ${{ secrets.BINARY_CACHE_KEY }}
         run: |
-          x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
-          i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
-          x86_64-w64-mingw32-strip build/installer/*.exe
+          echo "$BINARY_CACHE_KEY" > binary_cache.key
+
+      - name: Cache result
+        env:
+          CACHE_SERVER: ssh-ng://nix-cache@tyo2.qwty.org
+        run: |
+          nix store sign --all --key-file binary_cache.key
+          rm binary_cache.key
+          nix copy -s --to $CACHE_SERVER ./result
+          nix copy -s --all --to $CACHE_SERVER
 
       - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         if: false
         with:
           name: Installer Artifact
-          path: build/installer
+          path: result

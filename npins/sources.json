@@ -1,0 +1,89 @@
+{
+  "pins": {
+    "chewing-nix": {
+      "type": "Git",
+      "repository": {
+        "type": "Forgejo",
+        "server": "https://codeberg.org/",
+        "owner": "chewing",
+        "repo": "chewing-nix"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "47c42f9e2bc5d90da676c1027d78639cbdcf76f6",
+      "url": "https://codeberg.org/chewing/chewing-nix/archive/47c42f9e2bc5d90da676c1027d78639cbdcf76f6.tar.gz",
+      "hash": "sha256-paf+ii38QPlbKgA26UnFzR5xziGme5VEBwteGs49NDk="
+    },
+    "crane": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "ipetkov",
+        "repo": "crane"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v0.24.0",
+      "revision": "32daa78aa882b7a43c508d1d5a5ad18a7968d731",
+      "url": "https://api.github.com/repos/ipetkov/crane/tarball/refs/tags/v0.24.0",
+      "hash": "sha256-lWhBbBvC05/xwivKBBiM2YNizpmgqCgyOIzomvRuwxs="
+    },
+    "nixpkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "nixos",
+        "repo": "nixpkgs"
+      },
+      "branch": "nixos-26.05",
+      "submodules": false,
+      "revision": "da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36",
+      "url": "https://github.com/nixos/nixpkgs/archive/da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36.tar.gz",
+      "hash": "sha256-MlvRfa1O5Cqc2/a+gG+l9TSuowEoCKCmrJ1d9oAVm0I="
+    },
+    "rust-overlay": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "oxalica",
+        "repo": "rust-overlay"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "b0829a2cc9f7b596583331d78a942c1e5170d8a0",
+      "url": "https://github.com/oxalica/rust-overlay/archive/b0829a2cc9f7b596583331d78a942c1e5170d8a0.tar.gz",
+      "hash": "sha256-M2rr/yPbTHvgAzCyZ+zHJHflFM0XU7t42Sw2skA3TQM="
+    },
+    "windows-chewing-editor": {
+      "type": "Git",
+      "repository": {
+        "type": "Forgejo",
+        "server": "https://codeberg.org/",
+        "owner": "chewing",
+        "repo": "windows-chewing-editor"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "fad6660782618127cfc12f93411d176b80e23da9",
+      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/fad6660782618127cfc12f93411d176b80e23da9.tar.gz",
+      "hash": "sha256-c/dOc8jACVc3Gcb0Okmdh11I7OX56Bph2sOB/8LZuQw="
+    },
+    "windows-chewing-preferences": {
+      "type": "Git",
+      "repository": {
+        "type": "Forgejo",
+        "server": "https://codeberg.org/",
+        "owner": "chewing",
+        "repo": "windows-chewing-preferences"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "905e0e693a07d16b340b3b53ff591f2f75ebb3eb",
+      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/905e0e693a07d16b340b3b53ff591f2f75ebb3eb.tar.gz",
+      "hash": "sha256-zZL/1BIqn2NprrIjI5k27/eRDeC95PLMUA2a8RV5ZKQ="
+    }
+  },
+  "version": 7
+}

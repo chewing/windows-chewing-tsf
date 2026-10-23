@@ -3,9 +3,9 @@
 <?include version.wxi?>
 
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
-    <Package Name="新酷音輸入法 (TSF)" Codepage="65001" Language="1028" Manufacturer="新酷音輸入法開發團隊" Version="$(var.Version)" UpgradeStrategy="majorUpgrade" UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
+    <Package Name="新酷音輸入法 (TSF)" Codepage="950" Language="1028" Manufacturer="新酷音輸入法開發團隊" Version="$(var.Version)" UpgradeStrategy="majorUpgrade" UpgradeCode="8085e4ce-205d-4c44-9450-59ba34163b2a">
         <MajorUpgrade AllowDowngrades="yes" />
-        <MediaTemplate CompressionLevel="high" EmbedCab="yes" />
+        <MediaTemplate CompressionLevel="mszip" EmbedCab="yes" />
         <Property Id="PROCESSOR_ARCHITECTURE" Secure="yes">
             <RegistrySearch Id="ProcessorArchitectureValue" Type="raw" Root="HKLM" Key="System\CurrentControlSet\Control\Session Manager\Environment" Name="PROCESSOR_ARCHITECTURE" />
         </Property>
