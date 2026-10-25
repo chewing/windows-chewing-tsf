@@ -17,7 +17,7 @@ on:
     outputs:
       unsigned-artifact-id:
         description: "Unsigned Installer"
-        value: ${{ jobs.build.outputs.unsigned-artifact-id }}
+        value: ${{ jobs.package.outputs.unsigned-artifact-id }}
       version:
         description: "Version"
         value: ${{ jobs.build.outputs.version }}
@@ -32,7 +32,6 @@ jobs:
     container: fedora:44
     name: Build
     outputs:
-      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
       version: ${{ steps.version-info.outputs.version }}
     steps:
       - name: Install build dependencies
@@ -68,12 +67,12 @@ jobs:
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
-          nix-build --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build -A staging --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
         run: |
-          nix-build --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build -A staging --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       # - uses: actions/upload-artifact@v7
       #   with:
@@ -86,6 +85,38 @@ jobs:
       #     aarch64-w64-mingw32-strip build/installer/x64/chewing_tip_arm64.dll
       #     i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
       #     x86_64-w64-mingw32-strip build/installer/*.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Installer Artifact
+          path: result
+
+  package:
+    runs-on: windows-latest
+    name: Package
+    outputs:
+      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+    needs: [build]
+    steps:
+      - name: Install wix-cli
+        shell: pwsh
+        run: |
+          winget install --accept-package-agreements --accept-source-agreements WiXToolset.WiXCLI
+          echo "C:\Program Files\WiX Toolset v7.0\bin" >> $Env:GITHUB_PATH
+
+      - name: Download Installer Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: Installer Artifact
+          path: result
+
+      - name: Build Package
+        shell: pwsh
+        env:
+          VER: ${{ needs.build.outputs.version }}
+        run: |
+          cd result
+          wix build -acceptEula wix7 -arch x64 -culture zh-TW -o windows-chewing-tsf-$env:VER.msi -pdbtype none windows-chewing-tsf.wxs
 
       - id: upload-unsigned
         uses: actions/upload-artifact@v7

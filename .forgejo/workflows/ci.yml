@@ -56,12 +56,12 @@ jobs:
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
-          nix-build --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build -A msi --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
         run: |
-          nix-build --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build -A msi --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       # - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
       #   if: false

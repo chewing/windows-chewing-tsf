@@ -50,83 +50,99 @@ let
     url = "https://dl.winehq.org/wine/wine-mono/${version}/wine-mono-${version}-x86.msi";
     hash = "sha256-Bx9LKIfhyXoR15H/PWW+lCnu1t7EwnCIiL/VRro1jiM=";
   };
-in
-pkgs.stdenvNoCC.mkDerivation {
-  pname = "windows-chewing-tsf";
-  version = "26.9.0.0";
-  src = fs.toSource {
-    root = ./.;
-    fileset = fs.unions [
-      ./tip/rc/im.chewing.Chewing.ico
-      ./installer
-      ./platform
+
+  staging = pkgs.stdenvNoCC.mkDerivation {
+    inherit version;
+    pname = "windows-chewing-tsf-staging";
+    src = fs.toSource {
+      root = ./.;
+      fileset = fs.unions [
+        ./tip/rc/im.chewing.Chewing.ico
+        ./installer
+        ./platform
+      ];
+    };
+    nativeBuildInputs = [
+      pkgs.unzip
     ];
+    dontConfigure = true;
+    dontFixup = true;
+    buildPhase = ''
+      runHook preBuild
+
+      mkdir build
+      cp -r installer/. build
+
+      mkdir -p build/x86
+      mkdir -p build/x64
+      mkdir -p build/Dictionary
+
+      cp ${tips.x86}/chewing_tip.dll build/x86/
+      cp ${tips.x64}/chewing_tip.dll build/x64/chewing_tip_x64.dll
+      cp ${tips.arm64}/chewing_tip.dll build/x64/chewing_tip_arm64.dll
+      cp platform/arm64x/chewing_tip.dll build/x64/
+      unzip -j ${data} -d build/Dictionary
+      cp tip/rc/im.chewing.Chewing.ico build/chewing.ico
+      cp ${tips.x64}/*.exe build/
+      cp ${prefs}/*.exe build/
+      cp ${editor}/*.exe build/
+      cp ${editor}/*.dll build/
+      cp ${chewing-cli}/bin/chewing-cli.exe build/chewing-cli.exe
+
+      runHook postBuild
+    '';
+    installPhase = ''
+      runHook preInstall
+
+      mkdir -p $out
+      cp -r build/. $out/
+
+      runHook postInstall
+    '';
   };
-  nativeBuildInputs = [
-    pkgs.glibcLocales
-    pkgs.wine64Packages.stableFull
-    pkgs.unzip
-  ];
-  dontConfigure = true;
-  dontFixup = true;
-  buildPhase = ''
-    runHook preBuild
 
-    export FONTCONFIG_FILE=$PWD/fc.conf
-    export LANG=zh_TW.UTF-8
-    export WINEPREFIX=$PWD/wine
-    export WINEDEBUG=-all
+  msi =
+    pkgs.runCommand "windows-chewing-tsf-${version}"
+      {
 
-    # Make Fontconfig happy to reduce noise.
-    cat >fc.conf <<EOF
-    <?xml version="1.0"?>
-    <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
-    <fontconfig />
-    EOF
+        nativeBuildInputs = [
+          pkgs.glibcLocales
+          pkgs.wine64Packages.stableFull
+        ];
+      }
+      ''
+        export FONTCONFIG_FILE=$PWD/fc.conf
+        export LANG=zh_TW.UTF-8
+        export WINEPREFIX=$PWD/wine
+        export WINEDEBUG=-all
 
-    wineboot -i
-    wine ${mono}
-    wine ${wix-cli}
+        # Make Fontconfig happy to reduce noise.
+        cat >fc.conf <<EOF
+        <?xml version="1.0"?>
+        <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+        <fontconfig />
+        EOF
 
-    mkdir build
-    cp -a installer build/installer
+        wineboot -i
+        wine ${mono}
+        wine ${wix-cli}
 
-    mkdir -p build/installer/x86
-    mkdir -p build/installer/x64
-    mkdir -p build/installer/Dictionary
-
-    cp ${tips.x86}/chewing_tip.dll build/installer/x86/
-    cp ${tips.x64}/chewing_tip.dll build/installer/x64/chewing_tip_x64.dll
-    cp ${tips.arm64}/chewing_tip.dll build/installer/x64/chewing_tip_arm64.dll
-    cp platform/arm64x/chewing_tip.dll build/installer/x64/
-    unzip -j ${data} -d build/installer/Dictionary
-    cp tip/rc/im.chewing.Chewing.ico build/installer/chewing.ico
-    cp ${tips.x64}/*.exe build/installer/
-    cp ${prefs}/*.exe build/installer/
-    cp ${editor}/*.exe build/installer/
-    cp ${editor}/*.dll build/installer/
-    cp ${chewing-cli}/bin/chewing-cli.exe build/installer/chewing-cli.exe
-
-    # MSI engine does not like timestamp 0
-    touch build/installer/*
-    touch build/installer/x86/*
-    touch build/installer/x64/*
-    touch build/installer/Dictionary/*
-
-    pushd build/installer
-    wine wix build -acceptEula wix7 -arch x64 -culture zh-TW \
-        -o ../../windows-chewing-tsf-${version}.msi -pdbtype none \
-        windows-chewing-tsf.wxs
-    popd
-
-    runHook postBuild
-  '';
-  installPhase = ''
-    runHook preInstall
-
-    mkdir $out
-    cp windows-chewing-tsf-${version}.msi $out/
-
-    runHook postInstall
-  '';
+        mkdir -p $out
+        cp -rL ${staging} staging
+        # MSI engine does not like timestamp 0
+        touch staging/*
+        touch staging/x86/*
+        touch staging/x64/*
+        touch staging/Dictionary/*
+        pushd staging
+        wine wix build -acceptEula wix7 -arch x64 -culture zh-TW \
+            -o $out/windows-chewing-tsf-${version}.msi -pdbtype none \
+            windows-chewing-tsf.wxs
+        popd    
+      '';
+in
+{
+  inherit msi staging;
+  inherit (tips) x86 x64 arm64;
+  inherit prefs editor data wix-cli mono;
 }
