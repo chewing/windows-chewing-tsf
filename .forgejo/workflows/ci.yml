@@ -1,10 +1,5 @@
 name: CI
 
-env:
-  VER_MAJOR: 26
-  VER_MINOR: 9
-  VER_PATCH: 0
-
 on:
   push:
     branches: ["main", "stable/*"]
@@ -24,6 +19,10 @@ on:
         description: "Unsigned Installer"
         value: ${{ jobs.package.outputs.unsigned-artifact-id }}
 
+env:
+  CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org?priority=100&compress=1&max-connections=8&want-mass-query=1
+  CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
+
 jobs:
   build:
     runs-on: fedora-latest
@@ -31,7 +30,7 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
-          sudo dnf -y install nix
+          sudo dnf -y install nix git
 
       - uses: actions/checkout@v6
         with:
@@ -56,17 +55,11 @@ jobs:
 
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
-        env:
-          CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org
-          CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
         run: |
           nix-build --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
-        env:
-          CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org
-          CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
         run: |
           nix-build --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 

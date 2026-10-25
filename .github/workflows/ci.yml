@@ -1,12 +1,5 @@
 name: CI
 
-env:
-  VER_MAJOR: 26
-  VER_MINOR: 9
-  VER_PATCH: 0
-  LLVM_MINGW_VERSION: 20260922
-  RUST_VERSION: 1.97.1
-
 on:
   push:
     branches: ["main", "stable/*"]
@@ -24,136 +17,79 @@ on:
     outputs:
       unsigned-artifact-id:
         description: "Unsigned Installer"
-        value: ${{ jobs.package.outputs.unsigned-artifact-id }}
+        value: ${{ jobs.build.outputs.unsigned-artifact-id }}
+      version:
+        description: "Version"
+        value: ${{ jobs.build.outputs.version }}
+
+env:
+  CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org?priority=100&compress=1&max-connections=8&want-mass-query=1
+  CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container: fedora:44
     name: Build
+    outputs:
+      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+      version: ${{ steps.version-info.outputs.version }}
     steps:
-      - name: Cache llvm-mingw
-        id: cache-llvm-linux
-        uses: actions/cache@v5
-        with:
-          path: /opt/llvm-mingw
-          key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
-      - name: Install llvm-mingw ${{ env.LLVM_MINGW_VERSION }}
-        if: steps.cache-llvm-linux.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /opt/llvm-mingw
-          cd /opt/llvm-mingw
-          curl -L https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz | tar xJ --strip-components=1
-      - name: Setup llvm-mingw
-        run: |
-          echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
       - name: Install build dependencies
         run: |
-          sudo dnf -y install clang rustup git sequoia-sqv
-          rustup-init -y
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Setup rust targets
-        run: |
-          rustup set auto-self-update disable
-          rustup default $RUST_VERSION
-          rustup target add i686-pc-windows-gnullvm
-          rustup target add x86_64-pc-windows-gnullvm
-          rustup target add aarch64-pc-windows-gnullvm
+          sudo dnf -y install nix git jq
 
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Generate nightly version info
-        if: ${{ inputs.nightly }}
+      - name: Generate version info
+        id: version-info
         run: |
-          cargo xtask update-version --major $VER_MAJOR --minor $VER_MINOR --patch $VER_PATCH -b $GITHUB_RUN_NUMBER
+          git config --global --add safe.directory /__w/windows-chewing-tsf/windows-chewing-tsf
+          nix/version.sh
           cat tip/rc/version.rc
           cat installer/version.json
           cat installer/version.wxi
+          version=`jq -r .product_version installer/version.json`
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Generate pull_request version info
-        if: github.event_name == 'pull_request'
+      - name: Setup SSH
         env:
-          PR_NUMBER: ${{ github.event.number }}
+          HOME: /root
+          SSH_PRIV_KEY: ${{ secrets.BINARY_CACHE_SSH_KEY }}
+          SSH_HOST_KEY: ${{ vars.BINARY_CACHE_SSH_HOST_KEY }}
         run: |
-          cargo xtask update-version --major 0 --minor 0 --patch $PR_NUMBER -b $GITHUB_RUN_NUMBER
-          cat tip/rc/version.rc
-          cat installer/version.json
-          cat installer/version.wxi
+          mkdir $HOME/.ssh
+          echo "$SSH_PRIV_KEY" > $HOME/.ssh/id_ed25519
+          echo "$SSH_HOST_KEY" >> $HOME/.ssh/known_hosts
+          chmod 600 $HOME/.ssh/id_ed25519
 
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
-          cargo xtask build-installer --nightly --release --target gnullvm
+          nix-build --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
         run: |
-          cargo xtask build-installer --release --target gnullvm
+          nix-build --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
-      - name: Download pre-built components
-        run: cargo xtask download-components
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: Installer Artifact With Debuginfo
-          path: build/installer
-
-      - name: Strip debug info
-        run: |
-          x86_64-w64-mingw32-strip build/installer/x64/chewing_tip_x64.dll
-          aarch64-w64-mingw32-strip build/installer/x64/chewing_tip_arm64.dll
-          i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
-          x86_64-w64-mingw32-strip build/installer/*.exe
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: Installer Artifact
-          path: build/installer
-
-  package:
-    runs-on: windows-latest
-    name: Package
-    outputs:
-      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
-    needs: [build]
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v3
-
-      - name: Install wix-cli
-        shell: pwsh
-        run: |
-          winget install --accept-package-agreements --accept-source-agreements WiXToolset.WiXCLI
-          echo "C:\Program Files\WiX Toolset v7.0\bin" >> $Env:GITHUB_PATH
-
-      # - name: Start SSH session
-      #   uses: luchihoratiu/debug-via-ssh@main
+      # - uses: actions/upload-artifact@v7
       #   with:
-      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_TOKEN }}
-      #     SSH_PASS: ${{ secrets.SSH_PASS }}
-      #     NGROK_REGION: jp
+      #     name: Installer Artifact With Debuginfo
+      #     path: build/installer
 
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Download Installer Artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: Installer Artifact
-          path: build/installer
-
-      - name: Build Package
-        shell: cmd
-        run: |
-          cargo +%RUST_VERSION% xtask package-installer
+      # - name: Strip debug info
+      #   run: |
+      #     x86_64-w64-mingw32-strip build/installer/x64/chewing_tip_x64.dll
+      #     aarch64-w64-mingw32-strip build/installer/x64/chewing_tip_arm64.dll
+      #     i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
+      #     x86_64-w64-mingw32-strip build/installer/*.exe
 
       - id: upload-unsigned
         uses: actions/upload-artifact@v7
         with:
           name: Unsigned Installer
           path: |
-            dist\windows-chewing-tsf-unsigned.msi
+            result/windows-chewing-tsf-*.msi

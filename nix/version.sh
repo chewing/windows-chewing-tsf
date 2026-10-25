@@ -32,7 +32,7 @@ cat >tip/rc/version.rc <<EOF
 EOF
 cat >installer/version.json <<EOF
 {
-  "product_version": "${version},0",
+  "product_version": "${version}",
   "build_date": "${year} 年 ${month} 月 ${day} 日"
 }
 EOF
