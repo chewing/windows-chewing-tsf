@@ -5,11 +5,6 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-indoc = "2.0.5"
-jiff = { version = "0.2.0", default-features = false, features = ["std"] }
-rpgpie-sop = "0.10.0"
 scoped-error.workspace = true
-sop = "0.8.2"
 xflags = "0.3.2"
 xshell = "0.2.7"
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }

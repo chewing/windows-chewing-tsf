@@ -2,10 +2,7 @@
 
 use scoped_error::{Error, expect_error};
 
-mod download;
 mod installer;
-mod version;
-mod zip;
 
 mod flags {
     use super::installer::Target;
@@ -15,17 +12,6 @@ mod flags {
 
         /// cargo-xtask helper
         cmd xtask {
-            /// Update the version.rc file.
-            cmd update-version {
-                /// The major version of the release. (u32)
-                required --major MAJOR: u32
-                /// The minor version of the release. (u32)
-                required --minor MINOR: u32
-                /// The patch version of the release. (u32)
-                required --patch PATCH: u32
-                /// Optional build number (u32)
-                optional -b, --build BUILD_NUMBER: u32
-            }
             /// Build the installer.
             cmd build-installer {
                 /// Target platform [gnu, msvc]
@@ -34,10 +20,6 @@ mod flags {
                 optional --release
                 /// Build nightly artifact
                 optional --nightly
-            }
-            /// Download prebuilt components and verify the signatures.
-            cmd download-components {
-
             }
             /// Build the MSI package
             cmd package-installer {
@@ -55,18 +37,8 @@ mod flags {
 
     #[derive(Debug)]
     pub enum XtaskCmd {
-        UpdateVersion(UpdateVersion),
         BuildInstaller(BuildInstaller),
-        DownloadComponents(DownloadComponents),
         PackageInstaller(PackageInstaller),
-    }
-
-    #[derive(Debug)]
-    pub struct UpdateVersion {
-        pub major: u32,
-        pub minor: u32,
-        pub patch: u32,
-        pub build: Option<u32>,
     }
 
     #[derive(Debug)]
@@ -75,9 +47,6 @@ mod flags {
         pub release: bool,
         pub nightly: bool,
     }
-
-    #[derive(Debug)]
-    pub struct DownloadComponents;
 
     #[derive(Debug)]
     pub struct PackageInstaller;
@@ -106,14 +75,8 @@ fn main() -> Result<(), Error> {
         let flags = flags::Xtask::from_env()?;
 
         match flags.subcommand {
-            flags::XtaskCmd::UpdateVersion(flags) => {
-                version::update_version(flags)?;
-            }
             flags::XtaskCmd::BuildInstaller(flags) => {
                 installer::build_installer(flags)?;
-            }
-            flags::XtaskCmd::DownloadComponents(flags) => {
-                download::download_components(flags)?;
             }
             flags::XtaskCmd::PackageInstaller(flags) => {
                 installer::package_installer(flags)?;
