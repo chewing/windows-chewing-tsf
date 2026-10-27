@@ -23,7 +23,7 @@ on:
         value: ${{ jobs.build.outputs.version }}
 
 env:
-  CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org?priority=100&compress=1&max-connections=8&want-mass-query=1
+  CACHE_SERVER: https://cache.nix.qwty.org
   CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
 
 jobs:
@@ -52,17 +52,6 @@ jobs:
           cat installer/version.wxi
           version=`jq -r .product_version installer/version.json`
           echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Setup SSH
-        env:
-          HOME: /root
-          SSH_PRIV_KEY: ${{ secrets.BINARY_CACHE_SSH_KEY }}
-          SSH_HOST_KEY: ${{ vars.BINARY_CACHE_SSH_HOST_KEY }}
-        run: |
-          mkdir $HOME/.ssh
-          echo "$SSH_PRIV_KEY" > $HOME/.ssh/id_ed25519
-          echo "$SSH_HOST_KEY" >> $HOME/.ssh/known_hosts
-          chmod 600 $HOME/.ssh/id_ed25519
 
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
