@@ -10,9 +10,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "47c42f9e2bc5d90da676c1027d78639cbdcf76f6",
-      "url": "https://codeberg.org/chewing/chewing-nix/archive/47c42f9e2bc5d90da676c1027d78639cbdcf76f6.tar.gz",
-      "hash": "sha256-paf+ii38QPlbKgA26UnFzR5xziGme5VEBwteGs49NDk="
+      "revision": "667294003c513ca23b6b9f7c45d0ef52ffd75c8e",
+      "url": "https://codeberg.org/chewing/chewing-nix/archive/667294003c513ca23b6b9f7c45d0ef52ffd75c8e.tar.gz",
+      "hash": "sha256-YEZ8XDYPkX1Dw9OZlxPlT1aT7QCDgsCrshT2nDionhU="
     },
     "crane": {
       "type": "GitRelease",
