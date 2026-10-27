@@ -20,7 +20,7 @@ on:
         value: ${{ jobs.package.outputs.unsigned-artifact-id }}
 
 env:
-  CACHE_SERVER: ssh://nix-cache@tyo2.qwty.org?priority=100&compress=1&max-connections=8&want-mass-query=1
+  CACHE_SERVER: https://cache.nix.qwty.org
   CACHE_PUB_KEY: qwty-nix-cache-1:Vwy+6/XVxQxkqEq4xfWrz9vCI+95slOCjYNS63+4MK0=
 
 jobs:
@@ -42,16 +42,6 @@ jobs:
           cat tip/rc/version.rc
           cat installer/version.json
           cat installer/version.wxi
-
-      - name: Setup SSH
-        env:
-          SSH_KEY: ${{ secrets.BINARY_CACHE_SSH_KEY }}
-          SSH_HOST_KEY: ${{ vars.BINARY_CACHE_SSH_HOST_KEY }}
-        run: |
-          mkdir $HOME/.ssh
-          echo "$SSH_KEY" > $HOME/.ssh/id_ed25519
-          echo "$SSH_HOST_KEY" >> $HOME/.ssh/known_hosts
-          chmod 600 $HOME/.ssh/id_ed25519
 
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
@@ -76,19 +66,13 @@ jobs:
       #     i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
       #     x86_64-w64-mingw32-strip build/installer/*.exe
 
-      - env:
-          BINARY_CACHE_KEY: ${{ secrets.BINARY_CACHE_KEY }}
-        run: |
-          echo "$BINARY_CACHE_KEY" > binary_cache.key
-
       - name: Cache result
+        shell: nix-shell -p niks3 --command '{0}'
         env:
-          CACHE_SERVER: ssh-ng://nix-cache@tyo2.qwty.org
+          API_TOKEN: ${{ secrets.NIX_CACHE_API_TOKEN }}
         run: |
-          nix store sign --all --key-file binary_cache.key
-          rm binary_cache.key
-          nix copy -s --to $CACHE_SERVER ./result
-          nix copy -s --all --to $CACHE_SERVER
+          echo "$API_TOKEN" > token
+          niks3 push --server-url $CACHE_SERVER --auth-token-path token /nix/store/*
 
       - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         if: false
