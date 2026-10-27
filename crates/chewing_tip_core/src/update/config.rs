@@ -37,11 +37,12 @@ pub(crate) fn get_check_update_config() -> Result<CheckUpdateConfig, UpdateError
 
 pub(crate) fn set_update_info_url(url: &str) -> Result<(), UpdateError> {
     expect_error("Failed to set update info URL", || {
+        let value = "UpdateInfoUrl";
         let key = CURRENT_USER.create(r"Software\ChewingTextService")?;
-        if url.is_empty() {
-            key.remove_value("UpdateInfoUrl")?;
+        if url.is_empty() && key.get_value(value).is_ok() {
+            key.remove_value(value)?;
         } else {
-            key.set_string("UpdateInfoUrl", &url)?;
+            key.set_string(value, &url)?;
         }
         Ok(())
     })

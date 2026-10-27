@@ -62,6 +62,7 @@ pub fn check_for_update() {
                 }
             }
             // no new releases were found, clear update url
+            log::info!("No new releases found");
             if let Err(error) = config::set_update_info_url("") {
                 log::error!("{}", error.report());
             }
