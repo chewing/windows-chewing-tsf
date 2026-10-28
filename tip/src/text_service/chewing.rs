@@ -579,8 +579,16 @@ impl ChewingTextService {
                     upper_case = false;
                 }
                 // Then invert it with CapsLock state
-                if evt.is_state_on(KeyState::CapsLock) {
-                    upper_case = !upper_case;
+                if self.cfg.chewing_tsf.enable_caps_lock
+                    && self.cfg.chewing_tsf.lock_chinese_on_caps_lock
+                {
+                    if !evt.is_state_on(KeyState::CapsLock) {
+                        upper_case = !upper_case;
+                    }
+                } else {
+                    if evt.is_state_on(KeyState::CapsLock) {
+                        upper_case = !upper_case;
+                    }
                 }
             }
             evt.ksym = if evt.ksym.is_ascii() {
