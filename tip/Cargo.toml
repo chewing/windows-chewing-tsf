@@ -6,7 +6,7 @@ license = "GPL-3.0-or-later"
 build = "build.rs"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.95"
