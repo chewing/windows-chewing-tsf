@@ -30,13 +30,15 @@ jobs:
           github-artifact-id: "${{ inputs.github-artifact-id }}"
           wait-for-completion: true
           output-artifact-directory: dist
-      # - name: Calculate Checksum
-      #   run: |
-      #     mv dist/windows-chewing-tsf-unsigned.msi dist/windows-chewing-tsf.msi
-      #     sha256sum dist/windows-chewing-tsf.msi > dist/windows-chewing-tsf.msi.sha256
+      - name: Calculate Checksum
+        run: |
+          filename=(basename dist/*.msi)
+          mv dist/windows-chewing-tsf*.msi dist/
+          sha256sum dist/$filename > dist/$filename.sha256
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
           name: Signed Installer
           path: |
             dist/windows-chewing-tsf*.msi
+            dist/windows-chewing-tsf*.msi.sha256

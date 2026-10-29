@@ -47,3 +47,4 @@ jobs:
             這是開發中的測試用版本。若不確定，請使用最新的穩定版。
           files: |
             dist/windows-chewing-tsf*.msi
+            dist/windows-chewing-tsf*.msi.sha256
