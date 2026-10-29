@@ -25,6 +25,7 @@ craneLib.buildPackage {
   RUSTFLAGS = "-Ctarget-feature=+crt-static";
   CARGO_BUILD_TARGET = target;
   TARGET_CC = "${llvmMingw}/bin/clang";
+  RC = "${llvmMingw}/bin/llvm-rc";
   src = fs.toSource {
     root = ../.;
     fileset = fs.unions [
