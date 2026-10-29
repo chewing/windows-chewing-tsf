@@ -80,9 +80,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "1a15214f8ec522ad84b072a470689beea76b62ba",
-      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/1a15214f8ec522ad84b072a470689beea76b62ba.tar.gz",
-      "hash": "sha256-YFHb51xxnpKqxF6hL+BOlHTg2QEdMSRi55giNtM2oC8="
+      "revision": "9f7d59a9f55a97237af6cb9c71faff936344d9ae",
+      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/9f7d59a9f55a97237af6cb9c71faff936344d9ae.tar.gz",
+      "hash": "sha256-fsDJigPyo+gMV2T1IQcDYSMuMnqRsMHMhfSBKCIWqGk="
     }
   },
   "version": 7
