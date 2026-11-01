@@ -32,7 +32,7 @@ jobs:
           output-artifact-directory: dist
       - name: Calculate Checksum
         run: |
-          filename=(basename dist/*.msi)
+          filename=`basename dist/*.msi`
           sha256sum dist/$filename > dist/$filename.sha256
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
