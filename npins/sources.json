@@ -66,9 +66,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "5457b9d0eb8ede3593cd9002700dc8377304be47",
-      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/5457b9d0eb8ede3593cd9002700dc8377304be47.tar.gz",
-      "hash": "sha256-AeFdtMSxPZT30a8/kHS/3JohtiMCusVRXm8IaKwVkwE="
+      "revision": "73b988bead736ae037d85328bf258bd73c32b76d",
+      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/73b988bead736ae037d85328bf258bd73c32b76d.tar.gz",
+      "hash": "sha256-IkGMZ8w/IpzlV7XpyLRfNU8hdjbgTha6/j1y6yhA05A="
     },
     "windows-chewing-preferences": {
       "type": "Git",
@@ -80,9 +80,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "9f7d59a9f55a97237af6cb9c71faff936344d9ae",
-      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/9f7d59a9f55a97237af6cb9c71faff936344d9ae.tar.gz",
-      "hash": "sha256-fsDJigPyo+gMV2T1IQcDYSMuMnqRsMHMhfSBKCIWqGk="
+      "revision": "f78b98bfbfe429021febe9a08073ea9d30e7beb5",
+      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/f78b98bfbfe429021febe9a08073ea9d30e7beb5.tar.gz",
+      "hash": "sha256-mchTh/9pN2W/SfD/cFwMKJiKUZ/sLi/mm2Kbg9aJakQ="
     }
   },
   "version": 7
