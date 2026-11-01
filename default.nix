@@ -6,7 +6,7 @@
 let
   sources = import ./npins;
   v = import versionFile;
-  version = v.version + lib.optionalString nightly "-rc.${v.rev}";
+  version = v.version + lib.optionalString nightly "-beta+git${v.rev}";
 
   pkgsBase = import sources.nixpkgs {
     inherit system;

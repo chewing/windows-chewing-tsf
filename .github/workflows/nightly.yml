@@ -26,11 +26,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
-      - name: Download Installer Artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: Installer Artifact
-          path: build/installer
       - uses: actions/download-artifact@v8
         with:
           name: Signed Installer
