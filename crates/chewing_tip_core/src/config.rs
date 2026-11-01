@@ -51,6 +51,8 @@ pub struct ChewingTsfConfig {
     pub lock_chinese_on_caps_lock: bool,
     pub show_notification: bool,
     pub enable_auto_learn: bool,
+    pub auto_learn_user_history: bool,
+    pub auto_learn_new_words: bool,
     pub esc_clean_all_buf: bool,
     pub full_shape_symbols: bool,
     pub upper_case_with_shift: bool,
@@ -62,6 +64,7 @@ pub struct ChewingTsfConfig {
     pub cursor_cand_list: bool,
     pub sort_candidates_by_frequency: bool,
     pub show_cand_with_space_key: bool,
+    pub cycle_first_n_selects: i32,
     pub advance_after_selection: bool,
     pub default_full_space: bool,
     pub default_english: bool,
@@ -101,6 +104,8 @@ impl Default for ChewingTsfConfig {
             lock_chinese_on_caps_lock: true,
             show_notification: true,
             enable_auto_learn: true,
+            auto_learn_user_history: true,
+            auto_learn_new_words: false,
             esc_clean_all_buf: false,
             full_shape_symbols: true,
             upper_case_with_shift: false,
@@ -112,6 +117,7 @@ impl Default for ChewingTsfConfig {
             cursor_cand_list: true,
             sort_candidates_by_frequency: false,
             show_cand_with_space_key: false,
+            cycle_first_n_selects: 0,
             advance_after_selection: true,
             default_full_space: false,
             default_english: false,
@@ -224,6 +230,9 @@ impl Config {
             if let Ok(value) = reg_get_bool(&key, "ShowCandWithSpaceKey") {
                 cfg.show_cand_with_space_key = value;
             }
+            if let Ok(value) = reg_get_i32(&key, "CycleFirstNSelects") {
+                cfg.cycle_first_n_selects = value;
+            }
             if let Ok(value) = reg_get_bool(&key, "SwitchLangWithShift") {
                 cfg.switch_lang_with_shift = value;
             }
@@ -305,6 +314,12 @@ impl Config {
             if let Ok(value) = reg_get_bool(&key, "EnableAutoLearn") {
                 cfg.enable_auto_learn = value;
             }
+            if let Ok(value) = reg_get_bool(&key, "AutoLearnUserHistory") {
+                cfg.auto_learn_user_history = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "AutoLearnNewWords") {
+                cfg.auto_learn_new_words = value;
+            }
             if let Ok(value) = reg_get_bool(&key, "FullShapeSymbols") {
                 cfg.full_shape_symbols = value;
             }
@@ -381,6 +396,11 @@ impl Config {
             &key,
             "ShowCandWithSpaceKey",
             chewing_tsf.show_cand_with_space_key,
+        );
+        let _ = reg_set_i32(
+            &key,
+            "CycleFirstNSelects",
+            chewing_tsf.cycle_first_n_selects,
         );
         let _ = reg_set_bool(
             &key,
@@ -464,6 +484,12 @@ impl Config {
             chewing_tsf.upper_case_with_shift,
         );
         let _ = reg_set_bool(&key, "EnableAutoLearn", chewing_tsf.enable_auto_learn);
+        let _ = reg_set_bool(
+            &key,
+            "AutoLearnUserHistory",
+            chewing_tsf.auto_learn_user_history,
+        );
+        let _ = reg_set_bool(&key, "AutoLearnNewWords", chewing_tsf.auto_learn_new_words);
         let _ = key.set_string(
             "AutoCheckUpdateChannel",
             &chewing_tsf.auto_check_update_channel,

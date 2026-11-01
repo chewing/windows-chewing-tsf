@@ -1420,7 +1420,10 @@ impl ChewingTextService {
             opt.candidates_per_page = cfg.cand_per_page as usize;
             opt.esc_clear_all_buffer = cfg.esc_clean_all_buf;
             opt.space_is_select_key = cfg.show_cand_with_space_key;
+            opt.cycle_first_n_selects = cfg.cycle_first_n_selects.max(0) as usize;
             opt.disable_auto_learn_phrase = !cfg.enable_auto_learn;
+            opt.auto_learn_user_history = cfg.auto_learn_user_history;
+            opt.auto_learn_new_words = cfg.auto_learn_new_words;
             opt.enable_fullwidth_toggle_key = cfg.enable_fullwidth_toggle_key;
             opt.sort_candidates_by_frequency = cfg.sort_candidates_by_frequency;
             opt.conversion_engine = match cfg.conv_engine {
