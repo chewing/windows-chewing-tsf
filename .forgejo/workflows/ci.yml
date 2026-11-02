@@ -53,26 +53,13 @@ jobs:
         run: |
           nix-build -A msi --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
-      # - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
-      #   if: false
-      #   with:
-      #     name: Installer Artifact With Debuginfo
-      #     path: result
-
-      # - name: Strip debug info
-      #   if: false
-      #   run: |
-      #     x86_64-w64-mingw32-strip build/installer/x64/chewing_tip.dll
-      #     i686-w64-mingw32-strip build/installer/x86/chewing_tip.dll
-      #     x86_64-w64-mingw32-strip build/installer/*.exe
-
       - name: Cache result
         shell: nix-shell -p niks3 --command '{0}'
         env:
           API_TOKEN: ${{ secrets.NIX_CACHE_API_TOKEN }}
         run: |
           echo "$API_TOKEN" > token
-          niks3 push --server-url $CACHE_SERVER --auth-token-path token /nix/store/*
+          niks3 push --server-url $CACHE_SERVER --auth-token-path token ./result
 
       - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         if: false
