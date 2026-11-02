@@ -554,30 +554,33 @@ impl CandidateList {
         Ok(candidate_list)
     }
     pub(crate) fn end_ui_element(&self) {
-        let Ok(ui_manager): Result<ITfUIElementMgr, windows_core::Error> = self.thread_mgr.cast()
-        else {
+        let Ok(ui_manager) = self.thread_mgr.cast::<ITfUIElementMgr>() else {
             error!("unable to cast thread manager to ITfUIElementMgr");
             return;
         };
         unsafe {
-            let _ = ui_manager.EndUIElement(self.element_id.get());
+            if let Err(error) = ui_manager.EndUIElement(self.element_id.get()) {
+                error!("Error calling EndUIElement on CandidateList: {error}");
+            }
         }
     }
     fn set_element_id(&self, id: u32) {
         self.element_id.set(id);
     }
-    fn update_ui_element(&self) -> Result<()> {
-        let ui_manager: ITfUIElementMgr = self.thread_mgr.cast()?;
+    fn update_ui_element(&self) {
+        let Ok(ui_manager) = self.thread_mgr.cast::<ITfUIElementMgr>() else {
+            error!("unable to cast thread manager to ITfUIElementMgr");
+            return;
+        };
         unsafe {
-            ui_manager.UpdateUIElement(self.element_id.get())?;
+            if let Err(error) = ui_manager.UpdateUIElement(self.element_id.get()) {
+                error!("Error calling UpdateUIElement on CandidateList: {error}");
+            }
         }
-        Ok(())
     }
     pub(crate) fn set_model(&self, model: Model) {
         *self.inner.model.borrow_mut() = model;
-        if let Err(error) = self.update_ui_element() {
-            error!("Failed to update UI element: {error}");
-        }
+        self.update_ui_element();
     }
     pub(crate) fn filter_key_event(&self, ksym: Keysym) -> FilterKeyResult {
         let mut res = FilterKeyResult::NotHandled;
@@ -638,9 +641,7 @@ impl CandidateList {
                 res = FilterKeyResult::Handled;
             }
         }
-        if let Err(error) = self.update_ui_element() {
-            error!("Failed to update UI element: {error}");
-        }
+        self.update_ui_element();
         res
     }
     pub(crate) fn current_sel(&self) -> usize {
@@ -660,6 +661,11 @@ impl CandidateList {
         if let Some(window) = self.inner.view.borrow().window() {
             window.refresh();
             window.show();
+        }
+    }
+    pub(crate) fn hide(&self) {
+        if let Some(window) = self.inner.view.borrow().window() {
+            window.hide();
         }
     }
 }

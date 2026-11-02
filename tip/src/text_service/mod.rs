@@ -310,13 +310,9 @@ impl ITfThreadMgrEventSink_Impl for TextService_Impl {
             let prevcontext = pdimprevfocus
                 .as_ref()
                 .and_then(|doc_mgr| unsafe { doc_mgr.GetTop().ok() });
-            if let Err(error) = ts.on_kill_focus(prevcontext) {
-                error!("Unable to kill focus: {error:#}");
-                return Err(E_UNEXPECTED.into());
-            }
-        } else if let Err(error) = ts.on_focus() {
-            error!("Unable to handle focus: {error:#}");
-            return Err(E_UNEXPECTED.into());
+            ts.on_kill_focus(prevcontext);
+        } else {
+            ts.on_focus();
         }
         Ok(())
     }

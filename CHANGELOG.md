@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - tip: added initial support for Windows on Arm platform.
+- tip: support using space key to quickly select first 5 most frequently used words
+- tip: simple conversion mode (ㄅ/半) support auto commit on any key
+- tip: initial support for word abbrev expansion (短打詞彙)
+- tip: add default false option chewing.auto_wrap_cursor
 
 ### 🚜 Refactor
 
@@ -14,9 +18,8 @@ All notable changes to this project will be documented in this file.
   as recommended in Microsoft integration guide. This is required for arm64x
   forwarding DLL to work correctly in sandboxed applications.
 - installer: simplified the installer experience.
-- tip: upgrade to libchewing 0.14.0-alpha.2 with bigram model support
+- tip: upgrade to libchewing 0.14.0 with bigram model support
   for better conversion accuracy.
-- tip: upgrade to libchewing-data 2026.9.25 for new bigram model.
 - tip: revert the change to use separate process (chewing_tip_host.exe)
   for UI rendering due to various UI layering priviledge issues.
 
@@ -24,6 +27,9 @@ All notable changes to this project will be documented in this file.
 
 - tip: fixed a crash when calculating oversized candidate window.
 - tip: CapsLock now also affects the letter case when in Chinese mode.
+- tip: fix sometimes candidate window still shows after selection.
+- tip: symbol selector now outputs multi-characters strings in symbols.dat if it is the only choice. (windows-chewing-tsf#812)
+
 
 ## 26.7.2.0 - 2026-07-20
 

@@ -328,23 +328,21 @@ impl ChewingTextService {
         self.thread_mgr
     }
 
-    pub(super) fn on_kill_focus(&mut self, context: Option<ITfContext>) -> Result<()> {
+    pub(super) fn on_kill_focus(&mut self, context: Option<ITfContext>) {
         debug!("on_kill_focus");
         self.has_focus = false;
         if self.is_composing()
             && let Some(context) = context
         {
-            self.end_composition(&context)?;
+            self.end_composition(&context);
         }
         self.hide_candidates();
         self.hide_message();
-        Ok(())
     }
 
-    pub(super) fn on_focus(&mut self) -> Result<()> {
+    pub(super) fn on_focus(&mut self) {
         debug!("on_focus");
         self.has_focus = true;
-        Ok(())
     }
 
     pub(super) fn on_thread_focus(&mut self) -> Result<()> {
@@ -553,6 +551,10 @@ impl ChewingTextService {
                 }
             }
             if handled {
+                // FIXME: refactor this so candidate list is always updated before return
+                if let Err(error) = self.update_candidates(context) {
+                    error!("{}", error.report());
+                }
                 return Ok(true);
             }
         }
@@ -667,7 +669,9 @@ impl ChewingTextService {
                                         {
                                             error!("failed to unlearn phrase: {error}");
                                         }
-                                        self.update_candidates(context)?;
+                                        if let Err(error) = self.update_candidates(context) {
+                                            error!("{}", error.report());
+                                        }
                                         // TODO: move this to editor
                                         self.show_message(
                                             context,
@@ -693,6 +697,16 @@ impl ChewingTextService {
 
         let last_behavior = self.chewing_editor.last_key_behavior();
 
+        // Handle UI display before early return
+        if let Err(error) = self.update_candidates(context) {
+            error!("{}", error.report());
+        }
+        if !self.chewing_editor.notification().is_empty() {
+            let msg = HSTRING::from(self.chewing_editor.notification());
+            self.show_message(context, &msg, Duration::from_millis(500))?;
+        }
+        debug!("updated candidates and notifications");
+
         if last_behavior == EditorKeyBehavior::Ignore {
             debug!("early return - chewing ignored key");
             return Ok(false);
@@ -713,12 +727,6 @@ impl ChewingTextService {
             return Ok(true);
         }
 
-        if let Err(error) = self.update_candidates(context) {
-            error!("{}", error.report());
-        }
-
-        debug!("updated candidates");
-
         let commit = if last_behavior == EditorKeyBehavior::Commit {
             let mut commit = self.chewing_editor.display_commit().to_owned();
             self.chewing_editor.ack();
@@ -731,11 +739,6 @@ impl ChewingTextService {
         };
 
         self.update_preedit(context, commit)?;
-
-        if !self.chewing_editor.notification().is_empty() {
-            let msg = HSTRING::from(self.chewing_editor.notification());
-            self.show_message(context, &msg, Duration::from_millis(500))?;
-        }
 
         Ok(true)
     }
@@ -912,7 +915,7 @@ impl ChewingTextService {
                         .GetTop()
                         .context("failed to get current ITfContext")?;
                     self.set_composition_string(&context, &commit, "", vec![], 0)?;
-                    self.end_composition(&context)?;
+                    self.end_composition(&context);
                 }
                 debug!("commit string ok");
             }
@@ -1045,7 +1048,7 @@ impl ChewingTextService {
             // that the composition string empty, while the candidate window is
             // shown. We should not terminate the composition in this case.
             if self.candidate_list.is_none() {
-                self.end_composition(context)?;
+                self.end_composition(context);
             }
         }
         Ok(())
@@ -1064,7 +1067,7 @@ impl ChewingTextService {
         Ok(())
     }
 
-    fn end_composition(&mut self, context: &ITfContext) -> Result<()> {
+    fn end_composition(&mut self, context: &ITfContext) {
         // Transfer the ownership of this composition to the EndComposition edit session.
         let composition = mem::replace(&mut self.composition, Rc::new(RefCell::new(None)));
         self.pending_edit = Weak::new();
@@ -1075,7 +1078,6 @@ impl ChewingTextService {
             session.as_interface(),
             TF_ES_ASYNC | TF_ES_READWRITE,
         );
-        Ok(())
     }
 
     fn set_composition_string(
@@ -1244,6 +1246,7 @@ impl ChewingTextService {
 
     fn hide_candidates(&mut self) {
         if let Some(candidate_list) = self.candidate_list.take() {
+            candidate_list.hide();
             candidate_list.end_ui_element();
         }
     }
