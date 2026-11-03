@@ -36,6 +36,8 @@ let
     _name: target: pkgs.callPackage ./nix/chewing-tip.nix { inherit target nightly; }
   ) targets;
 
+  forwarder = pkgs.callPackage ./nix/chewing-tip-forwarder.nix { versionSuffix = v.versionSuffix; };
+
   chewing-cli = pkgs.callPackage ./nix/chewing-cli.nix { target = targets.x64; };
 
   prefs = pkgs.callPackage (sources.windows-chewing-preferences + "/package.nix") { };
@@ -59,7 +61,6 @@ let
       fileset = fs.unions [
         ./tip/rc/im.chewing.Chewing.ico
         ./installer
-        ./platform
       ];
     };
     nativeBuildInputs = [
@@ -80,7 +81,7 @@ let
       cp ${tips.x86}/chewing_tip.dll build/x86/
       cp ${tips.x64}/chewing_tip.dll build/x64/chewing_tip_x64.dll
       cp ${tips.arm64}/chewing_tip.dll build/x64/chewing_tip_arm64.dll
-      cp platform/arm64x/chewing_tip.dll build/x64/
+      cp ${forwarder} build/x64/chewing_tip.dll
       unzip -j ${data} -d build/Dictionary
       cp tip/rc/im.chewing.Chewing.ico build/chewing.ico
       cp ${tips.x64}/*.exe build/
@@ -145,4 +146,5 @@ in
   inherit msi staging;
   inherit (tips) x86 x64 arm64;
   inherit prefs editor data wix-cli mono;
+  inherit forwarder;
 }

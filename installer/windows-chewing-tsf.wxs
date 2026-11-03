@@ -101,9 +101,15 @@
             </Directory>
         </StandardDirectory>
         <StandardDirectory Id="System64Folder">
-            <File Id="ChewingTipArm64X" Source="x64\chewing_tip.dll" Bitness="always64" />
-            <File Id="ChewingTipArm64" Source="x64\chewing_tip_arm64.dll" Bitness="always64" />
-            <File Id="ChewingTipX64" Source="x64\chewing_tip_x64.dll" Bitness="always64" />
+            <Component Bitness="always64">
+                <File Id="ChewingTipArm64X" Source="x64\chewing_tip.dll" Name="chewing_tip_$(var.VersionSuffix).dll" />
+            </Component>
+            <Component Bitness="always64">
+                <File Id="ChewingTipArm64" Source="x64\chewing_tip_arm64.dll"  Name="chewing_tip_arm64_$(var.VersionSuffix).dll" />
+            </Component>
+            <Component Bitness="always64">
+                <File Id="ChewingTipX64" Source="x64\chewing_tip_x64.dll"  Name="chewing_tip_x64_$(var.VersionSuffix).dll" />
+            </Component>
             <Component Guid="fd558430-35f7-49b5-8408-b42befcb4f32" Id="ServerChewingTipX64" Condition="PROCESSOR_ARCHITECTURE = &quot;AMD64&quot;">
                 <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="ChewingTipX64" />
             </Component>
@@ -113,7 +119,7 @@
         </StandardDirectory>
         <StandardDirectory Id="SystemFolder">
             <Component Bitness="always32">
-                <File Source="x86\chewing_tip.dll">
+                <File Source="x86\chewing_tip.dll" Name="chewing_tip_$(var.VersionSuffix).dll">
                     <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" />
                 </File>
             </Component>

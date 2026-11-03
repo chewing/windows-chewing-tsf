@@ -1,3 +1,3 @@
 EXPORTS
-  DllMain = chewing_tip_x64.DllMain
-  DllGetClassObject = chewing_tip_x64.DllGetClassObject
+  DllMain = chewing_tip_x64_local.DllMain
+  DllGetClassObject = chewing_tip_x64_local.DllGetClassObject
