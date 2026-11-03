@@ -46,12 +46,12 @@ jobs:
       - name: Build nightly
         if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
-          nix-build -A msi --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Build release
         if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
         run: |
-          nix-build -A msi --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
 
       - name: Cache result
         shell: nix-shell -p niks3 --command '{0}'
@@ -59,7 +59,7 @@ jobs:
           API_TOKEN: ${{ secrets.NIX_CACHE_API_TOKEN }}
         run: |
           echo "$API_TOKEN" > token
-          niks3 push --server-url $CACHE_SERVER --auth-token-path token ./result
+          niks3 push --server-url $CACHE_SERVER --auth-token-path token ./result ./result-*
 
       - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         if: false
