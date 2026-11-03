@@ -3,6 +3,7 @@
   lib,
   llvmMingw,
   target ? "x86_64-pc-windows-gnullvm",
+  nightly ? true,
 }:
 let
   fs = lib.fileset;
@@ -22,6 +23,7 @@ craneLib.buildPackage {
   inherit version;
   pname = "chewing-tip";
   strictDeps = true;
+  CHEWING_BUILD_TYPE = if nightly then "development" else "stable";
   RUSTFLAGS = "-Ctarget-feature=+crt-static";
   CARGO_BUILD_TARGET = target;
   TARGET_CC = "${llvmMingw}/bin/clang";

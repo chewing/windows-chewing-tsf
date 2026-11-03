@@ -16,7 +16,14 @@ pub(crate) fn get_check_update_config() -> Result<CheckUpdateConfig, UpdateError
     expect_error("Failed to get update config from registry", || {
         let key = CURRENT_USER.create(r"Software\ChewingTextService")?;
         let channel = match key.get_string("AutoCheckUpdateChannel") {
-            Ok(ch) => ch,
+            Ok(mut ch) => {
+                let dll_channel = version::chewing_dll_channel();
+                if ch != dll_channel && dll_channel == "development" {
+                    let _ = key.set_string("AutoCheckUpdateChannel", &dll_channel);
+                    ch = dll_channel;
+                }
+                ch
+            }
             Err(_) => {
                 let dll_channel = version::chewing_dll_channel();
                 let _ = key.set_string("AutoCheckUpdateChannel", &dll_channel);

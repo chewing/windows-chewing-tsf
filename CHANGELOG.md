@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
   as recommended in Microsoft integration guide. This is required for arm64x
   forwarding DLL to work correctly in sandboxed applications.
 - installer: simplified the installer experience.
+- tip: default to check updates from development channel if installed the beta version.
 - tip: upgrade to libchewing 0.14.0 with bigram model support
   for better conversion accuracy.
 - tip: revert the change to use separate process (chewing_tip_host.exe)

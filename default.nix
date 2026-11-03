@@ -33,7 +33,7 @@ let
   };
 
   tips = lib.mapAttrs (
-    _name: target: pkgs.callPackage ./nix/chewing-tip.nix { inherit target; }
+    _name: target: pkgs.callPackage ./nix/chewing-tip.nix { inherit target nightly; }
   ) targets;
 
   chewing-cli = pkgs.callPackage ./nix/chewing-cli.nix { target = targets.x64; };

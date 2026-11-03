@@ -23,12 +23,9 @@ pub(crate) fn chewing_product_version() -> String {
 }
 
 pub(crate) fn chewing_dll_channel() -> String {
-    let (_, _, _, build) = parse_version(&chewing_product_version());
-    if build == 0 {
-        "stable".to_string()
-    } else {
-        "development".to_string()
-    }
+    option_env!("CHEWING_BUILD_TYPE")
+        .unwrap_or("development")
+        .to_string()
 }
 
 fn parse_version(ver: &str) -> (u64, u64, u64, u64) {
