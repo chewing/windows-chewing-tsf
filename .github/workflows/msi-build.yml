@@ -1,0 +1,53 @@
+name: MSI Build
+
+on:
+  workflow_call:
+    inputs:
+      input-artifact-name:
+        description: "Artifact containing the WiX input tree"
+        required: true
+        type: string
+      output-artifact-name:
+        required: true
+        type: string
+      msi-name:
+        description: "Output file name of the installer"
+        required: true
+        type: string
+    outputs:
+      artifact-id:
+        value: ${{ jobs.package.outputs.artifact-id }}
+
+jobs:
+  package:
+    runs-on: windows-latest
+    name: Package
+    outputs:
+      artifact-id: ${{ steps.upload-msi.outputs.artifact-id }}
+    steps:
+      - name: Install wix-cli
+        shell: pwsh
+        run: |
+          winget install --accept-package-agreements --accept-source-agreements WiXToolset.WiXCLI
+          echo "C:\Program Files\WiX Toolset v7.0\bin" >> $Env:GITHUB_PATH
+
+      - name: Download binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.input-artifact-name }}
+          path: result
+
+      - name: Build Package
+        shell: pwsh
+        env:
+          MSINAME: ${{ inputs.msi-name }}
+        run: |
+          cd result
+          wix build -acceptEula wix7 -arch x64 -culture zh-TW -o $env:MSINAME -pdbtype none windows-chewing-tsf.wxs
+
+      - id: upload-msi
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.output-artifact-name }}
+          archive: false
+          path: result/*.msi

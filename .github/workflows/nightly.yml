@@ -5,23 +5,57 @@ on:
 
 jobs:
   nightly-build:
+    name: Build
     uses: ./.github/workflows/ci.yml
     with:
       nightly: true
-    secrets: inherit
-  code-signing:
+      package: false
+
+  sign-binaries:
+    name: Sign Binaries
     needs: [nightly-build]
+    permissions:
+      actions: read
+      contents: read
     uses: ./.github/workflows/code-signing.yml
     with:
       signing-policy-slug: release-signing
-      github-artifact-id: ${{ needs.nightly-build.outputs.unsigned-artifact-id }}
+      artifact-configuration-slug: binaries_zip
+      artifact-name: Signed Binaries
+      github-artifact-id: ${{ needs.nightly-build.outputs.binaries-artifact-id }}
     secrets:
       api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+
+  package:
+    name: Package
+    needs: [nightly-build, sign-binaries]
+    uses: ./.github/workflows/msi-build.yml
+    with:
+      input-artifact-name: Signed Binaries
+      output-artifact-name: Unsigned Installer
+      msi-name: ${{ needs.nightly-build.outputs.msi-name }}
+
+  sign-msi:
+    name: Sign MSI
+    needs: [package]
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/code-signing.yml
+    with:
+      signing-policy-slug: release-signing
+      artifact-configuration-slug: msi_only
+      artifact-name: Signed Installer
+      skip-decompress: true
+      compute-checksum: true
+      github-artifact-id: ${{ needs.package.outputs.artifact-id }}
+    secrets:
+      api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+
   nightly-release:
     runs-on: ubuntu-latest
     name: Nightly Release
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    needs: [nightly-build, code-signing]
+    needs: [nightly-build, sign-msi]
     permissions:
       contents: write
     steps:

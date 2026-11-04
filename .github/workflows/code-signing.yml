@@ -6,19 +6,43 @@ on:
       signing-policy-slug:
         required: true
         type: string
+      artifact-configuration-slug:
+        required: true
+        type: string
       github-artifact-id:
         required: true
         type: string
+      artifact-name:
+        description: "Name of the resulting signed artifact"
+        required: true
+        type: string
+      skip-decompress:
+        description: "Set if the source artifact was uploaded with archive: false"
+        required: false
+        default: false
+        type: boolean
+      compute-checksum:
+        description: "Emit a .sha256 next to every .msi in the signed artifact"
+        required: false
+        default: false
+        type: boolean
     secrets:
       api-token:
         required: true
+    outputs:
+      signed-artifact-id:
+        value: ${{ jobs.code-signing.outputs.signed-artifact-id }}
 
 jobs:
   code-signing:
     runs-on: ubuntu-latest
     name: Code Signing
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      signed-artifact-id: ${{ steps.upload-signed.outputs.artifact-id }}
     steps:
-      - uses: actions/download-artifact@v8
       - name: Sign Artifact
         uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
         with:
@@ -26,19 +50,23 @@ jobs:
           organization-id: "e8feb3e7-02b0-4e78-aa0a-f3431f374964"
           project-slug: "windows-chewing-tsf"
           signing-policy-slug: "${{ inputs.signing-policy-slug }}"
-          artifact-configuration-slug: "msi_only"
+          artifact-configuration-slug: "${{ inputs.artifact-configuration-slug }}"
           github-artifact-id: "${{ inputs.github-artifact-id }}"
           wait-for-completion: true
-          skip-decompress: true
+          skip-decompress: ${{ inputs.skip-decompress }}
           output-artifact-directory: dist
+
       - name: Calculate Checksum
+        if: ${{ inputs.compute-checksum }}
         run: |
-          filename=`basename dist/*.msi`
-          sha256sum dist/$filename > dist/$filename.sha256
+          cd dist
+          for f in *.msi; do
+            [ -e "$f" ] || continue
+            sha256sum "$f" > "$f.sha256"
+          done
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Signed Installer
-          path: |
-            dist/windows-chewing-tsf*.msi
-            dist/windows-chewing-tsf*.msi.sha256
+          name: ${{ inputs.artifact-name }}
+          path: dist/*

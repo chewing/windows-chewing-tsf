@@ -14,13 +14,24 @@ on:
         default: true
         required: true
         type: boolean
+      package:
+        description: "Also build the (unsigned) MSI"
+        default: true
+        required: false
+        type: boolean
     outputs:
+      binaries-artifact-id:
+        description: "Staging output, zipped by upload-artifact"
+        value: ${{ jobs.build.outputs.binaries-artifact-id }}
       unsigned-artifact-id:
         description: "Unsigned Installer"
-        value: ${{ jobs.build.outputs.unsigned-artifact-id }}
+        value: ${{ jobs.package.outputs.artifact-id }}
       version:
         description: "Version"
         value: ${{ jobs.build.outputs.version }}
+      msi-name:
+        description: "Installer file name"
+        value: ${{ jobs.build.outputs.msi-name }}
 
 env:
   CACHE_SERVER: https://cache.nix.qwty.org
@@ -32,8 +43,9 @@ jobs:
     container: fedora:44
     name: Build
     outputs:
-      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
       version: ${{ steps.version-info.outputs.version }}
+      msi-name: ${{ steps.version-info.outputs.msi-name }}
+      binaries-artifact-id: ${{ steps.upload-binaries.outputs.artifact-id }}
     steps:
       - name: Install build dependencies
         run: |
@@ -45,6 +57,8 @@ jobs:
 
       - name: Generate version info
         id: version-info
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
         run: |
           git config --global --add safe.directory /__w/windows-chewing-tsf/windows-chewing-tsf
           nix/version.sh
@@ -53,19 +67,26 @@ jobs:
           cat installer/version.wxi
           version=`jq -r .product_version installer/version.json`
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo msi-name=`nix-instantiate --eval --raw --arg nightly $NIGHTLY -A msi.name` >> "$GITHUB_OUTPUT"
 
-      - name: Build nightly
-        if: ${{ inputs.nightly || github.event_name == 'pull_request' }}
+      - name: Build binaries
+        env:
+          NIGHTLY: ${{ inputs.nightly || github.event_name == 'pull_request' }}
         run: |
-          nix-build -A msi --arg nightly true --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
+          nix-build -A staging --arg nightly $NIGHTLY --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY
 
-      - name: Build release
-        if: ${{ !inputs.nightly && github.event_name != 'pull_request' }}
-        run: |
-          nix-build -A msi --extra-substituters $CACHE_SERVER --extra-trusted-public-keys $CACHE_PUB_KEY 
-
-      - id: upload-unsigned
+      - id: upload-binaries
         uses: actions/upload-artifact@v7
         with:
-          archive: false
-          path: result/*.msi
+          name: Unsigned Binaries
+          path: result
+
+  package:
+    name: Package (unsigned)
+    if: ${{ inputs.package }}
+    needs: [build]
+    uses: ./.github/workflows/msi-build.yml
+    with:
+      input-artifact-name: Unsigned Binaries
+      output-artifact-name: Unsigned Installer
+      msi-name: ${{ needs.build.outputs.msi-name }}

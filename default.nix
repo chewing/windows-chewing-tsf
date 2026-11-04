@@ -7,6 +7,7 @@ let
   sources = import ./npins;
   v = import versionFile;
   version = v.version + lib.optionalString nightly "-beta+git${v.rev}";
+  msiName = "windows-chewing-tsf-${version}.msi";
 
   pkgsBase = import sources.nixpkgs {
     inherit system;
@@ -103,13 +104,15 @@ let
   };
 
   msi =
-    pkgs.runCommand "windows-chewing-tsf-${version}"
+    pkgs.runCommand "${msiName}"
       {
-
         nativeBuildInputs = [
           pkgs.glibcLocales
           pkgs.wine64Packages.stableFull
         ];
+        passthru = {
+          name = msiName;
+        };
       }
       ''
         export FONTCONFIG_FILE=$PWD/fc.conf
