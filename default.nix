@@ -116,7 +116,7 @@ let
       }
       ''
         export FONTCONFIG_FILE=$PWD/fc.conf
-        export LANG=zh_TW.UTF-8
+        export WINEUSERLOCALE=utf-8
         export WINEPREFIX=$PWD/wine
         export WINEDEBUG=-all
 
