@@ -33,6 +33,9 @@
                         <Shortcut Advertise="yes" Icon="icon.exe" Name="編輯使用者詞庫" Directory="ApplicationProgramsFolder" />
                     </File>
                 </Component>
+                <Component>
+                    <File Id="tsfreg" Source="tsfreg.exe" />
+                </Component>
                 <File Source="WebView2Loader.dll" Bitness="always64" />
                 <File Source="chewing-cli.exe" Bitness="always64" />
                 <File Source="chewing_tip_host.exe" Bitness="always64" />
@@ -125,14 +128,11 @@
             </Component>
         </StandardDirectory>
         <Icon Id="icon.exe" SourceFile="chewing.ico" />
-        <Binary Id="tsfreg" SourceFile="tsfreg.exe" />
-        <CustomAction Id="RegisterTSF" BinaryRef="tsfreg" ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="UnregisterTSF" BinaryRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="EnableTIP" BinaryRef="tsfreg" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
-        <CustomAction Id="DisableTIP" BinaryRef="tsfreg" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
-        <CustomAction Id="StopChewingTipHost" BinaryRef="tsfreg" ExeCommand="-s" Impersonate="yes" Execute="immediate" Return="check" />
+        <CustomAction Id="RegisterTSF" FileRef="tsfreg" ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="UnregisterTSF" FileRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="EnableTIP" FileRef="tsfreg" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
+        <CustomAction Id="DisableTIP" FileRef="tsfreg" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
         <InstallExecuteSequence>
-            <Custom Action="StopChewingTipHost" Before="InstallValidate" />
             <Custom Action="RegisterTSF" After="WriteRegistryValues" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
             <Custom Action="EnableTIP" After="RegisterTSF" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
             <Custom Action="UnregisterTSF" Before="RemoveRegistryValues" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
