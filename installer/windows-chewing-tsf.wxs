@@ -95,11 +95,6 @@
                     <RegistryKey Root="HKCR" Key="chewing-tip-host\shell\open\command">
                         <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER64]chewing_tip_host.exe&quot; &quot;%1&quot;" />
                     </RegistryKey>
-
-                    <!-- Start chewing_tip_host after login -->
-                    <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
-                        <RegistryValue Type="string" Name="ChewingTipHost" Value="[INSTALLFOLDER64]chewing_tip_host.exe" />
-                    </RegistryKey>
                 </Component>
             </Directory>
         </StandardDirectory>
@@ -137,30 +132,6 @@
             <Custom Action="EnableTIP" After="RegisterTSF" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
             <Custom Action="UnregisterTSF" Before="RemoveRegistryValues" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
             <Custom Action="DisableTIP" Before="UnregisterTSF" Condition="PREVIOUSVERSIONSINSTALLED=&quot;&quot; AND REMOVE=&quot;ALL&quot;" />
-        </InstallExecuteSequence>
-
-        <Property Id="NSISUNINSTALLFOLDER32">
-            <RegistrySearch Id="NSISUNINSTALLFOLDER32" Type="file" Root="HKLM" Bitness="always32" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
-        </Property>
-        <Property Id="NSISUNINSTALLCMD32">
-            <RegistrySearch Id="NSISUNINSTALLCMD32" Type="file" Root="HKLM" Bitness="always32" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
-                <FileSearch Name="Uninstall.exe" />
-            </RegistrySearch>
-        </Property>
-        <Property Id="NSISUNINSTALLFOLDER64">
-            <RegistrySearch Id="NSISUNINSTALLFOLDER64" Type="file" Root="HKLM" Bitness="always64" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService" />
-        </Property>
-        <Property Id="NSISUNINSTALLCMD64">
-            <RegistrySearch Id="NSISUNINSTALLCMD64" Type="file" Root="HKLM" Bitness="always64" Name="UninstallString" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\ChewingTextService">
-                <FileSearch Name="Uninstall.exe" />
-            </RegistrySearch>
-        </Property>
-
-        <CustomAction Id="RemoveNsisInst32" Property="NSISUNINSTALLCMD32" ExeCommand="/S _?=[NSISUNINSTALLFOLDER32]" Execute="deferred" Impersonate="no" Return="ignore" />
-        <CustomAction Id="RemoveNsisInst64" Property="NSISUNINSTALLCMD64" ExeCommand="/S _?=[NSISUNINSTALLFOLDER64]" Execute="deferred" Impersonate="no" Return="ignore" />
-        <InstallExecuteSequence>
-            <Custom Action="RemoveNsisInst32" After="InstallInitialize" Condition="NSISUNINSTALLCMD32&lt;&gt;&quot;&quot;" />
-            <Custom Action="RemoveNsisInst64" After="InstallInitialize" Condition="NSISUNINSTALLCMD64&lt;&gt;&quot;&quot;" />
         </InstallExecuteSequence>
     </Package>
 </Wix>
