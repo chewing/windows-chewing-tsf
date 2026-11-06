@@ -3,18 +3,19 @@
 
 #![windows_subsystem = "windows"]
 
-use std::{env, process};
+use std::{
+    env,
+    ffi::{OsStr, OsString},
+    os::windows::ffi::OsStrExt,
+    process,
+};
 
-use chewing_tip_core::ipc::{client::ChewingIpcClient, messages::Stop, varlink::MethodCall};
-use scoped_error::ErrorExt;
-use serde_json::Value;
 use windows::{
     Win32::{
         Globalization::*,
         System::{
             Com::*,
             Console::{ATTACH_PARENT_PROCESS, AttachConsole},
-            Diagnostics::Debug::IsDebuggerPresent,
         },
         UI::{Input::KeyboardAndMouse::HKL, TextServices::*},
     },
@@ -44,12 +45,13 @@ const CATEGORIES: [GUID; 7] = [
     GUID_TFCAT_TIPCAP_COMLESS,
 ];
 
-fn register(icon_path: String) -> Result<()> {
+fn register(icon_path: &OsStr) -> Result<()> {
+    println!("註冊新酷音輸入法");
     unsafe {
         let input_processor_profile_mgr: ITfInputProcessorProfileMgr =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
 
-        let pw_icon_path = icon_path.encode_utf16().collect::<Vec<_>>();
+        let pw_icon_path = icon_path.encode_wide().collect::<Vec<_>>();
 
         // Register for zh_TW
         let mut lcid = LocaleNameToLCID(w!("zh-TW"), 0);
@@ -106,6 +108,7 @@ fn register(icon_path: String) -> Result<()> {
 }
 
 fn unregister() -> Result<()> {
+    println!("取消註冊新酷音輸入法");
     unsafe {
         let input_processor_profile_mgr: ITfInputProcessorProfileMgr =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
@@ -148,6 +151,7 @@ fn unregister() -> Result<()> {
 }
 
 fn enable() {
+    println!("啟用新酷音輸入法");
     unsafe {
         InstallLayoutOrTip(CHEWING_TIP_DESC.as_ptr(), ILOT_INSTALL);
     }
@@ -165,52 +169,41 @@ fn disable() {
     // }
 }
 
-fn stop() {
-    let client = ChewingIpcClient::new();
-    if let Err(error) = client.connect() {
-        println!("Error: failed to stop chewing_tip_host");
-        println!("Caused by: {}", error.report());
-        return;
-    }
-    if let Err(error) = client.send(MethodCall {
-        method: Stop::METHOD.to_string(),
-        parameters: Value::Null,
-        oneway: Some(true),
-        more: None,
-        upgrade: None,
-    }) {
-        println!("Error: failed to stop chewing_tip_host");
-        println!("Caused by: {}", error.report());
-    }
-}
-
 fn main() -> Result<()> {
     unsafe {
-        if IsDebuggerPresent().as_bool() {
-            let _ = AttachConsole(ATTACH_PARENT_PROCESS);
-        }
         CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
 
-        if env::args().len() == 1 {
-            println!("Usage:");
-            println!("  tsfreg -r <IconPath>    註冊輸入法");
-            println!("  tsfreg -i           立即啟用輸入法");
-            println!("  tsfreg -d           立即停用輸入法");
-            println!("  tsfreg -u                 取消註冊");
-            println!("  tsfreg -s   停止 chewing_tip_host");
+        let mut args: Vec<OsString> = env::args_os().collect();
+
+        if let Some(pos) = args.iter().position(|arg| arg == "-q") {
+            args.swap_remove(pos);
+        } else {
+            let _ = AttachConsole(ATTACH_PARENT_PROCESS);
+        }
+
+        if args.len() == 1 {
+            println!("Usage: tsfreg [OPTIONS] [COMMAND]");
+            println!("");
+            println!("Commands:");
+            println!("  -r <IconPath>    註冊輸入法");
+            println!("  -i           立即啟用輸入法");
+            println!("  -d           立即停用輸入法");
+            println!("  -u                 取消註冊");
+            println!("Options:");
+            println!("  -q           不輸出任何文字");
             process::exit(1);
         }
 
-        if let Some("-r") = env::args().nth(1).as_deref() {
-            let icon_path = env::args().nth(2).expect("缺少 IconPath");
+        if args.get(1).is_some_and(|cmd| cmd == "-r") {
+            let icon_path = args.get(2).expect("缺少 IconPath");
             register(icon_path)?;
-        } else if let Some("-i") = env::args().nth(1).as_deref() {
+        } else if args.get(1).is_some_and(|cmd| cmd == "-i") {
             enable();
-        } else if let Some("-d") = env::args().nth(1).as_deref() {
+        } else if args.get(1).is_some_and(|cmd| cmd == "-d") {
             disable();
-        } else if let Some("-s") = env::args().nth(1).as_deref() {
-            stop();
-        } else if let Err(err) = unregister() {
+        } else if args.get(1).is_some_and(|cmd| cmd == "-u")
+            && let Err(err) = unregister()
+        {
             println!("警告：無法解除輸入法註冊，反安裝可能無法正常完成。");
             println!("錯誤訊息：{:?}", err);
         }
