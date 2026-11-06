@@ -173,24 +173,17 @@ fn main() -> Result<()> {
     unsafe {
         CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
 
-        let mut args: Vec<OsString> = env::args_os().collect();
-
-        if let Some(pos) = args.iter().position(|arg| arg == "-q") {
-            args.swap_remove(pos);
-        } else {
-            let _ = AttachConsole(ATTACH_PARENT_PROCESS);
-        }
+        let args: Vec<OsString> = env::args_os().collect();
+        let _ = AttachConsole(ATTACH_PARENT_PROCESS);
 
         if args.len() == 1 {
-            println!("Usage: tsfreg [OPTIONS] [COMMAND]");
+            println!("Usage: tsfreg [COMMAND]");
             println!("");
             println!("Commands:");
             println!("  -r <IconPath>    註冊輸入法");
             println!("  -i           立即啟用輸入法");
             println!("  -d           立即停用輸入法");
             println!("  -u                 取消註冊");
-            println!("Options:");
-            println!("  -q           不輸出任何文字");
             process::exit(1);
         }
 

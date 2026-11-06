@@ -123,10 +123,10 @@
             </Component>
         </StandardDirectory>
         <Icon Id="icon.exe" SourceFile="chewing.ico" />
-        <CustomAction Id="RegisterTSF" FileRef="tsfreg.exe" ExeCommand="-q -r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="UnregisterTSF" FileRef="tsfreg.exe" ExeCommand="-q -u" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="EnableTIP" FileRef="tsfreg.exe" ExeCommand="-q -i" Impersonate="yes" Execute="deferred" Return="check" />
-        <CustomAction Id="DisableTIP" FileRef="tsfreg.exe" ExeCommand="-q -d" Impersonate="yes" Execute="deferred" Return="check" />
+        <CustomAction Id="RegisterTSF" FileRef="tsfreg.exe" ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="UnregisterTSF" FileRef="tsfreg.exe" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="EnableTIP" FileRef="tsfreg.exe" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
+        <CustomAction Id="DisableTIP" FileRef="tsfreg.exe" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
         <InstallExecuteSequence>
             <Custom Action="RegisterTSF" After="WriteRegistryValues" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
             <Custom Action="EnableTIP" After="RegisterTSF" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
