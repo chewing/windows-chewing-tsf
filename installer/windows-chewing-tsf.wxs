@@ -15,33 +15,33 @@
         <StandardDirectory Id="ProgramFiles64Folder">
             <Directory Id="INSTALLFOLDER64" Name="ChewingTextService">
                 <Directory Id="Dictionary" Name="Dictionary">
-                    <File Source="Dictionary\swkb.dat" Bitness="always64" />
-                    <File Source="Dictionary\symbols.dat" Bitness="always64" />
-                    <File Source="Dictionary\static_dict.bin" Bitness="always64" />
-                    <File Source="Dictionary\rare_dict.bin" Bitness="always64" />
-                    <File Source="Dictionary\static_words.bin" Bitness="always64" />
-                    <File Source="Dictionary\static_lm.bin" Bitness="always64" />
+                    <File Id="dict.swkb.dat" Source="Dictionary\swkb.dat" />
+                    <File Id="dict.symbols.dat" Source="Dictionary\symbols.dat" />
+                    <File Id="dict.static_dict.bin" Source="Dictionary\static_dict.bin" />
+                    <File Id="dict.rare_dict.bin" Source="Dictionary\rare_dict.bin" />
+                    <File Id="dict.static_words.bin" Source="Dictionary\static_words.bin" />
+                    <File Id="dict.static_lm.bin" Source="Dictionary\static_lm.bin" />
                 </Directory>
-                <Component Bitness="always64">
-                    <File Source="ChewingPreferences.exe" KeyPath="yes">
+                <Component>
+                    <File Id="ChewingPreferences.exe" Source="ChewingPreferences.exe" KeyPath="yes">
                         <Shortcut Advertise="yes" Icon="icon.exe" Name="設定新酷音輸入法" Directory="ApplicationProgramsFolder" />
                     </File>
                     <RemoveFolder Directory="ApplicationProgramsFolder" On="uninstall" />
                 </Component>
-                <Component Bitness="always64">
-                    <File Source="chewing-editor.exe" KeyPath="yes">
+                <Component>
+                    <File Id="ChewingEditor.exe" Source="chewing-editor.exe" KeyPath="yes">
                         <Shortcut Advertise="yes" Icon="icon.exe" Name="編輯使用者詞庫" Directory="ApplicationProgramsFolder" />
                     </File>
                 </Component>
                 <Component>
-                    <File Id="tsfreg" Source="tsfreg.exe" />
+                    <File Id="tsfreg.exe" Source="tsfreg.exe" />
                 </Component>
-                <File Source="WebView2Loader.dll" Bitness="always64" />
-                <File Source="chewing-cli.exe" Bitness="always64" />
-                <File Source="chewing_tip_host.exe" Bitness="always64" />
-                <File Source="chewing.ico" />
-                <File Source="version.json" />
-                <Component Bitness="always64">
+                <File Id="WebView2Loader.dll" Source="WebView2Loader.dll" />
+                <File Id="chewing_cli.exe" Source="chewing-cli.exe" />
+                <File Id="chewing_tip_host.exe" Source="chewing_tip_host.exe" />
+                <File Id="chewing.ico" Source="chewing.ico" />
+                <File Id="version.json" Source="version.json" />
+                <Component >
                     <!-- Main protocol key -->
                     <RegistryKey Root="HKCR" Key="chewing-preferences">
                         <RegistryValue Type="string" Value="URL:Chewing Preferences" />
@@ -99,34 +99,34 @@
             </Directory>
         </StandardDirectory>
         <StandardDirectory Id="System64Folder">
-            <Component Bitness="always64">
-                <File Id="ChewingTipArm64X" Source="x64\chewing_tip.dll" Name="chewing_tip_$(var.VersionSuffix).dll" />
+            <Component >
+                <File Id="x64.chewing_tip.dll" Source="x64\chewing_tip.dll" Name="chewing_tip_$(var.VersionSuffix).dll" />
             </Component>
-            <Component Bitness="always64">
-                <File Id="ChewingTipArm64" Source="x64\chewing_tip_arm64.dll"  Name="chewing_tip_arm64_$(var.VersionSuffix).dll" />
+            <Component >
+                <File Id="x64.chewing_tip_arm64.dll" Source="x64\chewing_tip_arm64.dll"  Name="chewing_tip_arm64_$(var.VersionSuffix).dll" />
             </Component>
-            <Component Bitness="always64">
-                <File Id="ChewingTipX64" Source="x64\chewing_tip_x64.dll"  Name="chewing_tip_x64_$(var.VersionSuffix).dll" />
+            <Component >
+                <File Id="x64.chewing_tip_x64.dll" Source="x64\chewing_tip_x64.dll"  Name="chewing_tip_x64_$(var.VersionSuffix).dll" />
             </Component>
             <Component Guid="fd558430-35f7-49b5-8408-b42befcb4f32" Id="ServerChewingTipX64" Condition="PROCESSOR_ARCHITECTURE = &quot;AMD64&quot;">
-                <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="ChewingTipX64" />
+                <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="x64.chewing_tip_x64.dll" />
             </Component>
             <Component Guid="010d3ae4-e059-4dbd-be9a-411548e8f869" Id="ServerChewingTipArm64X" Condition="PROCESSOR_ARCHITECTURE = &quot;ARM64&quot;">
-                <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="ChewingTipArm64X" />
+                <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" Server="x64.chewing_tip.dll" />
             </Component>
         </StandardDirectory>
         <StandardDirectory Id="SystemFolder">
             <Component Bitness="always32">
-                <File Source="x86\chewing_tip.dll" Name="chewing_tip_$(var.VersionSuffix).dll">
+                <File Id="x86.chewing_tip.dll" Source="x86\chewing_tip.dll" Name="chewing_tip_$(var.VersionSuffix).dll">
                     <Class Advertise="no" Context="InprocServer32" Description="新酷音輸入法 (TSF)" Id="13F2EF08-575C-4D8C-88E0-F67BB8052B84" IconIndex="0" ThreadingModel="apartment" />
                 </File>
             </Component>
         </StandardDirectory>
         <Icon Id="icon.exe" SourceFile="chewing.ico" />
-        <CustomAction Id="RegisterTSF" FileRef="tsfreg" ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="UnregisterTSF" FileRef="tsfreg" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
-        <CustomAction Id="EnableTIP" FileRef="tsfreg" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
-        <CustomAction Id="DisableTIP" FileRef="tsfreg" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
+        <CustomAction Id="RegisterTSF" FileRef="tsfreg.exe" ExeCommand="-r &quot;[INSTALLFOLDER64]chewing.ico&quot;" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="UnregisterTSF" FileRef="tsfreg.exe" ExeCommand="-u" Impersonate="no" Execute="deferred" Return="check" />
+        <CustomAction Id="EnableTIP" FileRef="tsfreg.exe" ExeCommand="-i" Impersonate="yes" Execute="deferred" Return="check" />
+        <CustomAction Id="DisableTIP" FileRef="tsfreg.exe" ExeCommand="-d" Impersonate="yes" Execute="deferred" Return="check" />
         <InstallExecuteSequence>
             <Custom Action="RegisterTSF" After="WriteRegistryValues" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
             <Custom Action="EnableTIP" After="RegisterTSF" Condition="Installed=&quot;&quot; AND PREVIOUSVERSIONSINSTALLED=&quot;&quot;" />
