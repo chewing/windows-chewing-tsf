@@ -11,7 +11,4 @@ windows = { version = "0.62.2", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_TextServices"
 ] }
-windows-registry = { version = "0.6.1", optional = true }
-
-[features]
-nightly = ["dep:windows-registry"]
+windows-registry = "0.6.1"

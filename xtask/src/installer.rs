@@ -2,8 +2,8 @@
 
 use std::{path::PathBuf, str::FromStr};
 
-use scoped_error::{expect_error, Error};
-use xshell::{cmd, Shell};
+use scoped_error::{Error, expect_error};
+use xshell::{Shell, cmd};
 
 use crate::flags::{BuildInstaller, PackageInstaller};
 
@@ -34,11 +34,6 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
             Some("--release")
         } else {
             None
-        };
-        let nightly = if flags.nightly {
-            vec!["--features", "nightly"]
-        } else {
-            vec![]
         };
 
         let x86_64_target = match flags.target {
@@ -100,7 +95,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
             .run()?;
             cmd!(
                 sh,
-                "cargo build -p tsfreg {release...} {nightly...} --target {x86_64_target}"
+                "cargo build -p tsfreg {release...} --target {x86_64_target}"
             )
             .run()?;
         }
@@ -122,11 +117,7 @@ pub(crate) fn build_installer(flags: BuildInstaller) -> Result<(), Error> {
         sh.create_dir("build/installer")?;
         {
             let _p = sh.push_dir("installer");
-            for file in [
-                "windows-chewing-tsf.wxs",
-                "version.wxi",
-                "version.json",
-            ] {
+            for file in ["windows-chewing-tsf.wxs", "version.wxi", "version.json"] {
                 sh.copy_file(file, "../build/installer")?;
             }
         }

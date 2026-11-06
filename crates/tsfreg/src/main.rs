@@ -21,7 +21,6 @@ use windows::{
     },
     core::*,
 };
-#[cfg(feature = "nightly")]
 use windows_registry::LOCAL_MACHINE;
 
 // https://learn.microsoft.com/en-us/windows/win32/tsf/installlayoutortip
@@ -95,8 +94,7 @@ fn register(icon_path: &OsStr) -> Result<()> {
         }
     }
 
-    #[cfg(feature = "nightly")]
-    {
+    if option_env!("CHEWING_BUILD_TYPE").is_some_and(|t| t == "nightly") {
         // Enable user-mode minidump for debug build
         if let Err(error) = LOCAL_MACHINE
             .create("SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps")
@@ -162,7 +160,7 @@ fn disable() {
     // uninstalled then Windows changes the system locale to English or another
     // available language.
     //
-    // Ref: https://github.com/chewing/windows-chewing-tsf/issues/553
+    // Ref: https://codeberg.org/chewing/windows-chewing-tsf/issues/553
     //
     // unsafe {
     //     InstallLayoutOrTip(CHEWING_TIP_DESC.as_ptr(), ILOT_UNINSTALL);

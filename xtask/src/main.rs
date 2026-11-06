@@ -18,8 +18,6 @@ mod flags {
                 optional -t, --target TARGET: Target
                 /// Build release artifact
                 optional --release
-                /// Build nightly artifact
-                optional --nightly
             }
             /// Build the MSI package
             cmd package-installer {
@@ -45,7 +43,6 @@ mod flags {
     pub struct BuildInstaller {
         pub target: Option<Target>,
         pub release: bool,
-        pub nightly: bool,
     }
 
     #[derive(Debug)]
