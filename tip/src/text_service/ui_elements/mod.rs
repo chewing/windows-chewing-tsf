@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Kan-Ru Chen
 
 mod candidate_list;
-mod message_box;
 mod notification;
 
 pub(super) use candidate_list::{CandidateList, FilterKeyResult, Model};

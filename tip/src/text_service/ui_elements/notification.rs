@@ -10,20 +10,20 @@ use std::{
 use anyhow::{Context, Result};
 use log::error;
 use scoped_error::expect_error;
+use taffy::{
+    geometry::Rect as TaffyRect,
+    prelude::{Display, Style, length},
+    tree::NodeId,
+};
 use windows::Win32::{
     Foundation::{E_FAIL, HINSTANCE, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
-            Common::{D2D_RECT_F, D2D1_COLOR_F},
-            D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory,
+            Common::D2D1_COLOR_F, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory,
             ID2D1DeviceContext, ID2D1Factory1,
         },
         DirectComposition::IDCompositionTarget,
-        DirectWrite::{
-            DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_WEIGHT_NORMAL, DWRITE_MEASURING_MODE_NATURAL, DWRITE_TEXT_METRICS,
-            DWriteCreateFactory, IDWriteFactory1,
-        },
+        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory1},
         Dxgi::{
             Common::DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG, IDXGISwapChain1,
         },
@@ -33,9 +33,9 @@ use windows::Win32::{
         TextServices::{ITfThreadMgr, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr},
         WindowsAndMessaging::{
             CS_IME, GWLP_USERDATA, GetWindowLongPtrW, IDC_ARROW, KillTimer, LoadCursorW,
-            RegisterClassExW, SetTimer, WINDOWPOS, WM_NCDESTROY, WM_PAINT, WM_TIMER,
+            RegisterClassExW, SWP_NOMOVE, SetTimer, WINDOWPOS, WM_NCDESTROY, WM_PAINT, WM_TIMER,
             WM_WINDOWPOSCHANGING, WNDCLASSEXW, WS_CLIPCHILDREN, WS_EX_NOREDIRECTIONBITMAP,
-            WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+            WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
         },
     },
 };
@@ -52,13 +52,13 @@ use crate::{
             create_swapchain_bitmap, d3d11_device, get_dpi_for_point, get_dpi_for_window,
             setup_direct_composition,
         },
+        render::{self, FrameGeometry, Panel, TextMeasurer, TextStyle, UiTree},
         window::Window,
     },
 };
 
-use super::message_box::draw_message_box;
-
 const ID_TIMEOUT: usize = 1;
+const MARGIN: f32 = 10.0;
 
 #[implement(ITfUIElement)]
 pub(crate) struct Notification {
@@ -119,10 +119,16 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
                 let view = this.view.borrow();
                 let model = this.model.borrow();
                 let dpi = get_dpi_for_point(POINT { x: pos.x, y: pos.y });
-                if let Ok(size) = view.calculate_client_rect(&model, dpi) {
-                    pos.cx = size.hw_width as i32;
-                    pos.cy = size.hw_height as i32;
-                    (pos.x, pos.y) = clamp_point_to_monitor(pos.x, pos.y, pos.cx, pos.cy);
+                if let Ok(Some(scene)) = view.build_scene(&model) {
+                    let (x, y) = scene.frame.window_origin(pos.x, pos.y, dpi);
+                    let (cx, cy) = scene.frame.window_size(dpi);
+                    if cx > 0.0 && cy > 0.0 {
+                        pos.cx = cx as i32;
+                        pos.cy = cy as i32;
+                        if !pos.flags.contains(SWP_NOMOVE) {
+                            (pos.x, pos.y) = clamp_point_to_monitor(x, y, pos.cx, pos.cy);
+                        }
+                    }
                 }
             }
             LRESULT(0)
@@ -152,15 +158,13 @@ enum View {
     },
 }
 
-#[derive(Debug, Default)]
-struct RenderedMetrics {
-    width: f32,
-    height: f32,
-    hw_width: f32,
-    hw_height: f32,
+struct Scene {
+    tree: UiTree,
+    measurer: TextMeasurer,
+    root: NodeId,
+    frame: FrameGeometry,
 }
 
-// TODO: make this generic - complete same as CandidateList
 impl View {
     fn rendered(parent: HWND, user_data: Weak<NotificationInner>) -> Result<View, UiError> {
         expect_error("Failed to create new RenderedView", || {
@@ -169,7 +173,7 @@ impl View {
                 parent,
                 w!("ChewingNotificationWindow"),
                 WS_POPUP | WS_CLIPCHILDREN,
-                WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_TRANSPARENT,
                 user_data.into_raw().cast(),
             );
             unsafe {
@@ -204,142 +208,121 @@ impl View {
             View::Rendered { window, .. } => Some(window),
         }
     }
-    fn calculate_client_rect(
-        &self,
-        model: &NotificationModel,
-        dpi: f32,
-    ) -> Result<RenderedMetrics> {
-        match self {
-            View::Dummy => Ok(RenderedMetrics::default()),
-            View::Rendered { dwrite_factory, .. } => {
-                let scale = dpi / 96.0;
-                let text_format = unsafe {
-                    dwrite_factory.CreateTextFormat(
-                        &model.font_family,
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        model.font_size,
-                        w!("zh-TW"),
-                    )?
-                };
-                let text_layout = unsafe {
-                    dwrite_factory.CreateTextLayout(
-                        &model.text,
-                        &text_format,
-                        f32::MAX,
-                        f32::MAX,
-                    )?
-                };
-                let mut metrics = DWRITE_TEXT_METRICS::default();
-                unsafe { text_layout.GetMetrics(&mut metrics)? };
 
-                let margin = 10.0;
-                let width = metrics.width + margin * 2.0;
-                let height = metrics.height + margin * 2.0;
-
-                // Convert to HW pixels
-                let hw_width = (width * scale + 25.0).ceil();
-                let hw_height = (height * scale + 25.0).ceil();
-
-                Ok(RenderedMetrics {
-                    width,
-                    height,
-                    hw_width,
-                    hw_height,
-                })
-            }
+    fn build_scene(&self, model: &NotificationModel) -> Result<Option<Scene>> {
+        let View::Rendered { dwrite_factory, .. } = self else {
+            return Ok(None);
+        };
+        if model.text.is_empty() {
+            return Ok(None);
         }
+
+        let mut measurer = TextMeasurer::new(dwrite_factory);
+        let text_style = TextStyle::new(
+            model.font_family.to_string(),
+            model.font_size,
+            model.fg_color,
+        );
+        let panel = Panel::message_box(model.bg_color, model.border_color);
+        let bleed = panel.bleed();
+
+        let mut tree = UiTree::new();
+
+        let text = render::text_node(
+            &mut tree,
+            Style::default(),
+            model.text.to_string(),
+            text_style,
+        )?;
+
+        let boxed = render::panel_node(
+            &mut tree,
+            Style {
+                display: Display::Flex,
+                padding: TaffyRect {
+                    left: length(MARGIN),
+                    right: length(MARGIN),
+                    top: length(MARGIN),
+                    bottom: length(MARGIN),
+                },
+                ..Default::default()
+            },
+            &[text],
+            Some(panel),
+        )?;
+
+        let root = tree.new_with_children(
+            Style {
+                padding: TaffyRect {
+                    left: length(bleed),
+                    right: length(bleed),
+                    top: length(bleed),
+                    bottom: length(bleed),
+                },
+                ..Default::default()
+            },
+            &[boxed],
+        )?;
+
+        let size = render::compute_layout(&mut tree, root, &mut measurer)?;
+        let frame = FrameGeometry::new(bleed, size);
+
+        Ok(Some(Scene {
+            tree,
+            measurer,
+            root,
+            frame,
+        }))
     }
 
     fn on_paint(&self, model: &NotificationModel) -> Result<()> {
-        match self {
-            View::Dummy => Ok(()),
-            View::Rendered {
-                dwrite_factory,
-                target,
-                swapchain,
-                window,
-                ..
-            } => {
-                if model.text.is_empty() {
-                    return Ok(());
-                }
-                let text_format = unsafe {
-                    dwrite_factory.CreateTextFormat(
-                        &model.font_family,
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        model.font_size,
-                        w!("zh-TW"),
-                    )?
-                };
+        let View::Rendered {
+            target,
+            swapchain,
+            window,
+            ..
+        } = self
+        else {
+            return Ok(());
+        };
+        let Some(mut scene) = self.build_scene(model)? else {
+            return Ok(());
+        };
 
-                let dpi = get_dpi_for_window(window.hwnd());
-                let RenderedMetrics {
-                    width,
-                    height,
-                    hw_width,
-                    hw_height,
-                } = self.calculate_client_rect(model, dpi)?;
-                unsafe {
-                    target.SetTarget(None);
-                    swapchain.ResizeBuffers(
-                        0,
-                        hw_width as u32,
-                        hw_height as u32,
-                        DXGI_FORMAT_B8G8R8A8_UNORM,
-                        DXGI_SWAP_CHAIN_FLAG(0),
-                    )?;
-                    target.SetDpi(dpi, dpi);
-                }
-                create_swapchain_bitmap(&swapchain, &target)?;
+        let dpi = get_dpi_for_window(window.hwnd());
+        let (hw_width, hw_height) = scene.frame.window_size(dpi);
 
-                // Begin drawing
-                let dc = &target;
-                unsafe {
-                    dc.BeginDraw();
-
-                    draw_message_box(
-                        dc,
-                        0.0,
-                        0.0,
-                        width,
-                        height,
-                        model.bg_color,
-                        model.border_color,
-                    )?;
-
-                    let margin = 10.0;
-                    let text_rect = D2D_RECT_F {
-                        left: margin,
-                        top: margin,
-                        right: margin + width,
-                        bottom: margin + height,
-                    };
-                    let brush = dc.CreateSolidColorBrush(&model.fg_color, None)?;
-                    dc.DrawText(
-                        &model.text,
-                        &text_format,
-                        &text_rect,
-                        &brush,
-                        D2D1_DRAW_TEXT_OPTIONS_NONE,
-                        DWRITE_MEASURING_MODE_NATURAL,
-                    );
-                    dc.EndDraw(None, None)?;
-
-                    // Present the draw buffer
-                    swapchain
-                        .Present(1, DXGI_PRESENT(0))
-                        .ok()
-                        .context("unable to present buffer")?;
-                }
-                Ok(())
-            }
+        unsafe {
+            target.SetTarget(None);
+            swapchain.ResizeBuffers(
+                0,
+                hw_width as u32,
+                hw_height as u32,
+                DXGI_FORMAT_B8G8R8A8_UNORM,
+                DXGI_SWAP_CHAIN_FLAG(0),
+            )?;
+            target.SetDpi(dpi, dpi);
         }
+        create_swapchain_bitmap(swapchain, target)?;
+
+        unsafe {
+            target.BeginDraw();
+            render::paint(
+                &scene.tree,
+                scene.root,
+                target,
+                &mut scene.measurer,
+                taffy::geometry::Point { x: 0.0, y: 0.0 },
+            )?;
+            target.EndDraw(None, None)?;
+
+            swapchain
+                .Present(1, DXGI_PRESENT(0))
+                .ok()
+                .context("unable to present buffer")?;
+        }
+
+        Ok(())
     }
 }
 

@@ -3,28 +3,27 @@
 
 use std::{
     cell::{Cell, RefCell},
-    ops::Div,
     rc::{Rc, Weak},
 };
 
 use anyhow::{Context, Result};
 use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, SYM_UP};
-use log::{debug, error};
+use log::error;
 use scoped_error::expect_error;
+use taffy::{
+    geometry::{Rect as TaffyRect, Size as TaffySize},
+    prelude::{AlignItems, Display, FlexDirection, FlexWrap, Style, auto, length, zero},
+    tree::NodeId,
+};
 use windows::Win32::{
     Foundation::{E_FAIL, E_INVALIDARG, HINSTANCE, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
-            Common::{D2D_RECT_F, D2D1_COLOR_F},
-            D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory,
+            Common::D2D1_COLOR_F, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory,
             ID2D1DeviceContext, ID2D1Factory1,
         },
         DirectComposition::IDCompositionTarget,
-        DirectWrite::{
-            DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_WEIGHT_NORMAL, DWRITE_MEASURING_MODE_NATURAL, DWRITE_TEXT_METRICS,
-            DWriteCreateFactory, IDWriteFactory1,
-        },
+        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory1},
         Dxgi::{
             Common::DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG, IDXGISwapChain1,
         },
@@ -39,8 +38,9 @@ use windows::Win32::{
         },
         WindowsAndMessaging::{
             CS_IME, GWLP_USERDATA, GetWindowLongPtrW, IDC_ARROW, LoadCursorW, RegisterClassExW,
-            WINDOWPOS, WM_NCDESTROY, WM_PAINT, WM_WINDOWPOSCHANGING, WNDCLASSEXW, WS_CLIPCHILDREN,
-            WS_EX_NOREDIRECTIONBITMAP, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+            SWP_NOMOVE, WINDOWPOS, WM_NCDESTROY, WM_PAINT, WM_WINDOWPOSCHANGING, WNDCLASSEXW,
+            WS_CLIPCHILDREN, WS_EX_NOREDIRECTIONBITMAP, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+            WS_EX_TRANSPARENT, WS_POPUP,
         },
     },
 };
@@ -57,11 +57,10 @@ use crate::{
             create_swapchain_bitmap, d3d11_device, get_dpi_for_point, get_dpi_for_window,
             setup_direct_composition,
         },
+        render::{self, FrameGeometry, Panel, TextMeasurer, TextStyle, UiTree},
         window::Window,
     },
 };
-
-use super::message_box::draw_message_box;
 
 #[implement(ITfUIElement, ITfCandidateListUIElement)]
 pub(crate) struct CandidateList {
@@ -137,10 +136,16 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
                 let view = this.view.borrow();
                 let model = this.model.borrow();
                 let dpi = get_dpi_for_point(POINT { x: pos.x, y: pos.y });
-                if let Ok(size) = view.calculate_client_rect(&model, dpi) {
-                    pos.cx = size.hw_width as i32;
-                    pos.cy = size.hw_height as i32;
-                    (pos.x, pos.y) = clamp_point_to_monitor(pos.x, pos.y, pos.cx, pos.cy);
+                if let Ok(Some(scene)) = view.build_scene(&model) {
+                    let (x, y) = scene.frame.window_origin(pos.x, pos.y, dpi);
+                    let (cx, cy) = scene.frame.window_size(dpi);
+                    if cx > 0.0 && cy > 0.0 {
+                        pos.cx = cx as i32;
+                        pos.cy = cy as i32;
+                        if !pos.flags.contains(SWP_NOMOVE) {
+                            (pos.x, pos.y) = clamp_point_to_monitor(x, y, pos.cx, pos.cy);
+                        }
+                    }
                 }
             }
             LRESULT(0)
@@ -161,15 +166,17 @@ enum View {
     },
 }
 
-#[derive(Debug, Default)]
-struct RenderedMetrics {
-    width: f32,
-    height: f32,
-    hw_width: f32,
-    hw_height: f32,
-    selkey_width: f32,
-    text_width: f32,
-    item_height: f32,
+const ROW_SPACING: f32 = 4.0;
+const COL_SPACING: f32 = 8.0;
+const MARGIN: f32 = 10.0;
+const PAGE_PADDING: f32 = 5.0;
+const PAGE_MARGIN_TOP: f32 = 2.0;
+
+struct Scene {
+    tree: UiTree,
+    measurer: TextMeasurer,
+    root: NodeId,
+    frame: FrameGeometry,
 }
 
 impl View {
@@ -180,7 +187,7 @@ impl View {
                 parent,
                 w!("ChewingCandidateListWindow"),
                 WS_POPUP | WS_CLIPCHILDREN,
-                WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                WS_EX_NOREDIRECTIONBITMAP | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_TRANSPARENT,
                 user_data.into_raw().cast(),
             );
             unsafe {
@@ -206,311 +213,228 @@ impl View {
             }
         })
     }
-}
 
-const ROW_SPACING: f32 = 4.0;
-const COL_SPACING: f32 = 8.0;
-
-impl View {
     fn window(&self) -> Option<&Window> {
         match self {
             View::Dummy => None,
             View::Rendered { window, .. } => Some(window),
         }
     }
-    fn calculate_client_rect(&self, model: &Model, dpi: f32) -> Result<RenderedMetrics> {
-        match self {
-            View::Dummy => Ok(RenderedMetrics::default()),
-            View::Rendered { dwrite_factory, .. } => {
-                // Create a text format for the candidate list
-                let scale = dpi / 96.0;
-                let text_format = unsafe {
-                    dwrite_factory.CreateTextFormat(
-                        &model.font_family,
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        model.font_size,
-                        w!("zh-TW"),
-                    )?
-                };
-                let page_number_format = unsafe {
-                    dwrite_factory.CreateTextFormat(
-                        &model.font_family,
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        model.font_size.div(1.5).clamp(0.0, f32::MAX),
-                        w!("zh-TW"),
-                    )?
-                };
-                // Recalculate the size of the window
-                let margin: f32 = 10.0;
-                let mut selkey_width: f32 = 0.0;
-                let mut text_width: f32 = 0.0;
-                let mut item_height: f32 = 0.0;
-                let mut selkey = "?.".to_string().encode_utf16().collect::<Vec<_>>();
-                for (key, text) in model.selkeys.iter().zip(model.items.iter()) {
-                    let mut selkey_metrics = DWRITE_TEXT_METRICS::default();
-                    let mut item_metrics = DWRITE_TEXT_METRICS::default();
 
-                    selkey[0] = *key;
-                    unsafe {
-                        dwrite_factory
-                            .CreateTextLayout(&selkey, &text_format, f32::MAX, f32::MAX)?
-                            .GetMetrics(&mut selkey_metrics)?;
-
-                        dwrite_factory
-                            .CreateTextLayout(
-                                &HSTRING::from(text),
-                                &text_format,
-                                f32::MAX,
-                                f32::MAX,
-                            )?
-                            .GetMetrics(&mut item_metrics)?;
-                    }
-
-                    selkey_width =
-                        selkey_width.max(selkey_metrics.widthIncludingTrailingWhitespace);
-                    text_width = text_width.max(item_metrics.widthIncludingTrailingWhitespace);
-                    item_height = item_height
-                        .max(item_metrics.height)
-                        .max(selkey_metrics.height);
-                }
-                selkey_width += 1.0;
-
-                let page_number =
-                    HSTRING::from(format!("{} / {}", model.current_page, model.total_page));
-
-                // Calculate the size of the page_numer box
-                let mut metrics = DWRITE_TEXT_METRICS::default();
-                unsafe {
-                    dwrite_factory
-                        .CreateTextLayout(&page_number, &page_number_format, f32::MAX, f32::MAX)?
-                        .GetMetrics(&mut metrics)?;
-                }
-
-                let items_len = model.items.len() as f32;
-                let cand_per_row = items_len
-                    .min(model.cand_per_row as f32)
-                    .clamp(1.0, f32::MAX);
-                let rows = (items_len / cand_per_row).clamp(1.0, f32::MAX).ceil();
-                let width = cand_per_row * (selkey_width + text_width)
-                    + (cand_per_row - 1.0) * COL_SPACING
-                    + 2.0 * margin;
-                let height = rows * item_height + (rows - 1.0) * ROW_SPACING + 2.0 * margin;
-                let window_width = width.max(metrics.width + margin);
-                let window_height = height + metrics.height + margin + 2.0;
-
-                // Convert to HW pixels
-                let hw_width = (window_width * scale + 25.0).ceil();
-                let hw_height = (window_height * scale + 25.0).ceil();
-                Ok(RenderedMetrics {
-                    width,
-                    height,
-                    hw_width,
-                    hw_height,
-                    selkey_width,
-                    text_width,
-                    item_height,
-                })
-            }
+    fn build_scene(&self, model: &Model) -> Result<Option<Scene>> {
+        let View::Rendered { dwrite_factory, .. } = self else {
+            return Ok(None);
+        };
+        if model.items.is_empty() {
+            return Ok(None);
         }
+
+        let mut measurer = TextMeasurer::new(dwrite_factory);
+        let font_family = model.font_family.to_string();
+        let base = TextStyle::new(font_family.clone(), model.font_size, model.fg_color);
+        let selkey_style = TextStyle {
+            color: model.selkey_color,
+            ..base.clone()
+        };
+        let page_style = TextStyle::new(&font_family, model.font_size / 1.5, model.fg_color);
+        let panel = Panel::message_box(model.bg_color, model.border_color);
+        let bleed = panel.bleed();
+
+        // "1." style selkeys, the column padded to the widest one.
+        let selkeys: Vec<String> = (0..model.items.len())
+            .map(|i| {
+                let key = model.selkeys.get(i).copied().unwrap_or(u16::from(b'?'));
+                let key = char::from_u32(u32::from(key)).unwrap_or('?');
+                format!("{key}.")
+            })
+            .collect();
+
+        let mut selkey_width: f32 = 0.0;
+        for selkey in &selkeys {
+            selkey_width = selkey_width.max(measurer.measure_text(selkey, &selkey_style)?.0);
+        }
+        let selkey_width = selkey_width + 1.0;
+
+        let mut text_width: f32 = 0.0;
+        for item in &model.items {
+            text_width = text_width.max(measurer.measure_text(item, &base)?.0);
+        }
+
+        let item_width = selkey_width + text_width;
+        let cand_per_row = model.items.len().min(model.cand_per_row as usize).max(1) as f32;
+        let content_width =
+            cand_per_row * item_width + (cand_per_row - 1.0) * COL_SPACING + 2.0 * MARGIN;
+
+        let mut tree = UiTree::new();
+        let mut item_ids = Vec::with_capacity(model.items.len());
+
+        for (i, item) in model.items.iter().enumerate() {
+            let selected = model.use_cursor && i == model.current_sel;
+            let color = if selected {
+                model.highlight_fg_color
+            } else {
+                model.fg_color
+            };
+
+            let selkey = render::text_node(
+                &mut tree,
+                Style {
+                    size: TaffySize {
+                        width: length(selkey_width),
+                        height: auto(),
+                    },
+                    ..Default::default()
+                },
+                selkeys[i].clone(),
+                selkey_style.clone(),
+            )?;
+            let text = render::text_node(
+                &mut tree,
+                Style::default(),
+                item.clone(),
+                TextStyle {
+                    color,
+                    ..base.clone()
+                },
+            )?;
+
+            item_ids.push(render::panel_node(
+                &mut tree,
+                Style {
+                    display: Display::Flex,
+                    size: TaffySize {
+                        width: length(item_width),
+                        height: auto(),
+                    },
+                    ..Default::default()
+                },
+                &[selkey, text],
+                selected.then(|| Panel::highlight(model.highlight_bg_color)),
+            )?);
+        }
+
+        let content = render::panel_node(
+            &mut tree,
+            Style {
+                display: Display::Flex,
+                flex_wrap: FlexWrap::Wrap,
+                size: TaffySize {
+                    width: length(content_width),
+                    height: auto(),
+                },
+                gap: TaffySize {
+                    width: length(COL_SPACING),
+                    height: length(ROW_SPACING),
+                },
+                padding: TaffyRect {
+                    left: length(MARGIN),
+                    right: length(MARGIN),
+                    top: length(MARGIN),
+                    bottom: length(MARGIN),
+                },
+                ..Default::default()
+            },
+            &item_ids,
+            Some(panel.clone()),
+        )?;
+
+        let page = render::panel_text(
+            &mut tree,
+            Style {
+                padding: TaffyRect {
+                    left: length(PAGE_PADDING),
+                    right: length(PAGE_PADDING),
+                    top: length(PAGE_PADDING),
+                    bottom: length(PAGE_PADDING),
+                },
+                margin: TaffyRect {
+                    left: zero(),
+                    right: zero(),
+                    top: length(PAGE_MARGIN_TOP),
+                    bottom: zero(),
+                },
+                ..Default::default()
+            },
+            format!("{} / {}", model.current_page, model.total_page),
+            page_style,
+            Some(panel),
+        )?;
+
+        let root = tree.new_with_children(
+            Style {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::FLEX_END,
+                padding: TaffyRect {
+                    left: length(bleed),
+                    right: length(bleed),
+                    top: length(bleed),
+                    bottom: length(bleed),
+                },
+                ..Default::default()
+            },
+            &[content, page],
+        )?;
+
+        let size = render::compute_layout(&mut tree, root, &mut measurer)?;
+        let frame = FrameGeometry::new(bleed, size);
+
+        Ok(Some(Scene {
+            tree,
+            measurer,
+            root,
+            frame,
+        }))
     }
+
     fn on_paint(&self, model: &Model) -> Result<()> {
-        match self {
-            View::Dummy => Ok(()),
-            View::Rendered {
-                dwrite_factory,
-                target,
-                swapchain,
-                window,
-                ..
-            } => {
-                if model.items.is_empty() {
-                    return Ok(());
-                }
-                // Create a text format for the candidate list
-                let text_format = unsafe {
-                    dwrite_factory.CreateTextFormat(
-                        &model.font_family,
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        model.font_size,
-                        w!("zh-TW"),
-                    )?
-                };
-                let page_number_format = unsafe {
-                    dwrite_factory.CreateTextFormat(
-                        &model.font_family,
-                        None,
-                        DWRITE_FONT_WEIGHT_NORMAL,
-                        DWRITE_FONT_STYLE_NORMAL,
-                        DWRITE_FONT_STRETCH_NORMAL,
-                        model.font_size.div(1.5).clamp(0.0, f32::MAX),
-                        w!("zh-TW"),
-                    )?
-                };
+        let View::Rendered {
+            target,
+            swapchain,
+            window,
+            ..
+        } = self
+        else {
+            return Ok(());
+        };
+        let Some(mut scene) = self.build_scene(model)? else {
+            return Ok(());
+        };
 
-                let dpi = get_dpi_for_window(window.hwnd());
-                let rm = self.calculate_client_rect(model, dpi)?;
-                debug!("calculat client rect on_paint: {rm:?}");
-                let RenderedMetrics {
-                    width,
-                    height,
-                    hw_width,
-                    hw_height,
-                    selkey_width,
-                    text_width,
-                    item_height,
-                } = rm;
-                unsafe {
-                    target.SetTarget(None);
-                    swapchain.ResizeBuffers(
-                        0,
-                        hw_width as u32,
-                        hw_height as u32,
-                        DXGI_FORMAT_B8G8R8A8_UNORM,
-                        DXGI_SWAP_CHAIN_FLAG(0),
-                    )?;
-                    target.SetDpi(dpi, dpi);
-                }
-                create_swapchain_bitmap(&swapchain, &target)?;
+        let dpi = get_dpi_for_window(window.hwnd());
+        let (hw_width, hw_height) = scene.frame.window_size(dpi);
 
-                // Begin drawing
-                let dc = target;
-                unsafe {
-                    dc.BeginDraw();
-
-                    let mut col = 0;
-                    let margin = 10.0;
-                    let mut x = margin;
-                    let mut y = margin;
-
-                    let page_number =
-                        HSTRING::from(format!("{} / {}", model.current_page, model.total_page));
-
-                    // Calculate the size of the page_numer box
-                    let mut metrics = DWRITE_TEXT_METRICS::default();
-                    dwrite_factory
-                        .CreateTextLayout(&page_number, &page_number_format, f32::MAX, f32::MAX)?
-                        .GetMetrics(&mut metrics)?;
-
-                    // Draw the background of the main message box
-                    draw_message_box(
-                        dc,
-                        0.0,
-                        0.0,
-                        width,
-                        height,
-                        model.bg_color,
-                        model.border_color,
-                    )?;
-                    // Draw the background of the page_number box
-                    draw_message_box(
-                        dc,
-                        width - metrics.width - margin,
-                        height + 2.0,
-                        metrics.width + margin,
-                        metrics.height + margin,
-                        model.bg_color,
-                        model.border_color,
-                    )?;
-
-                    let selkey_brush = dc.CreateSolidColorBrush(&model.selkey_color, None)?;
-                    let text_brush = dc.CreateSolidColorBrush(&model.fg_color, None)?;
-                    let highlight_brush =
-                        dc.CreateSolidColorBrush(&model.highlight_bg_color, None)?;
-                    let selected_text_brush =
-                        dc.CreateSolidColorBrush(&model.highlight_fg_color, None)?;
-
-                    dc.DrawText(
-                        &page_number,
-                        &page_number_format,
-                        &D2D_RECT_F {
-                            left: width - metrics.width - margin / 2.0,
-                            top: height + 2.0 + margin / 2.0,
-                            right: f32::MAX,
-                            bottom: f32::MAX,
-                        },
-                        &text_brush,
-                        D2D1_DRAW_TEXT_OPTIONS_NONE,
-                        DWRITE_MEASURING_MODE_NATURAL,
-                    );
-
-                    for i in 0..model.items.len() {
-                        let mut text_rect = D2D_RECT_F {
-                            left: x,
-                            top: y,
-                            right: x + selkey_width + text_width,
-                            bottom: y + item_height,
-                        };
-                        let mut selkey = "?.".to_string().encode_utf16().collect::<Vec<_>>();
-                        selkey[0] = model.selkeys.get(i.clamp(0, 9)).cloned().unwrap_or(0x3F);
-
-                        dc.DrawText(
-                            &selkey,
-                            &text_format,
-                            &text_rect,
-                            &selkey_brush,
-                            D2D1_DRAW_TEXT_OPTIONS_NONE,
-                            DWRITE_MEASURING_MODE_NATURAL,
-                        );
-
-                        text_rect.left += selkey_width;
-                        text_rect.right = text_rect.left + text_width;
-
-                        if let Some(item) = model.items.get(i) {
-                            let text = HSTRING::from(item);
-
-                            if model.use_cursor && i == model.current_sel {
-                                dc.FillRectangle(&text_rect, &highlight_brush);
-                                dc.DrawText(
-                                    &text,
-                                    &text_format,
-                                    &text_rect,
-                                    &selected_text_brush,
-                                    D2D1_DRAW_TEXT_OPTIONS_NONE,
-                                    DWRITE_MEASURING_MODE_NATURAL,
-                                );
-                            } else {
-                                dc.DrawText(
-                                    &text,
-                                    &text_format,
-                                    &text_rect,
-                                    &text_brush,
-                                    D2D1_DRAW_TEXT_OPTIONS_NONE,
-                                    DWRITE_MEASURING_MODE_NATURAL,
-                                );
-                            }
-                        }
-
-                        col += 1;
-                        if col >= model.cand_per_row {
-                            col = 0;
-                            x = margin;
-                            y += item_height + ROW_SPACING;
-                        } else {
-                            x += selkey_width + text_width + COL_SPACING;
-                        }
-                    }
-
-                    dc.EndDraw(None, None)?;
-
-                    // Present the draw buffer
-                    swapchain
-                        .Present(1, DXGI_PRESENT(0))
-                        .ok()
-                        .context("unable to present buffer")?;
-                }
-
-                Ok(())
-            }
+        unsafe {
+            target.SetTarget(None);
+            swapchain.ResizeBuffers(
+                0,
+                hw_width as u32,
+                hw_height as u32,
+                DXGI_FORMAT_B8G8R8A8_UNORM,
+                DXGI_SWAP_CHAIN_FLAG(0),
+            )?;
+            target.SetDpi(dpi, dpi);
         }
+        create_swapchain_bitmap(swapchain, target)?;
+
+        unsafe {
+            target.BeginDraw();
+            render::paint(
+                &scene.tree,
+                scene.root,
+                target,
+                &mut scene.measurer,
+                taffy::geometry::Point { x: 0.0, y: 0.0 },
+            )?;
+            target.EndDraw(None, None)?;
+
+            swapchain
+                .Present(1, DXGI_PRESENT(0))
+                .ok()
+                .context("unable to present buffer")?;
+        }
+
+        Ok(())
     }
 }
 
