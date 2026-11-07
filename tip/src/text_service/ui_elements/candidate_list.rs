@@ -11,8 +11,10 @@ use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, 
 use log::error;
 use scoped_error::expect_error;
 use taffy::{
+    JustifyContent, Line, Position,
     geometry::{Rect as TaffyRect, Size as TaffySize},
-    prelude::{AlignItems, Display, FlexDirection, FlexWrap, Style, auto, length, zero},
+    prelude::{AlignItems, Display, FlexDirection, Style, auto, length},
+    style_helpers::{line, repeat, span},
     tree::NodeId,
 };
 use windows::Win32::{
@@ -167,10 +169,11 @@ enum View {
 }
 
 const ROW_SPACING: f32 = 4.0;
-const COL_SPACING: f32 = 8.0;
+const COL_SPACING: f32 = 6.0;
 const MARGIN: f32 = 10.0;
-const PAGE_PADDING: f32 = 5.0;
-const PAGE_MARGIN_TOP: f32 = 2.0;
+
+const HIGHLIGHT_PAD_X: f32 = 4.0;
+const HIGHLIGHT_PAD_Y: f32 = 2.0;
 
 struct Scene {
     tree: UiTree,
@@ -230,102 +233,127 @@ impl View {
         }
 
         let mut measurer = TextMeasurer::new(dwrite_factory);
-        let font_family = model.font_family.to_string();
-        let base = TextStyle::new(font_family.clone(), model.font_size, model.fg_color);
-        let selkey_style = TextStyle {
-            color: model.selkey_color,
-            ..base.clone()
-        };
-        let page_style = TextStyle::new(&font_family, model.font_size / 1.5, model.fg_color);
+        let family = model.font_family.to_string();
+        let item_style = TextStyle::new(family.clone(), model.font_size, model.fg_color);
+        let selkey_style = TextStyle::new(family.clone(), model.font_size, model.selkey_color);
+        let page_style = TextStyle::new(family, model.font_size / 1.5, model.fg_color);
+
+        let items = model.items.len();
+        let cols = (model.cand_per_row as usize).clamp(1, items);
+
         let panel = Panel::message_box(model.bg_color, model.border_color);
         let bleed = panel.bleed();
 
-        // "1." style selkeys, the column padded to the widest one.
-        let selkeys: Vec<String> = (0..model.items.len())
-            .map(|i| {
-                let key = model.selkeys.get(i).copied().unwrap_or(u16::from(b'?'));
-                let key = char::from_u32(u32::from(key)).unwrap_or('?');
-                format!("{key}.")
-            })
-            .collect();
-
-        let mut selkey_width: f32 = 0.0;
-        for selkey in &selkeys {
-            selkey_width = selkey_width.max(measurer.measure_text(selkey, &selkey_style)?.0);
-        }
-        let selkey_width = selkey_width + 1.0;
-
-        let mut text_width: f32 = 0.0;
-        for item in &model.items {
-            text_width = text_width.max(measurer.measure_text(item, &base)?.0);
-        }
-
-        let item_width = selkey_width + text_width;
-        let cand_per_row = model.items.len().min(model.cand_per_row as usize).max(1) as f32;
-        let content_width =
-            cand_per_row * item_width + (cand_per_row - 1.0) * COL_SPACING + 2.0 * MARGIN;
-
         let mut tree = UiTree::new();
-        let mut item_ids = Vec::with_capacity(model.items.len());
+        let mut grid_children: Vec<NodeId> = Vec::with_capacity(items + 1);
 
-        for (i, item) in model.items.iter().enumerate() {
+        // highlight
+        if model.use_cursor && model.current_sel < items {
+            let (row, col) = (model.current_sel / cols, model.current_sel % cols);
+            let highlight = render::panel_node(
+                &mut tree,
+                Style {
+                    position: Position::Absolute,
+                    inset: TaffyRect {
+                        left: length(-HIGHLIGHT_PAD_X),
+                        right: length(-HIGHLIGHT_PAD_X),
+                        top: length(-HIGHLIGHT_PAD_Y),
+                        bottom: length(-HIGHLIGHT_PAD_Y),
+                    },
+                    grid_row: Line {
+                        start: line(row as i16 + 1),
+                        end: span(1),
+                    },
+                    grid_column: Line {
+                        start: line(col as i16 + 1),
+                        end: span(1),
+                    },
+                    ..Default::default()
+                },
+                &[],
+                Some(Panel::highlight(model.highlight_bg_color)),
+            )?;
+            grid_children.push(highlight);
+        }
+
+        // sel. text boxes
+        for (i, (key, text)) in model.selkeys.iter().zip(model.items.iter()).enumerate() {
             let selected = model.use_cursor && i == model.current_sel;
-            let color = if selected {
+            let fg = if selected {
                 model.highlight_fg_color
             } else {
                 model.fg_color
             };
 
-            let selkey = render::text_node(
-                &mut tree,
-                Style {
-                    size: TaffySize {
-                        width: length(selkey_width),
-                        height: auto(),
-                    },
-                    ..Default::default()
-                },
-                selkeys[i].clone(),
-                selkey_style.clone(),
-            )?;
-            let text = render::text_node(
+            let selkey = format!("{}.", char::from_u32(*key as u32).unwrap_or('?'));
+            let sel_node =
+                render::text_node(&mut tree, Style::default(), selkey, selkey_style.clone())?;
+            let cand_node = render::text_node(
                 &mut tree,
                 Style::default(),
-                item.clone(),
-                TextStyle {
-                    color,
-                    ..base.clone()
-                },
+                text.clone(),
+                TextStyle::new(item_style.font_family.clone(), item_style.font_size, fg),
             )?;
-
-            item_ids.push(render::panel_node(
-                &mut tree,
+            grid_children.push(tree.new_with_children(
                 Style {
                     display: Display::Flex,
-                    size: TaffySize {
-                        width: length(item_width),
-                        height: auto(),
-                    },
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::START,
                     ..Default::default()
                 },
-                &[selkey, text],
-                selected.then(|| Panel::highlight(model.highlight_bg_color)),
+                &[sel_node, cand_node],
             )?);
         }
 
-        let content = render::panel_node(
-            &mut tree,
+        let grid = tree.new_with_children(
             Style {
-                display: Display::Flex,
-                flex_wrap: FlexWrap::Wrap,
-                size: TaffySize {
-                    width: length(content_width),
-                    height: auto(),
-                },
+                display: Display::Grid,
+                position: Position::Relative,
+                grid_template_columns: vec![repeat(cols as u16, vec![auto()])],
+                grid_auto_rows: vec![auto()],
                 gap: TaffySize {
                     width: length(COL_SPACING),
                     height: length(ROW_SPACING),
                 },
+                justify_items: AlignItems::START,
+                align_items: AlignItems::START,
+                ..Default::default()
+            },
+            &grid_children,
+        )?;
+
+        let badge = render::text_node(
+            &mut tree,
+            Style::default(),
+            format!("{} / {}", model.current_page, model.total_page),
+            page_style,
+        )?;
+        let page_row = tree.new_with_children(
+            Style {
+                display: Display::Flex,
+                justify_content: JustifyContent::END,
+                ..Default::default()
+            },
+            &[badge],
+        )?;
+
+        let content = tree.new_with_children(
+            Style {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                gap: TaffySize {
+                    width: length(0.0),
+                    height: length(ROW_SPACING),
+                },
+                ..Default::default()
+            },
+            &[grid, page_row],
+        )?;
+
+        let boxed = render::panel_node(
+            &mut tree,
+            Style {
+                display: Display::Flex,
                 padding: TaffyRect {
                     left: length(MARGIN),
                     right: length(MARGIN),
@@ -334,37 +362,12 @@ impl View {
                 },
                 ..Default::default()
             },
-            &item_ids,
-            Some(panel.clone()),
-        )?;
-
-        let page = render::panel_text(
-            &mut tree,
-            Style {
-                padding: TaffyRect {
-                    left: length(PAGE_PADDING),
-                    right: length(PAGE_PADDING),
-                    top: length(PAGE_PADDING),
-                    bottom: length(PAGE_PADDING),
-                },
-                margin: TaffyRect {
-                    left: zero(),
-                    right: zero(),
-                    top: length(PAGE_MARGIN_TOP),
-                    bottom: zero(),
-                },
-                ..Default::default()
-            },
-            format!("{} / {}", model.current_page, model.total_page),
-            page_style,
+            &[content],
             Some(panel),
         )?;
 
         let root = tree.new_with_children(
             Style {
-                display: Display::Flex,
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::FLEX_END,
                 padding: TaffyRect {
                     left: length(bleed),
                     right: length(bleed),
@@ -373,17 +376,18 @@ impl View {
                 },
                 ..Default::default()
             },
-            &[content, page],
+            &[boxed],
         )?;
 
         let size = render::compute_layout(&mut tree, root, &mut measurer)?;
-        let frame = FrameGeometry::new(bleed, size);
+
+        taffy::print_tree(&tree, root);
 
         Ok(Some(Scene {
             tree,
             measurer,
             root,
-            frame,
+            frame: FrameGeometry::new(bleed, size),
         }))
     }
 
