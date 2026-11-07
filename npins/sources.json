@@ -39,9 +39,9 @@
       },
       "branch": "nixos-26.05",
       "submodules": false,
-      "revision": "da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36",
-      "url": "https://github.com/nixos/nixpkgs/archive/da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36.tar.gz",
-      "hash": "sha256-MlvRfa1O5Cqc2/a+gG+l9TSuowEoCKCmrJ1d9oAVm0I="
+      "revision": "c56a87d8e41ce69bd2af57eb35dcc117a9dfca33",
+      "url": "https://github.com/nixos/nixpkgs/archive/c56a87d8e41ce69bd2af57eb35dcc117a9dfca33.tar.gz",
+      "hash": "sha256-/cpdPHaySDIyCgZI6EWngiM6jK3YLUNzv1b7lTzy6Bk="
     },
     "rust-overlay": {
       "type": "Git",
@@ -52,9 +52,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "b0829a2cc9f7b596583331d78a942c1e5170d8a0",
-      "url": "https://github.com/oxalica/rust-overlay/archive/b0829a2cc9f7b596583331d78a942c1e5170d8a0.tar.gz",
-      "hash": "sha256-M2rr/yPbTHvgAzCyZ+zHJHflFM0XU7t42Sw2skA3TQM="
+      "revision": "d3fe74269f2a6652437e21e78eb7e83be81f6982",
+      "url": "https://github.com/oxalica/rust-overlay/archive/d3fe74269f2a6652437e21e78eb7e83be81f6982.tar.gz",
+      "hash": "sha256-7eEiezSku3lbZPUOXW8we1a7+xd5axkCQdyI3rzOKjo="
     },
     "windows-chewing-editor": {
       "type": "Git",
@@ -66,9 +66,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "73b988bead736ae037d85328bf258bd73c32b76d",
-      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/73b988bead736ae037d85328bf258bd73c32b76d.tar.gz",
-      "hash": "sha256-IkGMZ8w/IpzlV7XpyLRfNU8hdjbgTha6/j1y6yhA05A="
+      "revision": "0a0353c3f572dc0377458179a2fbb3daeb55f170",
+      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/0a0353c3f572dc0377458179a2fbb3daeb55f170.tar.gz",
+      "hash": "sha256-YjRxotlBuMfD+2eQq5W9B6ZFWUuEXTbKvjKdEWZqWWg="
     },
     "windows-chewing-preferences": {
       "type": "Git",
@@ -80,9 +80,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "f9f3f02ad1a3cd0525c9f0c09a5a5f7d50be9352",
-      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/f9f3f02ad1a3cd0525c9f0c09a5a5f7d50be9352.tar.gz",
-      "hash": "sha256-lhTTIf3qWLgHrhn1NmYyf+r8AwFAek6UynTDqq6Am8w="
+      "revision": "4e0dcae4578fbb712cf0526920606d36089e711b",
+      "url": "https://codeberg.org/chewing/windows-chewing-preferences/archive/4e0dcae4578fbb712cf0526920606d36089e711b.tar.gz",
+      "hash": "sha256-4XFnvLcy9CgoYERjKvzrIxymCcigodVIjUD41y6EsVw="
     }
   },
   "version": 7
