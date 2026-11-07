@@ -9,11 +9,11 @@ members = [
 ]
 
 [workspace.package]
-version = "26.9.0"
+version = "26.11.0"
 
 [workspace.dependencies]
 anyhow = "1"
-chewing = "0.14.0-alpha.4"
+chewing = "0.14.0-rc.1"
 embed-resource = "3.0.1"
 interprocess = "2.4.1"
 log = "0.4.29"
@@ -27,5 +27,5 @@ lto = true
 panic = "abort"
 
 [patch."crates-io"]
-chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
+# chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
 # chewing = { path = "../libchewing/" }
