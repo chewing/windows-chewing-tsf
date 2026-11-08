@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 26.11.724 - 2026-11-08
 
 ### 🚀 Features
 
@@ -10,7 +10,16 @@ All notable changes to this project will be documented in this file.
 - tip: support using space key to quickly select first 5 most frequently used words
 - tip: simple conversion mode (ㄅ/半) support auto commit on any key
 - tip: initial support for word abbrev expansion (短打詞彙)
+- tip: use Enter key to directly output bopomofo.
 - tip: add default false option chewing.auto_wrap_cursor
+- prefs: new option to reset configs to default
+
+### 🐛 Bug Fixes
+
+- tip: fixed a crash when calculating oversized candidate window.
+- tip: CapsLock now also affects the letter case when in Chinese mode.
+- tip: fix sometimes candidate window still shows after selection.
+- tip: symbol selector now outputs multi-characters strings in symbols.dat if it is the only choice. (windows-chewing-tsf#812)
 
 ### 🚜 Refactor
 
@@ -23,13 +32,7 @@ All notable changes to this project will be documented in this file.
   for better conversion accuracy.
 - tip: revert the change to use separate process (chewing_tip_host.exe)
   for UI rendering due to various UI layering priviledge issues.
-
-### 🐛 Bug Fixes
-
-- tip: fixed a crash when calculating oversized candidate window.
-- tip: CapsLock now also affects the letter case when in Chinese mode.
-- tip: fix sometimes candidate window still shows after selection.
-- tip: symbol selector now outputs multi-characters strings in symbols.dat if it is the only choice. (windows-chewing-tsf#812)
+- ci: use nix to build all artifacts directly from Linux VM.
 
 
 ## 26.7.2.0 - 2026-07-20
