@@ -66,9 +66,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "0a0353c3f572dc0377458179a2fbb3daeb55f170",
-      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/0a0353c3f572dc0377458179a2fbb3daeb55f170.tar.gz",
-      "hash": "sha256-YjRxotlBuMfD+2eQq5W9B6ZFWUuEXTbKvjKdEWZqWWg="
+      "revision": "8e4de422b2d15814b41147fff22e1fabc6160f79",
+      "url": "https://codeberg.org/chewing/windows-chewing-editor/archive/8e4de422b2d15814b41147fff22e1fabc6160f79.tar.gz",
+      "hash": "sha256-u7dRnIuyE0/pI5HsQdpR263mMk/TSCZ/PTinjICbzZU="
     },
     "windows-chewing-preferences": {
       "type": "Git",
