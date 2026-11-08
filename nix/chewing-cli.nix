@@ -12,12 +12,12 @@ let
       targets = [ target ];
     }
   );
-  version = "v0.14.0-alpha.4";
+  version = "v0.14.0-rc.1";
   src = fetchFromCodeberg {
     owner = "chewing";
     repo = "libchewing";
     rev = version;
-    hash = "sha256-SYmPWSYS464QBruxRFBxkZ8SIZfoqSPWpQ3Hhlkurx8=";
+    hash = "sha256-d2qAo7i+uwxwwbxoSZi3j0UUWoNEWyAyKD9x3wnmF2o=";
   };
 in
 craneLib.buildPackage {
