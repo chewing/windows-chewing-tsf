@@ -11,35 +11,35 @@ use chewing::input::keysym::{Keysym, SYM_DOWN, SYM_LEFT, SYM_RETURN, SYM_RIGHT, 
 use log::error;
 use scoped_error::expect_error;
 use taffy::{
-    JustifyContent, Line, Position,
     geometry::{Rect as TaffyRect, Size as TaffySize},
-    prelude::{AlignItems, Display, FlexDirection, Style, auto, length},
+    prelude::{auto, length, AlignItems, Display, FlexDirection, Style},
     style_helpers::{line, repeat, span},
     tree::NodeId,
+    JustifyContent, Line, Position,
 };
 use windows::Win32::{
     Foundation::{E_FAIL, E_INVALIDARG, HINSTANCE, HWND, LPARAM, LRESULT, POINT, TRUE, WPARAM},
     Graphics::{
         Direct2D::{
-            Common::D2D1_COLOR_F, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1CreateFactory,
-            ID2D1DeviceContext, ID2D1Factory1,
+            Common::D2D1_COLOR_F, D2D1CreateFactory, ID2D1DeviceContext, ID2D1Factory1,
+            D2D1_FACTORY_TYPE_SINGLE_THREADED,
         },
         DirectComposition::IDCompositionTarget,
-        DirectWrite::{DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory1},
+        DirectWrite::{DWriteCreateFactory, IDWriteFactory1, DWRITE_FACTORY_TYPE_SHARED},
         Dxgi::{
-            Common::DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG, IDXGISwapChain1,
+            Common::DXGI_FORMAT_B8G8R8A8_UNORM, IDXGISwapChain1, DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG,
         },
         Gdi::{BeginPaint, EndPaint, PAINTSTRUCT},
     },
     UI::{
         TextServices::{
             ITfCandidateListUIElement, ITfCandidateListUIElement_Impl, ITfDocumentMgr,
-            ITfThreadMgr, ITfUIElement, ITfUIElement_Impl, ITfUIElementMgr, TF_CLUIE_COUNT,
+            ITfThreadMgr, ITfUIElement, ITfUIElementMgr, ITfUIElement_Impl, TF_CLUIE_COUNT,
             TF_CLUIE_CURRENTPAGE, TF_CLUIE_DOCUMENTMGR, TF_CLUIE_PAGEINDEX, TF_CLUIE_SELECTION,
             TF_CLUIE_STRING,
         },
         WindowsAndMessaging::{
-            CS_IME, GWLP_USERDATA, GetWindowLongPtrW, IDC_ARROW, LoadCursorW, RegisterClassExW,
+            GetWindowLongPtrW, LoadCursorW, RegisterClassExW, CS_IME, GWLP_USERDATA, IDC_ARROW,
             SWP_NOMOVE, WINDOWPOS, WM_NCDESTROY, WM_PAINT, WM_WINDOWPOSCHANGING, WNDCLASSEXW,
             WS_CLIPCHILDREN, WS_EX_NOREDIRECTIONBITMAP, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
             WS_EX_TRANSPARENT, WS_POPUP,
@@ -47,8 +47,8 @@ use windows::Win32::{
     },
 };
 use windows_core::{
-    BOOL, BSTR, ComObject, ComObjectInner, GUID, HSTRING, Interface, PCWSTR,
-    Result as WindowsResult, implement, w,
+    implement, w, ComObject, ComObjectInner, Interface, Result as WindowsResult, BOOL, BSTR, GUID,
+    HSTRING, PCWSTR,
 };
 
 use crate::{
@@ -380,8 +380,6 @@ impl View {
         )?;
 
         let size = render::compute_layout(&mut tree, root, &mut measurer)?;
-
-        taffy::print_tree(&tree, root);
 
         Ok(Some(Scene {
             tree,
