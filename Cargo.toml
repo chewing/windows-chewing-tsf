@@ -27,5 +27,5 @@ lto = true
 panic = "abort"
 
 [patch."crates-io"]
-# chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
+chewing = { git = "https://codeberg.org/chewing/libchewing.git" }
 # chewing = { path = "../libchewing/" }
