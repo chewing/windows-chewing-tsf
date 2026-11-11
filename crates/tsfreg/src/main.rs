@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-#![windows_subsystem = "windows"]
+// #![windows_subsystem = "windows"]
 
 use std::{
     env,
@@ -13,10 +13,7 @@ use std::{
 use windows::{
     Win32::{
         Globalization::*,
-        System::{
-            Com::*,
-            Console::{ATTACH_PARENT_PROCESS, AttachConsole},
-        },
+        System::Com::*,
         UI::{Input::KeyboardAndMouse::HKL, TextServices::*},
     },
     core::*,
@@ -172,7 +169,6 @@ fn main() -> Result<()> {
         CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
 
         let args: Vec<OsString> = env::args_os().collect();
-        let _ = AttachConsole(ATTACH_PARENT_PROCESS);
 
         if args.len() == 1 {
             println!("Usage: tsfreg [COMMAND]");
