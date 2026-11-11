@@ -4,6 +4,7 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
 windows = { version = "0.62.2", features = [
   "Win32_Globalization",
   "Win32_System_Com",

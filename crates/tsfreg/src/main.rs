@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2026 Kan-Ru Chen
 
-// #![windows_subsystem = "windows"]
-
 use std::{
-    env,
-    ffi::{OsStr, OsString},
     os::windows::ffi::OsStrExt,
-    process,
+    path::{Path, PathBuf},
 };
 
+use clap::Parser;
 use windows::{
     Win32::{
         Globalization::*,
@@ -41,13 +38,13 @@ const CATEGORIES: [GUID; 7] = [
     GUID_TFCAT_TIPCAP_COMLESS,
 ];
 
-fn register(icon_path: &OsStr) -> Result<()> {
+fn register(icon_path: &Path) -> Result<()> {
     println!("註冊新酷音輸入法");
     unsafe {
         let input_processor_profile_mgr: ITfInputProcessorProfileMgr =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
 
-        let pw_icon_path = icon_path.encode_wide().collect::<Vec<_>>();
+        let pw_icon_path = icon_path.as_os_str().encode_wide().collect::<Vec<_>>();
 
         // Register for zh_TW
         let mut lcid = LocaleNameToLCID(w!("zh-TW"), 0);
@@ -164,31 +161,37 @@ fn disable() {
     // }
 }
 
+/// TSF registration helper for the Chewing IME
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// 註冊輸入法
+    #[arg(short = 'r')]
+    icon_path: Option<PathBuf>,
+    /// 立即啟用輸入法
+    #[arg(short = 'i')]
+    enable: bool,
+    /// 立即停用輸入法
+    #[arg(short = 'd')]
+    disable: bool,
+    /// 取消註冊
+    #[arg(short = 'u')]
+    unregister: bool,
+}
+
 fn main() -> Result<()> {
     unsafe {
         CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
 
-        let args: Vec<OsString> = env::args_os().collect();
+        let args = Args::parse();
 
-        if args.len() == 1 {
-            println!("Usage: tsfreg [COMMAND]");
-            println!("");
-            println!("Commands:");
-            println!("  -r <IconPath>    註冊輸入法");
-            println!("  -i           立即啟用輸入法");
-            println!("  -d           立即停用輸入法");
-            println!("  -u                 取消註冊");
-            process::exit(1);
-        }
-
-        if args.get(1).is_some_and(|cmd| cmd == "-r") {
-            let icon_path = args.get(2).expect("缺少 IconPath");
-            register(icon_path)?;
-        } else if args.get(1).is_some_and(|cmd| cmd == "-i") {
+        if let Some(icon_path) = args.icon_path {
+            register(&icon_path)?;
+        } else if args.enable {
             enable();
-        } else if args.get(1).is_some_and(|cmd| cmd == "-d") {
+        } else if args.disable {
             disable();
-        } else if args.get(1).is_some_and(|cmd| cmd == "-u")
+        } else if args.unregister
             && let Err(err) = unregister()
         {
             println!("警告：無法解除輸入法註冊，反安裝可能無法正常完成。");
