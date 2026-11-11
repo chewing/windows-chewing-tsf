@@ -44,7 +44,7 @@ craneLib.buildPackage {
   ];
   cargoBuildExtraArgs =
     if target == "x86_64-pc-windows-gnullvm" then
-      "-p chewing_tip -p chewing_tip_host -p tsfreg"
+      "-p chewing_tip -p tsfreg"
     else
       "-p chewing_tip";
   doNotPostBuildInstallCargoBinaries = true;

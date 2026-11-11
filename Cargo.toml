@@ -2,7 +2,6 @@
 resolver = "3"
 members = [
   "crates/chewing_tip_core",
-  "crates/chewing_tip_host",
   "crates/tsfreg",
   "tip",
   "xtask"

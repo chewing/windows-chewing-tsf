@@ -151,14 +151,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chewing_tip_host"
-version = "26.11.0"
-dependencies = [
- "embed-resource",
- "embedinator",
-]
-
-[[package]]
 name = "combine"
 version = "4.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,12 +270,6 @@ dependencies = [
  "vswhom",
  "winreg",
 ]
-
-[[package]]
-name = "embedinator"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3256cbdc89c2df68120db69147af2c080d8aabb6bffbae7644eb8d8fdd4e3130"
 
 [[package]]
 name = "equivalent"
