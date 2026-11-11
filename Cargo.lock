@@ -272,6 +272,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedinator"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3256cbdc89c2df68120db69147af2c080d8aabb6bffbae7644eb8d8fdd4e3130"
+
+[[package]]
 name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1202,6 +1208,7 @@ checksum = "009dbb7700f11c55ef83aebbe4c0e9cf1f1ac0844bd8d6f00dc38f302026e13a"
 name = "tsfreg"
 version = "26.11.0"
 dependencies = [
+ "embedinator",
  "windows",
  "windows-registry",
 ]

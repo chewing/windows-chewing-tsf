@@ -12,3 +12,6 @@ windows = { version = "0.62.2", features = [
   "Win32_UI_TextServices"
 ] }
 windows-registry = "0.6.1"
+
+[build-dependencies]
+embedinator = "0.1.0"
