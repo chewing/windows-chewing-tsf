@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - installer: more changes to lower AV false-positives
+- tip: respect CapsLock in English mode
 
 
 ## 26.11.724 - 2026-11-08

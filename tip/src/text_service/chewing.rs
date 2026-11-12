@@ -564,7 +564,7 @@ impl ChewingTextService {
         } else if evt.ksym.is_unicode() {
             let mut momentary_english_mode = false;
             let mut upper_case = false;
-            if evt.is_state_on(KeyState::Shift) {
+            if evt.is_state_on(KeyState::Shift) || evt.is_state_on(KeyState::CapsLock) {
                 upper_case = true;
             }
             // If shift is pressed, but we don't want to enter full shape symbols, or easy_symbol_input is not enabled
