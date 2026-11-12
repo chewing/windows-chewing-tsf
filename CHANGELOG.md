@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### 🚀 Features
+
+- tip: initial support for rule based re-ranking
+
+### 🐛 Bug Fixes
+
+- installer: more changes to lower AV false-positives
+
+
 ## 26.11.724 - 2026-11-08
 
 ### 🚀 Features
