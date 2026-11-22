@@ -18,7 +18,6 @@
                     <File Id="dict.swkb.dat" Source="Dictionary\swkb.dat" />
                     <File Id="dict.symbols.dat" Source="Dictionary\symbols.dat" />
                     <File Id="dict.static_dict.bin" Source="Dictionary\static_dict.bin" />
-                    <File Id="dict.rare_dict.bin" Source="Dictionary\rare_dict.bin" />
                     <File Id="dict.static_words.bin" Source="Dictionary\static_words.bin" />
                     <File Id="dict.static_lm.bin" Source="Dictionary\static_lm.bin" />
                 </Directory>
