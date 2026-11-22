@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, bail};
 use chewing::editor::zhuyin_layout::{self, KeyboardLayoutCompat, SyllableEditor};
 use chewing::editor::{
-    BasicEditor, CharacterForm, ConversionEngineKind, Editor, EditorKeyBehavior, LanguageMode,
+    CharacterForm, ConversionEngineKind, Editor, EditorKeyBehavior, LanguageMode,
     UserPhraseAddDirection,
 };
 use chewing::input::keycode::Keycode;
