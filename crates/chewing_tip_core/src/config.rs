@@ -61,6 +61,7 @@ pub struct ChewingTsfConfig {
     pub easy_symbols_with_shift: bool,
     pub easy_symbols_with_shift_ctrl: bool,
     pub auto_wrap_cursor: bool,
+    pub keep_invalid_zhuyin: bool,
     pub cursor_cand_list: bool,
     pub sort_candidates_by_frequency: bool,
     pub show_cand_with_space_key: bool,
@@ -112,6 +113,7 @@ impl Default for ChewingTsfConfig {
             add_phrase_forward: true,
             phrase_choice_rearward: false,
             auto_wrap_cursor: false,
+            keep_invalid_zhuyin: false,
             easy_symbols_with_shift: true,
             easy_symbols_with_shift_ctrl: false,
             cursor_cand_list: true,
@@ -256,6 +258,9 @@ impl Config {
             }
             if let Ok(value) = reg_get_bool(&key, "AutoWrapCursor") {
                 cfg.auto_wrap_cursor = value;
+            }
+            if let Ok(value) = reg_get_bool(&key, "KeepInvalidZhuyin") {
+                cfg.keep_invalid_zhuyin = value;
             }
             if let Ok(value) = reg_get_i32(&key, "DefFontSize") {
                 cfg.font_size = value;
@@ -431,6 +436,7 @@ impl Config {
             chewing_tsf.advance_after_selection,
         );
         let _ = reg_set_bool(&key, "AutoWrapCursor", chewing_tsf.auto_wrap_cursor);
+        let _ = reg_set_bool(&key, "KeepInvalidZhuyin", chewing_tsf.keep_invalid_zhuyin);
         let _ = reg_set_i32(&key, "DefFontSize", chewing_tsf.font_size);
         let _ = key.set_string("DefFontFamily", &chewing_tsf.font_family);
         let _ = key.set_string("DefFontFgColor", &chewing_tsf.font_fg_color);
