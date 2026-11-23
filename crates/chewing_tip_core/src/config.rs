@@ -3,22 +3,23 @@
 
 use std::{fmt::Display, ptr::null_mut, str::FromStr, time::SystemTime};
 
-use chewing::path::SearchPath;
+use chewing::SearchPath;
 use log::error;
 use scoped_error::{expect_error, expect_error_fn, impl_context_error};
 use serde::{Deserialize, Serialize};
 use windows::{
+    core::{w, Param, HSTRING, PCWSTR, PWSTR},
     Win32::{
-        Foundation::{HLOCAL, LocalFree},
+        Foundation::{LocalFree, HLOCAL},
         Security::{
-            ACL, ACL_REVISION, AddMandatoryAce, AllocateAndInitializeSid,
+            AddMandatoryAce, AllocateAndInitializeSid,
             Authorization::{
-                EXPLICIT_ACCESS_W, GRANT_ACCESS, GetNamedSecurityInfoW, SE_FILE_OBJECT,
-                SE_OBJECT_TYPE, SE_REGISTRY_KEY, SetEntriesInAclW, SetNamedSecurityInfoW,
-                TRUSTEE_IS_GROUP, TRUSTEE_IS_SID, TRUSTEE_W,
+                GetNamedSecurityInfoW, SetEntriesInAclW, SetNamedSecurityInfoW, EXPLICIT_ACCESS_W,
+                GRANT_ACCESS, SE_FILE_OBJECT, SE_OBJECT_TYPE, SE_REGISTRY_KEY, TRUSTEE_IS_GROUP,
+                TRUSTEE_IS_SID, TRUSTEE_W,
             },
-            DACL_SECURITY_INFORMATION, FreeSid, InitializeAcl, LABEL_SECURITY_INFORMATION,
-            PSECURITY_DESCRIPTOR, PSID, SECURITY_APP_PACKAGE_AUTHORITY,
+            FreeSid, InitializeAcl, ACL, ACL_REVISION, DACL_SECURITY_INFORMATION,
+            LABEL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SECURITY_APP_PACKAGE_AUTHORITY,
             SECURITY_MANDATORY_LABEL_AUTHORITY, SUB_CONTAINERS_AND_OBJECTS_INHERIT,
         },
         Storage::FileSystem::{DELETE, FILE_GENERIC_READ, FILE_GENERIC_WRITE},
@@ -31,9 +32,8 @@ use windows::{
             },
         },
     },
-    core::{HSTRING, PCWSTR, PWSTR, Param, w},
 };
-use windows_registry::{CURRENT_USER, Key};
+use windows_registry::{Key, CURRENT_USER};
 
 #[derive(Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct Config {

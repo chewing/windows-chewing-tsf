@@ -5,6 +5,7 @@ use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 
+use chewing::SearchPath;
 use windows::Foundation::Uri;
 use windows::System::Launcher;
 use windows::Win32::Storage::FileSystem::{
@@ -20,7 +21,8 @@ use scoped_error::impl_context_error;
 
 pub fn user_dir() -> Result<PathBuf, ShellError> {
     expect_error("Unable to determine user dir", || {
-        let user_dir = chewing::path::data_dir().ok_or("Unsupported operating system")?;
+        let sp = SearchPath::from_env();
+        let user_dir = sp.user_datadir().ok_or("Unsupported operating system")?;
 
         // NB: chewing might be loaded into a low mandatory integrity level process (SearchHost.exe).
         // In that case, it might not be able to check if a file exists using CreateFile
@@ -44,7 +46,7 @@ pub fn user_dir() -> Result<PathBuf, ShellError> {
             };
         }
 
-        Ok(user_dir)
+        Ok(user_dir.to_path_buf())
     })
 }
 
