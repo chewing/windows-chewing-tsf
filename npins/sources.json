@@ -32,7 +32,7 @@
     },
     "nixpkgs": {
       "type": "Url",
-      "url": "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst",
+      "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1125912.93a9ed0a8660/nixexprs.tar.zst",
       "unpack": true,
       "hash": "sha256-tFvjrdir1xJuUxdmsv+yK9PiZ4IMnFCeT8z0iayTlso="
     },
