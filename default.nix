@@ -47,13 +47,6 @@ let
   wix-cli = pkgs.callPackage ./nix/wix-cli.nix { };
   data = pkgs.callPackage ./nix/libchewing-data.nix { };
 
-  # https://github.com/NixOS/nixpkgs/issues/555837
-  mono = pkgs.fetchurl rec {
-    version = "10.4.1";
-    url = "https://dl.winehq.org/wine/wine-mono/${version}/wine-mono-${version}-x86.msi";
-    hash = "sha256-Bx9LKIfhyXoR15H/PWW+lCnu1t7EwnCIiL/VRro1jiM=";
-  };
-
   staging = pkgs.stdenvNoCC.mkDerivation {
     inherit version;
     pname = "windows-chewing-tsf-staging";
@@ -128,7 +121,6 @@ let
         EOF
 
         wineboot -i
-        wine ${mono}
         wine ${wix-cli}
 
         mkdir -p $out
@@ -146,8 +138,9 @@ let
       '';
 in
 {
+  inherit (pkgs) llvmMingw;
   inherit msi staging;
   inherit (tips) x86 x64 arm64;
-  inherit prefs editor data wix-cli mono;
+  inherit prefs editor data wix-cli;
   inherit forwarder;
 }
