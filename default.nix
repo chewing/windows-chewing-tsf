@@ -47,6 +47,11 @@ let
   wix-cli = pkgs.callPackage ./nix/wix-cli.nix { };
   data = pkgs.callPackage ./nix/libchewing-data.nix { };
 
+  shell = pkgs.mkShellNoCC {
+    name = "windows-chewing-tsf-ci-shell";
+    nativeBuildInputs = [ pkgs.niks3 ];
+  };
+
   staging = pkgs.stdenvNoCC.mkDerivation {
     inherit version;
     pname = "windows-chewing-tsf-staging";
@@ -139,8 +144,13 @@ let
 in
 {
   inherit (pkgs) llvmMingw;
-  inherit msi staging;
+  inherit shell msi staging;
   inherit (tips) x86 x64 arm64;
-  inherit prefs editor data wix-cli;
+  inherit
+    prefs
+    editor
+    data
+    wix-cli
+    ;
   inherit forwarder;
 }

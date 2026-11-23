@@ -18,42 +18,46 @@ let
       ];
     }
   );
-in
-craneLib.buildPackage {
-  inherit version;
-  pname = "chewing-tip";
-  strictDeps = true;
-  CHEWING_BUILD_TYPE = if nightly then "development" else "stable";
-  RUSTFLAGS = "-Ctarget-feature=+crt-static";
-  CARGO_BUILD_TARGET = target;
-  TARGET_CC = "${llvmMingw}/bin/clang";
-  RC = "${llvmMingw}/bin/llvm-rc";
-  src = fs.toSource {
-    root = ../.;
-    fileset = fs.unions [
-      ../Cargo.lock
-      ../Cargo.toml
-      ../crates
-      ../tip
-      ../xtask
-    ];
-  };
-  cargoVendorDir = craneLib.vendorCargoDeps {
-    outputHashes = {
-      "git+https://codeberg.org/chewing/libchewing.git#1c8e262504127697cceb5b10f11c818f18734c32" =
-        "sha256-WShYIwluVn/eFl1++n/QPvNYOAMDMvx5O1lL3MiVZ8U=";
+  commonArgs = {
+    pname = "chewing-tip";
+    strictDeps = true;
+    CHEWING_BUILD_TYPE = if nightly then "development" else "stable";
+    RUSTFLAGS = "-Ctarget-feature=+crt-static";
+    CARGO_BUILD_TARGET = target;
+    TARGET_CC = "${llvmMingw}/bin/clang";
+    RC = "${llvmMingw}/bin/llvm-rc";
+    src = fs.toSource {
+      root = ../.;
+      fileset = fs.unions [
+        ../Cargo.lock
+        ../Cargo.toml
+        ../crates
+        ../tip
+        ../xtask
+      ];
     };
-    cargoLock = ../Cargo.lock;
+    cargoVendorDir = craneLib.vendorCargoDeps {
+      outputHashes = {
+        "git+https://codeberg.org/chewing/libchewing.git#1c8e262504127697cceb5b10f11c818f18734c32" =
+          "sha256-WShYIwluVn/eFl1++n/QPvNYOAMDMvx5O1lL3MiVZ8U=";
+      };
+      cargoLock = ../Cargo.lock;
+    };
+    nativeBuildInputs = [
+      llvmMingw
+    ];
+    cargoBuildExtraArgs =
+      if target == "x86_64-pc-windows-gnullvm" then "-p chewing_tip -p tsfreg" else "-p chewing_tip";
+    doNotPostBuildInstallCargoBinaries = true;
+    doCheck = false;
+    installPhaseCommand = ''
+      mkdir $out
+      cp target/${target}/release/{*.dll,*.exe} $out/
+    '';
   };
-  nativeBuildInputs = [
-    llvmMingw
-  ];
-  cargoBuildExtraArgs =
-    if target == "x86_64-pc-windows-gnullvm" then "-p chewing_tip -p tsfreg" else "-p chewing_tip";
-  doNotPostBuildInstallCargoBinaries = true;
-  doCheck = false;
-  installPhaseCommand = ''
-    mkdir $out
-    cp target/${target}/release/{*.dll,*.exe} $out/
-  '';
+  cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+in
+craneLib.buildPackage commonArgs // {
+  inherit cargoArtifacts;
+  inherit version;
 }
