@@ -148,7 +148,7 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 [[package]]
 name = "chewing"
 version = "0.14.0-rc.2"
-source = "git+https://codeberg.org/chewing/libchewing.git#1bfcde9078f13b4d97aaa4b6a01cbd67687522e3"
+source = "git+https://codeberg.org/chewing/libchewing.git#29357f8064f9eeab7a8fc41cd5d72ac0b4571253"
 dependencies = [
  "bstr",
  "der",
